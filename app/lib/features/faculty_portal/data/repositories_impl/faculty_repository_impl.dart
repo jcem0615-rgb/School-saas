@@ -1,0 +1,76 @@
+import '../../../../core/errors/failures.dart';
+import '../../../../core/errors/result.dart';
+import '../../domain/entities/coursework_item.dart';
+import '../../domain/entities/grade.dart';
+import '../../domain/repositories/faculty_repository.dart';
+import '../datasources/faculty_remote_datasource.dart';
+
+class FacultyRepositoryImpl implements FacultyRepository {
+  final FacultyRemoteDataSource _remote;
+  const FacultyRepositoryImpl(this._remote);
+
+  @override
+  Stream<List<CourseworkItem>> watchMyCourseworkItems() => _remote.watchMyCourseworkItems();
+
+  @override
+  Future<Result<void>> createCourseworkItem({
+    required CourseworkType type,
+    required String title,
+    required String description,
+    required String subject,
+    required String section,
+    DateTime? dueDate,
+    double? totalPoints,
+    required bool published,
+  }) async {
+    try {
+      await _remote.createCourseworkItem(
+        type: type.value,
+        title: title,
+        description: description,
+        subject: subject,
+        section: section,
+        dueDate: dueDate,
+        totalPoints: totalPoints,
+        published: published,
+      );
+      return const Success(null);
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Stream<List<Grade>> watchGradesFor({required String subject, required String section}) =>
+      _remote.watchGradesFor(subject: subject, section: section);
+
+  @override
+  Future<Result<void>> submitGrade({
+    required String studentId,
+    required String studentName,
+    required String subject,
+    required String section,
+    required String term,
+    required double score,
+    required double maxScore,
+    String? courseworkItemId,
+    String? remarks,
+  }) async {
+    try {
+      await _remote.submitGrade(
+        studentId: studentId,
+        studentName: studentName,
+        subject: subject,
+        section: section,
+        term: term,
+        score: score,
+        maxScore: maxScore,
+        courseworkItemId: courseworkItemId,
+        remarks: remarks,
+      );
+      return const Success(null);
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+}

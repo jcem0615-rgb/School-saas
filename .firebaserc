@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "dev": "school-saas-dev",
+    "staging": "school-saas-staging",
+    "prod": "school-saas-prod"
+  }
+}

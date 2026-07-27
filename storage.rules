@@ -1,0 +1,39 @@
+rules_version = '2';
+
+// Mirrors the tenant-isolation approach in firestore.rules: every object
+// lives under schools/{schoolId}/**, and access requires the caller's own
+// custom claim to match that schoolId. The Documents module (not yet
+// built -- see docs/ for what's deferred) will add per-document-type
+// rules on top of this (e.g. only Registrar can write TOR/Form 137 PDFs,
+// only the owning user can write their own profile photo). Until then,
+// this is a safe, tenant-scoped default rather than leaving Storage
+// unconfigured or wide open.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function belongsToSchool(schoolId) {
+      return isSignedIn() && request.auth.token.schoolId == schoolId;
+    }
+
+    match /schools/{schoolId}/{allPaths=**} {
+      allow read: if belongsToSchool(schoolId);
+      // 10MB cap, images/PDFs only -- generous enough for profile photos
+      // and generated documents, without leaving arbitrary file uploads open.
+      allow write: if belongsToSchool(schoolId)
+                     && request.resource.size < 10 * 1024 * 1024
+                     && request.resource.contentType.matches('image/.*|application/pdf');
+    }
+
+    // Platform-level (Owner) storage, e.g. school logos on platform_schools.
+    match /platform/{allPaths=**} {
+      allow read, write: if false; // no platform-level Storage usage yet
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
