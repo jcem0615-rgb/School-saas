@@ -83,25 +83,43 @@ final expensesStreamProvider = StreamProvider.autoDispose<List<Expense>>((ref) {
 /// one dialog/form is open at a time -- and it keeps the DI wiring small.
 class DirectorActionController extends StateNotifier<AsyncValue<void>> {
   final CreateAnnouncementUseCase _createAnnouncement;
+  final UpdateAnnouncementUseCase _updateAnnouncement;
+  final DeleteAnnouncementUseCase _deleteAnnouncement;
   final CreateMeetingUseCase _createMeeting;
+  final UpdateMeetingUseCase _updateMeeting;
   final CancelMeetingUseCase _cancelMeeting;
+  final DeleteMeetingUseCase _deleteMeeting;
   final CreateApprovalRequestUseCase _createApprovalRequest;
   final DecideApprovalUseCase _decideApproval;
   final CreateExpenseUseCase _createExpense;
+  final UpdateExpenseUseCase _updateExpense;
+  final DeleteExpenseUseCase _deleteExpense;
 
   DirectorActionController({
     required CreateAnnouncementUseCase createAnnouncement,
+    required UpdateAnnouncementUseCase updateAnnouncement,
+    required DeleteAnnouncementUseCase deleteAnnouncement,
     required CreateMeetingUseCase createMeeting,
+    required UpdateMeetingUseCase updateMeeting,
     required CancelMeetingUseCase cancelMeeting,
+    required DeleteMeetingUseCase deleteMeeting,
     required CreateApprovalRequestUseCase createApprovalRequest,
     required DecideApprovalUseCase decideApproval,
     required CreateExpenseUseCase createExpense,
+    required UpdateExpenseUseCase updateExpense,
+    required DeleteExpenseUseCase deleteExpense,
   })  : _createAnnouncement = createAnnouncement,
+        _updateAnnouncement = updateAnnouncement,
+        _deleteAnnouncement = deleteAnnouncement,
         _createMeeting = createMeeting,
+        _updateMeeting = updateMeeting,
         _cancelMeeting = cancelMeeting,
+        _deleteMeeting = deleteMeeting,
         _createApprovalRequest = createApprovalRequest,
         _decideApproval = decideApproval,
         _createExpense = createExpense,
+        _updateExpense = updateExpense,
+        _deleteExpense = deleteExpense,
         super(const AsyncData(null));
 
   Future<bool> createAnnouncement({
@@ -110,6 +128,23 @@ class DirectorActionController extends StateNotifier<AsyncValue<void>> {
     required AnnouncementAudience audience,
     bool pinned = false,
   }) => _run(() => _createAnnouncement(title: title, body: body, audience: audience, pinned: pinned));
+
+  Future<bool> updateAnnouncement({
+    required String announcementId,
+    required String title,
+    required String body,
+    required AnnouncementAudience audience,
+    bool pinned = false,
+  }) => _run(() => _updateAnnouncement(
+        announcementId: announcementId,
+        title: title,
+        body: body,
+        audience: audience,
+        pinned: pinned,
+      ));
+
+  Future<bool> deleteAnnouncement(String announcementId) =>
+      _run(() => _deleteAnnouncement(announcementId));
 
   Future<bool> createMeeting({
     required String title,
@@ -127,7 +162,27 @@ class DirectorActionController extends StateNotifier<AsyncValue<void>> {
         attendeeRoles: attendeeRoles,
       ));
 
+  Future<bool> updateMeeting({
+    required String meetingId,
+    required String title,
+    String? description,
+    required DateTime startTime,
+    required DateTime endTime,
+    String? location,
+    required List<String> attendeeRoles,
+  }) => _run(() => _updateMeeting(
+        meetingId: meetingId,
+        title: title,
+        description: description,
+        startTime: startTime,
+        endTime: endTime,
+        location: location,
+        attendeeRoles: attendeeRoles,
+      ));
+
   Future<bool> cancelMeeting(String meetingId) => _run(() => _cancelMeeting(meetingId));
+
+  Future<bool> deleteMeeting(String meetingId) => _run(() => _deleteMeeting(meetingId));
 
   Future<bool> createApprovalRequest({
     required String type,
@@ -152,6 +207,24 @@ class DirectorActionController extends StateNotifier<AsyncValue<void>> {
         date: date,
         receiptUrl: receiptUrl,
       ));
+
+  Future<bool> updateExpense({
+    required String expenseId,
+    required String category,
+    required String description,
+    required double amount,
+    required DateTime date,
+    String? receiptUrl,
+  }) => _run(() => _updateExpense(
+        expenseId: expenseId,
+        category: category,
+        description: description,
+        amount: amount,
+        date: date,
+        receiptUrl: receiptUrl,
+      ));
+
+  Future<bool> deleteExpense(String expenseId) => _run(() => _deleteExpense(expenseId));
 
   Future<bool> _run(Future<dynamic> Function() action) async {
     state = const AsyncLoading();
@@ -179,10 +252,16 @@ final directorActionControllerProvider =
   final repo = ref.watch(directorRepositoryProvider);
   return DirectorActionController(
     createAnnouncement: CreateAnnouncementUseCase(repo),
+    updateAnnouncement: UpdateAnnouncementUseCase(repo),
+    deleteAnnouncement: DeleteAnnouncementUseCase(repo),
     createMeeting: CreateMeetingUseCase(repo),
+    updateMeeting: UpdateMeetingUseCase(repo),
     cancelMeeting: CancelMeetingUseCase(repo),
+    deleteMeeting: DeleteMeetingUseCase(repo),
     createApprovalRequest: CreateApprovalRequestUseCase(repo),
     decideApproval: DecideApprovalUseCase(repo),
     createExpense: CreateExpenseUseCase(repo),
+    updateExpense: UpdateExpenseUseCase(repo),
+    deleteExpense: DeleteExpenseUseCase(repo),
   );
 });

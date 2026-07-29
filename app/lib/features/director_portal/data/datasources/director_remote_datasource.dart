@@ -44,6 +44,26 @@ class DirectorRemoteDataSource {
         'isDeleted': false,
       };
 
+  /// Stamped on every edit. Deliberately does NOT touch createdBy --
+  /// firestore.rules rejects any update that changes it, so an edit can
+  /// never re-attribute authorship.
+  Map<String, dynamic> _editFields() => {
+        'updatedBy': _actingUser.uid,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+  /// Deletion is a flag flip, never a document removal: every collection
+  /// in firestore.rules sets `allow delete: if false`, so the only legal
+  /// delete path is an update. Reads already filter on `isDeleted`, so
+  /// flipping it is what makes a record disappear from the UI while
+  /// leaving it recoverable and leaving the audit trail intact.
+  Map<String, dynamic> _softDeleteFields() => {
+        'isDeleted': true,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'deletedBy': _actingUser.uid,
+        ..._editFields(),
+      };
+
   // ---- Announcements ----
 
   Stream<List<AnnouncementModel>> watchAnnouncements() {
@@ -74,6 +94,33 @@ class DirectorRemoteDataSource {
       'createdByName': _actingUser.name,
       ..._baseFields(),
     });
+  }
+
+  Future<void> updateAnnouncement({
+    required String announcementId,
+    required String title,
+    required String body,
+    required bool audienceAll,
+    required List<String> audienceRoles,
+    required bool pinned,
+  }) async {
+    await _firestore
+        .collection(FirestorePaths.announcements(_actingUser.schoolId))
+        .doc(announcementId)
+        .update({
+      'title': title,
+      'body': body,
+      'audience': {'all': audienceAll, 'roles': audienceRoles},
+      'pinned': pinned,
+      ..._editFields(),
+    });
+  }
+
+  Future<void> softDeleteAnnouncement(String announcementId) async {
+    await _firestore
+        .collection(FirestorePaths.announcements(_actingUser.schoolId))
+        .doc(announcementId)
+        .update(_softDeleteFields());
   }
 
   // ---- Meetings ----
@@ -109,6 +156,39 @@ class DirectorRemoteDataSource {
       'createdByName': _actingUser.name,
       ..._baseFields(),
     });
+  }
+
+  Future<void> updateMeeting({
+    required String meetingId,
+    required String title,
+    String? description,
+    required DateTime startTime,
+    required DateTime endTime,
+    String? location,
+    required List<String> attendeeRoles,
+  }) async {
+    await _firestore
+        .collection(FirestorePaths.meetings(_actingUser.schoolId))
+        .doc(meetingId)
+        .update({
+      'title': title,
+      'description': description,
+      'startTime': Timestamp.fromDate(startTime),
+      'endTime': Timestamp.fromDate(endTime),
+      'location': location,
+      'attendeeRoles': attendeeRoles,
+      ..._editFields(),
+    });
+  }
+
+  /// Distinct from [cancelMeeting]: cancelling keeps the meeting visible
+  /// with a cancelled badge so attendees see it was called off, whereas
+  /// deleting removes it from the list entirely. Both are updates.
+  Future<void> softDeleteMeeting(String meetingId) async {
+    await _firestore
+        .collection(FirestorePaths.meetings(_actingUser.schoolId))
+        .doc(meetingId)
+        .update(_softDeleteFields());
   }
 
   Future<void> cancelMeeting(String meetingId) async {
@@ -219,6 +299,34 @@ class DirectorRemoteDataSource {
       'recordedByName': _actingUser.name,
       ..._baseFields(),
     });
+  }
+
+  Future<void> updateExpense({
+    required String expenseId,
+    required String category,
+    required String description,
+    required double amount,
+    required DateTime date,
+    String? receiptUrl,
+  }) async {
+    await _firestore
+        .collection(FirestorePaths.expenses(_actingUser.schoolId))
+        .doc(expenseId)
+        .update({
+      'category': category,
+      'description': description,
+      'amount': amount,
+      'date': Timestamp.fromDate(date),
+      'receiptUrl': receiptUrl,
+      ..._editFields(),
+    });
+  }
+
+  Future<void> softDeleteExpense(String expenseId) async {
+    await _firestore
+        .collection(FirestorePaths.expenses(_actingUser.schoolId))
+        .doc(expenseId)
+        .update(_softDeleteFields());
   }
 
   // ---- Dashboard aggregates ----

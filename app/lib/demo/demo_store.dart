@@ -107,6 +107,32 @@ class DemoStore {
     subject.add([item, ...subject.value]);
   }
 
+  /// Records that have been soft-deleted, newest first.
+  ///
+  /// The real datasources never remove a document -- they set `isDeleted`
+  /// and every read filters on it (`allow delete: if false` in
+  /// firestore.rules leaves no other option). The demo store reproduces
+  /// the part that is observable from the UI -- the record leaves the
+  /// live list -- while keeping it here rather than dropping it, so the
+  /// "recoverable, audit trail intact" property of a soft delete is not
+  /// quietly lost in demo mode.
+  final softDeleted = <({DateTime deletedAt, String deletedBy, Object record})>[];
+
+  /// Moves every element matching [where] out of the live list. Mirrors
+  /// flipping `isDeleted` server-side, since reads filter on that flag.
+  void softDelete<T>(BehaviorSubject<List<T>> subject, bool Function(T) where) {
+    final removed = subject.value.where(where).toList();
+    if (removed.isEmpty) return;
+    subject.add(subject.value.where((e) => !where(e)).toList());
+    final by = currentUser.valueOrNull?.uid ?? 'unknown';
+    for (final record in removed) {
+      softDeleted.insert(
+        0,
+        (deletedAt: DateTime.now(), deletedBy: by, record: record as Object),
+      );
+    }
+  }
+
   /// Replaces the first element matching [where] with [update] applied.
   void update<T>(
     BehaviorSubject<List<T>> subject,

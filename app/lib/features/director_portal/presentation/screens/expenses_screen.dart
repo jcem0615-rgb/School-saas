@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/confirm_delete_dialog.dart';
+import '../../domain/entities/expense.dart';
 import '../controllers/director_controller.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
@@ -27,7 +29,7 @@ class ExpensesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Expenses')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateDialog(context, ref),
+        onPressed: () => _showEditor(context, ref),
         icon: const Icon(Icons.add),
         label: const Text('Record'),
       ),
@@ -67,7 +69,17 @@ class ExpensesScreen extends ConsumerWidget {
                       child: ListTile(
                         title: Text(e.description),
                         subtitle: Text('${e.category} · ${_dateFormat.format(e.date)} · ${e.recordedByName}'),
-                        trailing: Text(_currencyFormat.format(e.amount), style: Theme.of(context).textTheme.titleSmall),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_currencyFormat.format(e.amount),
+                                style: Theme.of(context).textTheme.titleSmall),
+                            RowActionsMenu(
+                              onEdit: () => _showEditor(context, ref, existing: e),
+                              onDelete: () => _confirmDelete(context, ref, e),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -80,17 +92,29 @@ class ExpensesScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showCreateDialog(BuildContext context, WidgetRef ref) async {
-    final descriptionController = TextEditingController();
-    final amountController = TextEditingController();
-    String category = _categories.first;
-    DateTime date = DateTime.now();
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Expense e) async {
+    final ok = await confirmDelete(context, itemLabel: 'expense', detail: e.description);
+    if (!ok) return;
+    await ref.read(directorActionControllerProvider.notifier).deleteExpense(e.id);
+  }
+
+  Future<void> _showEditor(BuildContext context, WidgetRef ref, {Expense? existing}) async {
+    final isEdit = existing != null;
+    final descriptionController = TextEditingController(text: existing?.description ?? '');
+    final amountController =
+        TextEditingController(text: existing != null ? existing.amount.toString() : '');
+    // An edited expense may carry a category the current catalogue no
+    // longer lists; keep it rather than silently reassigning the row.
+    String category = existing != null && _categories.contains(existing.category)
+        ? existing.category
+        : _categories.first;
+    DateTime date = existing?.date ?? DateTime.now();
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: const Text('Record Expense'),
+          title: Text(isEdit ? 'Edit Expense' : 'Record Expense'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -135,15 +159,24 @@ class ExpensesScreen extends ConsumerWidget {
             FilledButton(
               onPressed: () async {
                 final amount = double.tryParse(amountController.text) ?? -1;
-                final success = await ref.read(directorActionControllerProvider.notifier).createExpense(
-                      category: category,
-                      description: descriptionController.text,
-                      amount: amount,
-                      date: date,
-                    );
+                final notifier = ref.read(directorActionControllerProvider.notifier);
+                final success = isEdit
+                    ? await notifier.updateExpense(
+                        expenseId: existing.id,
+                        category: category,
+                        description: descriptionController.text,
+                        amount: amount,
+                        date: date,
+                      )
+                    : await notifier.createExpense(
+                        category: category,
+                        description: descriptionController.text,
+                        amount: amount,
+                        date: date,
+                      );
                 if (success && dialogContext.mounted) Navigator.of(dialogContext).pop();
               },
-              child: const Text('Save'),
+              child: Text(isEdit ? 'Save Changes' : 'Save'),
             ),
           ],
         ),

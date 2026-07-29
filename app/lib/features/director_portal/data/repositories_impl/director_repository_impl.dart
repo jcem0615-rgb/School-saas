@@ -54,6 +54,28 @@ class DirectorRepositoryImpl implements DirectorRepository {
   }
 
   @override
+  Future<Result<void>> updateAnnouncement({
+    required String announcementId,
+    required String title,
+    required String body,
+    required AnnouncementAudience audience,
+    required bool pinned,
+  }) {
+    return _guard(() => _remote.updateAnnouncement(
+          announcementId: announcementId,
+          title: title,
+          body: body,
+          audienceAll: audience.all,
+          audienceRoles: audience.roles,
+          pinned: pinned,
+        ));
+  }
+
+  @override
+  Future<Result<void>> deleteAnnouncement(String announcementId) =>
+      _guard(() => _remote.softDeleteAnnouncement(announcementId));
+
+  @override
   Stream<List<Meeting>> watchMeetings() => _remote.watchMeetings();
 
   @override
@@ -76,9 +98,34 @@ class DirectorRepositoryImpl implements DirectorRepository {
   }
 
   @override
+  Future<Result<void>> updateMeeting({
+    required String meetingId,
+    required String title,
+    String? description,
+    required DateTime startTime,
+    required DateTime endTime,
+    String? location,
+    required List<String> attendeeRoles,
+  }) {
+    return _guard(() => _remote.updateMeeting(
+          meetingId: meetingId,
+          title: title,
+          description: description,
+          startTime: startTime,
+          endTime: endTime,
+          location: location,
+          attendeeRoles: attendeeRoles,
+        ));
+  }
+
+  @override
   Future<Result<void>> cancelMeeting(String meetingId) {
     return _guard(() => _remote.cancelMeeting(meetingId));
   }
+
+  @override
+  Future<Result<void>> deleteMeeting(String meetingId) =>
+      _guard(() => _remote.softDeleteMeeting(meetingId));
 
   @override
   Stream<List<ApprovalRequest>> watchApprovals({ApprovalStatus? statusFilter, String? requestedByUid}) {
@@ -128,4 +175,27 @@ class DirectorRepositoryImpl implements DirectorRepository {
           receiptUrl: receiptUrl,
         ));
   }
+
+  @override
+  Future<Result<void>> updateExpense({
+    required String expenseId,
+    required String category,
+    required String description,
+    required double amount,
+    required DateTime date,
+    String? receiptUrl,
+  }) {
+    return _guard(() => _remote.updateExpense(
+          expenseId: expenseId,
+          category: category,
+          description: description,
+          amount: amount,
+          date: date,
+          receiptUrl: receiptUrl,
+        ));
+  }
+
+  @override
+  Future<Result<void>> deleteExpense(String expenseId) =>
+      _guard(() => _remote.softDeleteExpense(expenseId));
 }

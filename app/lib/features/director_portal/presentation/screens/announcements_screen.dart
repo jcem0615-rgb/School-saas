@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/entities/announcement.dart';
 import '../controllers/director_controller.dart';
 
@@ -25,7 +26,7 @@ class AnnouncementsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Announcements')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateDialog(context, ref),
+        onPressed: () => _showEditor(context, ref),
         icon: const Icon(Icons.add),
         label: const Text('New'),
       ),
@@ -62,6 +63,10 @@ class AnnouncementsScreen extends ConsumerWidget {
                           Expanded(
                             child: Text(a.title, style: Theme.of(context).textTheme.titleMedium),
                           ),
+                          RowActionsMenu(
+                            onEdit: () => _showEditor(context, ref, existing: a),
+                            onDelete: () => _confirmDelete(context, ref, a),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -82,16 +87,31 @@ class AnnouncementsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showCreateDialog(BuildContext context, WidgetRef ref) async {
-    final titleController = TextEditingController();
-    final bodyController = TextEditingController();
-    bool pinned = false;
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Announcement a) async {
+    final ok = await confirmDelete(context, itemLabel: 'announcement', detail: a.title);
+    if (!ok) return;
+    await ref.read(directorActionControllerProvider.notifier).deleteAnnouncement(a.id);
+  }
+
+  /// One editor for both create and edit. The two differ only in which
+  /// controller method runs on submit and in the labels, so keeping them
+  /// as one builder means a new field can never be added to the create
+  /// form and forgotten on the edit form.
+  Future<void> _showEditor(
+    BuildContext context,
+    WidgetRef ref, {
+    Announcement? existing,
+  }) async {
+    final isEdit = existing != null;
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final bodyController = TextEditingController(text: existing?.body ?? '');
+    bool pinned = existing?.pinned ?? false;
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: const Text('New Announcement'),
+          title: Text(isEdit ? 'Edit Announcement' : 'New Announcement'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -120,15 +140,24 @@ class AnnouncementsScreen extends ConsumerWidget {
             TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
             FilledButton(
               onPressed: () async {
-                final success = await ref.read(directorActionControllerProvider.notifier).createAnnouncement(
-                      title: titleController.text,
-                      body: bodyController.text,
-                      audience: AnnouncementAudience.everyone,
-                      pinned: pinned,
-                    );
+                final notifier = ref.read(directorActionControllerProvider.notifier);
+                final success = isEdit
+                    ? await notifier.updateAnnouncement(
+                        announcementId: existing.id,
+                        title: titleController.text,
+                        body: bodyController.text,
+                        audience: existing.audience,
+                        pinned: pinned,
+                      )
+                    : await notifier.createAnnouncement(
+                        title: titleController.text,
+                        body: bodyController.text,
+                        audience: AnnouncementAudience.everyone,
+                        pinned: pinned,
+                      );
                 if (success && dialogContext.mounted) Navigator.of(dialogContext).pop();
               },
-              child: const Text('Post'),
+              child: Text(isEdit ? 'Save' : 'Post'),
             ),
           ],
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/entities/meeting.dart';
 import '../controllers/director_controller.dart';
 
@@ -27,7 +28,7 @@ class MeetingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Meeting Scheduler')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateSheet(context, ref),
+        onPressed: () => _showEditor(context, ref),
         icon: const Icon(Icons.add),
         label: const Text('Schedule'),
       ),
@@ -62,13 +63,38 @@ class MeetingsScreen extends ConsumerWidget {
                     'Attendees: ${m.attendeeRoles.join(", ")}',
                   ),
                   isThreeLine: true,
-                  trailing: cancelled
-                      ? const Text('CANCELLED', style: TextStyle(color: Colors.red, fontSize: 11))
-                      : IconButton(
-                          icon: const Icon(Icons.cancel_outlined),
-                          tooltip: 'Cancel meeting',
-                          onPressed: () => ref.read(directorActionControllerProvider.notifier).cancelMeeting(m.id),
-                        ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (cancelled)
+                        const Text('CANCELLED', style: TextStyle(color: Colors.red, fontSize: 11)),
+                      RowActionsMenu(
+                        onEdit: () => _showEditor(context, ref, existing: m),
+                        onDelete: () => _confirmDelete(context, ref, m),
+                        // Cancelling and deleting are different intents:
+                        // a cancelled meeting stays visible so attendees
+                        // know it was called off, a deleted one does not.
+                        extraActions: cancelled
+                            ? const []
+                            : const [
+                                PopupMenuItem(
+                                  value: 'cancel',
+                                  child: ListTile(
+                                    dense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: Icon(Icons.cancel_outlined, size: 20),
+                                    title: Text('Cancel meeting'),
+                                  ),
+                                ),
+                              ],
+                        onExtraAction: (value) {
+                          if (value == 'cancel') {
+                            ref.read(directorActionControllerProvider.notifier).cancelMeeting(m.id);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -78,13 +104,22 @@ class MeetingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showCreateSheet(BuildContext context, WidgetRef ref) async {
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final locationController = TextEditingController();
-    DateTime? startTime;
-    DateTime? endTime;
-    final selectedRoles = <String>{};
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Meeting m) async {
+    final ok = await confirmDelete(context, itemLabel: 'meeting', detail: m.title);
+    if (!ok) return;
+    await ref.read(directorActionControllerProvider.notifier).deleteMeeting(m.id);
+  }
+
+  /// One sheet for both scheduling and editing -- see the note on the
+  /// announcements editor for why these are not two separate forms.
+  Future<void> _showEditor(BuildContext context, WidgetRef ref, {Meeting? existing}) async {
+    final isEdit = existing != null;
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final descriptionController = TextEditingController(text: existing?.description ?? '');
+    final locationController = TextEditingController(text: existing?.location ?? '');
+    DateTime? startTime = existing?.startTime;
+    DateTime? endTime = existing?.endTime;
+    final selectedRoles = <String>{...?existing?.attendeeRoles};
 
     await showModalBottomSheet<void>(
       context: context,
@@ -101,7 +136,8 @@ class MeetingsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Schedule a Meeting', style: Theme.of(sheetContext).textTheme.titleLarge),
+                Text(isEdit ? 'Edit Meeting' : 'Schedule a Meeting',
+                    style: Theme.of(sheetContext).textTheme.titleLarge),
                 const SizedBox(height: 16),
                 TextField(
                   controller: titleController,
@@ -158,17 +194,28 @@ class MeetingsScreen extends ConsumerWidget {
                       );
                       return;
                     }
-                    final success = await ref.read(directorActionControllerProvider.notifier).createMeeting(
-                          title: titleController.text,
-                          description: descriptionController.text,
-                          startTime: startTime!,
-                          endTime: endTime!,
-                          location: locationController.text,
-                          attendeeRoles: selectedRoles.toList(),
-                        );
+                    final notifier = ref.read(directorActionControllerProvider.notifier);
+                    final success = isEdit
+                        ? await notifier.updateMeeting(
+                            meetingId: existing.id,
+                            title: titleController.text,
+                            description: descriptionController.text,
+                            startTime: startTime!,
+                            endTime: endTime!,
+                            location: locationController.text,
+                            attendeeRoles: selectedRoles.toList(),
+                          )
+                        : await notifier.createMeeting(
+                            title: titleController.text,
+                            description: descriptionController.text,
+                            startTime: startTime!,
+                            endTime: endTime!,
+                            location: locationController.text,
+                            attendeeRoles: selectedRoles.toList(),
+                          );
                     if (success && sheetContext.mounted) Navigator.of(sheetContext).pop();
                   },
-                  child: const Text('Schedule Meeting'),
+                  child: Text(isEdit ? 'Save Changes' : 'Schedule Meeting'),
                 ),
               ],
             ),

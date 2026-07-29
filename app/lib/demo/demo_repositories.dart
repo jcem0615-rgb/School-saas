@@ -351,6 +351,54 @@ class DemoDirectorRepository implements DirectorRepository {
   }
 
   @override
+  Future<Result<void>> updateAnnouncement({
+    required String announcementId,
+    required String title,
+    required String body,
+    required AnnouncementAudience audience,
+    required bool pinned,
+  }) async {
+    await _latency();
+    _store.update<Announcement>(
+      _store.announcements,
+      (a) => a.id == announcementId,
+      (a) => Announcement(
+        id: a.id,
+        title: title,
+        body: body,
+        audience: audience,
+        pinned: pinned,
+        // Authorship is never re-attributed by an edit -- firestore.rules
+        // rejects any update that changes createdBy.
+        createdByName: a.createdByName,
+        createdAt: a.createdAt,
+      ),
+    );
+    _store.audit(
+      module: 'announcements',
+      action: 'update',
+      targetCollection: 'announcements',
+      targetId: announcementId,
+      newValue: {'title': title, 'pinned': pinned},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteAnnouncement(String announcementId) async {
+    await _latency();
+    _store.softDelete(_store.announcements, (a) => a.id == announcementId);
+    _store.audit(
+      module: 'announcements',
+      action: 'delete',
+      targetCollection: 'announcements',
+      targetId: announcementId,
+      remarks: 'Soft deleted',
+    );
+    return const Success(null);
+  }
+
+  @override
   Stream<List<Meeting>> watchMeetings() => _store.meetings.stream
       .map((all) => [...all]..sort((a, b) => b.startTime.compareTo(a.startTime)));
 
@@ -385,6 +433,56 @@ class DemoDirectorRepository implements DirectorRepository {
       targetCollection: 'meetings',
       targetId: id,
       newValue: {'title': title},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> updateMeeting({
+    required String meetingId,
+    required String title,
+    String? description,
+    required DateTime startTime,
+    required DateTime endTime,
+    String? location,
+    required List<String> attendeeRoles,
+  }) async {
+    await _latency();
+    _store.update<Meeting>(
+      _store.meetings,
+      (m) => m.id == meetingId,
+      (m) => Meeting(
+        id: m.id,
+        title: title,
+        description: description,
+        startTime: startTime,
+        endTime: endTime,
+        location: location,
+        attendeeRoles: attendeeRoles,
+        status: m.status,
+        createdByName: m.createdByName,
+      ),
+    );
+    _store.audit(
+      module: 'meetings',
+      action: 'update',
+      targetCollection: 'meetings',
+      targetId: meetingId,
+      newValue: {'title': title},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteMeeting(String meetingId) async {
+    await _latency();
+    _store.softDelete(_store.meetings, (m) => m.id == meetingId);
+    _store.audit(
+      module: 'meetings',
+      action: 'delete',
+      targetCollection: 'meetings',
+      targetId: meetingId,
+      remarks: 'Soft deleted',
     );
     return const Success(null);
   }
@@ -535,6 +633,53 @@ class DemoDirectorRepository implements DirectorRepository {
       targetCollection: 'expenses',
       targetId: id,
       newValue: {'category': category, 'amount': amount},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> updateExpense({
+    required String expenseId,
+    required String category,
+    required String description,
+    required double amount,
+    required DateTime date,
+    String? receiptUrl,
+  }) async {
+    await _latency();
+    _store.update<Expense>(
+      _store.expenses,
+      (e) => e.id == expenseId,
+      (e) => Expense(
+        id: e.id,
+        category: category,
+        description: description,
+        amount: amount,
+        date: date,
+        recordedByName: e.recordedByName,
+        receiptUrl: receiptUrl ?? e.receiptUrl,
+      ),
+    );
+    _store.audit(
+      module: 'expenses',
+      action: 'update',
+      targetCollection: 'expenses',
+      targetId: expenseId,
+      newValue: {'category': category, 'amount': amount},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteExpense(String expenseId) async {
+    await _latency();
+    _store.softDelete(_store.expenses, (e) => e.id == expenseId);
+    _store.audit(
+      module: 'expenses',
+      action: 'delete',
+      targetCollection: 'expenses',
+      targetId: expenseId,
+      remarks: 'Soft deleted',
     );
     return const Success(null);
   }
