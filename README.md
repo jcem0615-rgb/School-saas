@@ -92,6 +92,20 @@ cd app
 flutter run -d chrome
 ```
 
+If you need a build that does not depend on the Dart debug service —
+useful for sharing, or if the debug build comes up blank — build once and
+serve the output as static files:
+
+```bash
+cd app && flutter build web --release --no-web-resources-cdn && (cd build/web && python3 -m http.server 8080)
+```
+
+Then open `http://127.0.0.1:8080`. Note that `flutter run -d web-server`
+serves a *debug* build whose renderer waits on a debug-service connection
+that only the Chrome/Edge devices (or the Dart Debug extension) provide —
+without it the page loads but never paints. Use `-d chrome` or the
+release build above instead.
+
 That's the whole setup. `lib/main.dart` defaults to `DEMO_MODE=true`,
 which swaps every repository for an in-memory implementation from
 `lib/demo/`. Only the repository layer is replaced — the router,
