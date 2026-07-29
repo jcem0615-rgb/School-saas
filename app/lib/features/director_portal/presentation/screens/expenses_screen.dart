@@ -96,7 +96,7 @@ class ExpensesScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  initialValue: category,
+                  value: category,
                   decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                   items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                   onChanged: (v) => setState(() => category = v ?? category),

@@ -81,7 +81,52 @@ You'll also need actual Firebase config files that aren't checked in:
 `app/lib/firebase_options.dart` (via `flutterfire configure`) and
 platform-specific `google-services.json` / `GoogleService-Info.plist`.
 None of the test suites below need these — they run against the emulator
-or pure Dart/TS logic — but the app itself won't build without them.
+or pure Dart/TS logic — and neither does **demo mode**, described next.
+
+## Running the app (demo mode)
+
+The app runs with no Firebase project, no emulator, and no network:
+
+```bash
+cd app
+flutter run -d chrome
+```
+
+That's the whole setup. `lib/main.dart` defaults to `DEMO_MODE=true`,
+which swaps every repository for an in-memory implementation from
+`lib/demo/`. Only the repository layer is replaced — the router,
+controllers, use cases, and all ~200 widget files are the real ones, so
+what you click through is the actual app, not a mock-up of it.
+
+Sign in with any of ten seeded accounts, one per role:
+
+| Role | Email | Role | Email |
+|---|---|---|---|
+| Owner | `owner@demo.ph` | Faculty | `faculty@demo.ph` |
+| Director | `director@demo.ph` | Staff | `staff@demo.ph` |
+| Principal | `principal@demo.ph` | Guidance | `guidance@demo.ph` |
+| Admin | `admin@demo.ph` | Student | `student@demo.ph` |
+| Registrar | `registrar@demo.ph` | Parent | `parent@demo.ph` |
+
+The password for all of them is `demo1234`. A floating **Demo accounts**
+button switches roles in one tap without logging out.
+
+Seeded data covers four schools in mixed subscription states, eight
+students across all three divisions, payments including a refund, two
+weeks of attendance, coursework, grades, approvals, and an audit trail —
+enough that no screen is empty. Writes are live: recording a payment
+updates the student's balance and shows up in the audit log immediately.
+Nothing persists across a page reload.
+
+**Demo mode is not a security model.** The real access boundary is
+`firestore.rules`, and the fakes reproduce none of it — anything the UI
+lets you tap will succeed regardless of role. Role, division, and
+department isolation is proven by `npm run test:rules`, not by clicking
+around in demo mode.
+
+To run against real Firebase instead, generate `firebase_options.dart`,
+uncomment the `Firebase.initializeApp` call in `lib/main.dart`, and run
+with `--dart-define=DEMO_MODE=false`.
 
 ## Running the tests
 
@@ -89,6 +134,8 @@ Three independent suites, each covering a different layer:
 
 ```bash
 # 1. Flutter/Dart unit tests (domain layer: entities, use cases, validation)
+#    plus test/smoke/, which boots the whole app in demo mode and checks
+#    that all ten roles reach their portal without throwing
 cd app
 flutter test
 

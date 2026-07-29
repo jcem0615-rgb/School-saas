@@ -71,7 +71,7 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
                   const Text('No faculty members found. Add one under Employee Management first.')
                 else
                   DropdownButtonFormField<dynamic>(
-                    initialValue: selectedTeacher,
+                    value: selectedTeacher,
                     decoration: const InputDecoration(labelText: 'Teacher', border: OutlineInputBorder()),
                     items: faculty
                         .map((f) => DropdownMenuItem(value: f, child: Text(f.fullName as String)))

@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/errors/result.dart';
+
 import '../../../../core/constants/education_level.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart'
     show authStateProvider, firestoreProvider, firebaseFunctionsProvider;

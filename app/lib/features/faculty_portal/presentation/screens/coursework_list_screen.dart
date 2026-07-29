@@ -95,7 +95,7 @@ class CourseworkListScreen extends ConsumerWidget {
                 Text('New Coursework', style: Theme.of(sheetContext).textTheme.titleLarge),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<CourseworkType>(
-                  initialValue: type,
+                  value: type,
                   decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
                   items: CourseworkType.values
                       .map((t) => DropdownMenuItem(value: t, child: Text(t.displayLabel)))

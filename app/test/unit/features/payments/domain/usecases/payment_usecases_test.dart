@@ -12,6 +12,14 @@ class MockPaymentRepository extends Mock implements PaymentRepository {}
 void main() {
   late MockPaymentRepository repository;
 
+  // mocktail needs a concrete instance before `any(named:)` can stand in
+  // for a non-nullable, non-primitive parameter. The values are never
+  // read -- they only get passed around by the matcher.
+  setUpAll(() {
+    registerFallbackValue(PaymentMethod.cash);
+    registerFallbackValue(PaymentPurpose.tuition);
+  });
+
   setUp(() {
     repository = MockPaymentRepository();
   });

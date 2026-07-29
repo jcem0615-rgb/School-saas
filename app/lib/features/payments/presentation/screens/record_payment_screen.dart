@@ -117,7 +117,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<PaymentPurpose>(
-                initialValue: _purpose,
+                value: _purpose,
                 decoration: const InputDecoration(labelText: 'Purpose', border: OutlineInputBorder()),
                 items: PaymentPurpose.values
                     .map((p) => DropdownMenuItem(value: p, child: Text(p.displayLabel)))
@@ -126,7 +126,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<PaymentMethod>(
-                initialValue: _method,
+                value: _method,
                 decoration: const InputDecoration(labelText: 'Payment Method', border: OutlineInputBorder()),
                 items: PaymentMethod.values
                     .map((m) => DropdownMenuItem(value: m, child: Text(m.displayLabel)))

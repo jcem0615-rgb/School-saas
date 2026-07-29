@@ -12,6 +12,12 @@ class MockOwnerRepository extends Mock implements OwnerRepository {}
 void main() {
   late MockOwnerRepository repository;
 
+  // Required before `any(named: 'method')` can match the non-nullable
+  // PaymentMethod parameter on recordManualPayment.
+  setUpAll(() {
+    registerFallbackValue(PaymentMethod.cash);
+  });
+
   setUp(() {
     repository = MockOwnerRepository();
   });

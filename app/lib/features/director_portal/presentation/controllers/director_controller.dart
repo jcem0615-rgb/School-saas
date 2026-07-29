@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/errors/result.dart';
+
 import '../../../auth/presentation/controllers/auth_controller.dart'
     show authStateProvider, firestoreProvider;
 import '../../data/datasources/director_remote_datasource.dart';

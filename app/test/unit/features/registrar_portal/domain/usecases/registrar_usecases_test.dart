@@ -12,6 +12,13 @@ class MockRegistrarRepository extends Mock implements RegistrarRepository {}
 void main() {
   late MockRegistrarRepository repository;
 
+  // Required before `any(named:)` can match the non-nullable
+  // educationLevel and guardianContacts parameters on registerStudent.
+  setUpAll(() {
+    registerFallbackValue(EducationLevel.elementary);
+    registerFallbackValue(const <GuardianContact>[]);
+  });
+
   setUp(() {
     repository = MockRegistrarRepository();
   });

@@ -150,7 +150,7 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<GuidanceCategory>(
-                  initialValue: category,
+                  value: category,
                   decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                   items: GuidanceCategory.values
                       .map((c) => DropdownMenuItem(value: c, child: Text(c.displayLabel)))

@@ -168,7 +168,7 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<EducationLevel?>(
-            initialValue: _assignedDivision,
+            value: _assignedDivision,
             decoration: const InputDecoration(labelText: 'Assigned Division', border: OutlineInputBorder()),
             items: [
               const DropdownMenuItem<EducationLevel?>(value: null, child: Text('Unrestricted (all divisions)')),

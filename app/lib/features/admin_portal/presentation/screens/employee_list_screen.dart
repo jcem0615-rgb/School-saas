@@ -93,7 +93,7 @@ class EmployeeListScreen extends ConsumerWidget {
                 Text('New Employee', style: Theme.of(sheetContext).textTheme.titleLarge),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<UserRole>(
-                  initialValue: role,
+                  value: role,
                   decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
                   items: adminProvisionableRoles
                       .map((r) => DropdownMenuItem(value: r, child: Text(r.displayName)))
@@ -128,7 +128,7 @@ class EmployeeListScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<EducationLevel?>(
-                  initialValue: assignedDivision,
+                  value: assignedDivision,
                   decoration: const InputDecoration(
                     labelText: 'Data Access Scope (optional)',
                     helperText: 'Leave unset for normal cross-division access. Set to restrict '
