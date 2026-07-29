@@ -18,6 +18,10 @@ import 'demo_store.dart';
 /// showModalBottomSheet, because it is installed via MaterialApp.builder,
 /// which sits *above* the router's Navigator -- there is no Navigator in
 /// scope at this point in the tree.
+/// Key for the switcher's toggle button, so tests can find it without
+/// depending on a tooltip (which this widget cannot have -- see below).
+const demoSwitcherButtonKey = ValueKey<String>('demo-switcher-button');
+
 class DemoSwitcher extends ConsumerStatefulWidget {
   final Widget child;
   const DemoSwitcher({super.key, required this.child});
@@ -61,21 +65,43 @@ class _DemoSwitcherState extends ConsumerState<DemoSwitcher> {
               child: ColoredBox(color: Colors.black.withValues(alpha: 0.4)),
             ),
           ),
+        // Bottom-LEFT, deliberately. Every Scaffold in the app puts its
+        // FloatingActionButton in the default endFloat slot (bottom-right),
+        // and 15 screens have one -- "New Coursework", "Add Assignment",
+        // "Submit Report" and so on. Anchoring this control bottom-right
+        // silently covered all of them, which made the app look like its
+        // primary action buttons were missing.
         Positioned(
-          right: 16,
+          left: 16,
           bottom: 16,
           child: SafeArea(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (_open) _panel(theme, current),
                 const SizedBox(height: 12),
-                FloatingActionButton.extended(
-                  heroTag: 'demo-switcher',
-                  onPressed: () => setState(() => _open = !_open),
-                  icon: Icon(_open ? Icons.close : Icons.switch_account),
-                  label: Text(_open ? 'Close' : 'Demo accounts'),
+                // Small and unlabelled when closed, so it takes as little
+                // of the app's own screen space as possible.
+                //
+                // No `tooltip:` here, deliberately. A Tooltip needs an
+                // Overlay ancestor, and this widget is installed via
+                // MaterialApp.builder -- above the router's Navigator, so
+                // there is no Overlay in scope. Setting one throws on
+                // first build, which in a release web build shows up as a
+                // frozen grey screen with an empty console. Semantics
+                // gives the accessible name without needing an Overlay.
+                Semantics(
+                  label: 'Demo accounts',
+                  button: true,
+                  child: FloatingActionButton.small(
+                    key: demoSwitcherButtonKey,
+                    heroTag: 'demo-switcher',
+                    backgroundColor: theme.colorScheme.secondaryContainer,
+                    foregroundColor: theme.colorScheme.onSecondaryContainer,
+                    onPressed: () => setState(() => _open = !_open),
+                    child: Icon(_open ? Icons.close : Icons.switch_account),
+                  ),
                 ),
               ],
             ),
