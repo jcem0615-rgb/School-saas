@@ -72,6 +72,24 @@ async function seedDoc(path: string, data: Record<string, unknown>) {
   });
 }
 
+/**
+ * guidanceRecords and summons gate on scopeAllowsStudentById(), which does
+ * an *unguarded* get() on the student doc -- unlike staffEmployeeInfo(),
+ * which wraps its get() in exists(). A missing student document therefore
+ * errors the rule out rather than evaluating to false, so any test that
+ * expects one of those updates to SUCCEED has to seed the student first.
+ */
+async function seedStudent(studentId: string, educationLevel = "high_school") {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/${studentId}`), {
+      schoolId: SCHOOL,
+      educationLevel,
+      department: null,
+      isDeleted: false,
+    });
+  });
+}
+
 /** The exact payload the app sends for a soft delete. */
 const softDeletePayload = (uid: string) => ({
   isDeleted: true,
@@ -254,6 +272,7 @@ describe("guidanceRecords", () => {
   const path = `schools/${SCHOOL}/guidanceRecords/gui_1`;
 
   test("guidance can soft delete", async () => {
+    await seedStudent("stu_1");
     await seedDoc(path, {studentId: "stu_1", notes: "n", category: "academic"});
     const guidance = contextAs("guidance");
     await assertSucceeds(
@@ -288,6 +307,7 @@ describe("summons", () => {
   const path = `schools/${SCHOOL}/summons/sum_1`;
 
   test("guidance can soft delete", async () => {
+    await seedStudent("stu_1");
     await seedDoc(path, {studentId: "stu_1", reason: "r", status: "pending"});
     const guidance = contextAs("guidance");
     await assertSucceeds(
