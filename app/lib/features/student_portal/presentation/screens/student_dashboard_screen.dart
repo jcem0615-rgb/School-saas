@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
 import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
+import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../controllers/student_controller.dart';
 import 'coursework_feed_screen.dart';
 import 'my_grades_screen.dart';
@@ -22,7 +23,17 @@ class StudentDashboardScreen extends ConsumerWidget {
     final recordAsync = ref.watch(myStudentRecordProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My School')),
+      appBar: AppBar(
+        title: const Text('My School'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'My Activity',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
+          ),
+        ],
+      ),
       body: recordAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Failed to load your record: $err')),

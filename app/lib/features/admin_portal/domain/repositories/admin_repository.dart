@@ -41,6 +41,26 @@ abstract class AdminRepository {
   /// College degree programs/courses. Read by any tenant member (needed
   /// during Student Registration in Registrar Portal, and for Student
   /// Portal display); only Director/Admin manage the catalog.
+  Future<Result<void>> updateTeacherAssignment({
+    required String assignmentId,
+    required String teacherId,
+    required String teacherName,
+    required String subject,
+    required String section,
+    required String schoolYear,
+  });
+
+  /// Soft delete throughout -- firestore.rules denies hard delete on
+  /// every collection, so these flip `isDeleted` instead.
+  Future<Result<void>> deleteTeacherAssignment(String assignmentId);
+
   Stream<List<Program>> watchPrograms();
   Future<Result<void>> createProgram({required String name, required String code, required String department});
+  Future<Result<void>> updateProgram({
+    required String programId,
+    required String name,
+    required String code,
+    required String department,
+  });
+  Future<Result<void>> deleteProgram(String programId);
 }

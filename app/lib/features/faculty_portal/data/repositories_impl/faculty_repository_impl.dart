@@ -9,6 +9,17 @@ class FacultyRepositoryImpl implements FacultyRepository {
   final FacultyRemoteDataSource _remote;
   const FacultyRepositoryImpl(this._remote);
 
+  /// Same try/catch shape the hand-written methods below use, factored out
+  /// for the edit/delete paths that have no per-call error mapping.
+  Future<Result<void>> _run(Future<void> Function() action) async {
+    try {
+      await action();
+      return const Success(null);
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
   @override
   Stream<List<CourseworkItem>> watchMyCourseworkItems() => _remote.watchMyCourseworkItems();
 
@@ -39,6 +50,35 @@ class FacultyRepositoryImpl implements FacultyRepository {
       return const Error(UnknownFailure());
     }
   }
+
+  @override
+  Future<Result<void>> updateCourseworkItem({
+    required String itemId,
+    required CourseworkType type,
+    required String title,
+    required String description,
+    required String subject,
+    required String section,
+    DateTime? dueDate,
+    double? totalPoints,
+    required bool published,
+  }) {
+    return _run(() => _remote.updateCourseworkItem(
+          itemId: itemId,
+          type: type.value,
+          title: title,
+          description: description,
+          subject: subject,
+          section: section,
+          dueDate: dueDate,
+          totalPoints: totalPoints,
+          published: published,
+        ));
+  }
+
+  @override
+  Future<Result<void>> deleteCourseworkItem(String itemId) =>
+      _run(() => _remote.softDeleteCourseworkItem(itemId));
 
   @override
   Stream<List<Grade>> watchGradesFor({required String subject, required String section}) =>

@@ -35,3 +35,38 @@ class CreateGuidanceRecordUseCase {
     );
   }
 }
+
+class UpdateGuidanceRecordUseCase {
+  final GuidanceRepository _repository;
+  const UpdateGuidanceRecordUseCase(this._repository);
+
+  Future<Result<void>> call({
+    required String recordId,
+    required GuidanceCategory category,
+    required String notes,
+  }) {
+    if (recordId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing record.')));
+    }
+    final notesError = Validators.required(notes, fieldName: 'Notes');
+    if (notesError != null) return Future.value(Error(ValidationFailure(notesError)));
+
+    return _repository.updateGuidanceRecord(
+      recordId: recordId,
+      category: category,
+      notes: notes.trim(),
+    );
+  }
+}
+
+class DeleteGuidanceRecordUseCase {
+  final GuidanceRepository _repository;
+  const DeleteGuidanceRecordUseCase(this._repository);
+
+  Future<Result<void>> call(String recordId) {
+    if (recordId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing record.')));
+    }
+    return _repository.deleteGuidanceRecord(recordId);
+  }
+}

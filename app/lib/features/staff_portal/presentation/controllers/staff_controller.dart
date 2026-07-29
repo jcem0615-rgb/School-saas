@@ -36,14 +36,20 @@ final myDailyReportsProvider = StreamProvider.autoDispose<List<DailyReport>>((re
 class StaffActionController extends StateNotifier<AsyncValue<void>> {
   final AddChecklistItemUseCase _addChecklistItem;
   final ToggleChecklistItemUseCase _toggleChecklistItem;
+  final UpdateChecklistItemUseCase _updateChecklistItem;
+  final DeleteChecklistItemUseCase _deleteChecklistItem;
   final SubmitDailyReportUseCase _submitDailyReport;
 
   StaffActionController({
     required AddChecklistItemUseCase addChecklistItem,
     required ToggleChecklistItemUseCase toggleChecklistItem,
+    required UpdateChecklistItemUseCase updateChecklistItem,
+    required DeleteChecklistItemUseCase deleteChecklistItem,
     required SubmitDailyReportUseCase submitDailyReport,
   })  : _addChecklistItem = addChecklistItem,
         _toggleChecklistItem = toggleChecklistItem,
+        _updateChecklistItem = updateChecklistItem,
+        _deleteChecklistItem = deleteChecklistItem,
         _submitDailyReport = submitDailyReport,
         super(const AsyncData(null));
 
@@ -53,6 +59,13 @@ class StaffActionController extends StateNotifier<AsyncValue<void>> {
   Future<bool> toggleChecklistItem({required String itemId, required bool completed}) =>
       _run(() => _toggleChecklistItem(itemId: itemId, completed: completed));
 
+  Future<bool> updateChecklistItem({required String itemId, required String task}) =>
+      _run(() => _updateChecklistItem(itemId: itemId, task: task));
+
+  Future<bool> deleteChecklistItem(String itemId) => _run(() => _deleteChecklistItem(itemId));
+
+  /// Note there is no edit/delete for daily reports: firestore.rules makes
+  /// dailyReports immutable, so corrections are filed as a new entry.
   Future<bool> submitDailyReport({required String date, required String content}) =>
       _run(() => _submitDailyReport(date: date, content: content));
 
@@ -75,6 +88,8 @@ final staffActionControllerProvider =
   return StaffActionController(
     addChecklistItem: AddChecklistItemUseCase(repo),
     toggleChecklistItem: ToggleChecklistItemUseCase(repo),
+    updateChecklistItem: UpdateChecklistItemUseCase(repo),
+    deleteChecklistItem: DeleteChecklistItemUseCase(repo),
     submitDailyReport: SubmitDailyReportUseCase(repo),
   );
 });

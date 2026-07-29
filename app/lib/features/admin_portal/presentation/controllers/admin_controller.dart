@@ -52,7 +52,11 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
   final SetUserStatusUseCase _setUserStatus;
   final ResetUserPasswordUseCase _resetUserPassword;
   final CreateTeacherAssignmentUseCase _createTeacherAssignment;
+  final UpdateTeacherAssignmentUseCase _updateTeacherAssignment;
+  final DeleteTeacherAssignmentUseCase _deleteTeacherAssignment;
   final CreateProgramUseCase _createProgram;
+  final UpdateProgramUseCase _updateProgram;
+  final DeleteProgramUseCase _deleteProgram;
 
   AdminActionController({
     required CreateEmployeeUseCase createEmployee,
@@ -60,13 +64,21 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
     required SetUserStatusUseCase setUserStatus,
     required ResetUserPasswordUseCase resetUserPassword,
     required CreateTeacherAssignmentUseCase createTeacherAssignment,
+    required UpdateTeacherAssignmentUseCase updateTeacherAssignment,
+    required DeleteTeacherAssignmentUseCase deleteTeacherAssignment,
     required CreateProgramUseCase createProgram,
+    required UpdateProgramUseCase updateProgram,
+    required DeleteProgramUseCase deleteProgram,
   })  : _createEmployee = createEmployee,
         _updateEmployeeInfo = updateEmployeeInfo,
         _setUserStatus = setUserStatus,
         _resetUserPassword = resetUserPassword,
         _createTeacherAssignment = createTeacherAssignment,
+        _updateTeacherAssignment = updateTeacherAssignment,
+        _deleteTeacherAssignment = deleteTeacherAssignment,
         _createProgram = createProgram,
+        _updateProgram = updateProgram,
+        _deleteProgram = deleteProgram,
         super(const AsyncData(null));
 
   Future<void> createEmployee({
@@ -122,6 +134,50 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
     return result.isSuccess;
   }
 
+  Future<bool> updateTeacherAssignment({
+    required String assignmentId,
+    required String teacherId,
+    required String teacherName,
+    required String subject,
+    required String section,
+    required String schoolYear,
+  }) async {
+    final result = await _updateTeacherAssignment(
+      assignmentId: assignmentId,
+      teacherId: teacherId,
+      teacherName: teacherName,
+      subject: subject,
+      section: section,
+      schoolYear: schoolYear,
+    );
+    return result.isSuccess;
+  }
+
+  Future<bool> deleteTeacherAssignment(String assignmentId) async {
+    final result = await _deleteTeacherAssignment(assignmentId);
+    return result.isSuccess;
+  }
+
+  Future<bool> updateProgram({
+    required String programId,
+    required String name,
+    required String code,
+    required String department,
+  }) async {
+    final result = await _updateProgram(
+      programId: programId,
+      name: name,
+      code: code,
+      department: department,
+    );
+    return result.isSuccess;
+  }
+
+  Future<bool> deleteProgram(String programId) async {
+    final result = await _deleteProgram(programId);
+    return result.isSuccess;
+  }
+
   void reset() => state = const AsyncData(null);
 
   Future<bool> createProgram({required String name, required String code, required String department}) async {
@@ -139,6 +195,10 @@ final adminActionControllerProvider =
     setUserStatus: SetUserStatusUseCase(repo),
     resetUserPassword: ResetUserPasswordUseCase(repo),
     createTeacherAssignment: CreateTeacherAssignmentUseCase(repo),
+    updateTeacherAssignment: UpdateTeacherAssignmentUseCase(repo),
+    deleteTeacherAssignment: DeleteTeacherAssignmentUseCase(repo),
     createProgram: CreateProgramUseCase(repo),
+    updateProgram: UpdateProgramUseCase(repo),
+    deleteProgram: DeleteProgramUseCase(repo),
   );
 });

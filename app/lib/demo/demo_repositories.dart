@@ -94,7 +94,7 @@ class DemoAuthRepository implements AuthRepository {
 
     _store.currentUser.add(match);
     _store.audit(
-      module: 'auth',
+      module: 'users',
       action: 'login',
       targetCollection: 'users',
       targetId: match.uid,
@@ -125,7 +125,7 @@ class DemoAuthRepository implements AuthRepository {
       return const Error(AuthFailure('wrong-password', 'Current password is incorrect.'));
     }
     _store.audit(
-      module: 'auth',
+      module: 'users',
       action: 'update',
       targetCollection: 'users',
       targetId: _store.requireUser.uid,
@@ -194,9 +194,9 @@ class DemoOwnerRepository implements OwnerRepository {
       ),
     );
     _store.audit(
-      module: 'platform',
+      module: 'platformSchools',
       action: 'suspend',
-      targetCollection: 'schools',
+      targetCollection: 'platformSchools',
       targetId: schoolId,
       remarks: reason,
     );
@@ -219,9 +219,9 @@ class DemoOwnerRepository implements OwnerRepository {
       ),
     );
     _store.audit(
-      module: 'platform',
+      module: 'platformSchools',
       action: 'resume',
-      targetCollection: 'schools',
+      targetCollection: 'platformSchools',
       targetId: schoolId,
     );
     return const Success(null);
@@ -258,9 +258,9 @@ class DemoOwnerRepository implements OwnerRepository {
     // that was suspended or in grace period for non-payment.
     await resumeSchool(schoolId: schoolId);
     _store.audit(
-      module: 'billing',
+      module: 'platformInvoices',
       action: 'payment',
-      targetCollection: 'platform_invoices',
+      targetCollection: 'platformInvoices',
       targetId: invoiceId,
       newValue: {'amount': amount, 'method': method.value},
     );
@@ -390,7 +390,7 @@ class DemoDirectorRepository implements DirectorRepository {
     _store.softDelete(_store.announcements, (a) => a.id == announcementId);
     _store.audit(
       module: 'announcements',
-      action: 'delete',
+      action: 'soft_delete',
       targetCollection: 'announcements',
       targetId: announcementId,
       remarks: 'Soft deleted',
@@ -479,7 +479,7 @@ class DemoDirectorRepository implements DirectorRepository {
     _store.softDelete(_store.meetings, (m) => m.id == meetingId);
     _store.audit(
       module: 'meetings',
-      action: 'delete',
+      action: 'soft_delete',
       targetCollection: 'meetings',
       targetId: meetingId,
       remarks: 'Soft deleted',
@@ -676,7 +676,7 @@ class DemoDirectorRepository implements DirectorRepository {
     _store.softDelete(_store.expenses, (e) => e.id == expenseId);
     _store.audit(
       module: 'expenses',
-      action: 'delete',
+      action: 'soft_delete',
       targetCollection: 'expenses',
       targetId: expenseId,
       remarks: 'Soft deleted',
@@ -825,11 +825,57 @@ class DemoAdminRepository implements AdminRepository {
       ),
     );
     _store.audit(
-      module: 'assignments',
+      module: 'teacherAssignments',
       action: 'create',
-      targetCollection: 'teacher_assignments',
+      targetCollection: 'teacherAssignments',
       targetId: id,
       newValue: {'subject': subject, 'section': section},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> updateTeacherAssignment({
+    required String assignmentId,
+    required String teacherId,
+    required String teacherName,
+    required String subject,
+    required String section,
+    required String schoolYear,
+  }) async {
+    await _latency();
+    _store.update<TeacherAssignment>(
+      _store.assignments,
+      (a) => a.id == assignmentId,
+      (a) => TeacherAssignment(
+        id: a.id,
+        teacherId: teacherId,
+        teacherName: teacherName,
+        subject: subject,
+        section: section,
+        schoolYear: schoolYear,
+      ),
+    );
+    _store.audit(
+      module: 'teacherAssignments',
+      action: 'update',
+      targetCollection: 'teacherAssignments',
+      targetId: assignmentId,
+      newValue: {'subject': subject, 'section': section},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteTeacherAssignment(String assignmentId) async {
+    await _latency();
+    _store.softDelete(_store.assignments, (a) => a.id == assignmentId);
+    _store.audit(
+      module: 'teacherAssignments',
+      action: 'soft_delete',
+      targetCollection: 'teacherAssignments',
+      targetId: assignmentId,
+      remarks: 'Soft deleted',
     );
     return const Success(null);
   }
@@ -852,6 +898,43 @@ class DemoAdminRepository implements AdminRepository {
       targetCollection: 'programs',
       targetId: id,
       newValue: {'name': name, 'code': code},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> updateProgram({
+    required String programId,
+    required String name,
+    required String code,
+    required String department,
+  }) async {
+    await _latency();
+    _store.update<Program>(
+      _store.programs,
+      (p) => p.id == programId,
+      (p) => Program(id: p.id, name: name, code: code, department: department),
+    );
+    _store.audit(
+      module: 'programs',
+      action: 'update',
+      targetCollection: 'programs',
+      targetId: programId,
+      newValue: {'name': name, 'code': code},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteProgram(String programId) async {
+    await _latency();
+    _store.softDelete(_store.programs, (p) => p.id == programId);
+    _store.audit(
+      module: 'programs',
+      action: 'soft_delete',
+      targetCollection: 'programs',
+      targetId: programId,
+      remarks: 'Soft deleted',
     );
     return const Success(null);
   }
@@ -1070,11 +1153,69 @@ class DemoFacultyRepository implements FacultyRepository {
       ),
     );
     _store.audit(
-      module: 'coursework',
+      module: 'courseworkItems',
       action: 'create',
-      targetCollection: 'coursework',
+      targetCollection: 'courseworkItems',
       targetId: id,
       newValue: {'type': type.value, 'title': title, 'published': published},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> updateCourseworkItem({
+    required String itemId,
+    required CourseworkType type,
+    required String title,
+    required String description,
+    required String subject,
+    required String section,
+    DateTime? dueDate,
+    double? totalPoints,
+    required bool published,
+  }) async {
+    await _latency();
+    _store.update<CourseworkItem>(
+      _store.coursework,
+      (c) => c.id == itemId,
+      (c) => CourseworkItem(
+        id: c.id,
+        type: type,
+        title: title,
+        description: description,
+        subject: subject,
+        section: section,
+        // teacherId/teacherName are never reassigned by an edit; the
+        // rules reject any update that changes teacherId.
+        teacherId: c.teacherId,
+        teacherName: c.teacherName,
+        dueDate: dueDate,
+        totalPoints: totalPoints,
+        attachmentUrl: c.attachmentUrl,
+        published: published,
+        createdAt: c.createdAt,
+      ),
+    );
+    _store.audit(
+      module: 'courseworkItems',
+      action: 'update',
+      targetCollection: 'courseworkItems',
+      targetId: itemId,
+      newValue: {'title': title, 'published': published},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteCourseworkItem(String itemId) async {
+    await _latency();
+    _store.softDelete(_store.coursework, (c) => c.id == itemId);
+    _store.audit(
+      module: 'courseworkItems',
+      action: 'soft_delete',
+      targetCollection: 'courseworkItems',
+      targetId: itemId,
+      remarks: 'Soft deleted',
     );
     return const Success(null);
   }
@@ -1479,9 +1620,9 @@ class DemoStaffRepository implements StaffRepository {
       ChecklistItem(id: id, task: task, date: date, completed: false),
     ]);
     _store.audit(
-      module: 'checklist',
+      module: 'checklistItems',
       action: 'create',
-      targetCollection: 'checklists',
+      targetCollection: 'checklistItems',
       targetId: id,
       newValue: {'task': task},
     );
@@ -1507,6 +1648,45 @@ class DemoStaffRepository implements StaffRepository {
   }
 
   @override
+  Future<Result<void>> updateChecklistItem({required String itemId, required String task}) async {
+    await _latency(250);
+    _store.update<ChecklistItem>(
+      _store.checklist,
+      (c) => c.id == itemId,
+      (c) => ChecklistItem(
+        id: c.id,
+        task: task,
+        date: c.date,
+        completed: c.completed,
+        completedAt: c.completedAt,
+        notes: c.notes,
+      ),
+    );
+    _store.audit(
+      module: 'checklistItems',
+      action: 'update',
+      targetCollection: 'checklistItems',
+      targetId: itemId,
+      newValue: {'task': task},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteChecklistItem(String itemId) async {
+    await _latency(250);
+    _store.softDelete(_store.checklist, (c) => c.id == itemId);
+    _store.audit(
+      module: 'checklistItems',
+      action: 'soft_delete',
+      targetCollection: 'checklistItems',
+      targetId: itemId,
+      remarks: 'Soft deleted',
+    );
+    return const Success(null);
+  }
+
+  @override
   Stream<List<DailyReport>> watchMyDailyReports() =>
       _store.dailyReports.stream.map((all) => [...all]..sort((a, b) => b.date.compareTo(a.date)));
 
@@ -1525,9 +1705,9 @@ class DemoStaffRepository implements StaffRepository {
       ),
     );
     _store.audit(
-      module: 'reports',
+      module: 'dailyReports',
       action: 'create',
-      targetCollection: 'daily_reports',
+      targetCollection: 'dailyReports',
       targetId: id,
       newValue: {'date': date},
     );
@@ -1572,13 +1752,61 @@ class DemoGuidanceRepository implements GuidanceRepository {
       ),
     );
     _store.audit(
-      module: 'guidance',
+      module: 'guidanceRecords',
       action: 'create',
-      targetCollection: 'guidance_records',
+      targetCollection: 'guidanceRecords',
       targetId: id,
       // Deliberately no note text in the audit entry -- counseling notes
       // are confidential, and the audit log has a wider audience.
       newValue: {'studentId': studentId, 'category': category.value},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> updateGuidanceRecord({
+    required String recordId,
+    required GuidanceCategory category,
+    required String notes,
+  }) async {
+    await _latency();
+    _store.update<GuidanceRecord>(
+      _store.guidanceRecords,
+      (g) => g.id == recordId,
+      (g) => GuidanceRecord(
+        id: g.id,
+        // studentId never moves -- the rules reject an update that
+        // reassigns a counseling note to a different student.
+        studentId: g.studentId,
+        studentName: g.studentName,
+        category: category,
+        notes: notes,
+        recordedByName: g.recordedByName,
+        recordedAt: g.recordedAt,
+      ),
+    );
+    _store.audit(
+      module: 'guidanceRecords',
+      action: 'update',
+      targetCollection: 'guidanceRecords',
+      targetId: recordId,
+      // Still no note text in the audit entry -- counseling notes are
+      // confidential and the audit log has a wider audience.
+      newValue: {'category': category.value},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteGuidanceRecord(String recordId) async {
+    await _latency();
+    _store.softDelete(_store.guidanceRecords, (g) => g.id == recordId);
+    _store.audit(
+      module: 'guidanceRecords',
+      action: 'soft_delete',
+      targetCollection: 'guidanceRecords',
+      targetId: recordId,
+      remarks: 'Soft deleted',
     );
     return const Success(null);
   }
@@ -1610,7 +1838,7 @@ class DemoGuidanceRepository implements GuidanceRepository {
       ),
     );
     _store.audit(
-      module: 'guidance',
+      module: 'guidanceRecords',
       action: 'create',
       targetCollection: 'summons',
       targetId: id,
@@ -1640,11 +1868,55 @@ class DemoGuidanceRepository implements GuidanceRepository {
       ),
     );
     _store.audit(
-      module: 'guidance',
+      module: 'guidanceRecords',
       action: 'update',
       targetCollection: 'summons',
       targetId: summonsId,
       newValue: {'status': status.value},
+    );
+    return const Success(null);
+  }
+  @override
+  Future<Result<void>> updateSummons({
+    required String summonsId,
+    required String reason,
+    required DateTime scheduledDate,
+  }) async {
+    await _latency();
+    _store.update<Summons>(
+      _store.summonses,
+      (s) => s.id == summonsId,
+      (s) => Summons(
+        id: s.id,
+        studentId: s.studentId,
+        studentName: s.studentName,
+        reason: reason,
+        scheduledDate: scheduledDate,
+        status: s.status,
+        issuedByName: s.issuedByName,
+        createdAt: s.createdAt,
+      ),
+    );
+    _store.audit(
+      module: 'guidanceRecords',
+      action: 'update',
+      targetCollection: 'summons',
+      targetId: summonsId,
+      newValue: {'reason': reason},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteSummons(String summonsId) async {
+    await _latency();
+    _store.softDelete(_store.summonses, (s) => s.id == summonsId);
+    _store.audit(
+      module: 'guidanceRecords',
+      action: 'soft_delete',
+      targetCollection: 'summons',
+      targetId: summonsId,
+      remarks: 'Soft deleted',
     );
     return const Success(null);
   }
@@ -1665,7 +1937,7 @@ class DemoProfileRepository implements ProfileRepository {
     if (user == null) return const Error(AuthFailure('no-current-user', 'Not signed in.'));
     if (photoUrl != null) _store.currentUser.add(user.copyWith(photoUrl: photoUrl));
     _store.audit(
-      module: 'profile',
+      module: 'users',
       action: 'update',
       targetCollection: 'users',
       targetId: user.uid,

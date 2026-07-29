@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'student_list_screen.dart';
+import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 
 /// Landing screen for the Registrar/Cashier role. Student Registration
 /// and Student Records/History are new this module. Payment Collection,
@@ -16,7 +17,17 @@ class RegistrarDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Registrar Dashboard')),
+      appBar: AppBar(
+        title: const Text('Registrar Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'My Activity',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

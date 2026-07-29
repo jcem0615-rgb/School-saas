@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/user_roles.dart';
+import '../../../../core/widgets/confirm_delete_dialog.dart';
+import '../../domain/entities/teacher_assignment.dart';
 import '../controllers/admin_controller.dart';
 
 class TeacherAssignmentsScreen extends ConsumerWidget {
@@ -15,7 +17,7 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Teacher Assignment')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateDialog(context, ref, employeesAsync.valueOrNull ?? []),
+        onPressed: () => _showEditor(context, ref, employeesAsync.valueOrNull ?? []),
         icon: const Icon(Icons.add),
         label: const Text('Assign'),
       ),
@@ -42,6 +44,11 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
                   title: Text('${a.subject} · ${a.section}'),
                   subtitle: Text('${a.teacherName} · SY ${a.schoolYear}'),
                   leading: const Icon(Icons.school_outlined),
+                  trailing: RowActionsMenu(
+                    onEdit: () => _showEditor(
+                        context, ref, employeesAsync.valueOrNull ?? [], existing: a),
+                    onDelete: () => _confirmDelete(context, ref, a),
+                  ),
                 ),
               );
             },
@@ -51,12 +58,35 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showCreateDialog(BuildContext context, WidgetRef ref, List employees) async {
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, TeacherAssignment a) async {
+    final ok = await confirmDelete(
+      context,
+      itemLabel: 'assignment',
+      detail: '${a.subject} · ${a.section} (${a.teacherName})',
+    );
+    if (!ok) return;
+    await ref.read(adminActionControllerProvider.notifier).deleteTeacherAssignment(a.id);
+  }
+
+  Future<void> _showEditor(
+    BuildContext context,
+    WidgetRef ref,
+    List employees, {
+    TeacherAssignment? existing,
+  }) async {
+    final isEdit = existing != null;
     final faculty = employees.where((e) => e.role == UserRole.faculty).toList();
-    final subjectController = TextEditingController();
-    final sectionController = TextEditingController();
-    final yearController = TextEditingController(text: '${DateTime.now().year}-${DateTime.now().year + 1}');
-    dynamic selectedTeacher = faculty.isNotEmpty ? faculty.first : null;
+    final subjectController = TextEditingController(text: existing?.subject ?? '');
+    final sectionController = TextEditingController(text: existing?.section ?? '');
+    final yearController = TextEditingController(
+        text: existing?.schoolYear ?? '${DateTime.now().year}-${DateTime.now().year + 1}');
+    // On edit, preselect the assignment's own teacher rather than the
+    // first in the list, so saving without touching the dropdown cannot
+    // silently reassign the subject to someone else.
+    dynamic selectedTeacher = isEdit
+        ? faculty.where((e) => e.uid == existing.teacherId).firstOrNull ??
+            (faculty.isNotEmpty ? faculty.first : null)
+        : (faculty.isNotEmpty ? faculty.first : null);
 
     await showDialog<void>(
       context: context,
@@ -102,16 +132,26 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
               onPressed: selectedTeacher == null
                   ? null
                   : () async {
-                      final success = await ref.read(adminActionControllerProvider.notifier).createTeacherAssignment(
-                            teacherId: selectedTeacher.uid as String,
-                            teacherName: selectedTeacher.fullName as String,
-                            subject: subjectController.text,
-                            section: sectionController.text,
-                            schoolYear: yearController.text,
-                          );
+                      final notifier = ref.read(adminActionControllerProvider.notifier);
+                      final success = isEdit
+                          ? await notifier.updateTeacherAssignment(
+                              assignmentId: existing.id,
+                              teacherId: selectedTeacher.uid as String,
+                              teacherName: selectedTeacher.fullName as String,
+                              subject: subjectController.text,
+                              section: sectionController.text,
+                              schoolYear: yearController.text,
+                            )
+                          : await notifier.createTeacherAssignment(
+                              teacherId: selectedTeacher.uid as String,
+                              teacherName: selectedTeacher.fullName as String,
+                              subject: subjectController.text,
+                              section: sectionController.text,
+                              schoolYear: yearController.text,
+                            );
                       if (success && dialogContext.mounted) Navigator.of(dialogContext).pop();
                     },
-              child: const Text('Save'),
+              child: Text(isEdit ? 'Save Changes' : 'Save'),
             ),
           ],
         ),

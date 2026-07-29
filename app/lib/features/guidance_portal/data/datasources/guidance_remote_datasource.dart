@@ -98,4 +98,56 @@ class GuidanceRemoteDataSource {
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
+
+  Map<String, dynamic> _editFields() => {
+        'updatedBy': _actingUser.uid,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+  /// Both collections set `allow delete: if false`; deletion is a flag
+  /// flip and reads already filter on isDeleted.
+  Map<String, dynamic> _softDeleteFields() => {
+        'isDeleted': true,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'deletedBy': _actingUser.uid,
+        ..._editFields(),
+      };
+
+  /// studentId is absent from the payload on purpose -- the guidanceRecords
+  /// rule rejects any update that moves a note to a different student.
+  Future<void> updateGuidanceRecord({
+    required String recordId,
+    required String category,
+    required String notes,
+  }) async {
+    await _firestore.doc('${FirestorePaths.guidanceRecords(_actingUser.schoolId)}/$recordId').update({
+      'category': category,
+      'notes': notes,
+      ..._editFields(),
+    });
+  }
+
+  Future<void> softDeleteGuidanceRecord(String recordId) async {
+    await _firestore
+        .doc('${FirestorePaths.guidanceRecords(_actingUser.schoolId)}/$recordId')
+        .update(_softDeleteFields());
+  }
+
+  Future<void> updateSummons({
+    required String summonsId,
+    required String reason,
+    required DateTime scheduledDate,
+  }) async {
+    await _firestore.doc('${FirestorePaths.summons(_actingUser.schoolId)}/$summonsId').update({
+      'reason': reason,
+      'scheduledDate': Timestamp.fromDate(scheduledDate),
+      ..._editFields(),
+    });
+  }
+
+  Future<void> softDeleteSummons(String summonsId) async {
+    await _firestore
+        .doc('${FirestorePaths.summons(_actingUser.schoolId)}/$summonsId')
+        .update(_softDeleteFields());
+  }
 }

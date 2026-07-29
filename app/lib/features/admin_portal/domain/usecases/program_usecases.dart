@@ -28,3 +28,46 @@ class CreateProgramUseCase {
     return _repository.createProgram(name: name.trim(), code: code.trim(), department: department.trim());
   }
 }
+
+class UpdateProgramUseCase {
+  final AdminRepository _repository;
+  const UpdateProgramUseCase(this._repository);
+
+  Future<Result<void>> call({
+    required String programId,
+    required String name,
+    required String code,
+    required String department,
+  }) {
+    if (programId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing program.')));
+    }
+    final nameError = Validators.required(name, fieldName: 'Program name');
+    if (nameError != null) return Future.value(Error(ValidationFailure(nameError)));
+
+    final deptError = Validators.required(department, fieldName: 'Department');
+    if (deptError != null) return Future.value(Error(ValidationFailure(deptError)));
+
+    return _repository.updateProgram(
+      programId: programId,
+      name: name.trim(),
+      code: code.trim(),
+      department: department.trim(),
+    );
+  }
+}
+
+/// Students keep programName/department denormalized onto their own record
+/// at registration (docs/15-divisions-and-programs.md), so removing a
+/// program from the catalogue never rewrites or orphans enrolled students.
+class DeleteProgramUseCase {
+  final AdminRepository _repository;
+  const DeleteProgramUseCase(this._repository);
+
+  Future<Result<void>> call(String programId) {
+    if (programId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing program.')));
+    }
+    return _repository.deleteProgram(programId);
+  }
+}

@@ -36,14 +36,26 @@ final summonsStreamProvider = StreamProvider.autoDispose<List<Summons>>((ref) {
 
 class GuidanceActionController extends StateNotifier<AsyncValue<void>> {
   final CreateGuidanceRecordUseCase _createGuidanceRecord;
+  final UpdateGuidanceRecordUseCase _updateGuidanceRecord;
+  final DeleteGuidanceRecordUseCase _deleteGuidanceRecord;
   final CreateSummonsUseCase _createSummons;
+  final UpdateSummonsUseCase _updateSummons;
+  final DeleteSummonsUseCase _deleteSummons;
   final UpdateSummonsStatusUseCase _updateSummonsStatus;
 
   GuidanceActionController({
     required CreateGuidanceRecordUseCase createGuidanceRecord,
+    required UpdateGuidanceRecordUseCase updateGuidanceRecord,
+    required DeleteGuidanceRecordUseCase deleteGuidanceRecord,
     required CreateSummonsUseCase createSummons,
+    required UpdateSummonsUseCase updateSummons,
+    required DeleteSummonsUseCase deleteSummons,
     required UpdateSummonsStatusUseCase updateSummonsStatus,
   })  : _createGuidanceRecord = createGuidanceRecord,
+        _updateGuidanceRecord = updateGuidanceRecord,
+        _deleteGuidanceRecord = deleteGuidanceRecord,
+        _updateSummons = updateSummons,
+        _deleteSummons = deleteSummons,
         _createSummons = createSummons,
         _updateSummonsStatus = updateSummonsStatus,
         super(const AsyncData(null));
@@ -72,6 +84,26 @@ class GuidanceActionController extends StateNotifier<AsyncValue<void>> {
         scheduledDate: scheduledDate,
       ));
 
+  Future<bool> updateGuidanceRecord({
+    required String recordId,
+    required GuidanceCategory category,
+    required String notes,
+  }) => _run(() => _updateGuidanceRecord(recordId: recordId, category: category, notes: notes));
+
+  Future<bool> deleteGuidanceRecord(String recordId) => _run(() => _deleteGuidanceRecord(recordId));
+
+  Future<bool> updateSummons({
+    required String summonsId,
+    required String reason,
+    required DateTime scheduledDate,
+  }) => _run(() => _updateSummons(
+        summonsId: summonsId,
+        reason: reason,
+        scheduledDate: scheduledDate,
+      ));
+
+  Future<bool> deleteSummons(String summonsId) => _run(() => _deleteSummons(summonsId));
+
   Future<bool> updateSummonsStatus({required String summonsId, required SummonsStatus status}) =>
       _run(() => _updateSummonsStatus(summonsId: summonsId, status: status));
 
@@ -93,6 +125,10 @@ final guidanceActionControllerProvider =
   final repo = ref.watch(guidanceRepositoryProvider);
   return GuidanceActionController(
     createGuidanceRecord: CreateGuidanceRecordUseCase(repo),
+    updateGuidanceRecord: UpdateGuidanceRecordUseCase(repo),
+    deleteGuidanceRecord: DeleteGuidanceRecordUseCase(repo),
+    updateSummons: UpdateSummonsUseCase(repo),
+    deleteSummons: DeleteSummonsUseCase(repo),
     createSummons: CreateSummonsUseCase(repo),
     updateSummonsStatus: UpdateSummonsStatusUseCase(repo),
   );

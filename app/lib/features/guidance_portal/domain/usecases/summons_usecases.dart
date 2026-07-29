@@ -43,3 +43,38 @@ class UpdateSummonsStatusUseCase {
   Future<Result<void>> call({required String summonsId, required SummonsStatus status}) =>
       _repository.updateSummonsStatus(summonsId: summonsId, status: status);
 }
+
+class UpdateSummonsUseCase {
+  final GuidanceRepository _repository;
+  const UpdateSummonsUseCase(this._repository);
+
+  Future<Result<void>> call({
+    required String summonsId,
+    required String reason,
+    required DateTime scheduledDate,
+  }) {
+    if (summonsId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing summons.')));
+    }
+    final reasonError = Validators.required(reason, fieldName: 'Reason');
+    if (reasonError != null) return Future.value(Error(ValidationFailure(reasonError)));
+
+    return _repository.updateSummons(
+      summonsId: summonsId,
+      reason: reason.trim(),
+      scheduledDate: scheduledDate,
+    );
+  }
+}
+
+class DeleteSummonsUseCase {
+  final GuidanceRepository _repository;
+  const DeleteSummonsUseCase(this._repository);
+
+  Future<Result<void>> call(String summonsId) {
+    if (summonsId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing summons.')));
+    }
+    return _repository.deleteSummons(summonsId);
+  }
+}

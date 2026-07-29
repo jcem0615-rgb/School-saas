@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
+import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../controllers/parent_controller.dart';
 import 'child_detail_screen.dart';
 
@@ -16,6 +17,12 @@ class ParentDashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('My Children'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'My Activity',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
+          ),
           IconButton(
             icon: const Icon(Icons.campaign_outlined),
             tooltip: 'Announcements',

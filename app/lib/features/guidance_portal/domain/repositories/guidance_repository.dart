@@ -11,6 +11,15 @@ abstract class GuidanceRepository {
     required String notes,
   });
 
+  Future<Result<void>> updateGuidanceRecord({
+    required String recordId,
+    required GuidanceCategory category,
+    required String notes,
+  });
+
+  /// Soft delete throughout -- firestore.rules denies hard delete.
+  Future<Result<void>> deleteGuidanceRecord(String recordId);
+
   Stream<List<Summons>> watchSummons();
   Future<Result<void>> createSummons({
     required String studentId,
@@ -19,4 +28,10 @@ abstract class GuidanceRepository {
     required DateTime scheduledDate,
   });
   Future<Result<void>> updateSummonsStatus({required String summonsId, required SummonsStatus status});
+  Future<Result<void>> updateSummons({
+    required String summonsId,
+    required String reason,
+    required DateTime scheduledDate,
+  });
+  Future<Result<void>> deleteSummons(String summonsId);
 }

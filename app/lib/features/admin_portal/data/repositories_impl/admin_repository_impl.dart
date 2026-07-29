@@ -12,6 +12,19 @@ class AdminRepositoryImpl implements AdminRepository {
   final AdminRemoteDataSource _remote;
   const AdminRepositoryImpl(this._remote);
 
+  /// Same try/catch shape the hand-written methods below use, factored out
+  /// for the edit/delete paths that have no per-call error mapping.
+  Future<Result<void>> _run(Future<void> Function() action) async {
+    try {
+      await action();
+      return const Success(null);
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
   Map<String, dynamic> _employeeInfoToMap(EmployeeInfo info) => {
         'department': info.department,
         'position': info.position,
@@ -110,6 +123,29 @@ class AdminRepositoryImpl implements AdminRepository {
   }
 
   @override
+  Future<Result<void>> updateTeacherAssignment({
+    required String assignmentId,
+    required String teacherId,
+    required String teacherName,
+    required String subject,
+    required String section,
+    required String schoolYear,
+  }) {
+    return _run(() => _remote.updateTeacherAssignment(
+          assignmentId: assignmentId,
+          teacherId: teacherId,
+          teacherName: teacherName,
+          subject: subject,
+          section: section,
+          schoolYear: schoolYear,
+        ));
+  }
+
+  @override
+  Future<Result<void>> deleteTeacherAssignment(String assignmentId) =>
+      _run(() => _remote.softDeleteTeacherAssignment(assignmentId));
+
+  @override
   Stream<List<Program>> watchPrograms() => _remote.watchPrograms();
 
   @override
@@ -121,4 +157,23 @@ class AdminRepositoryImpl implements AdminRepository {
       return const Error(UnknownFailure());
     }
   }
+
+  @override
+  Future<Result<void>> updateProgram({
+    required String programId,
+    required String name,
+    required String code,
+    required String department,
+  }) {
+    return _run(() => _remote.updateProgram(
+          programId: programId,
+          name: name,
+          code: code,
+          department: department,
+        ));
+  }
+
+  @override
+  Future<Result<void>> deleteProgram(String programId) =>
+      _run(() => _remote.softDeleteProgram(programId));
 }

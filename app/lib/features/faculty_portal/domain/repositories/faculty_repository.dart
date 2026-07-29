@@ -20,6 +20,22 @@ abstract class FacultyRepository {
     required bool published,
   });
 
+  Future<Result<void>> updateCourseworkItem({
+    required String itemId,
+    required CourseworkType type,
+    required String title,
+    required String description,
+    required String subject,
+    required String section,
+    DateTime? dueDate,
+    double? totalPoints,
+    required bool published,
+  });
+
+  /// Soft delete: flips `isDeleted` rather than removing the document,
+  /// since firestore.rules denies hard delete on every collection.
+  Future<Result<void>> deleteCourseworkItem(String itemId);
+
   Stream<List<Grade>> watchGradesFor({required String subject, required String section});
 
   Future<Result<void>> submitGrade({

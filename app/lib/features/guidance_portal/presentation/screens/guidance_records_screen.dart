@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/entities/guidance_record.dart';
 import '../controllers/guidance_controller.dart';
 
@@ -116,6 +117,10 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
                                       Chip(label: Text(r.category.displayLabel), visualDensity: VisualDensity.compact),
                                       const Spacer(),
                                       Text(_dateFormat.format(r.recordedAt), style: Theme.of(context).textTheme.bodySmall),
+                                      RowActionsMenu(
+                                        onEdit: () => _showRecordEditor(context, ref, existing: r),
+                                        onDelete: () => _confirmDeleteRecord(context, ref, r),
+                                      ),
                                     ],
                                   ),
                                   const SizedBox(height: 8),
@@ -132,6 +137,76 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteRecord(BuildContext context, WidgetRef ref, GuidanceRecord r) async {
+    final ok = await confirmDelete(
+      context,
+      itemLabel: 'guidance record',
+      detail: '${r.category.displayLabel} note for ${r.studentName}',
+    );
+    if (!ok) return;
+    await ref.read(guidanceActionControllerProvider.notifier).deleteGuidanceRecord(r.id);
+  }
+
+  /// Edit only touches category and notes. The student a note belongs to
+  /// is fixed: firestore.rules rejects any update that changes studentId.
+  Future<void> _showRecordEditor(
+    BuildContext context,
+    WidgetRef ref, {
+    required GuidanceRecord existing,
+  }) async {
+    final notesController = TextEditingController(text: existing.notes);
+    GuidanceCategory category = existing.category;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
+          title: const Text('Edit Guidance Record'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Student: ${existing.studentName}',
+                    style: Theme.of(dialogContext).textTheme.bodySmall),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<GuidanceCategory>(
+                  value: category,
+                  decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                  items: GuidanceCategory.values
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c.displayLabel)))
+                      .toList(),
+                  onChanged: (v) => setState(() => category = v ?? category),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: notesController,
+                  maxLines: 5,
+                  decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder()),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                final success = await ref
+                    .read(guidanceActionControllerProvider.notifier)
+                    .updateGuidanceRecord(
+                      recordId: existing.id,
+                      category: category,
+                      notes: notesController.text,
+                    );
+                if (success && dialogContext.mounted) Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Save Changes'),
+            ),
+          ],
+        ),
       ),
     );
   }

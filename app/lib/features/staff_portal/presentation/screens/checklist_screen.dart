@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/confirm_delete_dialog.dart';
+import '../../domain/entities/checklist_item.dart';
 import '../controllers/staff_controller.dart';
 
 String _todayKey() => DateTime.now().toIso8601String().substring(0, 10);
@@ -62,16 +64,32 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
                   separatorBuilder: (_, __) => const SizedBox(height: 4),
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    return CheckboxListTile(
-                      value: item.completed,
-                      title: Text(
-                        item.task,
-                        style: item.completed ? const TextStyle(decoration: TextDecoration.lineThrough) : null,
-                      ),
-                      onChanged: (v) => ref.read(staffActionControllerProvider.notifier).toggleChecklistItem(
-                            itemId: item.id,
-                            completed: v ?? false,
+                    // CheckboxListTile owns its trailing slot, so the
+                    // actions menu goes in a Row alongside it rather than
+                    // inside the tile.
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: CheckboxListTile(
+                            value: item.completed,
+                            title: Text(
+                              item.task,
+                              style: item.completed
+                                  ? const TextStyle(decoration: TextDecoration.lineThrough)
+                                  : null,
+                            ),
+                            onChanged: (v) =>
+                                ref.read(staffActionControllerProvider.notifier).toggleChecklistItem(
+                                      itemId: item.id,
+                                      completed: v ?? false,
+                                    ),
                           ),
+                        ),
+                        RowActionsMenu(
+                          onEdit: () => _showEditDialog(context, ref, item),
+                          onDelete: () => _confirmDelete(context, ref, item),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -79,6 +97,40 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, ChecklistItem item) async {
+    final ok = await confirmDelete(context, itemLabel: 'task', detail: item.task);
+    if (!ok) return;
+    await ref.read(staffActionControllerProvider.notifier).deleteChecklistItem(item.id);
+  }
+
+  Future<void> _showEditDialog(BuildContext context, WidgetRef ref, ChecklistItem item) async {
+    final taskController = TextEditingController(text: item.task);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Task'),
+        content: TextField(
+          controller: taskController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Task', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final success = await ref
+                  .read(staffActionControllerProvider.notifier)
+                  .updateChecklistItem(itemId: item.id, task: taskController.text);
+              if (success && dialogContext.mounted) Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Save Changes'),
+          ),
+        ],
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../domain/entities/school_summary.dart';
+import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../controllers/owner_controller.dart';
 import '../widgets/revenue_card.dart';
 import '../widgets/school_status_badge.dart';
@@ -25,7 +26,17 @@ class OwnerDashboardScreen extends ConsumerWidget {
     final schoolsAsync = ref.watch(schoolsStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Owner Dashboard')),
+      appBar: AppBar(
+        title: const Text('Owner Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'My Activity',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(revenueSummaryStreamProvider);

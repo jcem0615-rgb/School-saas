@@ -7,15 +7,26 @@ import '../controllers/audit_trail_controller.dart';
 
 final _dateTimeFormat = DateFormat.yMMMd().add_jm();
 
+/// These are Firestore collection ids, not display names: the audit
+/// trigger stores `module: collectionId` (onAnyTenantDocWrite.ts), so the
+/// filter has to match that vocabulary exactly.
 const _moduleOptions = [
   'users',
+  'students',
   'announcements',
   'meetings',
   'approvals',
   'expenses',
+  'teacherAssignments',
+  'programs',
+  'courseworkItems',
+  'grades',
+  'guidanceRecords',
+  'summons',
+  'checklistItems',
+  'dailyReports',
   'attendance',
   'payments',
-  'subscription',
 ];
 
 /// Every write this build makes to a tenant CRUD collection is captured

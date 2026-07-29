@@ -6,6 +6,7 @@ import '../../../director_portal/presentation/screens/announcements_screen.dart'
 import 'employee_list_screen.dart';
 import 'programs_screen.dart';
 import 'teacher_assignments_screen.dart';
+import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 
 /// Landing screen for the Admin role. Employee Management, User Approval
 /// (via Employee detail's activate/suspend action), Reset Password (also
@@ -21,7 +22,17 @@ class AdminDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Dashboard')),
+      appBar: AppBar(
+        title: const Text('Admin Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'My Activity',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

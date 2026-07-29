@@ -6,6 +6,7 @@ import '../../../director_portal/presentation/screens/announcements_screen.dart'
 import '../../../director_portal/presentation/screens/approvals_screen.dart';
 import '../../../director_portal/presentation/screens/meetings_screen.dart';
 import '../../../registrar_portal/presentation/screens/student_list_screen.dart';
+import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 
 /// Landing screen for the Principal role -- a division-level academic
 /// leader (e.g. "Elementary Principal," "High School Principal," "College
@@ -26,7 +27,17 @@ class PrincipalDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Principal Dashboard')),
+      appBar: AppBar(
+        title: const Text('Principal Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'My Activity',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

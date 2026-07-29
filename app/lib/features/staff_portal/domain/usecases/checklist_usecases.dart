@@ -29,3 +29,30 @@ class ToggleChecklistItemUseCase {
   Future<Result<void>> call({required String itemId, required bool completed}) =>
       _repository.toggleChecklistItem(itemId: itemId, completed: completed);
 }
+
+class UpdateChecklistItemUseCase {
+  final StaffRepository _repository;
+  const UpdateChecklistItemUseCase(this._repository);
+
+  Future<Result<void>> call({required String itemId, required String task}) {
+    if (itemId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing checklist item.')));
+    }
+    final taskError = Validators.required(task, fieldName: 'Task');
+    if (taskError != null) return Future.value(Error(ValidationFailure(taskError)));
+
+    return _repository.updateChecklistItem(itemId: itemId, task: task.trim());
+  }
+}
+
+class DeleteChecklistItemUseCase {
+  final StaffRepository _repository;
+  const DeleteChecklistItemUseCase(this._repository);
+
+  Future<Result<void>> call(String itemId) {
+    if (itemId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing checklist item.')));
+    }
+    return _repository.deleteChecklistItem(itemId);
+  }
+}

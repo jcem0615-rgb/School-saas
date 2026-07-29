@@ -59,4 +59,38 @@ class GuidanceRepositoryImpl implements GuidanceRepository {
   Future<Result<void>> updateSummonsStatus({required String summonsId, required SummonsStatus status}) {
     return _guard(() => _remote.updateSummonsStatus(summonsId: summonsId, status: status.value));
   }
+
+  @override
+  Future<Result<void>> updateGuidanceRecord({
+    required String recordId,
+    required GuidanceCategory category,
+    required String notes,
+  }) {
+    return _guard(() => _remote.updateGuidanceRecord(
+          recordId: recordId,
+          category: category.value,
+          notes: notes,
+        ));
+  }
+
+  @override
+  Future<Result<void>> deleteGuidanceRecord(String recordId) =>
+      _guard(() => _remote.softDeleteGuidanceRecord(recordId));
+
+  @override
+  Future<Result<void>> updateSummons({
+    required String summonsId,
+    required String reason,
+    required DateTime scheduledDate,
+  }) {
+    return _guard(() => _remote.updateSummons(
+          summonsId: summonsId,
+          reason: reason,
+          scheduledDate: scheduledDate,
+        ));
+  }
+
+  @override
+  Future<Result<void>> deleteSummons(String summonsId) =>
+      _guard(() => _remote.softDeleteSummons(summonsId));
 }

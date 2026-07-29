@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'guidance_records_screen.dart';
 import 'summons_screen.dart';
+import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 
 /// Landing screen for the Guidance role. Student Guidance Records and
 /// Student Summons are new this module. Reports is deferred to the
@@ -13,7 +14,17 @@ class GuidanceDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Guidance Dashboard')),
+      appBar: AppBar(
+        title: const Text('Guidance Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'My Activity',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

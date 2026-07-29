@@ -32,6 +32,20 @@ class AdminRemoteDataSource {
 
   static const _staffRoles = ['director', 'admin', 'registrar', 'faculty', 'staff', 'guidance'];
 
+  Map<String, dynamic> _editFields() => {
+        'updatedBy': _actingUser.uid,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+  /// Deletion is a flag flip: programs and teacherAssignments both set
+  /// `allow delete: if false`, and both reads filter on isDeleted.
+  Map<String, dynamic> _softDeleteFields() => {
+        'isDeleted': true,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'deletedBy': _actingUser.uid,
+        ..._editFields(),
+      };
+
   Stream<List<EmployeeSummaryModel>> watchEmployees() {
     return _firestore
         .collection(FirestorePaths.users(_actingUser.schoolId))
@@ -131,6 +145,36 @@ class AdminRemoteDataSource {
     });
   }
 
+  /// createdBy stays untouched -- the teacherAssignments rule rejects any
+  /// update that changes it.
+  Future<void> updateTeacherAssignment({
+    required String assignmentId,
+    required String teacherId,
+    required String teacherName,
+    required String subject,
+    required String section,
+    required String schoolYear,
+  }) async {
+    await _firestore
+        .collection(FirestorePaths.teacherAssignments(_actingUser.schoolId))
+        .doc(assignmentId)
+        .update({
+      'teacherId': teacherId,
+      'teacherName': teacherName,
+      'subject': subject,
+      'section': section,
+      'schoolYear': schoolYear,
+      ..._editFields(),
+    });
+  }
+
+  Future<void> softDeleteTeacherAssignment(String assignmentId) async {
+    await _firestore
+        .collection(FirestorePaths.teacherAssignments(_actingUser.schoolId))
+        .doc(assignmentId)
+        .update(_softDeleteFields());
+  }
+
   Stream<List<ProgramModel>> watchPrograms() {
     return _firestore
         .collection(FirestorePaths.programs(_actingUser.schoolId))
@@ -156,5 +200,33 @@ class AdminRemoteDataSource {
       'deletedBy': null,
       'isDeleted': false,
     });
+  }
+
+  Future<void> updateProgram({
+    required String programId,
+    required String name,
+    required String code,
+    required String department,
+  }) async {
+    await _firestore
+        .collection(FirestorePaths.programs(_actingUser.schoolId))
+        .doc(programId)
+        .update({
+      'name': name,
+      'code': code,
+      'department': department,
+      ..._editFields(),
+    });
+  }
+
+  /// Note: students carry a denormalized programName/department captured
+  /// at registration (see docs/15-divisions-and-programs.md), so deleting
+  /// a program does not orphan or rewrite existing student records -- it
+  /// only removes the option from the catalogue going forward.
+  Future<void> softDeleteProgram(String programId) async {
+    await _firestore
+        .collection(FirestorePaths.programs(_actingUser.schoolId))
+        .doc(programId)
+        .update(_softDeleteFields());
   }
 }

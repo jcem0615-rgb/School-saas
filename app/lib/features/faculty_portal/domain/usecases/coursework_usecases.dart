@@ -52,3 +52,64 @@ class CreateCourseworkItemUseCase {
     );
   }
 }
+
+/// Edits re-run creation's validation -- an edit that blanks the title is
+/// exactly as invalid as a create that never set one.
+class UpdateCourseworkItemUseCase {
+  final FacultyRepository _repository;
+  const UpdateCourseworkItemUseCase(this._repository);
+
+  Future<Result<void>> call({
+    required String itemId,
+    required CourseworkType type,
+    required String title,
+    required String description,
+    required String subject,
+    required String section,
+    DateTime? dueDate,
+    double? totalPoints,
+    bool published = true,
+  }) {
+    if (itemId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing coursework item.')));
+    }
+    final titleError = Validators.required(title, fieldName: 'Title');
+    if (titleError != null) return Future.value(Error(ValidationFailure(titleError)));
+
+    final subjectError = Validators.required(subject, fieldName: 'Subject');
+    if (subjectError != null) return Future.value(Error(ValidationFailure(subjectError)));
+
+    final sectionError = Validators.required(section, fieldName: 'Section');
+    if (sectionError != null) return Future.value(Error(ValidationFailure(sectionError)));
+
+    if (type.isGradable && (totalPoints == null || totalPoints <= 0)) {
+      return Future.value(
+        const Error(ValidationFailure('Total points must be greater than zero for graded work.')),
+      );
+    }
+
+    return _repository.updateCourseworkItem(
+      itemId: itemId,
+      type: type,
+      title: title.trim(),
+      description: description.trim(),
+      subject: subject.trim(),
+      section: section.trim(),
+      dueDate: dueDate,
+      totalPoints: totalPoints,
+      published: published,
+    );
+  }
+}
+
+class DeleteCourseworkItemUseCase {
+  final FacultyRepository _repository;
+  const DeleteCourseworkItemUseCase(this._repository);
+
+  Future<Result<void>> call(String itemId) {
+    if (itemId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing coursework item.')));
+    }
+    return _repository.deleteCourseworkItem(itemId);
+  }
+}

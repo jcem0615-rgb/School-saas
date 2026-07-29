@@ -5,6 +5,7 @@ import '../../../director_portal/presentation/screens/announcements_screen.dart'
 import 'coursework_list_screen.dart';
 import 'grades_screen.dart';
 import 'material_requests_screen.dart';
+import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 
 /// Landing screen for the Faculty role. Coursework (Lesson Plans/Lessons/
 /// Assignments/Projects/Exams/Quizzes), Grade Submission, and Material
@@ -18,7 +19,17 @@ class FacultyDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Faculty Dashboard')),
+      appBar: AppBar(
+        title: const Text('Faculty Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'My Activity',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

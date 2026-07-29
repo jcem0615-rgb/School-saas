@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/entities/coursework_item.dart';
 import '../controllers/faculty_controller.dart';
 
@@ -25,7 +26,7 @@ class CourseworkListScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Coursework')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateSheet(context, ref),
+        onPressed: () => _showEditor(context, ref),
         icon: const Icon(Icons.add),
         label: const Text('New'),
       ),
@@ -55,9 +56,17 @@ class CourseworkListScreen extends ConsumerWidget {
                     '${item.type.displayLabel} · ${item.subject} - ${item.section}'
                     '${item.dueDate != null ? ' · Due ${_dateFormat.format(item.dueDate!)}' : ''}',
                   ),
-                  trailing: item.published
-                      ? null
-                      : const Chip(label: Text('Draft'), visualDensity: VisualDensity.compact),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!item.published)
+                        const Chip(label: Text('Draft'), visualDensity: VisualDensity.compact),
+                      RowActionsMenu(
+                        onEdit: () => _showEditor(context, ref, existing: item),
+                        onDelete: () => _confirmDelete(context, ref, item),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -67,15 +76,27 @@ class CourseworkListScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showCreateSheet(BuildContext context, WidgetRef ref) async {
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final subjectController = TextEditingController();
-    final sectionController = TextEditingController();
-    final pointsController = TextEditingController();
-    CourseworkType type = CourseworkType.lesson;
-    DateTime? dueDate;
-    bool published = true;
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, CourseworkItem item) async {
+    final ok = await confirmDelete(
+      context,
+      itemLabel: item.type.displayLabel.toLowerCase(),
+      detail: item.title,
+    );
+    if (!ok) return;
+    await ref.read(facultyActionControllerProvider.notifier).deleteCourseworkItem(item.id);
+  }
+
+  Future<void> _showEditor(BuildContext context, WidgetRef ref, {CourseworkItem? existing}) async {
+    final isEdit = existing != null;
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final descriptionController = TextEditingController(text: existing?.description ?? '');
+    final subjectController = TextEditingController(text: existing?.subject ?? '');
+    final sectionController = TextEditingController(text: existing?.section ?? '');
+    final pointsController =
+        TextEditingController(text: existing?.totalPoints?.toString() ?? '');
+    CourseworkType type = existing?.type ?? CourseworkType.lesson;
+    DateTime? dueDate = existing?.dueDate;
+    bool published = existing?.published ?? true;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -157,19 +178,32 @@ class CourseworkListScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () async {
-                    final success = await ref.read(facultyActionControllerProvider.notifier).createCourseworkItem(
-                          type: type,
-                          title: titleController.text,
-                          description: descriptionController.text,
-                          subject: subjectController.text,
-                          section: sectionController.text,
-                          dueDate: dueDate,
-                          totalPoints: double.tryParse(pointsController.text),
-                          published: published,
-                        );
+                    final notifier = ref.read(facultyActionControllerProvider.notifier);
+                    final success = isEdit
+                        ? await notifier.updateCourseworkItem(
+                            itemId: existing.id,
+                            type: type,
+                            title: titleController.text,
+                            description: descriptionController.text,
+                            subject: subjectController.text,
+                            section: sectionController.text,
+                            dueDate: dueDate,
+                            totalPoints: double.tryParse(pointsController.text),
+                            published: published,
+                          )
+                        : await notifier.createCourseworkItem(
+                            type: type,
+                            title: titleController.text,
+                            description: descriptionController.text,
+                            subject: subjectController.text,
+                            section: sectionController.text,
+                            dueDate: dueDate,
+                            totalPoints: double.tryParse(pointsController.text),
+                            published: published,
+                          );
                     if (success && sheetContext.mounted) Navigator.of(sheetContext).pop();
                   },
-                  child: const Text('Save'),
+                  child: Text(isEdit ? 'Save Changes' : 'Save'),
                 ),
               ],
             ),

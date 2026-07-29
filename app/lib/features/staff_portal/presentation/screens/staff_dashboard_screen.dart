@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../faculty_portal/presentation/screens/material_requests_screen.dart';
 import 'checklist_screen.dart';
 import 'daily_reports_screen.dart';
+import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 
 /// Landing screen for the Staff (maintenance) role. Checklist and Daily
 /// Reports are new this module. Material Requests reuses the exact same
@@ -16,7 +17,17 @@ class StaffDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Staff Dashboard')),
+      appBar: AppBar(
+        title: const Text('Staff Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'My Activity',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

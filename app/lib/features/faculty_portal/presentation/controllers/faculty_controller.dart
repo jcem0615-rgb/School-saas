@@ -48,12 +48,18 @@ final gradesStreamProvider = StreamProvider.autoDispose.family<List<Grade>, Grad
 
 class FacultyActionController extends StateNotifier<AsyncValue<void>> {
   final CreateCourseworkItemUseCase _createCourseworkItem;
+  final UpdateCourseworkItemUseCase _updateCourseworkItem;
+  final DeleteCourseworkItemUseCase _deleteCourseworkItem;
   final SubmitGradeUseCase _submitGrade;
 
   FacultyActionController({
     required CreateCourseworkItemUseCase createCourseworkItem,
+    required UpdateCourseworkItemUseCase updateCourseworkItem,
+    required DeleteCourseworkItemUseCase deleteCourseworkItem,
     required SubmitGradeUseCase submitGrade,
   })  : _createCourseworkItem = createCourseworkItem,
+        _updateCourseworkItem = updateCourseworkItem,
+        _deleteCourseworkItem = deleteCourseworkItem,
         _submitGrade = submitGrade,
         super(const AsyncData(null));
 
@@ -76,6 +82,31 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
         totalPoints: totalPoints,
         published: published,
       ));
+
+  Future<bool> updateCourseworkItem({
+    required String itemId,
+    required CourseworkType type,
+    required String title,
+    required String description,
+    required String subject,
+    required String section,
+    DateTime? dueDate,
+    double? totalPoints,
+    bool published = true,
+  }) => _run(() => _updateCourseworkItem(
+        itemId: itemId,
+        type: type,
+        title: title,
+        description: description,
+        subject: subject,
+        section: section,
+        dueDate: dueDate,
+        totalPoints: totalPoints,
+        published: published,
+      ));
+
+  Future<bool> deleteCourseworkItem(String itemId) =>
+      _run(() => _deleteCourseworkItem(itemId));
 
   Future<bool> submitGrade({
     required String studentId,
@@ -117,6 +148,8 @@ final facultyActionControllerProvider =
   final repo = ref.watch(facultyRepositoryProvider);
   return FacultyActionController(
     createCourseworkItem: CreateCourseworkItemUseCase(repo),
+    updateCourseworkItem: UpdateCourseworkItemUseCase(repo),
+    deleteCourseworkItem: DeleteCourseworkItemUseCase(repo),
     submitGrade: SubmitGradeUseCase(repo),
   );
 });

@@ -38,4 +38,12 @@ class StaffRepositoryImpl implements StaffRepository {
   Future<Result<void>> submitDailyReport({required String date, required String content}) {
     return _guard(() => _remote.submitDailyReport(date: date, content: content));
   }
+
+  @override
+  Future<Result<void>> updateChecklistItem({required String itemId, required String task}) =>
+      _guard(() => _remote.updateChecklistItem(itemId: itemId, task: task));
+
+  @override
+  Future<Result<void>> deleteChecklistItem(String itemId) =>
+      _guard(() => _remote.softDeleteChecklistItem(itemId));
 }

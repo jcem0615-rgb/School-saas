@@ -90,4 +90,34 @@ class StaffRemoteDataSource {
       'isDeleted': false,
     });
   }
+
+  /// staffId is never in an update payload -- the checklistItems rule
+  /// rejects any change to it, so an edit cannot move a task to someone
+  /// else's list.
+  Future<void> updateChecklistItem({
+    required String itemId,
+    required String task,
+  }) async {
+    await _firestore.doc('${FirestorePaths.checklistItems(_actingUser.schoolId)}/$itemId').update({
+      'task': task,
+      'updatedBy': _actingUser.uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Soft delete -- checklistItems sets `allow delete: if false`.
+  ///
+  /// Note there is deliberately no equivalent for dailyReports: that
+  /// collection sets `allow update, delete: if false` because a daily work
+  /// log is a point-in-time record, and corrections are filed as a new
+  /// entry so the history stays trustworthy.
+  Future<void> softDeleteChecklistItem(String itemId) async {
+    await _firestore.doc('${FirestorePaths.checklistItems(_actingUser.schoolId)}/$itemId').update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'deletedBy': _actingUser.uid,
+      'updatedBy': _actingUser.uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 }

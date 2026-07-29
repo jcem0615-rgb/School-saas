@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../owner_portal/presentation/widgets/revenue_card.dart';
+import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
+import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../controllers/director_controller.dart';
 import 'announcements_screen.dart';
 import 'approvals_screen.dart';
@@ -108,6 +110,22 @@ class DirectorDashboardScreen extends ConsumerWidget {
                     label: 'Expenses',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const ExpensesScreen())),
+                  ),
+                  // School-wide history. Every edit and soft delete made
+                  // anywhere in the portal lands here via the audit
+                  // trigger, which is what makes those actions reversible
+                  // in practice -- you can see what changed and who did it.
+                  _QuickLinkTile(
+                    icon: Icons.history,
+                    label: 'Audit Trail',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const AuditTrailScreen())),
+                  ),
+                  _QuickLinkTile(
+                    icon: Icons.person_outline,
+                    label: 'My Activity',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
                   ),
                 ],
               ),

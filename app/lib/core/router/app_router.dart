@@ -7,6 +7,7 @@ import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/auth/presentation/screens/force_password_change_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/admin_portal/presentation/screens/admin_dashboard_screen.dart';
+import '../../features/audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../features/audit_trail/presentation/screens/my_activity_screen.dart';
 import '../../features/director_portal/presentation/screens/director_dashboard_screen.dart';
 import '../../features/faculty_portal/presentation/screens/faculty_dashboard_screen.dart';
@@ -36,6 +37,7 @@ class AppRoutes {
   static const scanAttendance = '/scan-attendance';
   static const myAttendance = '/my-attendance';
   static const myActivity = '/my-activity';
+  static const auditTrail = '/audit-trail';
   static const profile = '/profile';
   static const recordPayment = '/payments/record';
   static const paymentHistory = '/payments/history';
@@ -104,6 +106,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return AppRoutes.homeFor(user.role);
       }
 
+      // Tenant-wide audit trail is a Director/Admin surface. Every other
+      // role still has /my-activity, which is scoped to their own uid.
+      if (state.matchedLocation == AppRoutes.auditTrail &&
+          user.role != UserRole.director &&
+          user.role != UserRole.admin) {
+        return AppRoutes.homeFor(user.role);
+      }
+
       return null; // no redirect needed
     },
     routes: [
@@ -120,6 +130,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.myQrId, builder: (context, state) => const MyQrIdScreen()),
       GoRoute(path: AppRoutes.scanAttendance, builder: (context, state) => const QrScannerScreen()),
       GoRoute(path: AppRoutes.myActivity, builder: (context, state) => const MyActivityScreen()),
+      // School-wide audit trail. firestore.rules lets owner/director/admin
+      // read the log, but Owner is platform-level with no schoolId, and
+      // this screen is tenant-scoped -- so Director/Admin only, and the
+      // redirect below sends anyone else back to their own portal rather
+      // than rendering a screen whose queries would be denied.
+      GoRoute(path: AppRoutes.auditTrail, builder: (context, state) => const AuditTrailScreen()),
       GoRoute(path: AppRoutes.profile, builder: (context, state) => const ProfileScreen()),
       GoRoute(
         path: AppRoutes.myAttendance,

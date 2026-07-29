@@ -65,6 +65,52 @@ class FacultyRemoteDataSource {
     });
   }
 
+  /// teacherId is deliberately absent from the payload: firestore.rules
+  /// rejects any update that changes it, so an edit can never reassign
+  /// another teacher's coursework to the editor.
+  Future<void> updateCourseworkItem({
+    required String itemId,
+    required String type,
+    required String title,
+    required String description,
+    required String subject,
+    required String section,
+    DateTime? dueDate,
+    double? totalPoints,
+    required bool published,
+  }) async {
+    await _firestore
+        .collection(FirestorePaths.courseworkItems(_actingUser.schoolId))
+        .doc(itemId)
+        .update({
+      'type': type,
+      'title': title,
+      'description': description,
+      'subject': subject,
+      'section': section,
+      'dueDate': dueDate != null ? Timestamp.fromDate(dueDate) : null,
+      'totalPoints': totalPoints,
+      'published': published,
+      'updatedBy': _actingUser.uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Soft delete -- courseworkItems sets `allow delete: if false`, and
+  /// watchMyCourseworkItems already filters on isDeleted.
+  Future<void> softDeleteCourseworkItem(String itemId) async {
+    await _firestore
+        .collection(FirestorePaths.courseworkItems(_actingUser.schoolId))
+        .doc(itemId)
+        .update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'deletedBy': _actingUser.uid,
+      'updatedBy': _actingUser.uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Stream<List<GradeModel>> watchGradesFor({required String subject, required String section}) {
     return _firestore
         .collection(FirestorePaths.grades(_actingUser.schoolId))
