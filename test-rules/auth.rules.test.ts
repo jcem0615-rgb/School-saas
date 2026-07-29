@@ -88,7 +88,15 @@ describe("tenant isolation on schools/{schoolId}/users", () => {
 
   test("a user can update their own phone number but NOT their own role", async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), `schools/${SCHOOL_A}/users/user_a1`), {
+      const db = context.firestore();
+      // The users UPDATE rule calls schoolIsAccessible(), which does an
+      // unguarded get() on the subscription doc -- absent, that throws and
+      // the write is denied for a reason unrelated to what is being tested.
+      await setDoc(doc(db, `platform_subscriptions/${SCHOOL_A}`), {
+        schoolId: SCHOOL_A,
+        currentStatus: "active",
+      });
+      await setDoc(doc(db, `schools/${SCHOOL_A}/users/user_a1`), {
         id: "user_a1",
         schoolId: SCHOOL_A,
         role: "faculty",
@@ -102,15 +110,18 @@ describe("tenant isolation on schools/{schoolId}/users", () => {
       status: "active",
       mustChangePassword: false,
     });
+    // One handle per context: a second self.firestore() after the first
+    // write throws "Firestore has already been started".
+    const selfDb = self.firestore();
 
     await assertSucceeds(
-      updateDoc(doc(self.firestore(), `schools/${SCHOOL_A}/users/user_a1`), {
+      updateDoc(doc(selfDb, `schools/${SCHOOL_A}/users/user_a1`), {
         phone: "0911111111",
       })
     );
 
     await assertFails(
-      updateDoc(doc(self.firestore(), `schools/${SCHOOL_A}/users/user_a1`), {
+      updateDoc(doc(selfDb, `schools/${SCHOOL_A}/users/user_a1`), {
         role: "director",
       })
     );

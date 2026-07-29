@@ -36,15 +36,20 @@ function contextAs(role: string, uid: string) {
 
 async function seedCommon() {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(doc(context.firestore(), `platform_subscriptions/${SCHOOL}`), {
+    // One firestore() handle per callback: calling context.firestore()
+    // again after a write has started the instance throws
+    // "Firestore has already been started and its settings can no longer
+    // be changed", failing the test for a reason unrelated to rules.
+    const db = context.firestore();
+    await setDoc(doc(db, `platform_subscriptions/${SCHOOL}`), {
       schoolId: SCHOOL,
       currentStatus: "active",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/student_1`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/students/student_1`), {
       id: "student_1",
       userId: "student_1_uid",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/users/parent_1`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/users/parent_1`), {
       id: "parent_1",
       role: "parent",
       linkedStudentIds: ["student_1"],

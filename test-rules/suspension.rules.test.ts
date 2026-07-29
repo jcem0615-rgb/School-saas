@@ -27,17 +27,22 @@ afterEach(async () => {
 
 async function seedSuspendedSchool() {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(doc(context.firestore(), `platform_subscriptions/${SCHOOL_S}`), {
+    // One firestore() handle per callback: calling context.firestore()
+    // again after a write has started the instance throws
+    // "Firestore has already been started and its settings can no longer
+    // be changed", failing the test for a reason unrelated to rules.
+    const db = context.firestore();
+    await setDoc(doc(db, `platform_subscriptions/${SCHOOL_S}`), {
       schoolId: SCHOOL_S,
       currentStatus: "suspended",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL_S}/users/user_1`), {
+    await setDoc(doc(db, `schools/${SCHOOL_S}/users/user_1`), {
       id: "user_1",
       schoolId: SCHOOL_S,
       role: "faculty",
       firstName: "Test",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL_S}/announcements/ann_1`), {
+    await setDoc(doc(db, `schools/${SCHOOL_S}/announcements/ann_1`), {
       title: "Some announcement",
     });
   });
@@ -70,11 +75,16 @@ describe("suspended school data access", () => {
 
   test("the same collection IS readable once the school is active again", async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), `platform_subscriptions/${SCHOOL_S}`), {
+    // One firestore() handle per callback: calling context.firestore()
+    // again after a write has started the instance throws
+    // "Firestore has already been started and its settings can no longer
+    // be changed", failing the test for a reason unrelated to rules.
+    const db = context.firestore();
+      await setDoc(doc(db, `platform_subscriptions/${SCHOOL_S}`), {
         schoolId: SCHOOL_S,
         currentStatus: "active",
       });
-      await setDoc(doc(context.firestore(), `schools/${SCHOOL_S}/announcements/ann_1`), {
+      await setDoc(doc(db, `schools/${SCHOOL_S}/announcements/ann_1`), {
         title: "Some announcement",
       });
     });

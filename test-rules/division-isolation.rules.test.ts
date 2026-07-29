@@ -36,50 +36,55 @@ function contextAs(role: string, uid: string) {
 
 async function seed() {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(doc(context.firestore(), `platform_subscriptions/${SCHOOL}`), {
+    // One firestore() handle per callback: calling context.firestore()
+    // again after a write has started the instance throws
+    // "Firestore has already been started and its settings can no longer
+    // be changed", failing the test for a reason unrelated to rules.
+    const db = context.firestore();
+    await setDoc(doc(db, `platform_subscriptions/${SCHOOL}`), {
       schoolId: SCHOOL,
       currentStatus: "active",
     });
 
     // An elementary student and a college student (two different departments).
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/elem_student`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/students/elem_student`), {
       id: "elem_student",
       educationLevel: "elementary",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/college_eng_student`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/students/college_eng_student`), {
       id: "college_eng_student",
       educationLevel: "college",
       department: "College of Engineering",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/college_biz_student`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/students/college_biz_student`), {
       id: "college_biz_student",
       educationLevel: "college",
       department: "College of Business",
     });
 
     // Registrar scoped to Elementary only.
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/users/registrar_elem`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/users/registrar_elem`), {
       role: "registrar",
       employeeInfo: {assignedDivision: "elementary"},
     });
     // Registrar with no configured scope -- should remain unrestricted.
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/users/registrar_unrestricted`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/users/registrar_unrestricted`), {
       role: "registrar",
       employeeInfo: {department: "Registrar's Office", position: "Registrar"},
     });
     // Faculty scoped to College + College of Engineering specifically.
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/users/faculty_eng`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/users/faculty_eng`), {
       role: "faculty",
       employeeInfo: {assignedDivision: "college", assignedDepartment: "College of Engineering"},
     });
 
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/grades/grade_eng`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/grades/grade_eng`), {
       studentId: "college_eng_student",
       subject: "Calculus",
       score: 90,
       maxScore: 100,
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/grades/grade_biz`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/grades/grade_biz`), {
       studentId: "college_biz_student",
       subject: "Marketing",
       score: 88,
@@ -106,9 +111,10 @@ describe("unrestricted registrar (assignedDivision never set) -- backward compat
   test("CAN read students in every division, unchanged from before this feature existed", async () => {
     await seed();
     const registrar = contextAs("registrar", "registrar_unrestricted");
-    await assertSucceeds(getDoc(doc(registrar.firestore(), `schools/${SCHOOL}/students/elem_student`)));
-    await assertSucceeds(getDoc(doc(registrar.firestore(), `schools/${SCHOOL}/students/college_eng_student`)));
-    await assertSucceeds(getDoc(doc(registrar.firestore(), `schools/${SCHOOL}/students/college_biz_student`)));
+    const registrarDb = registrar.firestore();
+    await assertSucceeds(getDoc(doc(registrarDb, `schools/${SCHOOL}/students/elem_student`)));
+    await assertSucceeds(getDoc(doc(registrarDb, `schools/${SCHOOL}/students/college_eng_student`)));
+    await assertSucceeds(getDoc(doc(registrarDb, `schools/${SCHOOL}/students/college_biz_student`)));
   });
 });
 
@@ -136,8 +142,9 @@ describe("Director/Admin remain cross-division by design", () => {
   test("director can read students in every division regardless of any staff scoping", async () => {
     await seed();
     const director = contextAs("director", "director_1");
-    await assertSucceeds(getDoc(doc(director.firestore(), `schools/${SCHOOL}/students/elem_student`)));
-    await assertSucceeds(getDoc(doc(director.firestore(), `schools/${SCHOOL}/students/college_eng_student`)));
-    await assertSucceeds(getDoc(doc(director.firestore(), `schools/${SCHOOL}/students/college_biz_student`)));
+    const directorDb = director.firestore();
+    await assertSucceeds(getDoc(doc(directorDb, `schools/${SCHOOL}/students/elem_student`)));
+    await assertSucceeds(getDoc(doc(directorDb, `schools/${SCHOOL}/students/college_eng_student`)));
+    await assertSucceeds(getDoc(doc(directorDb, `schools/${SCHOOL}/students/college_biz_student`)));
   });
 });

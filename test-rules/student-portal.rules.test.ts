@@ -27,17 +27,22 @@ afterEach(async () => {
 
 async function seedFixtures() {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(doc(context.firestore(), `platform_subscriptions/${SCHOOL}`), {
+    // One firestore() handle per callback: calling context.firestore()
+    // again after a write has started the instance throws
+    // "Firestore has already been started and its settings can no longer
+    // be changed", failing the test for a reason unrelated to rules.
+    const db = context.firestore();
+    await setDoc(doc(db, `platform_subscriptions/${SCHOOL}`), {
       schoolId: SCHOOL,
       currentStatus: "active",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/student_1`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/students/student_1`), {
       id: "student_1",
       schoolId: SCHOOL,
       userId: "student_1_uid",
       section: "7-A",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/grades/grade_1`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/grades/grade_1`), {
       studentId: "student_1",
       subject: "Math",
       score: 90,

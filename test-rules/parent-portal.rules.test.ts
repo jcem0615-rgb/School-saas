@@ -1,6 +1,7 @@
 import {
   initializeTestEnvironment,
   assertSucceeds,
+  assertFails,
   RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import * as fs from "fs";
@@ -33,46 +34,63 @@ function contextAs(role: string, uid: string) {
   });
 }
 
-describe("parent resolving linked children via whereIn(documentId())", () => {
-  test("a parent's whereIn query returns exactly their linked children, not other students", async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), `platform_subscriptions/${SCHOOL}`), {
-        schoolId: SCHOOL,
-        currentStatus: "active",
-      });
-      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/users/parent_1`), {
-        id: "parent_1",
-        schoolId: SCHOOL,
-        role: "parent",
-        linkedStudentIds: ["child_a", "child_b"],
-      });
-      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/child_a`), {
-        id: "child_a",
-        firstName: "Child",
-        lastName: "A",
-      });
-      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/child_b`), {
-        id: "child_b",
-        firstName: "Child",
-        lastName: "B",
-      });
-      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/unrelated_child`), {
-        id: "unrelated_child",
-        firstName: "Unrelated",
-        lastName: "Child",
-      });
+async function seedFixtures() {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    // One firestore() handle per callback: a second context.firestore()
+    // after a write throws "Firestore has already been started".
+    const db = context.firestore();
+
+    await setDoc(doc(db, `platform_subscriptions/${SCHOOL}`), {
+      schoolId: SCHOOL,
+      currentStatus: "active",
+    });
+    await setDoc(doc(db, `schools/${SCHOOL}/users/parent_1`), {
+      id: "parent_1",
+      schoolId: SCHOOL,
+      role: "parent",
+      linkedStudentIds: ["child_a", "child_b"],
     });
 
+    // userId must be present even when unset: the students read rule
+    // dereferences resource.data.userId directly, unlike educationLevel
+    // and department which it reads via .get(field, default).
+    for (const id of ["child_a", "child_b", "unrelated_child"]) {
+      await setDoc(doc(db, `schools/${SCHOOL}/students/${id}`), {
+        id,
+        userId: null,
+        firstName: "Child",
+        lastName: id,
+      });
+    }
+  });
+}
+
+describe("parent resolving linked children via whereIn(documentId())", () => {
+  test("a parent can query exactly their linked children", async () => {
+    await seedFixtures();
     const parent = contextAs("parent", "parent_1");
     const studentsRef = collection(parent.firestore(), `schools/${SCHOOL}/students`);
 
-    // Query for all three IDs (as the app's whereIn would if it didn't
-    // already know which were linked) -- rules should silently exclude
-    // the unrelated one rather than erroring the whole query.
-    const q = query(studentsRef, where(documentId(), "in", ["child_a", "child_b", "unrelated_child"]));
-    const snap = await assertSucceeds(getDocs(q));
+    const linkedOnly = query(studentsRef, where(documentId(), "in", ["child_a", "child_b"]));
+    const snap = await assertSucceeds(getDocs(linkedOnly));
+    expect(snap.docs.map((d) => d.id).sort()).toEqual(["child_a", "child_b"]);
+  });
 
-    const returnedIds = snap.docs.map((d) => d.id).sort();
-    expect(returnedIds).toEqual(["child_a", "child_b"]);
+  test("widening the query to an unlinked child rejects the whole query", async () => {
+    await seedFixtures();
+    const parent = contextAs("parent", "parent_1");
+    const studentsRef = collection(parent.firestore(), `schools/${SCHOOL}/students`);
+
+    // Firestore rules are NOT filters. For a query, every document the
+    // query could return must satisfy the read rule, or the entire query
+    // is rejected -- unreadable documents are never silently dropped.
+    // That is why ParentRepository.watchChildren() queries the linked IDs
+    // it already holds instead of listing the collection, and it is what
+    // stops a parent widening their own query to enumerate the student body.
+    const tooWide = query(
+      studentsRef,
+      where(documentId(), "in", ["child_a", "child_b", "unrelated_child"])
+    );
+    await assertFails(getDocs(tooWide));
   });
 });

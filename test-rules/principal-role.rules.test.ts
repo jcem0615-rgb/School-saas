@@ -36,32 +36,37 @@ function contextAs(role: string, uid: string) {
 
 async function seed() {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(doc(context.firestore(), `platform_subscriptions/${SCHOOL}`), {
+    // One firestore() handle per callback: calling context.firestore()
+    // again after a write has started the instance throws
+    // "Firestore has already been started and its settings can no longer
+    // be changed", failing the test for a reason unrelated to rules.
+    const db = context.firestore();
+    await setDoc(doc(db, `platform_subscriptions/${SCHOOL}`), {
       schoolId: SCHOOL,
       currentStatus: "active",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/hs_student`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/students/hs_student`), {
       id: "hs_student",
       educationLevel: "high_school",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/elem_student`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/students/elem_student`), {
       id: "elem_student",
       educationLevel: "elementary",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/guidanceRecords/rec_hs`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/guidanceRecords/rec_hs`), {
       studentId: "hs_student",
       category: "behavioral",
       notes: "Confidential",
     });
 
     // A Principal scoped to High School only.
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/users/principal_hs`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/users/principal_hs`), {
       role: "principal",
       employeeInfo: {assignedDivision: "high_school"},
     });
     // A Principal with no scope configured -- should behave school-wide,
     // same as before this role existed for any other staff type.
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/users/principal_unrestricted`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/users/principal_unrestricted`), {
       role: "principal",
       employeeInfo: {department: "Administration", position: "Principal"},
     });
@@ -114,8 +119,9 @@ describe("unrestricted Principal (no assignedDivision configured)", () => {
   test("CAN read students in any division", async () => {
     await seed();
     const principal = contextAs("principal", "principal_unrestricted");
-    await assertSucceeds(getDoc(doc(principal.firestore(), `schools/${SCHOOL}/students/hs_student`)));
-    await assertSucceeds(getDoc(doc(principal.firestore(), `schools/${SCHOOL}/students/elem_student`)));
+    const principalDb = principal.firestore();
+    await assertSucceeds(getDoc(doc(principalDb, `schools/${SCHOOL}/students/hs_student`)));
+    await assertSucceeds(getDoc(doc(principalDb, `schools/${SCHOOL}/students/elem_student`)));
   });
 });
 

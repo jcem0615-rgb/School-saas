@@ -27,30 +27,35 @@ afterEach(async () => {
 
 async function seedFixtures() {
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(doc(context.firestore(), `platform_subscriptions/${SCHOOL}`), {
+    // One firestore() handle per callback: calling context.firestore()
+    // again after a write has started the instance throws
+    // "Firestore has already been started and its settings can no longer
+    // be changed", failing the test for a reason unrelated to rules.
+    const db = context.firestore();
+    await setDoc(doc(db, `platform_subscriptions/${SCHOOL}`), {
       schoolId: SCHOOL,
       currentStatus: "active",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/students/student_1`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/students/student_1`), {
       id: "student_1",
       schoolId: SCHOOL,
       userId: "student_1_uid",
       balance: 3500,
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/payments/pay_1`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/payments/pay_1`), {
       id: "pay_1",
       schoolId: SCHOOL,
       studentId: "student_1",
       amount: 1500,
       status: "completed",
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/users/parent_1`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/users/parent_1`), {
       id: "parent_1",
       schoolId: SCHOOL,
       role: "parent",
       linkedStudentIds: ["student_1"],
     });
-    await setDoc(doc(context.firestore(), `schools/${SCHOOL}/users/parent_2`), {
+    await setDoc(doc(db, `schools/${SCHOOL}/users/parent_2`), {
       id: "parent_2",
       schoolId: SCHOOL,
       role: "parent",

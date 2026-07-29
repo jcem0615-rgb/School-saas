@@ -164,6 +164,14 @@ npm install
 npm run test:rules
 ```
 
+`test:rules` needs the Firebase CLI. If you'd rather not install it, the
+suite runs against any Firestore emulator you point it at:
+
+```bash
+java -jar cloud-firestore-emulator.jar --host=127.0.0.1 --port=8085 &
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 npx jest --config jest.config.js --runInBand
+```
+
 `test:rules` starts the Firestore + Auth emulators, runs every
 `test-rules/*.rules.test.ts` file against your actual `firestore.rules`,
 and tears the emulator down — this is what proves tenant isolation,
