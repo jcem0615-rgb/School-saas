@@ -116,7 +116,16 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
                                     children: [
                                       Chip(label: Text(r.category.displayLabel), visualDensity: VisualDensity.compact),
                                       const Spacer(),
-                                      Text(_dateFormat.format(r.recordedAt), style: Theme.of(context).textTheme.bodySmall),
+                                      // Shrinkable: category chip, date and
+                                      // actions menu together overflow a
+                                      // phone-width card otherwise.
+                                      Flexible(
+                                        child: Text(
+                                          _dateFormat.format(r.recordedAt),
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context).textTheme.bodySmall,
+                                        ),
+                                      ),
                                       RowActionsMenu(
                                         onEdit: () => _showRecordEditor(context, ref, existing: r),
                                         onDelete: () => _confirmDeleteRecord(context, ref, r),
@@ -174,6 +183,7 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
                     style: Theme.of(dialogContext).textTheme.bodySmall),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<GuidanceCategory>(
+                  isExpanded: true,
                   value: category,
                   decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                   items: GuidanceCategory.values
@@ -225,6 +235,7 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<GuidanceCategory>(
+                  isExpanded: true,
                   value: category,
                   decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                   items: GuidanceCategory.values

@@ -194,6 +194,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<StudentStatus>(
+            isExpanded: true,
             value: _status,
             decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
             items: StudentStatus.values

@@ -156,6 +156,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 // default is pre-selected, so a Registrar can't
                 // accidentally register someone into the wrong division.
                 DropdownButtonFormField<EducationLevel>(
+                  isExpanded: true,
                   value: educationLevel,
                   decoration: const InputDecoration(
                     labelText: 'Division (Elementary / High School / College)',
@@ -215,6 +216,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                             );
                           }
                           return DropdownButtonFormField<Program>(
+                            isExpanded: true,
                             value: selectedProgram,
                             decoration: const InputDecoration(
                               labelText: 'Program / Course',

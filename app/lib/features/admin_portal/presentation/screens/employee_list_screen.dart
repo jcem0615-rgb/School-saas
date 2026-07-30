@@ -93,6 +93,7 @@ class EmployeeListScreen extends ConsumerWidget {
                 Text('New Employee', style: Theme.of(sheetContext).textTheme.titleLarge),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<UserRole>(
+                  isExpanded: true,
                   value: role,
                   decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
                   items: adminProvisionableRoles
@@ -128,6 +129,7 @@ class EmployeeListScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<EducationLevel?>(
+                  isExpanded: true,
                   value: assignedDivision,
                   decoration: const InputDecoration(
                     labelText: 'Data Access Scope (optional)',

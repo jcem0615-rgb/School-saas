@@ -117,6 +117,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<PaymentPurpose>(
+                isExpanded: true,
                 value: _purpose,
                 decoration: const InputDecoration(labelText: 'Purpose', border: OutlineInputBorder()),
                 items: PaymentPurpose.values
@@ -126,6 +127,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<PaymentMethod>(
+                isExpanded: true,
                 value: _method,
                 decoration: const InputDecoration(labelText: 'Payment Method', border: OutlineInputBorder()),
                 items: PaymentMethod.values

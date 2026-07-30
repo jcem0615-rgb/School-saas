@@ -45,10 +45,14 @@ class ExpensesScreen extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(16),
+                // The label shrinks, not the figure: a six-digit peso total
+                // plus this label overflows a phone-width header otherwise.
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total (all shown)'),
+                    const Expanded(
+                      child: Text('Total (all shown)', overflow: TextOverflow.ellipsis),
+                    ),
+                    const SizedBox(width: 8),
                     Text(_currencyFormat.format(total), style: Theme.of(context).textTheme.titleMedium),
                   ],
                 ),
@@ -67,18 +71,28 @@ class ExpensesScreen extends ConsumerWidget {
                         side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                       ),
                       child: ListTile(
-                        title: Text(e.description),
-                        subtitle: Text('${e.category} · ${_dateFormat.format(e.date)} · ${e.recordedByName}'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        // The amount sits on the title row rather than in
+                        // `trailing`. ListTile passes its trailing slot
+                        // unbounded width, so an amount + actions menu Row
+                        // there cannot shrink and overflows a phone-width
+                        // screen; the title slot is bounded, so Expanded
+                        // works and the description ellipsizes instead.
+                        title: Row(
                           children: [
-                            Text(_currencyFormat.format(e.amount),
-                                style: Theme.of(context).textTheme.titleSmall),
-                            RowActionsMenu(
-                              onEdit: () => _showEditor(context, ref, existing: e),
-                              onDelete: () => _confirmDelete(context, ref, e),
+                            Expanded(
+                              child: Text(e.description, overflow: TextOverflow.ellipsis),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _currencyFormat.format(e.amount),
+                              style: Theme.of(context).textTheme.titleSmall,
                             ),
                           ],
+                        ),
+                        subtitle: Text('${e.category} · ${_dateFormat.format(e.date)} · ${e.recordedByName}'),
+                        trailing: RowActionsMenu(
+                          onEdit: () => _showEditor(context, ref, existing: e),
+                          onDelete: () => _confirmDelete(context, ref, e),
                         ),
                       ),
                     );
@@ -120,6 +134,7 @@ class ExpensesScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: category,
                   decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                   items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
