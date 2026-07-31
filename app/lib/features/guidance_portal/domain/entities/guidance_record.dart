@@ -27,8 +27,14 @@ enum GuidanceCategory {
 /// staff records by nature, not shared directly with the family in raw form.
 class GuidanceRecord {
   final String id;
-  final String studentId;
-  final String studentName;
+
+  /// Null when the note is about a whole section rather than one student.
+  final String? studentId;
+  final String? studentName;
+
+  /// The section the note concerns. Always present -- a note is filed
+  /// either against a student in a section, or against the section itself.
+  final String section;
   final GuidanceCategory category;
   final String notes;
   final String recordedByName;
@@ -36,8 +42,9 @@ class GuidanceRecord {
 
   const GuidanceRecord({
     required this.id,
-    required this.studentId,
-    required this.studentName,
+    this.studentId,
+    this.studentName,
+    required this.section,
     required this.category,
     required this.notes,
     required this.recordedByName,

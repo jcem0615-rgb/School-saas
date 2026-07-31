@@ -5,7 +5,7 @@ import {
   RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import * as fs from "fs";
-import {setDoc, doc, updateDoc, deleteDoc} from "firebase/firestore";
+import {setDoc, doc, getDoc, updateDoc, deleteDoc} from "firebase/firestore";
 
 /**
  * Covers the edit + delete capability added across the portals.
@@ -431,6 +431,76 @@ describe("suspended schools cannot soft delete", () => {
         doc(director.firestore(), `schools/${SCHOOL}/announcements/ann_1`),
         softDeletePayload("director_1")
       )
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Section-level guidance records (studentId absent)
+// ---------------------------------------------------------------------------
+
+describe("guidance records filed against a section rather than a student", () => {
+  const path = `schools/${SCHOOL}/guidanceRecords/gui_section_1`;
+
+  /** Gives the acting guidance user an assignedDivision, i.e. scoped staff. */
+  async function seedScopedGuidance(uid: string, division: string) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/users/${uid}`), {
+        schoolId: SCHOOL,
+        role: "guidance",
+        employeeInfo: {assignedDivision: division},
+      });
+    });
+  }
+
+  test("unscoped guidance can create a note with no studentId", async () => {
+    const guidance = contextAs("guidance");
+    await assertSucceeds(
+      setDoc(doc(guidance.firestore(), path), {
+        schoolId: SCHOOL,
+        section: "Grade 10 - Rizal",
+        category: "behavioral",
+        notes: "Whole class briefed on the tardiness policy",
+        isDeleted: false,
+      })
+    );
+  });
+
+  test("unscoped guidance can read a section-level note", async () => {
+    await seedDoc(path, {section: "Grade 10 - Rizal", category: "behavioral", notes: "n"});
+    const guidance = contextAs("guidance");
+    await assertSucceeds(getDoc(doc(guidance.firestore(), path)));
+  });
+
+  // The point of the guidanceScopeAllows helper: a section-level record has
+  // no student to scope against, so it must not become a way for a
+  // division-scoped counsellor to see outside their division.
+  test("a division-scoped counsellor cannot read a section-level note", async () => {
+    await seedScopedGuidance("guidance_scoped", "elementary");
+    await seedDoc(path, {section: "Grade 10 - Rizal", category: "behavioral", notes: "n"});
+    const scoped = contextAs("guidance", "guidance_scoped");
+    await assertFails(getDoc(doc(scoped.firestore(), path)));
+  });
+
+  test("director still reads section-level notes, being cross-division", async () => {
+    await seedDoc(path, {section: "Grade 10 - Rizal", category: "behavioral", notes: "n"});
+    const director = contextAs("director");
+    await assertSucceeds(getDoc(doc(director.firestore(), path)));
+  });
+
+  test("an edit cannot turn a section note into a student note", async () => {
+    await seedDoc(path, {section: "Grade 10 - Rizal", category: "behavioral", notes: "n"});
+    const guidance = contextAs("guidance");
+    await assertFails(
+      updateDoc(doc(guidance.firestore(), path), {notes: "edited", studentId: "stu_1"})
+    );
+  });
+
+  test("section-level notes soft delete like any other record", async () => {
+    await seedDoc(path, {section: "Grade 10 - Rizal", category: "behavioral", notes: "n"});
+    const guidance = contextAs("guidance");
+    await assertSucceeds(
+      updateDoc(doc(guidance.firestore(), path), softDeletePayload("guidance_1"))
     );
   });
 });

@@ -1039,6 +1039,7 @@ class DemoStore {
           id: 'gui_001',
           studentId: 'stu_001',
           studentName: 'Miguel Torres',
+          section: 'Grade 10 - Rizal',
           category: GuidanceCategory.academic,
           notes: 'Discussed drop in Math scores. Student reports difficulty concentrating '
               'during afternoon classes. Advised to sit in front and follow up in two weeks.',
@@ -1049,12 +1050,15 @@ class DemoStore {
           id: 'gui_002',
           studentId: 'stu_004',
           studentName: 'Paolo Ramirez',
+          section: 'Grade 10 - Rizal',
           category: GuidanceCategory.behavioral,
           notes: 'Third tardiness this month. Parent contacted by phone.',
           recordedByName: 'Cecilia Lim',
           recordedAt: _daysAgo(4),
         ),
       ];
+
+  List<GuidanceRecord> get _extraSectionRecord => [];
 
   List<Summons> _seedSummonses() => [
         Summons(

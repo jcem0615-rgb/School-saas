@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/widgets/confirm_delete_dialog.dart';
+import '../../../../core/widgets/combo_field.dart';
 import '../../domain/entities/guidance_record.dart';
 import '../controllers/guidance_controller.dart';
 
@@ -41,13 +42,13 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Guidance Records')),
-      floatingActionButton: _activeStudentId == null
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: () => _showAddDialog(context, ref),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Note'),
-            ),
+      // Available with or without a student loaded: with one, the note is
+      // filed against that student; without, it is a section-level note.
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddDialog(context, ref),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Note'),
+      ),
       body: Column(
         children: [
           Padding(
@@ -154,7 +155,9 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
     final ok = await confirmDelete(
       context,
       itemLabel: 'guidance record',
-      detail: '${r.category.displayLabel} note for ${r.studentName}',
+      detail: r.studentId == null
+          ? '${r.category.displayLabel} note for ${r.section}'
+          : '${r.category.displayLabel} note for ${r.studentName}',
     );
     if (!ok) return;
     await ref.read(guidanceActionControllerProvider.notifier).deleteGuidanceRecord(r.id);
@@ -179,8 +182,12 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Student: ${existing.studentName}',
-                    style: Theme.of(dialogContext).textTheme.bodySmall),
+                Text(
+                  existing.studentId == null
+                      ? 'Section-level note · ${existing.section}'
+                      : 'Student: ${existing.studentName} · ${existing.section}',
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<GuidanceCategory>(
                   isExpanded: true,
@@ -223,6 +230,16 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
 
   Future<void> _showAddDialog(BuildContext context, WidgetRef ref) async {
     final notesController = TextEditingController();
+    final sectionController = TextEditingController();
+    // Sections seen on the records already loaded. Guidance has no student
+    // list of its own, and adding one just to populate a suggestion list
+    // would widen what this portal reads for a convenience.
+    final sectionSuggestions = (_activeStudentId == null
+            ? const <GuidanceRecord>[]
+            : ref.read(guidanceRecordsProvider(_activeStudentId!)).valueOrNull ??
+                const <GuidanceRecord>[])
+        .map((r) => r.section)
+        .toList();
     GuidanceCategory category = GuidanceCategory.behavioral;
 
     await showDialog<void>(
@@ -244,10 +261,23 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
                   onChanged: (v) => setState(() => category = v ?? category),
                 ),
                 const SizedBox(height: 12),
+                ComboField(
+                  controller: sectionController,
+                  label: 'Section',
+                  suggestions: sectionSuggestions,
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: notesController,
                   maxLines: 5,
                   decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _activeStudentId == null || _activeStudentId!.isEmpty
+                      ? 'No student loaded — this will be filed as a section-level note.'
+                      : 'Filed against $_activeStudentId in this section.',
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
                 ),
               ],
             ),
@@ -257,10 +287,14 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
             FilledButton(
               onPressed: () async {
                 final success = await ref.read(guidanceActionControllerProvider.notifier).createGuidanceRecord(
-                      studentId: _activeStudentId!,
+                      // Blank student = a note about the whole section.
+                      // The usecase normalises empty to null, which is what
+                      // firestore.rules keys its scoping on.
+                      studentId: _activeStudentId,
                       studentName: _studentNameController.text.trim().isEmpty
-                          ? _activeStudentId!
+                          ? _activeStudentId
                           : _studentNameController.text,
+                      section: sectionController.text,
                       category: category,
                       notes: notesController.text,
                     );

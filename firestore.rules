@@ -96,6 +96,23 @@ service cloud.firestore {
             && (staffDepartment == null || studentDepartment == null || staffDepartment == studentDepartment));
     }
 
+    // Guidance records may be filed against a whole section rather than one
+    // student, in which case studentId is absent. Two things matter here:
+    //
+    //  * `.get('studentId', null)` -- reading an absent field directly
+    //    throws in rules, which would deny the whole branch rather than
+    //    evaluate false.
+    //  * an unscoped record must not become a way around division
+    //    scoping. A counsellor with an assignedDivision only ever sees
+    //    records tied to a student they are scoped for; section-level
+    //    records are visible only to staff who are themselves unscoped
+    //    (and to Director/Admin, who are cross-division by design).
+    function guidanceScopeAllows(schoolId, studentId) {
+      return studentId == null
+        ? staffEmployeeInfo(schoolId).get('assignedDivision', null) == null
+        : scopeAllowsStudentById(schoolId, studentId);
+    }
+
     // Convenience for rules on collections that reference a student by ID
     // (grades, payments, guidanceRecords, summons) rather than being the
     // student doc itself -- one get() fetches both fields it needs.
@@ -359,19 +376,23 @@ service cloud.firestore {
         allow read: if schoolIsAccessible(schoolId)
                       && (
                         hasRole(schoolId, ['director', 'admin'])
-                        || (hasRole(schoolId, ['guidance', 'principal']) && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        || (hasRole(schoolId, ['guidance', 'principal'])
+                            && guidanceScopeAllows(schoolId, resource.data.get('studentId', null)))
                       );
         allow create: if schoolIsAccessible(schoolId)
                         && (
                           hasRole(schoolId, ['director', 'admin'])
                           || (hasRole(schoolId, ['guidance'])
-                              && scopeAllowsStudentById(schoolId, request.resource.data.studentId))
+                              && guidanceScopeAllows(schoolId, request.resource.data.get('studentId', null)))
                         );
+        // The subject of a note never moves, whether that subject is a
+        // student or a section.
         allow update: if schoolIsAccessible(schoolId)
-                        && request.resource.data.studentId == resource.data.studentId
+                        && request.resource.data.get('studentId', null) == resource.data.get('studentId', null)
                         && (
                           hasRole(schoolId, ['director', 'admin'])
-                          || (hasRole(schoolId, ['guidance']) && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                          || (hasRole(schoolId, ['guidance'])
+                              && guidanceScopeAllows(schoolId, resource.data.get('studentId', null)))
                         );
         allow delete: if false;
       }

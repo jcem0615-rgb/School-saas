@@ -6,11 +6,34 @@ import '../controllers/staff_controller.dart';
 
 final _dateFormat = DateFormat.yMMMd();
 
-class DailyReportsScreen extends ConsumerWidget {
+class DailyReportsScreen extends ConsumerStatefulWidget {
   const DailyReportsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DailyReportsScreen> createState() => _DailyReportsScreenState();
+}
+
+class _DailyReportsScreenState extends ConsumerState<DailyReportsScreen> {
+  /// Null means "show every report". Picking a date filters to that day.
+  DateTime? _filterDate;
+
+  static String _dateKey(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _filterDate ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365 * 2)),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) setState(() => _filterDate = picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final reportsAsync = ref.watch(myDailyReportsProvider);
 
     ref.listen(staffActionControllerProvider, (previous, next) {
@@ -22,7 +45,22 @@ class DailyReportsScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Daily Reports')),
+      appBar: AppBar(
+        title: const Text('Daily Reports'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            tooltip: 'Filter by date',
+            onPressed: _pickDate,
+          ),
+          if (_filterDate != null)
+            IconButton(
+              icon: const Icon(Icons.filter_alt_off),
+              tooltip: 'Show all dates',
+              onPressed: () => setState(() => _filterDate = null),
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showSubmitDialog(context, ref),
         icon: const Icon(Icons.add),
@@ -31,9 +69,26 @@ class DailyReportsScreen extends ConsumerWidget {
       body: reportsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Failed to load reports: $err')),
-        data: (reports) {
+        data: (allReports) {
+          // Reports are keyed by a 'YYYY-MM-DD' string, so the filter
+          // compares on that rather than on a DateTime, which would drag
+          // timezone handling into a field that has no time component.
+          final reports = _filterDate == null
+              ? allReports
+              : allReports.where((r) => r.date == _dateKey(_filterDate!)).toList();
+
           if (reports.isEmpty) {
-            return const Center(child: Text('No reports submitted yet.'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  _filterDate == null
+                      ? 'No reports submitted yet.'
+                      : 'No report for ${_dateFormat.format(_filterDate!)}.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
           }
           return ListView.separated(
             padding: const EdgeInsets.all(16),

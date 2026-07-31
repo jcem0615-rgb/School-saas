@@ -4,9 +4,13 @@ import '../entities/summons.dart';
 
 abstract class GuidanceRepository {
   Stream<List<GuidanceRecord>> watchGuidanceRecords(String studentId);
+  /// Section-level guidance notes -- those not tied to one student.
+  Stream<List<GuidanceRecord>> watchSectionRecords(String section);
+
   Future<Result<void>> createGuidanceRecord({
-    required String studentId,
-    required String studentName,
+    String? studentId,
+    String? studentName,
+    required String section,
     required GuidanceCategory category,
     required String notes,
   });

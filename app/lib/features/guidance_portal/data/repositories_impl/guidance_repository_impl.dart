@@ -23,15 +23,21 @@ class GuidanceRepositoryImpl implements GuidanceRepository {
       _remote.watchGuidanceRecords(studentId);
 
   @override
+  Stream<List<GuidanceRecord>> watchSectionRecords(String section) =>
+      _remote.watchSectionRecords(section);
+
+  @override
   Future<Result<void>> createGuidanceRecord({
-    required String studentId,
-    required String studentName,
+    String? studentId,
+    String? studentName,
+    required String section,
     required GuidanceCategory category,
     required String notes,
   }) {
     return _guard(() => _remote.createGuidanceRecord(
           studentId: studentId,
           studentName: studentName,
+          section: section,
           category: category.value,
           notes: notes,
         ));

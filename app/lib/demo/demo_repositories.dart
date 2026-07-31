@@ -1818,9 +1818,18 @@ class DemoGuidanceRepository implements GuidanceRepository {
       );
 
   @override
+  Stream<List<GuidanceRecord>> watchSectionRecords(String section) {
+    return _store.guidanceRecords.stream.map(
+      (all) => all.where((g) => g.studentId == null && g.section == section).toList()
+        ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt)),
+    );
+  }
+
+  @override
   Future<Result<void>> createGuidanceRecord({
-    required String studentId,
-    required String studentName,
+    String? studentId,
+    String? studentName,
+    required String section,
     required GuidanceCategory category,
     required String notes,
   }) async {
@@ -1832,6 +1841,7 @@ class DemoGuidanceRepository implements GuidanceRepository {
         id: id,
         studentId: studentId,
         studentName: studentName,
+        section: section,
         category: category,
         notes: notes,
         recordedByName: _store.requireUser.fullName,
@@ -1845,7 +1855,7 @@ class DemoGuidanceRepository implements GuidanceRepository {
       targetId: id,
       // Deliberately no note text in the audit entry -- counseling notes
       // are confidential, and the audit log has a wider audience.
-      newValue: {'studentId': studentId, 'category': category.value},
+      newValue: {'studentId': studentId, 'section': section, 'category': category.value},
     );
     return const Success(null);
   }
@@ -1866,6 +1876,7 @@ class DemoGuidanceRepository implements GuidanceRepository {
         // reassigns a counseling note to a different student.
         studentId: g.studentId,
         studentName: g.studentName,
+        section: g.section,
         category: category,
         notes: notes,
         recordedByName: g.recordedByName,

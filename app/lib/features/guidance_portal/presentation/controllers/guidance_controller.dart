@@ -61,13 +61,15 @@ class GuidanceActionController extends StateNotifier<AsyncValue<void>> {
         super(const AsyncData(null));
 
   Future<bool> createGuidanceRecord({
-    required String studentId,
-    required String studentName,
+    String? studentId,
+    String? studentName,
+    required String section,
     required GuidanceCategory category,
     required String notes,
   }) => _run(() => _createGuidanceRecord(
         studentId: studentId,
         studentName: studentName,
+        section: section,
         category: category,
         notes: notes,
       ));

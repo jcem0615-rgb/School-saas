@@ -135,21 +135,33 @@ void main() {
       addTearDown(tester.view.reset);
 
       await pumpAs(tester, UserRole.guidance, const GuidanceRecordsScreen());
-      expect(find.byType(FloatingActionButton), findsNothing,
-          reason: 'no student loaded yet');
+
+      // Unlike Grades, this action is available immediately: a guidance
+      // note does not require a student, because a note can be filed
+      // against a whole section. Gating the button on a loaded student
+      // would make section-level notes impossible to create.
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.text('Section'), findsWidgets);
+    });
+
+    testWidgets('Guidance · Records still loads a student roster', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+
+      await pumpAs(tester, UserRole.guidance, const GuidanceRecordsScreen());
 
       await tester.enterText(find.byType(TextField).at(0), 'stu_001');
       await tester.tap(find.widgetWithText(FilledButton, 'Load Records'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.byType(FloatingActionButton), findsOneWidget,
-          reason: 'Add Note should appear once a student is loaded');
-
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.byType(FloatingActionButton), findsOneWidget);
     });
   });
 

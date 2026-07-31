@@ -29,9 +29,25 @@ class GuidanceRemoteDataSource {
         .map((snap) => snap.docs.map((d) => GuidanceRecordModel.fromFirestore(d.id, d.data())).toList());
   }
 
+  /// Records filed against a section rather than a single student. The
+  /// query is separate because Firestore cannot express "studentId is null
+  /// OR studentId == X" in one query.
+  Stream<List<GuidanceRecordModel>> watchSectionRecords(String section) {
+    return _firestore
+        .collection(FirestorePaths.guidanceRecords(_actingUser.schoolId))
+        .where('section', isEqualTo: section)
+        .where('studentId', isNull: true)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('recordedAt', descending: true)
+        .limit(200)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => GuidanceRecordModel.fromFirestore(d.id, d.data())).toList());
+  }
+
   Future<void> createGuidanceRecord({
-    required String studentId,
-    required String studentName,
+    String? studentId,
+    String? studentName,
+    required String section,
     required String category,
     required String notes,
   }) async {
@@ -40,6 +56,7 @@ class GuidanceRemoteDataSource {
       'id': ref.id,
       'studentId': studentId,
       'studentName': studentName,
+      'section': section,
       'category': category,
       'notes': notes,
       'recordedByName': _actingUser.name,

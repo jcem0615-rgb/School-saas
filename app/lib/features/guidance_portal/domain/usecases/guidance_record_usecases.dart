@@ -16,20 +16,32 @@ class CreateGuidanceRecordUseCase {
   const CreateGuidanceRecordUseCase(this._repository);
 
   Future<Result<void>> call({
-    required String studentId,
-    required String studentName,
+    String? studentId,
+    String? studentName,
+    required String section,
     required GuidanceCategory category,
     required String notes,
   }) {
-    if (studentId.trim().isEmpty) {
-      return Future.value(const Error(ValidationFailure('A student must be specified.')));
-    }
+    // A note is filed against a section; naming a student within it is
+    // optional, which is what allows section-wide notes ("whole class
+    // briefed on the new tardiness policy") to be recorded at all.
+    final sectionError = Validators.required(section, fieldName: 'Section');
+    if (sectionError != null) return Future.value(Error(ValidationFailure(sectionError)));
+
     final notesError = Validators.required(notes, fieldName: 'Notes');
     if (notesError != null) return Future.value(Error(ValidationFailure(notesError)));
 
+    // Blank is normalised to null rather than stored as '': an empty
+    // string would read as a note pointing at a student that does not
+    // exist, and firestore.rules keys its scoping on studentId being
+    // absent, not empty.
+    final trimmedId = studentId?.trim();
+    final trimmedName = studentName?.trim();
+
     return _repository.createGuidanceRecord(
-      studentId: studentId.trim(),
-      studentName: studentName.trim(),
+      studentId: (trimmedId == null || trimmedId.isEmpty) ? null : trimmedId,
+      studentName: (trimmedName == null || trimmedName.isEmpty) ? null : trimmedName,
+      section: section.trim(),
       category: category,
       notes: notes.trim(),
     );
