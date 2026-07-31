@@ -181,10 +181,31 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final s = widget.student;
     // Suggestions come from the school's live records rather than a fixed
     // list, so a section invented this year shows up without a code change.
     final allStudents = ref.watch(studentsStreamProvider).valueOrNull ?? const <StudentSummary>[];
+
+    // Re-read the student from the live list rather than rendering the
+    // snapshot this screen was constructed with. Balance in particular is
+    // changed from here (and by every payment), and a captured copy shows
+    // the old figure until you navigate away and back.
+    final s = allStudents.firstWhere(
+      (e) => e.id == widget.student.id,
+      orElse: () => widget.student,
+    );
+
+    // Every other action screen listens to its controller; this one did
+    // not, which had two consequences. The controller is autoDispose, so
+    // with no listener it could be torn down between `ref.read(...)` and
+    // the write completing -- "used after dispose" -- and any failure it
+    // reported was invisible, since nothing was watching to show it.
+    ref.listen(registrarActionControllerProvider, (previous, next) {
+      if (next case AsyncError(:final error)) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(title: Text(s.fullName)),

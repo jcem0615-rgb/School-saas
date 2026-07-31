@@ -59,13 +59,19 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
       balance: balance,
       remarks: remarks,
     );
+    // `mounted` guard: this controller is autoDispose, and the demo/real
+    // repositories it depends on rebuild whenever authStateProvider emits.
+    // If that happens while the write is in flight the notifier is gone by
+    // the time the result comes back, and assigning `state` then throws
+    // "used after dispose" -- which surfaced as a balance edit that
+    // silently did nothing even though the write had landed.
     return switch (result) {
       Success() => () {
-          state = const AsyncData(null);
+          if (mounted) state = const AsyncData(null);
           return true;
         }(),
       Error(:final failure) => () {
-          state = AsyncError(failure.message, StackTrace.current);
+          if (mounted) state = AsyncError(failure.message, StackTrace.current);
           return false;
         }(),
     };
