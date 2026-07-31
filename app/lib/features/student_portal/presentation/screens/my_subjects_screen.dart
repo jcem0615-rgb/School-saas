@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../controllers/student_controller.dart';
+import 'subject_detail_screen.dart';
 
 /// Not the full day/time/room Schedule grid (deferred -- see
 /// docs/12-student-portal.md), but a real, useful "who teaches what"
 /// view derived from Admin Portal's existing teacherAssignments data.
 class MySubjectsScreen extends ConsumerWidget {
   final String section;
-  const MySubjectsScreen({super.key, required this.section});
+  /// Needed to show the student their own marks inside a subject.
+  final String studentId;
+  const MySubjectsScreen({super.key, required this.section, required this.studentId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,6 +42,17 @@ class MySubjectsScreen extends ConsumerWidget {
                   leading: const Icon(Icons.menu_book_outlined),
                   title: Text(s.subject),
                   subtitle: Text(s.teacherName),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => SubjectDetailScreen(
+                        subject: s.subject,
+                        section: section,
+                        teacherName: s.teacherName,
+                        studentId: studentId,
+                      ),
+                    ),
+                  ),
                 ),
               );
             },

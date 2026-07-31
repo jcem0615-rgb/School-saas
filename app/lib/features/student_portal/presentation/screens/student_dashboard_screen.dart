@@ -85,7 +85,10 @@ class StudentDashboardScreen extends ConsumerWidget {
                     icon: Icons.menu_book_outlined,
                     label: 'Subjects',
                     onTap: () => Navigator.of(context)
-                        .push(MaterialPageRoute(builder: (_) => MySubjectsScreen(section: student.section))),
+                        .push(MaterialPageRoute(builder: (_) => MySubjectsScreen(
+                              section: student.section,
+                              studentId: student.id,
+                            ))),
                   ),
                   _QuickLinkTile(
                     icon: Icons.assignment_outlined,

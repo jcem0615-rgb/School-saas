@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../faculty_portal/domain/entities/coursework_item.dart';
 import '../controllers/student_controller.dart';
+import 'coursework_detail_screen.dart';
 
 final _dateFormat = DateFormat.yMMMd();
 
@@ -82,6 +83,14 @@ class _CourseworkFeedScreenState extends ConsumerState<CourseworkFeedScreen> {
                         trailing: overdue
                             ? const Icon(Icons.warning_amber_outlined, color: Colors.red)
                             : (item.totalPoints != null ? Text('${item.totalPoints!.toStringAsFixed(0)} pts') : null),
+                        // The row cannot show the description or the
+                        // attachment, which are the parts a student needs
+                        // in order to actually do the work.
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => CourseworkDetailScreen(item: item),
+                          ),
+                        ),
                       ),
                     );
                   },
