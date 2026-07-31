@@ -39,6 +39,7 @@ export {recordRefund} from "./callable/payments/recordRefund";
 // Module: Registrar/Cashier Portal
 // ---------------------------------------------------------------------------
 export {registerStudent} from "./callable/students/registerStudent";
+export {setStudentBalance} from "./callable/students/setStudentBalance";
 
 // Additional modules (billing, attendance, payments, notifications, ...)
 // export their callables/triggers/scheduled functions here as each module

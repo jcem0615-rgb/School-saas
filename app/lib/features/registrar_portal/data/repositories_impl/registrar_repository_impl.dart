@@ -101,4 +101,24 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
       return const Error(UnknownFailure());
     }
   }
+
+  @override
+  Future<Result<void>> setStudentBalance({
+    required String studentId,
+    required double balance,
+    required String remarks,
+  }) async {
+    try {
+      await _remote.setStudentBalance(
+        studentId: studentId,
+        balance: balance,
+        remarks: remarks,
+      );
+      return const Success(null);
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
 }

@@ -26,8 +26,12 @@ export const onAnyTenantDocWrite = onDocumentWritten(
     const {schoolId, collectionId, docId} = event.params;
     if (EXCLUDED_COLLECTIONS.has(collectionId)) return;
 
-    const before = event.data?.before?.exists ? event.data.before.data() : null;
-    const after = event.data?.after?.exists ? event.data.after.data() : null;
+    // `?? null` matters: DocumentSnapshot.data() is typed as possibly
+    // undefined, and classifyAction distinguishes null (no document) from a
+    // document that exists -- passing undefined through would not compile,
+    // and coercing it to an empty object would turn a delete into an update.
+    const before = event.data?.before?.exists ? event.data.before.data() ?? null : null;
+    const after = event.data?.after?.exists ? event.data.after.data() ?? null : null;
 
     const action = classifyAction(before, after);
 

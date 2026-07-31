@@ -49,10 +49,12 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
         _recordRefund = recordRefund,
         super(const AsyncData(null));
 
-  /// Returns the receipt number on success so the caller can navigate
-  /// straight to the receipt screen, or null on failure (error is already
-  /// reflected in [state] for the UI to show via ref.listen).
-  Future<String?> recordPayment({
+  /// Returns the full outcome on success -- receipt number for navigating
+  /// to the receipt, and the resulting balance so a payment screen can
+  /// confirm what is still owed without waiting for the balance stream to
+  /// tick. Null on failure; the error is already in [state] for the UI to
+  /// surface via ref.listen.
+  Future<RecordPaymentOutcome?> recordPayment({
     required String studentId,
     required double amount,
     required PaymentMethod method,
@@ -68,7 +70,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
       referenceNumber: referenceNumber,
     );
     return switch (result) {
-      Success(:final value) => _succeed(value.receiptNumber),
+      Success(:final value) => _succeed(value),
       Error(:final failure) => _fail(failure.message),
     };
   }
@@ -88,12 +90,12 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
     };
   }
 
-  String? _succeed(String value) {
+  RecordPaymentOutcome? _succeed(RecordPaymentOutcome value) {
     state = const AsyncData(null);
     return value;
   }
 
-  String? _fail(String message) {
+  RecordPaymentOutcome? _fail(String message) {
     state = AsyncError(message, StackTrace.current);
     return null;
   }

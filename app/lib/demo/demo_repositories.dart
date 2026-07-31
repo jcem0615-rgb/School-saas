@@ -1043,6 +1043,29 @@ class DemoRegistrarRepository implements RegistrarRepository {
   }
 
   @override
+  Future<Result<void>> setStudentBalance({
+    required String studentId,
+    required double balance,
+    required String remarks,
+  }) async {
+    await _latency();
+    _store.update<StudentSummary>(
+      _store.students,
+      (s) => s.id == studentId,
+      (s) => _copyStudent(s, balance: balance),
+    );
+    _store.audit(
+      module: 'students',
+      action: 'update',
+      targetCollection: 'students',
+      targetId: studentId,
+      newValue: {'balance': balance},
+      remarks: remarks,
+    );
+    return const Success(null);
+  }
+
+  @override
   Future<Result<ProvisionStudentAccountOutcome>> provisionStudentAccount({
     required String studentId,
     required String firstName,

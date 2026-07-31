@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/education_level.dart';
 import '../../../admin_portal/domain/entities/program.dart';
 import '../../../admin_portal/presentation/controllers/admin_controller.dart' show programsStreamProvider;
+import '../../../../core/widgets/combo_field.dart';
 import '../../domain/entities/student_summary.dart';
 import '../controllers/registrar_controller.dart';
 import 'student_detail_screen.dart';
@@ -186,17 +187,34 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                   decoration: const InputDecoration(labelText: 'Middle Name (optional)', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: gradeController,
-                  decoration: InputDecoration(
-                    labelText: educationLevel == EducationLevel.college ? 'Year Level (e.g. 1st Year)' : 'Grade Level',
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: sectionController,
-                  decoration: const InputDecoration(labelText: 'Section / Block', border: OutlineInputBorder()),
+                // Suggest what the school already uses, but still allow a
+                // brand-new grade level or section to be typed in.
+                Consumer(
+                  builder: (context, ref, _) {
+                    final existing =
+                        ref.watch(studentsStreamProvider).valueOrNull ?? const <StudentSummary>[];
+                    // Only offer levels from the same division: a college
+                    // year level is not a useful suggestion for a Grade 4.
+                    final sameDivision =
+                        existing.where((e) => e.educationLevel == educationLevel);
+                    return Column(
+                      children: [
+                        ComboField(
+                          controller: gradeController,
+                          label: educationLevel == EducationLevel.college
+                              ? 'Year Level (e.g. 1st Year)'
+                              : 'Grade Level',
+                          suggestions: sameDivision.map((e) => e.gradeLevel).toList(),
+                        ),
+                        const SizedBox(height: 12),
+                        ComboField(
+                          controller: sectionController,
+                          label: 'Section / Block',
+                          suggestions: sameDivision.map((e) => e.section).toList(),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 // Course selection only ever appears for College -- this
                 // is the "include the courses if it is college" piece.

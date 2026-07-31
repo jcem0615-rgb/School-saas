@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/combo_field.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
 import '../../../payments/presentation/screens/record_payment_screen.dart';
 import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
@@ -112,9 +113,78 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
     }
   }
 
+  /// Editing a balance is not an ordinary field edit -- it goes through the
+  /// setStudentBalance callable, because firestore.rules keeps `balance`
+  /// closed to direct client writes so the payment transactions stay its
+  /// only other writer. The reason is mandatory and lands in the audit log.
+  Future<void> _editBalance(BuildContext context, WidgetRef ref, StudentSummary s) async {
+    final amountController = TextEditingController(text: s.balance.toStringAsFixed(2));
+    final remarksController = TextEditingController();
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Set Balance'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Assessed total for ${s.fullName}. Payments adjust this '
+              'automatically -- set it here only when fees are assessed or '
+              'an assessment is corrected.',
+              style: Theme.of(dialogContext).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: amountController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+              decoration: const InputDecoration(
+                labelText: 'Balance (₱)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: remarksController,
+              decoration: const InputDecoration(
+                labelText: 'Reason',
+                hintText: 'e.g. First semester assessment',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final parsed = double.tryParse(amountController.text);
+              if (parsed == null) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Enter a valid amount.')),
+                );
+                return;
+              }
+              final ok = await ref.read(registrarActionControllerProvider.notifier).setStudentBalance(
+                    studentId: s.id,
+                    balance: parsed,
+                    remarks: remarksController.text,
+                  );
+              if (ok && dialogContext.mounted) Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = widget.student;
+    // Suggestions come from the school's live records rather than a fixed
+    // list, so a section invented this year shows up without a code change.
+    final allStudents = ref.watch(studentsStreamProvider).valueOrNull ?? const <StudentSummary>[];
 
     return Scaffold(
       appBar: AppBar(title: Text(s.fullName)),
@@ -122,7 +192,21 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Text(s.studentNumber, style: Theme.of(context).textTheme.titleMedium),
-          Text('Balance: ${_currencyFormat.format(s.balance)}', style: Theme.of(context).textTheme.bodyMedium),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Balance: ${_currencyFormat.format(s.balance)}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => _editBalance(context, ref, s),
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Edit'),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -183,14 +267,19 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
           const Divider(height: 40),
           Text('Record Details', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
-          TextField(
+          // Grade level and section are free text in this system -- a school
+          // can add "Grade 11 - STEM B" mid-year -- so these offer the values
+          // already in use without preventing a new one being typed.
+          ComboField(
             controller: _gradeController,
-            decoration: const InputDecoration(labelText: 'Grade Level', border: OutlineInputBorder()),
+            label: 'Grade Level',
+            suggestions: allStudents.map((e) => e.gradeLevel).toList(),
           ),
           const SizedBox(height: 12),
-          TextField(
+          ComboField(
             controller: _sectionController,
-            decoration: const InputDecoration(labelText: 'Section', border: OutlineInputBorder()),
+            label: 'Section',
+            suggestions: allStudents.map((e) => e.section).toList(),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<StudentStatus>(

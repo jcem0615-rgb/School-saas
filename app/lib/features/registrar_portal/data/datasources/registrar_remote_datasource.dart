@@ -103,4 +103,26 @@ class RegistrarRemoteDataSource {
       throw ServerException(e.message ?? 'Failed to create student portal account.');
     }
   }
+
+  /// Goes through a callable rather than writing the field directly:
+  /// firestore.rules rejects any client update that touches `balance`, so
+  /// the payment transactions stay its only other writer and every manual
+  /// assessment lands in the audit trail with a reason attached.
+  Future<void> setStudentBalance({
+    required String studentId,
+    required double balance,
+    required String remarks,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('setStudentBalance');
+      await callable.call({
+        'schoolId': _actingUser.schoolId,
+        'studentId': studentId,
+        'balance': balance,
+        'remarks': remarks,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Failed to update the balance.');
+    }
+  }
 }

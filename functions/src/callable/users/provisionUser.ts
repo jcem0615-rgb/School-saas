@@ -1,7 +1,7 @@
 import * as admin from "firebase-admin";
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import {randomBytes} from "crypto";
-import {setUserClaims, requireCallerClaims, requireRole} from "../../shared/auth/claims";
+import {setUserClaims, requireCallerClaims} from "../../shared/auth/claims";
 import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
 import {isValidEducationLevel} from "../../shared/education/educationLevel";

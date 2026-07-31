@@ -45,4 +45,12 @@ abstract class RegistrarRepository {
     required String lastName,
     required String email,
   });
+
+  /// Sets the student's assessed balance. Server-side only -- see the
+  /// datasource for why this cannot be an ordinary field update.
+  Future<Result<void>> setStudentBalance({
+    required String studentId,
+    required double balance,
+    required String remarks,
+  });
 }

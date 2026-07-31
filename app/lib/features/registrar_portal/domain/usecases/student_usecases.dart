@@ -116,3 +116,33 @@ class ProvisionStudentAccountUseCase {
     );
   }
 }
+
+class SetStudentBalanceUseCase {
+  final RegistrarRepository _repository;
+  const SetStudentBalanceUseCase(this._repository);
+
+  Future<Result<void>> call({
+    required String studentId,
+    required double balance,
+    required String remarks,
+  }) {
+    if (studentId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing student.')));
+    }
+    // A reason is mandatory: this is the one place a balance changes
+    // without a payment behind it, so an unexplained edit would leave the
+    // audit trail unable to answer "why does this family owe this?".
+    final remarksError = Validators.required(remarks, fieldName: 'Reason');
+    if (remarksError != null) {
+      return Future.value(Error(ValidationFailure(remarksError)));
+    }
+    if (balance.isNaN || balance.isInfinite) {
+      return Future.value(const Error(ValidationFailure('Enter a valid amount.')));
+    }
+    return _repository.setStudentBalance(
+      studentId: studentId,
+      balance: balance,
+      remarks: remarks.trim(),
+    );
+  }
+}

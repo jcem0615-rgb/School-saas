@@ -50,7 +50,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
     final studentId = _studentIdController.text.trim();
     final amount = double.tryParse(_amountController.text) ?? -1;
 
-    final receiptNumber = await ref.read(paymentActionControllerProvider.notifier).recordPayment(
+    final outcome = await ref.read(paymentActionControllerProvider.notifier).recordPayment(
           studentId: studentId,
           amount: amount,
           method: _method,
@@ -58,10 +58,13 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           referenceNumber: _referenceController.text,
         );
 
-    if (receiptNumber != null && mounted) {
+    if (outcome != null && mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => ReceiptScreen(studentId: studentId, receiptNumber: receiptNumber),
+          builder: (_) => ReceiptScreen(
+            studentId: studentId,
+            receiptNumber: outcome.receiptNumber,
+          ),
         ),
       );
     }

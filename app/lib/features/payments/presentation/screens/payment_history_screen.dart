@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../domain/entities/payment.dart';
 import '../controllers/payment_controller.dart';
 import '../widgets/payment_method_chip.dart';
+import 'online_payment_screen.dart';
 import 'receipt_screen.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
@@ -21,11 +22,22 @@ class PaymentHistoryScreen extends ConsumerWidget {
   final String? studentName;
   final bool allowRefunds;
 
+  /// Whether to offer self-service online payment.
+  ///
+  /// On by default because every role that can reach this screen has a
+  /// legitimate reason to settle a balance: the student themself, a linked
+  /// parent, and a cashier taking an e-wallet payment at the counter. The
+  /// real gate is server-side -- recordPayment only lets a student pay
+  /// their own record and a parent a linked child's, and restricts both to
+  /// online methods -- so this flag is presentation, not security.
+  final bool allowOnlinePayment;
+
   const PaymentHistoryScreen({
     super.key,
     required this.studentId,
     this.studentName,
     this.allowRefunds = false,
+    this.allowOnlinePayment = true,
   });
 
   @override
@@ -71,6 +83,25 @@ class PaymentHistoryScreen extends ConsumerWidget {
                       'Credit balance',
                       style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
                     ),
+                  // Nothing owed means nothing to pay -- offering the button
+                  // on a settled or credit balance would only invite an
+                  // overpayment the refund flow then has to undo.
+                  if (allowOnlinePayment && balance > 0) ...[
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => OnlinePaymentScreen(
+                            studentId: studentId,
+                            studentName: studentName,
+                            outstandingBalance: balance,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.account_balance_wallet_outlined),
+                      label: const Text('Pay online'),
+                    ),
+                  ],
                 ],
               ),
             ),
