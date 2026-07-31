@@ -1,6 +1,7 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../../domain/entities/coursework_item.dart';
+import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/grade.dart';
 import '../../domain/repositories/faculty_repository.dart';
 import '../datasources/faculty_remote_datasource.dart';
@@ -33,6 +34,8 @@ class FacultyRepositoryImpl implements FacultyRepository {
     DateTime? dueDate,
     double? totalPoints,
     required bool published,
+    String? attachmentUrl,
+    String? attachmentName,
   }) async {
     try {
       await _remote.createCourseworkItem(
@@ -44,6 +47,8 @@ class FacultyRepositoryImpl implements FacultyRepository {
         dueDate: dueDate,
         totalPoints: totalPoints,
         published: published,
+        attachmentUrl: attachmentUrl,
+        attachmentName: attachmentName,
       );
       return const Success(null);
     } catch (_) {
@@ -62,6 +67,8 @@ class FacultyRepositoryImpl implements FacultyRepository {
     DateTime? dueDate,
     double? totalPoints,
     required bool published,
+    String? attachmentUrl,
+    String? attachmentName,
   }) {
     return _run(() => _remote.updateCourseworkItem(
           itemId: itemId,
@@ -73,12 +80,18 @@ class FacultyRepositoryImpl implements FacultyRepository {
           dueDate: dueDate,
           totalPoints: totalPoints,
           published: published,
+          attachmentUrl: attachmentUrl,
+          attachmentName: attachmentName,
         ));
   }
 
   @override
   Future<Result<void>> deleteCourseworkItem(String itemId) =>
       _run(() => _remote.softDeleteCourseworkItem(itemId));
+
+  @override
+  Stream<List<StudentSummary>> watchStudentsInSection(String section) =>
+      _remote.watchStudentsInSection(section);
 
   @override
   Stream<List<Grade>> watchGradesFor({required String subject, required String section}) =>

@@ -24,6 +24,8 @@ class CreateCourseworkItemUseCase {
     DateTime? dueDate,
     double? totalPoints,
     bool published = true,
+    String? attachmentUrl,
+    String? attachmentName,
   }) {
     final titleError = Validators.required(title, fieldName: 'Title');
     if (titleError != null) return Future.value(Error(ValidationFailure(titleError)));
@@ -49,6 +51,8 @@ class CreateCourseworkItemUseCase {
       dueDate: dueDate,
       totalPoints: totalPoints,
       published: published,
+      attachmentUrl: attachmentUrl,
+      attachmentName: attachmentName,
     );
   }
 }
@@ -69,6 +73,8 @@ class UpdateCourseworkItemUseCase {
     DateTime? dueDate,
     double? totalPoints,
     bool published = true,
+    String? attachmentUrl,
+    String? attachmentName,
   }) {
     if (itemId.trim().isEmpty) {
       return Future.value(const Error(ValidationFailure('Missing coursework item.')));
@@ -98,6 +104,8 @@ class UpdateCourseworkItemUseCase {
       dueDate: dueDate,
       totalPoints: totalPoints,
       published: published,
+      attachmentUrl: attachmentUrl,
+      attachmentName: attachmentName,
     );
   }
 }

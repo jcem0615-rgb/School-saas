@@ -83,6 +83,10 @@ List<Override> demoOverrides() {
       ref.watch(authStateProvider);
       return DemoFacultyRepository(ref.watch(demoStoreProvider));
     }),
+    attachmentRepositoryProvider.overrideWith((ref) {
+      ref.watch(authStateProvider);
+      return DemoAttachmentRepository(ref.watch(demoStoreProvider));
+    }),
     studentRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoStudentRepository(ref.watch(demoStoreProvider));

@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/widgets/confirm_delete_dialog.dart';
+import 'package:file_picker/file_picker.dart';
+
+import '../../../../core/errors/result.dart';
+import '../../../../core/widgets/combo_field.dart';
 import '../../domain/entities/coursework_item.dart';
 import '../controllers/faculty_controller.dart';
 
@@ -97,6 +101,9 @@ class CourseworkListScreen extends ConsumerWidget {
     CourseworkType type = existing?.type ?? CourseworkType.lesson;
     DateTime? dueDate = existing?.dueDate;
     bool published = existing?.published ?? true;
+    String? attachmentUrl = existing?.attachmentUrl;
+    String? attachmentName = existing?.attachmentName;
+    bool uploading = false;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -136,14 +143,33 @@ class CourseworkListScreen extends ConsumerWidget {
                   decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: subjectController,
-                  decoration: const InputDecoration(labelText: 'Subject', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: sectionController,
-                  decoration: const InputDecoration(labelText: 'Section', border: OutlineInputBorder()),
+                // Suggested from the teacher's own assignments, so the
+                // common case is a tap while an unassigned subject can
+                // still be typed.
+                Consumer(
+                  builder: (context, ref, _) {
+                    // Drawn from what this teacher has already set, which is
+                    // the closest thing the faculty side has to a subject
+                    // list -- teacherAssignments is an Admin-owned collection
+                    // the faculty repository does not read.
+                    final mine = ref.watch(myCourseworkStreamProvider).valueOrNull ??
+                        const <CourseworkItem>[];
+                    return Column(
+                      children: [
+                        ComboField(
+                          controller: subjectController,
+                          label: 'Subject',
+                          suggestions: mine.map((c) => c.subject).toList(),
+                        ),
+                        const SizedBox(height: 12),
+                        ComboField(
+                          controller: sectionController,
+                          label: 'Section',
+                          suggestions: mine.map((c) => c.section).toList(),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 if (type.isGradable) ...[
                   const SizedBox(height: 12),
@@ -169,6 +195,77 @@ class CourseworkListScreen extends ConsumerWidget {
                   ),
                 ],
                 const SizedBox(height: 12),
+                // Students read this file from the coursework feed, so it
+                // is uploaded before the item is saved -- the item stores
+                // only the resulting URL.
+                Consumer(
+                  builder: (context, ref, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: uploading
+                            ? null
+                            : () async {
+                                final picked = await FilePicker.pickFiles(
+                                  withData: true,
+                                  type: FileType.custom,
+                                  // Matches storage.rules, which only
+                                  // accepts images and PDFs.
+                                  allowedExtensions: const [
+                                    'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp',
+                                  ],
+                                );
+                                final file = picked?.files.singleOrNull;
+                                if (file?.bytes == null) return;
+
+                                setState(() => uploading = true);
+                                final result = await ref
+                                    .read(attachmentRepositoryProvider)
+                                    .uploadCourseworkAttachment(
+                                      fileName: file!.name,
+                                      bytes: file.bytes!,
+                                      contentType: file.extension == 'pdf'
+                                          ? 'application/pdf'
+                                          : 'image/${file.extension}',
+                                    );
+                                if (!sheetContext.mounted) return;
+                                setState(() => uploading = false);
+                                switch (result) {
+                                  case Success(:final value):
+                                    setState(() {
+                                      attachmentUrl = value.url;
+                                      attachmentName = value.fileName;
+                                    });
+                                  case Error(:final failure):
+                                    ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                      SnackBar(content: Text(failure.message)),
+                                    );
+                                }
+                              },
+                        icon: uploading
+                            ? const SizedBox(
+                                height: 16, width: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.attach_file),
+                        label: Text(uploading ? 'Uploading…' : 'Attach file'),
+                      ),
+                      if (attachmentName != null)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.insert_drive_file_outlined),
+                          title: Text(attachmentName!, overflow: TextOverflow.ellipsis),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => setState(() {
+                              attachmentUrl = null;
+                              attachmentName = null;
+                            }),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: published,
@@ -191,6 +288,8 @@ class CourseworkListScreen extends ConsumerWidget {
                             dueDate: dueDate,
                             totalPoints: double.tryParse(pointsController.text),
                             published: published,
+                            attachmentUrl: attachmentUrl,
+                            attachmentName: attachmentName,
                           )
                         : await notifier.createCourseworkItem(
                             type: type,
@@ -201,6 +300,8 @@ class CourseworkListScreen extends ConsumerWidget {
                             dueDate: dueDate,
                             totalPoints: double.tryParse(pointsController.text),
                             published: published,
+                            attachmentUrl: attachmentUrl,
+                            attachmentName: attachmentName,
                           );
                     if (success && sheetContext.mounted) Navigator.of(sheetContext).pop();
                   },

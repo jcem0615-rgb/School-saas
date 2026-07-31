@@ -52,6 +52,9 @@ class CourseworkItem {
   final DateTime? dueDate;
   final double? totalPoints;
   final String? attachmentUrl;
+  /// Original file name, kept so the UI can show what the file is
+  /// without parsing it back out of a signed Storage URL.
+  final String? attachmentName;
   final bool published;
   final DateTime createdAt;
 
@@ -69,5 +72,6 @@ class CourseworkItem {
     this.dueDate,
     this.totalPoints,
     this.attachmentUrl,
+    this.attachmentName,
   });
 }

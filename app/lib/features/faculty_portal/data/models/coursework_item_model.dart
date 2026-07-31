@@ -17,6 +17,7 @@ class CourseworkItemModel extends CourseworkItem {
     super.dueDate,
     super.totalPoints,
     super.attachmentUrl,
+    super.attachmentName,
   });
 
   factory CourseworkItemModel.fromFirestore(String id, Map<String, dynamic> data) {
@@ -33,6 +34,7 @@ class CourseworkItemModel extends CourseworkItem {
       dueDate: (data['dueDate'] as Timestamp?)?.toDate(),
       totalPoints: (data['totalPoints'] as num?)?.toDouble(),
       attachmentUrl: data['attachmentUrl'] as String?,
+      attachmentName: data['attachmentName'] as String?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }

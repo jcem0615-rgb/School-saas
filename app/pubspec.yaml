@@ -52,6 +52,7 @@ dependencies:
   connectivity_plus: ^6.0.5
 
   cupertino_icons: ^1.0.8
+  file_picker: ^11.0.2
 
 dev_dependencies:
   flutter_test:

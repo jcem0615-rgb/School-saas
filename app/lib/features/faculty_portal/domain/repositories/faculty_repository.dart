@@ -1,5 +1,6 @@
 import '../../../../core/errors/result.dart';
 import '../entities/coursework_item.dart';
+import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../entities/grade.dart';
 
 abstract class FacultyRepository {
@@ -18,6 +19,8 @@ abstract class FacultyRepository {
     DateTime? dueDate,
     double? totalPoints,
     required bool published,
+    String? attachmentUrl,
+    String? attachmentName,
   });
 
   Future<Result<void>> updateCourseworkItem({
@@ -30,6 +33,8 @@ abstract class FacultyRepository {
     DateTime? dueDate,
     double? totalPoints,
     required bool published,
+    String? attachmentUrl,
+    String? attachmentName,
   });
 
   /// Soft delete: flips `isDeleted` rather than removing the document,
@@ -37,6 +42,10 @@ abstract class FacultyRepository {
   Future<Result<void>> deleteCourseworkItem(String itemId);
 
   Stream<List<Grade>> watchGradesFor({required String subject, required String section});
+
+  /// The students enrolled in one section, so a teacher grades from a
+  /// roster instead of typing student IDs from memory.
+  Stream<List<StudentSummary>> watchStudentsInSection(String section);
 
   Future<Result<void>> submitGrade({
     required String studentId,

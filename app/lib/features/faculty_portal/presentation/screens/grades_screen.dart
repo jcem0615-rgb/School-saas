@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/combo_field.dart';
+import '../../../registrar_portal/domain/entities/student_summary.dart';
+import '../../domain/entities/coursework_item.dart';
+import '../../domain/entities/grade.dart';
 import '../controllers/faculty_controller.dart';
 
 final _dateFormat = DateFormat.yMMMd();
@@ -54,16 +58,24 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: ComboField(
                     controller: _subjectController,
-                    decoration: const InputDecoration(labelText: 'Subject', border: OutlineInputBorder()),
+                    label: 'Subject',
+                    suggestions: (ref.watch(myCourseworkStreamProvider).valueOrNull ??
+                            const <CourseworkItem>[])
+                        .map((c) => c.subject)
+                        .toList(),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: TextField(
+                  child: ComboField(
                     controller: _sectionController,
-                    decoration: const InputDecoration(labelText: 'Section', border: OutlineInputBorder()),
+                    label: 'Section',
+                    suggestions: (ref.watch(myCourseworkStreamProvider).valueOrNull ??
+                            const <CourseworkItem>[])
+                        .map((c) => c.section)
+                        .toList(),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -81,35 +93,82 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
             ),
           ),
           Expanded(
-            child: gradesAsync == null
-                ? const Center(child: Text('Enter a subject and section, then tap Load.'))
-                : gradesAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (err, _) => Center(child: Text('Failed to load grades: $err')),
-                    data: (grades) {
-                      if (grades.isEmpty) {
-                        return const Center(child: Text('No grades submitted for this subject/section yet.'));
-                      }
-                      return ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: grades.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final g = grades[index];
-                          return Card(
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
-                            ),
-                            child: ListTile(
-                              title: Text(g.studentName),
-                              subtitle: Text('${g.term} · ${_dateFormat.format(g.submittedAt)}'),
-                              trailing: Text(
-                                '${g.score.toStringAsFixed(1)} / ${g.maxScore.toStringAsFixed(1)}',
-                                style: Theme.of(context).textTheme.titleSmall,
+            child: _activeQuery == null
+                ? const Center(child: Text('Pick a subject and section, then tap Load.'))
+                : Consumer(
+                    builder: (context, ref, _) {
+                      // The roster drives the list, not the grades: a teacher
+                      // needs to see who has NOT been graded yet, which a
+                      // grades-only list can never show.
+                      final rosterAsync =
+                          ref.watch(sectionRosterProvider(_activeQuery!.section));
+                      final grades =
+                          ref.watch(gradesStreamProvider(_activeQuery!)).valueOrNull ??
+                              const <Grade>[];
+
+                      return rosterAsync.when(
+                        loading: () => const Center(child: CircularProgressIndicator()),
+                        error: (err, _) => Center(child: Text('Failed to load roster: $err')),
+                        data: (roster) {
+                          if (roster.isEmpty) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Text(
+                                  'No students found in ${_activeQuery!.section}.',
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
-                            ),
+                            );
+                          }
+                          return ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: roster.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 8),
+                            itemBuilder: (context, index) {
+                              final student = roster[index];
+                              final theirs = grades
+                                  .where((g) => g.studentId == student.id)
+                                  .toList()
+                                ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+                              final latest = theirs.firstOrNull;
+
+                              return Card(
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                      color: Theme.of(context).colorScheme.outlineVariant),
+                                ),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    child: Text(student.firstName.characters.first),
+                                  ),
+                                  title: Text(student.fullName),
+                                  subtitle: Text(
+                                    latest == null
+                                        ? 'No grade yet · ${student.studentNumber}'
+                                        : '${latest.term} · ${_dateFormat.format(latest.submittedAt)}',
+                                  ),
+                                  trailing: latest == null
+                                      ? const Chip(
+                                          label: Text('Ungraded'),
+                                          visualDensity: VisualDensity.compact,
+                                        )
+                                      : Text(
+                                          '${latest.score.toStringAsFixed(1)} / '
+                                          '${latest.maxScore.toStringAsFixed(1)}',
+                                          style: Theme.of(context).textTheme.titleSmall,
+                                        ),
+                                  onTap: () => _showSubmitDialog(
+                                    context,
+                                    ref,
+                                    _activeQuery!,
+                                    student: student,
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
                       );
@@ -121,9 +180,17 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
     );
   }
 
-  Future<void> _showSubmitDialog(BuildContext context, WidgetRef ref, GradeQuery query) async {
-    final studentIdController = TextEditingController();
-    final studentNameController = TextEditingController();
+  Future<void> _showSubmitDialog(
+    BuildContext context,
+    WidgetRef ref,
+    GradeQuery query, {
+    StudentSummary? student,
+  }) async {
+    // Prefilled and read-only when opened from the roster: the teacher
+    // picked the student by tapping them, so retyping the id is only an
+    // opportunity to mis-key it onto someone else's record.
+    final studentIdController = TextEditingController(text: student?.id ?? '');
+    final studentNameController = TextEditingController(text: student?.fullName ?? '');
     final termController = TextEditingController(text: 'Q1');
     final scoreController = TextEditingController();
     final maxScoreController = TextEditingController(text: '100');
@@ -138,11 +205,13 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
             children: [
               TextField(
                 controller: studentIdController,
+                readOnly: student != null,
                 decoration: const InputDecoration(labelText: 'Student ID', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: studentNameController,
+                readOnly: student != null,
                 decoration: const InputDecoration(labelText: 'Student Name', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 12),

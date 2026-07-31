@@ -1,6 +1,9 @@
 import '../core/constants/education_level.dart';
 import '../core/constants/user_roles.dart';
 import '../core/errors/failures.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+
 import '../core/errors/result.dart';
 import '../features/admin_portal/domain/entities/employee_summary.dart';
 import '../features/admin_portal/domain/entities/program.dart';
@@ -18,6 +21,7 @@ import '../features/director_portal/domain/entities/meeting.dart';
 import '../features/director_portal/domain/repositories/director_repository.dart';
 import '../features/faculty_portal/domain/entities/coursework_item.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
+import '../features/faculty_portal/domain/repositories/attachment_repository.dart';
 import '../features/faculty_portal/domain/repositories/faculty_repository.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
 import '../features/guidance_portal/domain/entities/summons.dart';
@@ -1154,6 +1158,8 @@ class DemoFacultyRepository implements FacultyRepository {
     DateTime? dueDate,
     double? totalPoints,
     required bool published,
+    String? attachmentUrl,
+    String? attachmentName,
   }) async {
     await _latency();
     final user = _store.requireUser;
@@ -1171,6 +1177,8 @@ class DemoFacultyRepository implements FacultyRepository {
         teacherName: user.fullName,
         dueDate: dueDate,
         totalPoints: totalPoints,
+        attachmentUrl: attachmentUrl,
+        attachmentName: attachmentName,
         published: published,
         createdAt: DateTime.now(),
       ),
@@ -1196,6 +1204,8 @@ class DemoFacultyRepository implements FacultyRepository {
     DateTime? dueDate,
     double? totalPoints,
     required bool published,
+    String? attachmentUrl,
+    String? attachmentName,
   }) async {
     await _latency();
     _store.update<CourseworkItem>(
@@ -1214,7 +1224,8 @@ class DemoFacultyRepository implements FacultyRepository {
         teacherName: c.teacherName,
         dueDate: dueDate,
         totalPoints: totalPoints,
-        attachmentUrl: c.attachmentUrl,
+        attachmentUrl: attachmentUrl,
+        attachmentName: attachmentName,
         published: published,
         createdAt: c.createdAt,
       ),
@@ -1241,6 +1252,14 @@ class DemoFacultyRepository implements FacultyRepository {
       remarks: 'Soft deleted',
     );
     return const Success(null);
+  }
+
+  @override
+  Stream<List<StudentSummary>> watchStudentsInSection(String section) {
+    return _store.students.stream.map(
+      (all) => all.where((s) => s.section == section).toList()
+        ..sort((a, b) => a.lastName.compareTo(b.lastName)),
+    );
   }
 
   @override
@@ -1290,6 +1309,51 @@ class DemoFacultyRepository implements FacultyRepository {
       newValue: {'studentId': studentId, 'score': score, 'maxScore': maxScore},
     );
     return const Success(null);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Attachments
+// ---------------------------------------------------------------------------
+
+/// Stands in for Firebase Storage.
+///
+/// Encodes the file as a data URI rather than uploading anywhere, so an
+/// attachment picked in demo mode is genuinely openable from the student
+/// portal on the same device -- the flow can be exercised end to end with
+/// no Storage bucket, and nothing leaves the browser.
+class DemoAttachmentRepository implements AttachmentRepository {
+  final DemoStore _store;
+  DemoAttachmentRepository(this._store);
+
+  @override
+  Future<Result<CourseworkAttachment>> uploadCourseworkAttachment({
+    required String fileName,
+    required Uint8List bytes,
+    required String contentType,
+  }) async {
+    await _latency(700);
+
+    // Same 10MB ceiling storage.rules enforces, so demo mode rejects what
+    // the real backend would reject rather than silently accepting more.
+    const maxBytes = 10 * 1024 * 1024;
+    if (bytes.lengthInBytes > maxBytes) {
+      return const Error(ValidationFailure('Attachments are limited to 10MB.'));
+    }
+
+    _store.audit(
+      module: 'courseworkItems',
+      action: 'upload',
+      targetCollection: 'courseworkItems',
+      targetId: fileName,
+      newValue: {'fileName': fileName, 'sizeBytes': bytes.lengthInBytes},
+    );
+
+    return Success(CourseworkAttachment(
+      fileName: fileName,
+      url: 'data:$contentType;base64,${base64Encode(bytes)}',
+      sizeBytes: bytes.lengthInBytes,
+    ));
   }
 }
 

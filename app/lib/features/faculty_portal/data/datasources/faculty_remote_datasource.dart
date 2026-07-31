@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/firestore_paths.dart';
 import '../models/coursework_item_model.dart';
+import '../../../registrar_portal/data/models/student_summary_model.dart';
 import '../models/grade_model.dart';
 
 class ActingFaculty {
@@ -39,6 +40,8 @@ class FacultyRemoteDataSource {
     DateTime? dueDate,
     double? totalPoints,
     required bool published,
+    String? attachmentUrl,
+    String? attachmentName,
   }) async {
     final ref = _firestore.collection(FirestorePaths.courseworkItems(_actingUser.schoolId)).doc();
     await ref.set({
@@ -52,7 +55,8 @@ class FacultyRemoteDataSource {
       'teacherName': _actingUser.name,
       'dueDate': dueDate != null ? Timestamp.fromDate(dueDate) : null,
       'totalPoints': totalPoints,
-      'attachmentUrl': null,
+      'attachmentUrl': attachmentUrl,
+      'attachmentName': attachmentName,
       'published': published,
       'schoolId': _actingUser.schoolId,
       'createdBy': _actingUser.uid,
@@ -78,11 +82,15 @@ class FacultyRemoteDataSource {
     DateTime? dueDate,
     double? totalPoints,
     required bool published,
+    String? attachmentUrl,
+    String? attachmentName,
   }) async {
     await _firestore
         .collection(FirestorePaths.courseworkItems(_actingUser.schoolId))
         .doc(itemId)
         .update({
+      'attachmentUrl': attachmentUrl,
+      'attachmentName': attachmentName,
       'type': type,
       'title': title,
       'description': description,
@@ -121,6 +129,22 @@ class FacultyRemoteDataSource {
         .limit(300)
         .snapshots()
         .map((snap) => snap.docs.map((d) => GradeModel.fromFirestore(d.id, d.data())).toList());
+  }
+
+  /// Students in one section, for the grade roster.
+  ///
+  /// Faculty are allowed to read student records (firestore.rules grants
+  /// it, subject to division scoping), which is what makes a roster
+  /// possible without going through the Registrar's repository.
+  Stream<List<StudentSummaryModel>> watchStudentsInSection(String section) {
+    return _firestore
+        .collection(FirestorePaths.students(_actingUser.schoolId))
+        .where('section', isEqualTo: section)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('lastName')
+        .limit(200)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => StudentSummaryModel.fromFirestore(d.id, d.data())).toList());
   }
 
   Future<void> submitGrade({

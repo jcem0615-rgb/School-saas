@@ -3,8 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/result.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider, firestoreProvider;
 import '../../data/datasources/faculty_remote_datasource.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+
+import '../../data/repositories_impl/attachment_repository_impl.dart';
 import '../../data/repositories_impl/faculty_repository_impl.dart';
+import '../../domain/repositories/attachment_repository.dart';
 import '../../domain/entities/coursework_item.dart';
+import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/grade.dart';
 import '../../domain/repositories/faculty_repository.dart';
 import '../../domain/usecases/coursework_usecases.dart';
@@ -18,6 +23,21 @@ final facultyRemoteDataSourceProvider = Provider<FacultyRemoteDataSource>((ref) 
   return FacultyRemoteDataSource(
     firestore: ref.watch(firestoreProvider),
     actingUser: ActingFaculty(uid: user.uid, schoolId: user.schoolId!, name: user.fullName),
+  );
+});
+
+/// Storage-backed attachment uploader, scoped to the signed-in teacher so
+/// uploads land under their own school prefix (which is what storage.rules
+/// gates read access on).
+final attachmentRepositoryProvider = Provider<AttachmentRepository>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null || user.schoolId == null) {
+    throw StateError('AttachmentRepository requires a signed-in, school-scoped user.');
+  }
+  return AttachmentRepositoryImpl(
+    storage: FirebaseStorage.instance,
+    schoolId: user.schoolId!,
+    uid: user.uid,
   );
 });
 
@@ -41,6 +61,13 @@ class GradeQuery {
   @override
   int get hashCode => Object.hash(subject, section);
 }
+
+/// Roster for a section, so the grade screen can list students instead of
+/// asking the teacher to recall student IDs.
+final sectionRosterProvider =
+    StreamProvider.autoDispose.family<List<StudentSummary>, String>((ref, section) {
+  return ref.watch(facultyRepositoryProvider).watchStudentsInSection(section);
+});
 
 final gradesStreamProvider = StreamProvider.autoDispose.family<List<Grade>, GradeQuery>((ref, query) {
   return WatchGradesUseCase(ref.watch(facultyRepositoryProvider))(subject: query.subject, section: query.section);
@@ -72,6 +99,8 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
     DateTime? dueDate,
     double? totalPoints,
     bool published = true,
+    String? attachmentUrl,
+    String? attachmentName,
   }) => _run(() => _createCourseworkItem(
         type: type,
         title: title,
@@ -81,6 +110,8 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
         dueDate: dueDate,
         totalPoints: totalPoints,
         published: published,
+        attachmentUrl: attachmentUrl,
+        attachmentName: attachmentName,
       ));
 
   Future<bool> updateCourseworkItem({
@@ -93,6 +124,8 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
     DateTime? dueDate,
     double? totalPoints,
     bool published = true,
+    String? attachmentUrl,
+    String? attachmentName,
   }) => _run(() => _updateCourseworkItem(
         itemId: itemId,
         type: type,
@@ -103,6 +136,8 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
         dueDate: dueDate,
         totalPoints: totalPoints,
         published: published,
+        attachmentUrl: attachmentUrl,
+        attachmentName: attachmentName,
       ));
 
   Future<bool> deleteCourseworkItem(String itemId) =>
