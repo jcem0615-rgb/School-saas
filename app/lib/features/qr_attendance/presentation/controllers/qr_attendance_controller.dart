@@ -50,9 +50,9 @@ class ScannerController extends StateNotifier<AsyncValue<QrScanResult?>> {
     // calls per second.
     if (_busy) return;
     _busy = true;
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _scanQr(qrToken: qrToken);
-    state = switch (result) {
+    if (mounted) state = switch (result) {
       Success(:final value) => AsyncData(value),
       Error(:final failure) => AsyncError(failure.message, StackTrace.current),
     };

@@ -39,6 +39,12 @@ final studentBalanceStreamProvider =
 });
 
 class PaymentActionController extends StateNotifier<AsyncValue<void>> {
+  // `mounted` guards below: these action controllers are autoDispose, and
+  // the repositories they depend on rebuild whenever authStateProvider
+  // emits. If that lands while a write is in flight the notifier is gone
+  // by the time the result returns, and assigning `state` then throws
+  // "used after dispose" -- which surfaces as an action that silently does
+  // nothing even though the write succeeded.
   final RecordPaymentUseCase _recordPayment;
   final RecordRefundUseCase _recordRefund;
 
@@ -61,7 +67,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
     required PaymentPurpose purpose,
     String? referenceNumber,
   }) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _recordPayment(
       studentId: studentId,
       amount: amount,
@@ -76,27 +82,27 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
   }
 
   Future<bool> recordRefund({required String paymentId, required String reason}) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _recordRefund(paymentId: paymentId, reason: reason);
     return switch (result) {
       Success() => () {
-          state = const AsyncData(null);
+          if (mounted) state = const AsyncData(null);
           return true;
         }(),
       Error(:final failure) => () {
-          state = AsyncError(failure.message, StackTrace.current);
+          if (mounted) state = AsyncError(failure.message, StackTrace.current);
           return false;
         }(),
     };
   }
 
   RecordPaymentOutcome? _succeed(RecordPaymentOutcome value) {
-    state = const AsyncData(null);
+    if (mounted) state = const AsyncData(null);
     return value;
   }
 
   RecordPaymentOutcome? _fail(String message) {
-    state = AsyncError(message, StackTrace.current);
+    if (mounted) state = AsyncError(message, StackTrace.current);
     return null;
   }
 }

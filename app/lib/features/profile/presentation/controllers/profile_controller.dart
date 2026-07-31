@@ -23,17 +23,23 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 });
 
 class ProfileActionController extends StateNotifier<AsyncValue<void>> {
+  // `mounted` guards below: these action controllers are autoDispose, and
+  // the repositories they depend on rebuild whenever authStateProvider
+  // emits. If that lands while a write is in flight the notifier is gone
+  // by the time the result returns, and assigning `state` then throws
+  // "used after dispose" -- which surfaces as an action that silently does
+  // nothing even though the write succeeded.
   final UpdateProfileUseCase _updateProfile;
   ProfileActionController(this._updateProfile) : super(const AsyncData(null));
 
   Future<bool> updateProfile({String? phone, String? photoUrl}) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _updateProfile(phone: phone, photoUrl: photoUrl);
     if (result.isSuccess) {
-      state = const AsyncData(null);
+      if (mounted) state = const AsyncData(null);
       return true;
     }
-    state = AsyncError(result.failureOrNull?.message ?? 'Failed to update profile.', StackTrace.current);
+    if (mounted) state = AsyncError(result.failureOrNull?.message ?? 'Failed to update profile.', StackTrace.current);
     return false;
   }
 }

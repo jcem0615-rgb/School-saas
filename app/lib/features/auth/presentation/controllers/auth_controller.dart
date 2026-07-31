@@ -74,6 +74,12 @@ final authStateProvider = StreamProvider<AppUser?>((ref) {
 // ---------------------------------------------------------------------------
 
 class AuthController extends StateNotifier<AsyncValue<void>> {
+  // `mounted` guards below: these action controllers are autoDispose, and
+  // the repositories they depend on rebuild whenever authStateProvider
+  // emits. If that lands while a write is in flight the notifier is gone
+  // by the time the result returns, and assigning `state` then throws
+  // "used after dispose" -- which surfaces as an action that silently does
+  // nothing even though the write succeeded.
   final LoginUseCase _login;
   final LogoutUseCase _logout;
   final ForgotPasswordUseCase _forgotPassword;
@@ -94,7 +100,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   /// also react to authStateProvider, but returning a bool lets the screen
   /// show an immediate transition without waiting an extra stream tick.
   Future<bool> login({required String email, required String password}) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _login(email: email, password: password);
     return switch (result) {
       Success() => _succeed(),
@@ -103,7 +109,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   }
 
   Future<bool> logout() async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _logout();
     return switch (result) {
       Success() => _succeed(),
@@ -112,7 +118,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   }
 
   Future<bool> sendPasswordResetEmail(String email) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _forgotPassword(email);
     return switch (result) {
       Success() => _succeed(),
@@ -125,7 +131,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     required String newPassword,
     required String confirmPassword,
   }) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _changePassword(
       currentPassword: currentPassword,
       newPassword: newPassword,
@@ -138,12 +144,12 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   }
 
   bool _succeed() {
-    state = const AsyncData(null);
+    if (mounted) state = const AsyncData(null);
     return true;
   }
 
   bool _fail(String message) {
-    state = AsyncError(message, StackTrace.current);
+    if (mounted) state = AsyncError(message, StackTrace.current);
     return false;
   }
 }

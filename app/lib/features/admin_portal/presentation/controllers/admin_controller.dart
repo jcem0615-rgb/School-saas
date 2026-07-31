@@ -47,6 +47,12 @@ final programsStreamProvider = StreamProvider.autoDispose<List<Program>>((ref) {
 /// the temporary password for hand-off (see provisionUser.ts doc comment
 /// on why this is returned directly rather than only emailed).
 class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutcome?>> {
+  // `mounted` guards below: these action controllers are autoDispose, and
+  // the repositories they depend on rebuild whenever authStateProvider
+  // emits. If that lands while a write is in flight the notifier is gone
+  // by the time the result returns, and assigning `state` then throws
+  // "used after dispose" -- which surfaces as an action that silently does
+  // nothing even though the write succeeded.
   final CreateEmployeeUseCase _createEmployee;
   final UpdateEmployeeInfoUseCase _updateEmployeeInfo;
   final SetUserStatusUseCase _setUserStatus;
@@ -88,7 +94,7 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
     required String email,
     EmployeeInfo? employeeInfo,
   }) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _createEmployee(
       role: role,
       firstName: firstName,
@@ -96,7 +102,7 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
       email: email,
       employeeInfo: employeeInfo,
     );
-    state = switch (result) {
+    if (mounted) state = switch (result) {
       Success(:final value) => AsyncData(value),
       Error(:final failure) => AsyncError(failure.message, StackTrace.current),
     };

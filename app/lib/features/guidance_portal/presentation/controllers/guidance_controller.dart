@@ -35,6 +35,12 @@ final summonsStreamProvider = StreamProvider.autoDispose<List<Summons>>((ref) {
 });
 
 class GuidanceActionController extends StateNotifier<AsyncValue<void>> {
+  // `mounted` guards below: these action controllers are autoDispose, and
+  // the repositories they depend on rebuild whenever authStateProvider
+  // emits. If that lands while a write is in flight the notifier is gone
+  // by the time the result returns, and assigning `state` then throws
+  // "used after dispose" -- which surfaces as an action that silently does
+  // nothing even though the write succeeded.
   final CreateGuidanceRecordUseCase _createGuidanceRecord;
   final UpdateGuidanceRecordUseCase _updateGuidanceRecord;
   final DeleteGuidanceRecordUseCase _deleteGuidanceRecord;
@@ -110,13 +116,13 @@ class GuidanceActionController extends StateNotifier<AsyncValue<void>> {
       _run(() => _updateSummonsStatus(summonsId: summonsId, status: status));
 
   Future<bool> _run(Future<dynamic> Function() action) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await action();
     if (result case Success()) {
-      state = const AsyncData(null);
+      if (mounted) state = const AsyncData(null);
       return true;
     } else if (result case Error(:final failure)) {
-      state = AsyncError(failure.message, StackTrace.current);
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
     }
     return false;
   }

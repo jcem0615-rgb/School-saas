@@ -32,6 +32,12 @@ final studentsStreamProvider = StreamProvider.autoDispose<List<StudentSummary>>(
 });
 
 class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
+  // `mounted` guards below: these action controllers are autoDispose, and
+  // the repositories they depend on rebuild whenever authStateProvider
+  // emits. If that lands while a write is in flight the notifier is gone
+  // by the time the result returns, and assigning `state` then throws
+  // "used after dispose" -- which surfaces as an action that silently does
+  // nothing even though the write succeeded.
   final RegisterStudentUseCase _registerStudent;
   final UpdateStudentUseCase _updateStudent;
   final ProvisionStudentAccountUseCase _provisionStudentAccount;
@@ -53,7 +59,7 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     required double balance,
     required String remarks,
   }) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _setStudentBalance(
       studentId: studentId,
       balance: balance,
@@ -87,7 +93,7 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     String? programId,
     List<GuardianContact> guardianContacts = const [],
   }) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _registerStudent(
       firstName: firstName,
       lastName: lastName,
@@ -99,10 +105,10 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
       guardianContacts: guardianContacts,
     );
     if (result case Success(:final value)) {
-      state = const AsyncData(null);
+      if (mounted) state = const AsyncData(null);
       return value;
     } else if (result case Error(:final failure)) {
-      state = AsyncError(failure.message, StackTrace.current);
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
     }
     return null;
   }
@@ -115,7 +121,7 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     required String section,
     required StudentStatus status,
   }) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _updateStudent(
       studentId: studentId,
       firstName: firstName,
@@ -125,10 +131,10 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
       status: status,
     );
     if (result case Success()) {
-      state = const AsyncData(null);
+      if (mounted) state = const AsyncData(null);
       return true;
     } else if (result case Error(:final failure)) {
-      state = AsyncError(failure.message, StackTrace.current);
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
     }
     return false;
   }
@@ -139,7 +145,7 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     required String lastName,
     required String email,
   }) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _provisionStudentAccount(
       studentId: studentId,
       firstName: firstName,
@@ -147,10 +153,10 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
       email: email,
     );
     if (result case Success(:final value)) {
-      state = const AsyncData(null);
+      if (mounted) state = const AsyncData(null);
       return value;
     } else if (result case Error(:final failure)) {
-      state = AsyncError(failure.message, StackTrace.current);
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
     }
     return null;
   }

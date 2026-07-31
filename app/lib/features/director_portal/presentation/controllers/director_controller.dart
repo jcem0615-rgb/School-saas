@@ -82,6 +82,12 @@ final expensesStreamProvider = StreamProvider.autoDispose<List<Expense>>((ref) {
 /// of these actions run concurrently from the user's perspective -- only
 /// one dialog/form is open at a time -- and it keeps the DI wiring small.
 class DirectorActionController extends StateNotifier<AsyncValue<void>> {
+  // `mounted` guards below: these action controllers are autoDispose, and
+  // the repositories they depend on rebuild whenever authStateProvider
+  // emits. If that lands while a write is in flight the notifier is gone
+  // by the time the result returns, and assigning `state` then throws
+  // "used after dispose" -- which surfaces as an action that silently does
+  // nothing even though the write succeeded.
   final CreateAnnouncementUseCase _createAnnouncement;
   final UpdateAnnouncementUseCase _updateAnnouncement;
   final DeleteAnnouncementUseCase _deleteAnnouncement;
@@ -227,7 +233,7 @@ class DirectorActionController extends StateNotifier<AsyncValue<void>> {
   Future<bool> deleteExpense(String expenseId) => _run(() => _deleteExpense(expenseId));
 
   Future<bool> _run(Future<dynamic> Function() action) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await action();
     return switch (result) {
       Success() => _succeed(),
@@ -237,12 +243,12 @@ class DirectorActionController extends StateNotifier<AsyncValue<void>> {
   }
 
   bool _succeed() {
-    state = const AsyncData(null);
+    if (mounted) state = const AsyncData(null);
     return true;
   }
 
   bool _fail(String message) {
-    state = AsyncError(message, StackTrace.current);
+    if (mounted) state = AsyncError(message, StackTrace.current);
     return false;
   }
 }

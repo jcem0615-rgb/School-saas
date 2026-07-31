@@ -51,6 +51,12 @@ final invoicesStreamProvider =
 /// invoice screens. Kept separate from the read-side stream providers
 /// above since actions need loading/error state, streams don't.
 class OwnerActionController extends StateNotifier<AsyncValue<void>> {
+  // `mounted` guards below: these action controllers are autoDispose, and
+  // the repositories they depend on rebuild whenever authStateProvider
+  // emits. If that lands while a write is in flight the notifier is gone
+  // by the time the result returns, and assigning `state` then throws
+  // "used after dispose" -- which surfaces as an action that silently does
+  // nothing even though the write succeeded.
   final PauseSchoolUseCase _pauseSchool;
   final ResumeSchoolUseCase _resumeSchool;
   final RecordManualPaymentUseCase _recordPayment;
@@ -65,7 +71,7 @@ class OwnerActionController extends StateNotifier<AsyncValue<void>> {
         super(const AsyncData(null));
 
   Future<bool> pauseSchool({required String schoolId, required String reason}) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _pauseSchool(schoolId: schoolId, reason: reason);
     return switch (result) {
       Success() => _succeed(),
@@ -74,7 +80,7 @@ class OwnerActionController extends StateNotifier<AsyncValue<void>> {
   }
 
   Future<bool> resumeSchool(String schoolId) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _resumeSchool(schoolId: schoolId);
     return switch (result) {
       Success() => _succeed(),
@@ -89,7 +95,7 @@ class OwnerActionController extends StateNotifier<AsyncValue<void>> {
     required PaymentMethod method,
     String? referenceNumber,
   }) async {
-    state = const AsyncLoading();
+    if (mounted) state = const AsyncLoading();
     final result = await _recordPayment(
       schoolId: schoolId,
       invoiceId: invoiceId,
@@ -104,12 +110,12 @@ class OwnerActionController extends StateNotifier<AsyncValue<void>> {
   }
 
   bool _succeed() {
-    state = const AsyncData(null);
+    if (mounted) state = const AsyncData(null);
     return true;
   }
 
   bool _fail(String message) {
-    state = AsyncError(message, StackTrace.current);
+    if (mounted) state = AsyncError(message, StackTrace.current);
     return false;
   }
 }
