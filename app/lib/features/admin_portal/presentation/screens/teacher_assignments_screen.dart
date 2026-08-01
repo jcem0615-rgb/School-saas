@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/user_roles.dart';
+import '../../../../core/data_transfer/csv.dart';
+import '../../../../core/data_transfer/export_import_sheet.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/entities/teacher_assignment.dart';
 import '../controllers/admin_controller.dart';
@@ -15,7 +17,16 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
     final employeesAsync = ref.watch(employeesStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Teacher Assignment')),
+      appBar: AppBar(
+        title: const Text('Teacher Assignment'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.import_export),
+            tooltip: 'Export / Import',
+            onPressed: () => _showTransfer(context, ref, employeesAsync.valueOrNull ?? []),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showEditor(context, ref, employeesAsync.valueOrNull ?? []),
         icon: const Icon(Icons.add),
@@ -55,6 +66,76 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+
+  /// Assignments are importable: creating one is an ordinary Firestore
+  /// write that firestore.rules already gates on director/principal/admin,
+  /// so a bulk import goes through exactly the same check as the form.
+  /// The teacher is matched by email rather than uid, since a uid is not
+  /// something anyone can type into a spreadsheet.
+  void _showTransfer(BuildContext context, WidgetRef ref, List employees) {
+    final assignments = ref.read(teacherAssignmentsStreamProvider).valueOrNull ?? const <TeacherAssignment>[];
+    final faculty = employees.where((e) => e.role == UserRole.faculty).toList();
+
+    showExportImportSheet(
+      context: context,
+      label: 'Teacher Assignments',
+      headers: const ['Teacher Email', 'Teacher Name', 'Subject', 'Section', 'School Year'],
+      rows: () => assignments.map((a) {
+        final teacher = faculty.where((e) => e.uid == a.teacherId).firstOrNull;
+        return [
+          (teacher?.email as String?) ?? '',
+          a.teacherName,
+          a.subject,
+          a.section,
+          a.schoolYear,
+        ];
+      }).toList(),
+      parseRow: (row, rowNumber) {
+        final email = row[0].trim().toLowerCase();
+        final subject = row[2].trim();
+        final section = row[3].trim();
+        final schoolYear = row[4].trim();
+
+        if (subject.isEmpty || section.isEmpty) {
+          return ImportIssue(rowNumber, 'Subject and section are required.');
+        }
+        final teacher = faculty.where((e) => (e.email as String).toLowerCase() == email).firstOrNull;
+        if (teacher == null) {
+          return ImportIssue(rowNumber, 'No faculty account with email "$email".');
+        }
+        final duplicate = assignments.any((a) =>
+            a.teacherId == teacher.uid &&
+            a.subject == subject &&
+            a.section == section &&
+            a.schoolYear == schoolYear);
+        if (duplicate) {
+          return ImportIssue(rowNumber, '$subject / $section is already assigned to this teacher.');
+        }
+        return _AssignmentImportRow(
+          teacherId: teacher.uid as String,
+          teacherName: teacher.fullName as String,
+          subject: subject,
+          section: section,
+          schoolYear: schoolYear,
+        );
+      },
+      onImport: (records) async {
+        final notifier = ref.read(adminActionControllerProvider.notifier);
+        var created = 0;
+        for (final r in records.cast<_AssignmentImportRow>()) {
+          final ok = await notifier.createTeacherAssignment(
+            teacherId: r.teacherId,
+            teacherName: r.teacherName,
+            subject: r.subject,
+            section: r.section,
+            schoolYear: r.schoolYear,
+          );
+          if (ok) created++;
+        }
+        return created;
+      },
     );
   }
 
@@ -159,4 +240,22 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// One validated row from an assignment import, resolved to a real
+/// teacher before anything is written.
+class _AssignmentImportRow {
+  final String teacherId;
+  final String teacherName;
+  final String subject;
+  final String section;
+  final String schoolYear;
+
+  const _AssignmentImportRow({
+    required this.teacherId,
+    required this.teacherName,
+    required this.subject,
+    required this.section,
+    required this.schoolYear,
+  });
 }

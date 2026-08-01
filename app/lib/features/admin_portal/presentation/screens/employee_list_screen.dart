@@ -5,6 +5,9 @@ import '../../../../core/constants/education_level.dart';
 import '../../../../core/constants/user_roles.dart';
 import '../../domain/entities/employee_summary.dart';
 import '../../domain/usecases/employee_usecases.dart';
+import '../../../../core/data_transfer/csv.dart';
+import '../../../../core/data_transfer/export_import_sheet.dart';
+import '../../../../core/utils/validators.dart';
 import '../controllers/admin_controller.dart';
 import 'employee_detail_screen.dart';
 
@@ -16,7 +19,16 @@ class EmployeeListScreen extends ConsumerWidget {
     final employeesAsync = ref.watch(employeesStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Employee Management')),
+      appBar: AppBar(
+        title: const Text('Employee Management'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.import_export),
+            tooltip: 'Export / Import',
+            onPressed: () => _showTransfer(context, ref),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateSheet(context, ref),
         icon: const Icon(Icons.person_add_alt),
@@ -61,6 +73,86 @@ class EmployeeListScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+
+  /// Employees can be imported, unlike students: provisionUser is a
+  /// callable that generates the account and its temporary password, so an
+  /// import runs the same server-side path the New Employee form does
+  /// instead of writing user documents directly.
+  void _showTransfer(BuildContext context, WidgetRef ref) {
+    final employees = ref.read(employeesStreamProvider).valueOrNull ?? const <EmployeeSummary>[];
+    showExportImportSheet(
+      context: context,
+      label: 'Employees',
+      headers: const ['Last Name', 'First Name', 'Email', 'Role', 'Department', 'Position'],
+      rows: () => employees
+          .map((e) => [
+                e.lastName,
+                e.firstName,
+                e.email,
+                e.role.value,
+                e.employeeInfo?.department ?? '',
+                e.employeeInfo?.position ?? '',
+              ])
+          .toList(),
+      parseRow: (row, rowNumber) {
+        final lastName = row[0].trim();
+        final firstName = row[1].trim();
+        final email = row[2].trim();
+        final roleValue = row[3].trim().toLowerCase();
+
+        if (lastName.isEmpty || firstName.isEmpty) {
+          return ImportIssue(rowNumber, 'First and last name are required.');
+        }
+        // The same validator the form uses, so an import cannot create
+        // accounts the UI would have refused.
+        final emailError = Validators.email(email);
+        if (emailError != null) return ImportIssue(rowNumber, emailError);
+
+        final role = UserRole.values.where((r) => r.value == roleValue).firstOrNull;
+        if (role == null) return ImportIssue(rowNumber, 'Unknown role "$roleValue".');
+        if (!adminProvisionableRoles.contains(role)) {
+          return ImportIssue(rowNumber, 'Admin cannot create a ${role.displayName} account.');
+        }
+        if (employees.any((e) => e.email.toLowerCase() == email.toLowerCase())) {
+          return ImportIssue(rowNumber, '$email already has an account.');
+        }
+        return _EmployeeImportRow(
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          role: role,
+          department: row.length > 4 ? row[4].trim() : '',
+          position: row.length > 5 ? row[5].trim() : '',
+        );
+      },
+      onImport: (records) async {
+        // createEmployee reports through the controller's AsyncValue
+        // rather than returning an outcome, so success is read back from
+        // that state. Rows are applied one at a time and counted, so a
+        // failure partway through still reports what actually landed
+        // instead of claiming the whole file imported.
+        final notifier = ref.read(adminActionControllerProvider.notifier);
+        var created = 0;
+        for (final r in records.cast<_EmployeeImportRow>()) {
+          await notifier.createEmployee(
+            role: r.role,
+            firstName: r.firstName,
+            lastName: r.lastName,
+            email: r.email,
+            employeeInfo: r.department.isEmpty && r.position.isEmpty
+                ? null
+                : EmployeeInfo(
+                    department: r.department,
+                    position: r.position,
+                    dateHired: DateTime.now(),
+                  ),
+          );
+          if (ref.read(adminActionControllerProvider) is! AsyncError) created++;
+        }
+        return created;
+      },
     );
   }
 
@@ -215,4 +307,25 @@ class EmployeeListScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// One validated row from an employee import, held between preview and
+/// apply so parsing happens once and every problem is shown before
+/// anything is created.
+class _EmployeeImportRow {
+  final String firstName;
+  final String lastName;
+  final String email;
+  final UserRole role;
+  final String department;
+  final String position;
+
+  const _EmployeeImportRow({
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    required this.role,
+    required this.department,
+    required this.position,
+  });
 }

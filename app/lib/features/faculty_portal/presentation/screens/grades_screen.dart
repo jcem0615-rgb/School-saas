@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/data_transfer/export_import_sheet.dart';
 import '../../../../core/widgets/combo_field.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/coursework_item.dart';
@@ -43,7 +44,16 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Grade Submission')),
+      appBar: AppBar(
+        title: const Text('Grade Submission'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.import_export),
+            tooltip: 'Export / Import',
+            onPressed: () => _showTransfer(context, ref),
+          ),
+        ],
+      ),
       floatingActionButton: _activeQuery == null
           ? null
           : FloatingActionButton.extended(
@@ -177,6 +187,33 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Export only. A grade import would need to resolve student names to
+  /// ids and re-run the scope check firestore.rules applies per student,
+  /// so posting marks stays on the roster screen where the teacher is
+  /// looking at the actual student they are grading.
+  void _showTransfer(BuildContext context, WidgetRef ref) {
+    final query = _activeQuery;
+    final grades = query == null
+        ? const <Grade>[]
+        : (ref.read(gradesStreamProvider(query)).valueOrNull ?? const <Grade>[]);
+    showExportImportSheet(
+      context: context,
+      label: 'Grades',
+      headers: const ['Student', 'Subject', 'Section', 'Term', 'Score', 'Max Score', 'Remarks'],
+      rows: () => grades
+          .map((g) => [
+                g.studentName,
+                g.subject,
+                g.section,
+                g.term,
+                g.score.toStringAsFixed(1),
+                g.maxScore.toStringAsFixed(1),
+                g.remarks ?? '',
+              ])
+          .toList(),
     );
   }
 

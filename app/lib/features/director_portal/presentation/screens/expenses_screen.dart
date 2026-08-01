@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/data_transfer/export_import_sheet.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/entities/expense.dart';
 import '../controllers/director_controller.dart';
@@ -27,7 +28,16 @@ class ExpensesScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Expenses')),
+      appBar: AppBar(
+        title: const Text('Expenses'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.import_export),
+            tooltip: 'Export / Import',
+            onPressed: () => _showTransfer(context, ref),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showEditor(context, ref),
         icon: const Icon(Icons.add),
@@ -103,6 +113,27 @@ class ExpensesScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+
+  /// Export only: expenses carry a recordedByName the audit trail relies
+  /// on, and a bulk import would attribute someone else's spending to
+  /// whoever uploaded the file.
+  void _showTransfer(BuildContext context, WidgetRef ref) {
+    final expenses = ref.read(expensesStreamProvider).valueOrNull ?? const <Expense>[];
+    showExportImportSheet(
+      context: context,
+      label: 'Expenses',
+      headers: const ['Date', 'Category', 'Description', 'Amount', 'Recorded By'],
+      rows: () => expenses
+          .map((e) => [
+                _dateFormat.format(e.date),
+                e.category,
+                e.description,
+                e.amount.toStringAsFixed(2),
+                e.recordedByName,
+              ])
+          .toList(),
     );
   }
 

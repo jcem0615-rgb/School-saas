@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/education_level.dart';
 import '../../../admin_portal/domain/entities/program.dart';
 import '../../../admin_portal/presentation/controllers/admin_controller.dart' show programsStreamProvider;
+import '../../../../core/data_transfer/export_import_sheet.dart';
 import '../../../../core/widgets/combo_field.dart';
 import '../../domain/entities/student_summary.dart';
 import '../controllers/registrar_controller.dart';
@@ -25,7 +26,16 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     final studentsAsync = ref.watch(studentsStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Student Records')),
+      appBar: AppBar(
+        title: const Text('Student Records'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.import_export),
+            tooltip: 'Export / Import',
+            onPressed: _showTransfer,
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showRegisterSheet(context, ref),
         icon: const Icon(Icons.person_add_alt),
@@ -121,6 +131,47 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Export is unrestricted; import deliberately is not offered here.
+  ///
+  /// Student numbers come from a server-side counter at registration, and
+  /// firestore.rules rejects client writes to `studentNumber`, `userId`
+  /// and `balance`. A CSV import that appeared to create students would
+  /// either bypass those rules or silently drop the fields, so the honest
+  /// option is export-only with the reason stated in the sheet.
+  void _showTransfer() {
+    final students = ref.read(studentsStreamProvider).valueOrNull ?? const <StudentSummary>[];
+    showExportImportSheet(
+      context: context,
+      label: 'Students',
+      headers: const [
+        'Student Number',
+        'Last Name',
+        'First Name',
+        'Middle Name',
+        'Division',
+        'Grade Level',
+        'Section',
+        'Program',
+        'Status',
+        'Balance',
+      ],
+      rows: () => students
+          .map((s) => [
+                s.studentNumber,
+                s.lastName,
+                s.firstName,
+                s.middleName ?? '',
+                s.educationLevel.displayLabel,
+                s.gradeLevel,
+                s.section,
+                s.programName ?? '',
+                s.status.displayLabel,
+                s.balance.toStringAsFixed(2),
+              ])
+          .toList(),
     );
   }
 
