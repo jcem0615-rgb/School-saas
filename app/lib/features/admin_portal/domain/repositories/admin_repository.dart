@@ -2,6 +2,7 @@ import '../../../../core/constants/user_roles.dart';
 import '../../../../core/errors/result.dart';
 import '../entities/employee_summary.dart';
 import '../entities/program.dart';
+import '../entities/school_branding.dart';
 import '../entities/teacher_assignment.dart';
 
 class CreateEmployeeOutcome {
@@ -63,4 +64,15 @@ abstract class AdminRepository {
     required String department,
   });
   Future<Result<void>> deleteProgram(String programId);
+
+  /// The school's logo and display name. Readable by the whole tenant --
+  /// a student's e-ID carries the logo, so this cannot be staff-only.
+  Stream<SchoolBranding> watchBranding();
+
+  Future<Result<void>> updateBranding({
+    String? logoUrl,
+    String? logoFileName,
+    String? schoolName,
+    String? addressLine,
+  });
 }

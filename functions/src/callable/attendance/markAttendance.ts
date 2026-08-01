@@ -10,10 +10,43 @@ interface MarkAttendanceData {
   location?: string;
 }
 
-// Roles permitted to operate the scanner. Students/Parents/Guardians view
-// attendance but never mark it -- this is a deliberate one-way boundary so
-// a compromised student device could never forge its own "present" record.
-const SCANNER_ALLOWED_ROLES = ["director", "principal", "admin", "registrar", "faculty", "staff", "guidance"];
+// Who each role may scan.
+//
+// Students/Parents never appear as a key: they view attendance but can
+// never mark it, a deliberate one-way boundary so a compromised student
+// device could not forge its own "present" record.
+//
+// Beyond that, scanning is scoped by whose attendance a role is actually
+// responsible for. A teacher takes class attendance, so they scan
+// students; an admin runs staff timekeeping, so they scan employees.
+// Letting a teacher clock in a colleague -- or an admin mark a student
+// present in a class they do not teach -- is not a capability either job
+// needs, and both are easy to abuse.
+//
+// Director and Principal keep both, as the oversight roles who have to be
+// able to cover any gate. Registrar keeps students, matching the Scan
+// Attendance entry on their own dashboard.
+const EMPLOYEE_ROLES = ["director", "principal", "admin", "registrar", "faculty", "staff", "guidance"];
+const STUDENT_ONLY = ["student"];
+
+const SCAN_MATRIX: Record<string, string[]> = {
+  faculty: STUDENT_ONLY,
+  registrar: STUDENT_ONLY,
+  admin: EMPLOYEE_ROLES,
+  director: [...STUDENT_ONLY, ...EMPLOYEE_ROLES],
+  principal: [...STUDENT_ONLY, ...EMPLOYEE_ROLES],
+};
+
+const SCANNER_ALLOWED_ROLES = Object.keys(SCAN_MATRIX);
+
+/**
+ * Whether [scannerRole] is permitted to scan someone whose role is
+ * [subjectRole]. Exported for the unit test, which is the only place the
+ * whole matrix is asserted in one go.
+ */
+export function canScan(scannerRole: string, subjectRole: string): boolean {
+  return (SCAN_MATRIX[scannerRole] ?? []).includes(subjectRole);
+}
 
 /** Resolves "now" to the school's local hour/minute using Intl, avoiding a moment.js-style dependency. */
 function resolveSchoolLocalTime(now: Date, timezone: string): {hour: number; minute: number} {
@@ -73,6 +106,16 @@ export const markAttendance = onCall(
     // academic record exists yet (e.g. Student Registration hasn't
     // created one) so scanning still works during interim rollout.
     let resolvedPersonId = personDoc.id;
+    if (!canScan(callerClaims.role, person.role as string)) {
+      // Names the subject's role rather than a generic denial, so a
+      // teacher who scans a colleague's ID learns why instead of
+      // assuming the scanner is broken.
+      throw new HttpsError(
+        "permission-denied",
+        `Your role cannot record attendance for a ${person.role}.`
+      );
+    }
+
     if (person.role === "student") {
       const studentRecordSnap = await db
         .collection(FirestorePaths.students(schoolId))

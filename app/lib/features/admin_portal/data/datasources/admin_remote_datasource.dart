@@ -6,6 +6,7 @@ import '../../../../core/constants/user_roles.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../models/employee_summary_model.dart';
 import '../models/program_model.dart';
+import '../models/school_branding_model.dart';
 import '../models/teacher_assignment_model.dart';
 
 /// Snapshot of who is performing the write, rebuilt whenever the signed-in
@@ -228,5 +229,26 @@ class AdminRemoteDataSource {
         .collection(FirestorePaths.programs(_actingUser.schoolId))
         .doc(programId)
         .update(_softDeleteFields());
+  }
+
+  // ---- School branding ----
+
+  Stream<SchoolBrandingModel> watchBranding() {
+    return _firestore
+        .doc(FirestorePaths.brandingDoc(_actingUser.schoolId))
+        .snapshots()
+        .map((snap) => SchoolBrandingModel.fromFirestore(snap.data()));
+  }
+
+  Future<void> updateBranding(Map<String, dynamic> fields) async {
+    // merge: saving the school name must not clear a previously uploaded
+    // logo, and vice versa.
+    await _firestore.doc(FirestorePaths.brandingDoc(_actingUser.schoolId)).set({
+      ...fields,
+      'schoolId': _actingUser.schoolId,
+      'updatedBy': _actingUser.uid,
+      'updatedByName': _actingUser.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

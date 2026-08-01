@@ -9,9 +9,11 @@ import '../../data/datasources/admin_remote_datasource.dart';
 import '../../data/repositories_impl/admin_repository_impl.dart';
 import '../../domain/entities/employee_summary.dart';
 import '../../domain/entities/program.dart';
+import '../../domain/entities/school_branding.dart';
 import '../../domain/entities/teacher_assignment.dart';
 import '../../domain/repositories/admin_repository.dart';
 import '../../domain/usecases/employee_usecases.dart';
+import '../../domain/usecases/branding_usecases.dart';
 import '../../domain/usecases/program_usecases.dart';
 import '../../domain/usecases/teacher_assignment_usecases.dart';
 
@@ -46,6 +48,15 @@ final programsStreamProvider = StreamProvider.autoDispose<List<Program>>((ref) {
 /// Result of a create-employee action, surfaced once so the UI can show
 /// the temporary password for hand-off (see provisionUser.ts doc comment
 /// on why this is returned directly rather than only emailed).
+/// The school's logo and name.
+///
+/// Watched by the e-ID and the app shell as well as the admin screen, so
+/// it deliberately does not sit behind an admin-only guard -- every role
+/// needs to render the logo on their own ID.
+final brandingProvider = StreamProvider<SchoolBranding>((ref) {
+  return ref.watch(adminRepositoryProvider).watchBranding();
+});
+
 class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutcome?>> {
   // `mounted` guards below: these action controllers are autoDispose, and
   // the repositories they depend on rebuild whenever authStateProvider
@@ -63,6 +74,7 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
   final CreateProgramUseCase _createProgram;
   final UpdateProgramUseCase _updateProgram;
   final DeleteProgramUseCase _deleteProgram;
+  final UpdateBrandingUseCase _updateBranding;
 
   AdminActionController({
     required CreateEmployeeUseCase createEmployee,
@@ -75,6 +87,7 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
     required CreateProgramUseCase createProgram,
     required UpdateProgramUseCase updateProgram,
     required DeleteProgramUseCase deleteProgram,
+    required UpdateBrandingUseCase updateBranding,
   })  : _createEmployee = createEmployee,
         _updateEmployeeInfo = updateEmployeeInfo,
         _setUserStatus = setUserStatus,
@@ -85,6 +98,7 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
         _createProgram = createProgram,
         _updateProgram = updateProgram,
         _deleteProgram = deleteProgram,
+        _updateBranding = updateBranding,
         super(const AsyncData(null));
 
   Future<void> createEmployee({
@@ -184,6 +198,21 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
     return result.isSuccess;
   }
 
+  Future<bool> updateBranding({
+    String? logoUrl,
+    String? logoFileName,
+    String? schoolName,
+    String? addressLine,
+  }) async {
+    final result = await _updateBranding(
+      logoUrl: logoUrl,
+      logoFileName: logoFileName,
+      schoolName: schoolName,
+      addressLine: addressLine,
+    );
+    return result.isSuccess;
+  }
+
   void reset() => state = const AsyncData(null);
 
   Future<bool> createProgram({required String name, required String code, required String department}) async {
@@ -206,5 +235,6 @@ final adminActionControllerProvider =
     createProgram: CreateProgramUseCase(repo),
     updateProgram: UpdateProgramUseCase(repo),
     deleteProgram: DeleteProgramUseCase(repo),
+    updateBranding: UpdateBrandingUseCase(repo),
   );
 });

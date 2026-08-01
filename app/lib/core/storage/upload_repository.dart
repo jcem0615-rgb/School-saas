@@ -12,7 +12,10 @@ enum UploadFolder {
   paymentReceipts('payment-receipts'),
 
   /// The school's own e-wallet QR, shown to anyone paying online.
-  paymentSettings('payment-settings');
+  paymentSettings('payment-settings'),
+
+  /// The school logo, shown in the app and on printed IDs.
+  branding('branding');
 
   final String folder;
   const UploadFolder(this.folder);

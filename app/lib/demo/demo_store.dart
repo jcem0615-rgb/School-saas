@@ -4,6 +4,7 @@ import '../core/constants/education_level.dart';
 import '../core/constants/user_roles.dart';
 import '../features/admin_portal/domain/entities/employee_summary.dart';
 import '../features/admin_portal/domain/entities/program.dart';
+import '../features/admin_portal/domain/entities/school_branding.dart';
 import '../features/admin_portal/domain/entities/teacher_assignment.dart';
 import '../features/audit_trail/domain/entities/audit_log_entry.dart';
 import '../features/auth/domain/entities/app_user.dart';
@@ -105,6 +106,16 @@ class DemoStore {
   late final paymentSubmissions =
       BehaviorSubject<List<PaymentSubmission>>.seeded(_seedSubmissions());
   late final paymentSettings = BehaviorSubject<PaymentSettings>.seeded(_seedPaymentSettings());
+  late final branding = BehaviorSubject<SchoolBranding>.seeded(
+    // No logo by default: an unbranded school is the honest starting state,
+    // and it exercises the "upload one" path rather than hiding it.
+    SchoolBranding(
+      schoolName: schoolName,
+      addressLine: 'Poblacion, San Nicolas, Batangas',
+      updatedAt: _daysAgo(60),
+      updatedByName: 'Grace Mendoza',
+    ),
+  );
 
   /// Prepends [item] to a collection and republishes it. Insert-at-front
   /// matches how every list screen in this app sorts (newest first).
@@ -186,7 +197,7 @@ class DemoStore {
       assignments, programs, payments, attendance, coursework, grades,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog,
-      paymentSubmissions, paymentSettings,
+      paymentSubmissions, paymentSettings, branding,
     ]) {
       s.close();
     }

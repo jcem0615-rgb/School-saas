@@ -20,7 +20,7 @@ import '../../features/payments/presentation/screens/record_payment_screen.dart'
 import '../../features/principal_portal/presentation/screens/principal_dashboard_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/qr_attendance/presentation/screens/attendance_history_screen.dart';
-import '../../features/qr_attendance/presentation/screens/my_qr_id_screen.dart';
+import '../../features/qr_attendance/presentation/screens/e_id_screen.dart';
 import '../../features/qr_attendance/presentation/screens/qr_scanner_screen.dart';
 import '../../features/registrar_portal/presentation/screens/registrar_dashboard_screen.dart';
 import '../../features/staff_portal/presentation/screens/staff_dashboard_screen.dart';
@@ -127,7 +127,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // any signed-in user at the routing layer; actual authorization is
       // enforced server-side in markAttendance.ts (defense in depth: the
       // route existing is not the same as the action being permitted).
-      GoRoute(path: AppRoutes.myQrId, builder: (context, state) => const MyQrIdScreen()),
+      GoRoute(path: AppRoutes.myQrId, builder: (context, state) => const EIdScreen()),
       GoRoute(path: AppRoutes.scanAttendance, builder: (context, state) => const QrScannerScreen()),
       GoRoute(path: AppRoutes.myActivity, builder: (context, state) => const MyActivityScreen()),
       // School-wide audit trail. firestore.rules lets owner/director/admin

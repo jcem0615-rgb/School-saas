@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
+import 'branding_screen.dart';
 import 'employee_list_screen.dart';
 import 'programs_screen.dart';
 import 'teacher_assignments_screen.dart';
@@ -78,6 +79,18 @@ class AdminDashboardScreen extends StatelessWidget {
                   label: 'Audit Trail',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const AuditTrailScreen())),
+                ),
+
+                _QuickLinkTile(
+
+                  icon: Icons.palette_outlined,
+
+                  label: 'School Branding',
+
+                  onTap: () => Navigator.of(context)
+
+                      .push(MaterialPageRoute(builder: (_) => const BrandingScreen())),
+
                 ),
               ],
             ),

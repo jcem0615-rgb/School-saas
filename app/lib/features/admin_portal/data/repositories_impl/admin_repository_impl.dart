@@ -4,6 +4,7 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../../domain/entities/employee_summary.dart';
 import '../../domain/entities/program.dart';
+import '../../domain/entities/school_branding.dart';
 import '../../domain/entities/teacher_assignment.dart';
 import '../../domain/repositories/admin_repository.dart';
 import '../datasources/admin_remote_datasource.dart';
@@ -176,4 +177,22 @@ class AdminRepositoryImpl implements AdminRepository {
   @override
   Future<Result<void>> deleteProgram(String programId) =>
       _run(() => _remote.softDeleteProgram(programId));
+
+  @override
+  Stream<SchoolBranding> watchBranding() => _remote.watchBranding();
+
+  @override
+  Future<Result<void>> updateBranding({
+    String? logoUrl,
+    String? logoFileName,
+    String? schoolName,
+    String? addressLine,
+  }) {
+    return _run(() => _remote.updateBranding({
+          if (logoUrl != null) 'logoUrl': logoUrl,
+          if (logoFileName != null) 'logoFileName': logoFileName,
+          if (schoolName != null) 'schoolName': schoolName,
+          if (addressLine != null) 'addressLine': addressLine,
+        }));
+  }
 }

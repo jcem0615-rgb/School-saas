@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import '../core/errors/result.dart';
 import '../features/admin_portal/domain/entities/employee_summary.dart';
 import '../features/admin_portal/domain/entities/program.dart';
+import '../features/admin_portal/domain/entities/school_branding.dart';
 import '../features/admin_portal/domain/entities/teacher_assignment.dart';
 import '../features/admin_portal/domain/repositories/admin_repository.dart';
 import '../features/audit_trail/domain/entities/audit_log_entry.dart';
@@ -941,6 +942,38 @@ class DemoAdminRepository implements AdminRepository {
       targetCollection: 'programs',
       targetId: programId,
       remarks: 'Soft deleted',
+    );
+    return const Success(null);
+  }
+
+  @override
+  Stream<SchoolBranding> watchBranding() => _store.branding.stream;
+
+  @override
+  Future<Result<void>> updateBranding({
+    String? logoUrl,
+    String? logoFileName,
+    String? schoolName,
+    String? addressLine,
+  }) async {
+    await _latency();
+    final current = _store.branding.value;
+    _store.branding.add(SchoolBranding(
+      // Null means "not being changed" -- saving the name must not clear
+      // a previously uploaded logo.
+      logoUrl: logoUrl ?? current.logoUrl,
+      logoFileName: logoFileName ?? current.logoFileName,
+      schoolName: schoolName ?? current.schoolName,
+      addressLine: addressLine ?? current.addressLine,
+      updatedAt: DateTime.now(),
+      updatedByName: _store.requireUser.fullName,
+    ));
+    _store.audit(
+      module: 'branding',
+      action: 'update',
+      targetCollection: 'settings',
+      targetId: 'branding',
+      newValue: {if (logoFileName != null) 'logoFileName': logoFileName},
     );
     return const Success(null);
   }

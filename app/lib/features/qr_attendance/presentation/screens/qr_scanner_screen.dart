@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/constants/user_roles.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../../domain/entities/attendance_record.dart';
 import '../../domain/entities/qr_scan_result.dart';
 import '../controllers/qr_attendance_controller.dart';
 import '../widgets/attendance_status_badge.dart';
@@ -11,6 +13,17 @@ import '../widgets/attendance_status_badge.dart';
 /// [ScannerController], which debounces rapid-fire detections and calls
 /// the markAttendance Cloud Function -- this screen only owns camera UI
 /// and the result overlay, no business logic.
+/// Mirrors the SCAN_MATRIX in functions/src/callable/attendance/
+/// markAttendance.ts. The server is the enforcement boundary -- this only
+/// tells the user what to expect, so a teacher who scans a colleague's ID
+/// understands the refusal instead of assuming the scanner is broken.
+String _scanScopeFor(UserRole role) => switch (role) {
+      UserRole.faculty || UserRole.registrar => 'You can scan student IDs.',
+      UserRole.admin => 'You can scan faculty and staff IDs.',
+      UserRole.director || UserRole.principal => 'You can scan any ID.',
+      _ => 'Your role cannot record attendance.',
+    };
+
 class QrScannerScreen extends ConsumerWidget {
   const QrScannerScreen({super.key});
 
@@ -19,7 +32,24 @@ class QrScannerScreen extends ConsumerWidget {
     final scanState = ref.watch(scannerControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan Attendance QR')),
+      appBar: AppBar(
+        title: const Text('Scan Attendance QR'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(28),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8, left: 16, right: 16),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _scanScopeFor(
+                  ref.watch(authStateProvider).valueOrNull?.role ?? UserRole.student,
+                ),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ),
+        ),
+      ),
       body: Stack(
         children: [
           MobileScanner(
