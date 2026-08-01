@@ -8,6 +8,9 @@ class SchoolBrandingModel extends SchoolBranding {
     super.logoFileName,
     super.schoolName,
     super.addressLine,
+    super.principalName,
+    super.directorName,
+    super.schoolYear,
     super.updatedAt,
     super.updatedByName,
   });
@@ -22,6 +25,9 @@ class SchoolBrandingModel extends SchoolBranding {
       logoFileName: data['logoFileName'] as String?,
       schoolName: data['schoolName'] as String?,
       addressLine: data['addressLine'] as String?,
+      principalName: data['principalName'] as String?,
+      directorName: data['directorName'] as String?,
+      schoolYear: data['schoolYear'] as String?,
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       updatedByName: data['updatedByName'] as String?,
     );

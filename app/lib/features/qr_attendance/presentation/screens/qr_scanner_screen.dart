@@ -17,10 +17,12 @@ import '../widgets/attendance_status_badge.dart';
 /// markAttendance.ts. The server is the enforcement boundary -- this only
 /// tells the user what to expect, so a teacher who scans a colleague's ID
 /// understands the refusal instead of assuming the scanner is broken.
+/// Mirrors SCAN_MATRIX in functions/src/callable/attendance/markAttendance.ts.
+/// This only sets expectations -- the callable is what actually enforces it,
+/// so a stale copy here is a confusing label, never a hole.
 String _scanScopeFor(UserRole role) => switch (role) {
-      UserRole.faculty || UserRole.registrar => 'You can scan student IDs.',
+      UserRole.faculty => 'You can scan student IDs.',
       UserRole.admin => 'You can scan faculty and staff IDs.',
-      UserRole.director || UserRole.principal => 'You can scan any ID.',
       _ => 'Your role cannot record attendance.',
     };
 

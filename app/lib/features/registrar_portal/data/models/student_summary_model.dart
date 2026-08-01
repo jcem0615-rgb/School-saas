@@ -21,6 +21,7 @@ class StudentSummaryModel extends StudentSummary {
     super.department,
     super.userId,
     super.photoUrl,
+    super.birthDate,
     super.guardianContacts,
   });
 
@@ -46,6 +47,7 @@ class StudentSummaryModel extends StudentSummary {
       userId: data['userId'] as String?,
       photoUrl: data['photoUrl'] as String?,
       enrollmentDate: (data['enrollmentDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      birthDate: (data['birthDate'] as Timestamp?)?.toDate(),
       guardianContacts: rawGuardians.map((raw) {
         final g = raw as Map<String, dynamic>;
         return GuardianContact(

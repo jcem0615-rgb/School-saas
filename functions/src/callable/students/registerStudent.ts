@@ -24,6 +24,7 @@ interface RegisterStudentData {
   section: string;
   programId?: string; // required when educationLevel === 'college'
   enrollmentDate?: string; // ISO date, defaults to now
+  birthDate?: string; // ISO date; printed on the student's ID card
   guardianContacts?: GuardianContact[];
 }
 
@@ -47,6 +48,7 @@ export const registerStudent = onCall(
       section,
       programId,
       enrollmentDate,
+      birthDate,
       guardianContacts,
     } = request.data;
 
@@ -110,6 +112,10 @@ export const registerStudent = onCall(
       enrollmentDate: admin.firestore.Timestamp.fromDate(
         enrollmentDate ? new Date(enrollmentDate) : new Date()
       ),
+      // Optional: an ID card prints it, but a record with no birth date
+      // on file is still a valid enrolment, so this never blocks
+      // registration.
+      birthDate: birthDate ? admin.firestore.Timestamp.fromDate(new Date(birthDate)) : null,
       guardianContacts: guardianContacts ?? [],
       balance: 0,
       photoUrl: null,

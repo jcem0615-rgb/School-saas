@@ -57,10 +57,13 @@ class StaffDashboardScreen extends StatelessWidget {
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const MaterialRequestsScreen())),
                 ),
+                // Staff are scanned, not scanners -- an admin runs staff
+                // timekeeping -- so what they need at hand is their own ID
+                // to present, not a camera.
                 _QuickLinkTile(
-                  icon: Icons.qr_code_scanner,
-                  label: 'QR Attendance',
-                  onTap: () => context.push('/scan-attendance'),
+                  icon: Icons.badge_outlined,
+                  label: 'My e-ID',
+                  onTap: () => context.push('/qr-id'),
                 ),
               ],
             ),

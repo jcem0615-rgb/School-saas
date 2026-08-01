@@ -955,6 +955,9 @@ class DemoAdminRepository implements AdminRepository {
     String? logoFileName,
     String? schoolName,
     String? addressLine,
+    String? principalName,
+    String? directorName,
+    String? schoolYear,
   }) async {
     await _latency();
     final current = _store.branding.value;
@@ -965,6 +968,9 @@ class DemoAdminRepository implements AdminRepository {
       logoFileName: logoFileName ?? current.logoFileName,
       schoolName: schoolName ?? current.schoolName,
       addressLine: addressLine ?? current.addressLine,
+      principalName: principalName ?? current.principalName,
+      directorName: directorName ?? current.directorName,
+      schoolYear: schoolYear ?? current.schoolYear,
       updatedAt: DateTime.now(),
       updatedByName: _store.requireUser.fullName,
     ));
@@ -1007,6 +1013,7 @@ class DemoRegistrarRepository implements RegistrarRepository {
     required String gradeLevel,
     required String section,
     String? programId,
+    DateTime? birthDate,
     required List<GuardianContact> guardianContacts,
   }) async {
     await _latency(600);
@@ -1036,6 +1043,7 @@ class DemoRegistrarRepository implements RegistrarRepository {
         status: StudentStatus.enrolled,
         balance: 0,
         enrollmentDate: DateTime.now(),
+        birthDate: birthDate,
         guardianContacts: guardianContacts,
       ),
     );
@@ -1057,6 +1065,7 @@ class DemoRegistrarRepository implements RegistrarRepository {
     required String gradeLevel,
     required String section,
     required StudentStatus status,
+    DateTime? birthDate,
   }) async {
     await _latency();
     _store.update<StudentSummary>(
@@ -1069,6 +1078,7 @@ class DemoRegistrarRepository implements RegistrarRepository {
         gradeLevel: gradeLevel,
         section: section,
         status: status,
+        birthDate: birthDate,
       ),
     );
     _store.audit(
@@ -1144,6 +1154,7 @@ StudentSummary _copyStudent(
   StudentStatus? status,
   double? balance,
   String? userId,
+  DateTime? birthDate,
 }) {
   return StudentSummary(
     id: s.id,
@@ -1162,6 +1173,7 @@ StudentSummary _copyStudent(
     userId: userId ?? s.userId,
     photoUrl: s.photoUrl,
     enrollmentDate: s.enrollmentDate,
+    birthDate: birthDate ?? s.birthDate,
     guardianContacts: s.guardianContacts,
   );
 }

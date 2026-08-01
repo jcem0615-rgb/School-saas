@@ -203,12 +203,18 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
     String? logoFileName,
     String? schoolName,
     String? addressLine,
+    String? principalName,
+    String? directorName,
+    String? schoolYear,
   }) async {
     final result = await _updateBranding(
       logoUrl: logoUrl,
       logoFileName: logoFileName,
       schoolName: schoolName,
       addressLine: addressLine,
+      principalName: principalName,
+      directorName: directorName,
+      schoolYear: schoolYear,
     );
     return result.isSuccess;
   }

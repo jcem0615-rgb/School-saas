@@ -42,6 +42,7 @@ class RegistrarRemoteDataSource {
     required String gradeLevel,
     required String section,
     String? programId,
+    DateTime? birthDate,
     required List<Map<String, dynamic>> guardianContacts,
   }) async {
     try {
@@ -55,6 +56,7 @@ class RegistrarRemoteDataSource {
         'gradeLevel': gradeLevel,
         'section': section,
         'programId': programId,
+        'birthDate': birthDate?.toIso8601String(),
         'guardianContacts': guardianContacts,
       });
       return Map<String, dynamic>.from(response.data as Map);
@@ -70,8 +72,13 @@ class RegistrarRemoteDataSource {
     required String gradeLevel,
     required String section,
     required String status,
+    DateTime? birthDate,
   }) async {
     await _firestore.doc(FirestorePaths.studentDoc(_actingUser.schoolId, studentId)).update({
+      // Omitted rather than written as null when unset -- an edit that
+      // leaves the field blank should not erase a birth date the
+      // registrar entered earlier.
+      if (birthDate != null) 'birthDate': Timestamp.fromDate(birthDate),
       'firstName': firstName,
       'lastName': lastName,
       'gradeLevel': gradeLevel,

@@ -46,9 +46,18 @@ same as every other role before this module.
 | Decide approvals | Yes | No | See note below |
 | Read/create teacher assignments | Yes | No | Matches existing (already-unscoped) pattern for that collection |
 | Read coursework (incl. drafts) | Yes | No | Oversight visibility, not authoring |
-| Scan QR attendance | Yes | -- | Added to `SCANNER_ALLOWED_ROLES` |
+| Scan QR attendance | No | - | Marking attendance is a different power from overseeing it -- see below |
 | Suspend/activate accounts | No | - | Deliberately conservative for this pass -- see below |
 | Reset passwords | No | - | Same reasoning |
+
+**Scanning is not an oversight right.** A Principal reads all attendance
+for their division, but cannot mark it. Being able to record anyone
+present from your own phone is a narrower, sharper power than being able
+to review the result, and attendance is what payroll and truancy reports
+are built from -- so the write side stays with the two roles who take
+attendance as their actual job: Faculty (students) and Admin (employees).
+Director and Registrar are excluded on the same reasoning. See
+`SCAN_MATRIX` in `markAttendance.ts`.
 
 **Approvals decide-rights are not division-scoped.** Unlike
 students/grades/guidanceRecords/summons, the `approvals` collection

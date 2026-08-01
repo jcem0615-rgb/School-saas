@@ -20,12 +20,18 @@ class UpdateBrandingUseCase {
     String? logoFileName,
     String? schoolName,
     String? addressLine,
+    String? principalName,
+    String? directorName,
+    String? schoolYear,
   }) {
     return _repository.updateBranding(
       logoUrl: logoUrl,
       logoFileName: logoFileName,
       schoolName: schoolName?.trim(),
       addressLine: addressLine?.trim(),
+      principalName: principalName?.trim(),
+      directorName: directorName?.trim(),
+      schoolYear: schoolYear?.trim(),
     );
   }
 }

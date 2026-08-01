@@ -54,6 +54,10 @@ class StudentSummary {
   final String? userId;
   final String? photoUrl;
   final DateTime enrollmentDate;
+
+  /// Printed on the student's ID card. Optional: a record with no birth
+  /// date on file is still a valid enrolment.
+  final DateTime? birthDate;
   final List<GuardianContact> guardianContacts;
 
   const StudentSummary({
@@ -73,6 +77,7 @@ class StudentSummary {
     this.department,
     this.userId,
     this.photoUrl,
+    this.birthDate,
     this.guardianContacts = const [],
   });
 

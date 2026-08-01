@@ -21,16 +21,15 @@ describe("who may scan whom", () => {
     expect(canScan("admin", "student")).toBe(false);
   });
 
-  test("registrar scan students, matching their own dashboard entry", () => {
-    expect(canScan("registrar", "student")).toBe(true);
-    expect(canScan("registrar", "staff")).toBe(false);
-  });
-
-  test("director and principal can cover any gate", () => {
-    for (const role of ["director", "principal"]) {
-      expect(canScan(role, "student")).toBe(true);
-      expect(canScan(role, "faculty")).toBe(true);
-      expect(canScan(role, "staff")).toBe(true);
+  // Oversight is not the same power as being able to mark anyone present
+  // from your own phone. Attendance is what payroll and truancy reports
+  // are built from, so the set of accounts that can write it stays as
+  // small as the job allows.
+  test("director, principal and registrar are not scanners at all", () => {
+    for (const role of ["director", "principal", "registrar"]) {
+      expect(canScan(role, "student")).toBe(false);
+      expect(canScan(role, "faculty")).toBe(false);
+      expect(canScan(role, "staff")).toBe(false);
     }
   });
 

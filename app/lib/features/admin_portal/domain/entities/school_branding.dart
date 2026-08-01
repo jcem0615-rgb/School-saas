@@ -15,6 +15,16 @@ class SchoolBranding {
   /// Printed under the school name on an ID card.
   final String? addressLine;
 
+  /// Signatories printed on the back of an ID card. A school ID is only
+  /// treated as valid with these on it, and they are school-wide rather
+  /// than per-student, so they live here rather than on the record.
+  final String? principalName;
+  final String? directorName;
+
+  /// The current school year, e.g. "2026-2027". Printed on every ID, which
+  /// is what makes last year's card visibly expired.
+  final String? schoolYear;
+
   final DateTime? updatedAt;
   final String? updatedByName;
 
@@ -23,6 +33,9 @@ class SchoolBranding {
     this.logoFileName,
     this.schoolName,
     this.addressLine,
+    this.principalName,
+    this.directorName,
+    this.schoolYear,
     this.updatedAt,
     this.updatedByName,
   });

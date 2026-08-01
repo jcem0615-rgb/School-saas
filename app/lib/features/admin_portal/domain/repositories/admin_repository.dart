@@ -74,5 +74,8 @@ abstract class AdminRepository {
     String? logoFileName,
     String? schoolName,
     String? addressLine,
+    String? principalName,
+    String? directorName,
+    String? schoolYear,
   });
 }

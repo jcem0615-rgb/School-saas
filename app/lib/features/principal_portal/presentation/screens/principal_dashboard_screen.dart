@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../admin_portal/presentation/screens/teacher_assignments_screen.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
@@ -78,11 +77,6 @@ class PrincipalDashboardScreen extends StatelessWidget {
                   label: 'Approvals',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const ApprovalsScreen())),
-                ),
-                _QuickLinkTile(
-                  icon: Icons.qr_code_scanner,
-                  label: 'Scan Attendance',
-                  onTap: () => context.push('/scan-attendance'),
                 ),
               ],
             ),

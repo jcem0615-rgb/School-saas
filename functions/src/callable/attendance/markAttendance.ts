@@ -12,29 +12,28 @@ interface MarkAttendanceData {
 
 // Who each role may scan.
 //
-// Students/Parents never appear as a key: they view attendance but can
-// never mark it, a deliberate one-way boundary so a compromised student
-// device could not forge its own "present" record.
+// Students and parents never appear as a key: they view attendance but can
+// never mark it, a one-way boundary so a compromised student device could
+// not forge its own "present" record.
 //
-// Beyond that, scanning is scoped by whose attendance a role is actually
-// responsible for. A teacher takes class attendance, so they scan
-// students; an admin runs staff timekeeping, so they scan employees.
-// Letting a teacher clock in a colleague -- or an admin mark a student
-// present in a class they do not teach -- is not a capability either job
-// needs, and both are easy to abuse.
+// Beyond that, scanning is scoped to whose attendance a role is actually
+// responsible for, and nothing wider:
 //
-// Director and Principal keep both, as the oversight roles who have to be
-// able to cover any gate. Registrar keeps students, matching the Scan
-// Attendance entry on their own dashboard.
+//   faculty -> students   (a teacher takes class attendance)
+//   admin   -> employees  (an admin runs staff timekeeping)
+//
+// Director, Principal and Registrar are deliberately NOT scanners. They
+// were, briefly, on the reasoning that oversight roles should be able to
+// cover any gate -- but "can cover a gate" and "can mark any person
+// present from their own phone" are different powers, and only the second
+// is what a scanner actually grants. Attendance is the record a payroll
+// and a truancy report are built from; the narrower the set of accounts
+// that can write it, the more it is worth.
 const EMPLOYEE_ROLES = ["director", "principal", "admin", "registrar", "faculty", "staff", "guidance"];
-const STUDENT_ONLY = ["student"];
 
 const SCAN_MATRIX: Record<string, string[]> = {
-  faculty: STUDENT_ONLY,
-  registrar: STUDENT_ONLY,
+  faculty: ["student"],
   admin: EMPLOYEE_ROLES,
-  director: [...STUDENT_ONLY, ...EMPLOYEE_ROLES],
-  principal: [...STUDENT_ONLY, ...EMPLOYEE_ROLES],
 };
 
 const SCANNER_ALLOWED_ROLES = Object.keys(SCAN_MATRIX);

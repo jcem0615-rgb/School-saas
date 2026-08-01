@@ -29,6 +29,7 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
     required String gradeLevel,
     required String section,
     String? programId,
+    DateTime? birthDate,
     required List<GuardianContact> guardianContacts,
   }) async {
     try {
@@ -40,6 +41,7 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
         gradeLevel: gradeLevel,
         section: section,
         programId: programId,
+        birthDate: birthDate,
         guardianContacts: guardianContacts.map(_guardianToMap).toList(),
       );
       return Success(RegisterStudentOutcome(
@@ -61,6 +63,7 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
     required String gradeLevel,
     required String section,
     required StudentStatus status,
+    DateTime? birthDate,
   }) async {
     try {
       await _remote.updateStudent(
@@ -70,6 +73,7 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
         gradeLevel: gradeLevel,
         section: section,
         status: status.value,
+        birthDate: birthDate,
       );
       return const Success(null);
     } catch (_) {

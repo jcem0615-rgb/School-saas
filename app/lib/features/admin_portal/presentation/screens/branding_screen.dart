@@ -21,6 +21,9 @@ class BrandingScreen extends ConsumerStatefulWidget {
 class _BrandingScreenState extends ConsumerState<BrandingScreen> {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
+  final _principalController = TextEditingController();
+  final _directorController = TextEditingController();
+  final _schoolYearController = TextEditingController();
   bool _loadedOnce = false;
   bool _uploading = false;
 
@@ -28,6 +31,9 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
   void dispose() {
     _nameController.dispose();
     _addressController.dispose();
+    _principalController.dispose();
+    _directorController.dispose();
+    _schoolYearController.dispose();
     super.dispose();
   }
 
@@ -81,6 +87,9 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
           if (!_loadedOnce) {
             _nameController.text = branding.schoolName ?? '';
             _addressController.text = branding.addressLine ?? '';
+            _principalController.text = branding.principalName ?? '';
+            _directorController.text = branding.directorName ?? '';
+            _schoolYearController.text = branding.schoolYear ?? '';
             _loadedOnce = true;
           }
 
@@ -135,12 +144,42 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
                 decoration: const InputDecoration(
                     labelText: 'Address line', border: OutlineInputBorder()),
               ),
+              const Divider(height: 32),
+              Text('Printed on every ID', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(
+                'The school year and the two signatories appear on the back '
+                'of every student and employee ID card. Set them here once '
+                'rather than per person.',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _schoolYearController,
+                decoration: const InputDecoration(
+                    labelText: 'School year (e.g. 2026-2027)', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _principalController,
+                decoration: const InputDecoration(
+                    labelText: 'Principal name', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _directorController,
+                decoration: const InputDecoration(
+                    labelText: 'Director name', border: OutlineInputBorder()),
+              ),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () async {
                   final ok = await ref.read(adminActionControllerProvider.notifier).updateBranding(
                         schoolName: _nameController.text,
                         addressLine: _addressController.text,
+                        principalName: _principalController.text,
+                        directorName: _directorController.text,
+                        schoolYear: _schoolYearController.text,
                       );
                   if (ok && context.mounted) {
                     ScaffoldMessenger.of(context)

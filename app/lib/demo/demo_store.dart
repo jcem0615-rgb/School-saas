@@ -112,6 +112,9 @@ class DemoStore {
     SchoolBranding(
       schoolName: schoolName,
       addressLine: 'Poblacion, San Nicolas, Batangas',
+      schoolYear: '${DateTime.now().year}-${DateTime.now().year + 1}',
+      principalName: 'Ramon Salazar',
+      directorName: 'Corazon Buenaventura',
       updatedAt: _daysAgo(60),
       updatedByName: 'Grace Mendoza',
     ),
@@ -426,6 +429,7 @@ class DemoStore {
           balance: 8500,
           userId: 'u_student',
           enrollmentDate: DateTime(now.year, 6, 3),
+          birthDate: DateTime(now.year - 16, 3, 14),
           guardianContacts: const [
             GuardianContact(
               name: 'Rosario Torres',
@@ -446,6 +450,7 @@ class DemoStore {
           status: StudentStatus.enrolled,
           balance: 0,
           enrollmentDate: DateTime(now.year, 6, 3),
+          birthDate: DateTime(now.year - 10, 11, 2),
           guardianContacts: const [
             GuardianContact(
               name: 'Rosario Torres',
@@ -466,6 +471,7 @@ class DemoStore {
           status: StudentStatus.enrolled,
           balance: 12750,
           enrollmentDate: DateTime(now.year, 6, 5),
+          birthDate: DateTime(now.year - 16, 7, 29),
         ),
         StudentSummary(
           id: 'stu_004',

@@ -187,12 +187,18 @@ class AdminRepositoryImpl implements AdminRepository {
     String? logoFileName,
     String? schoolName,
     String? addressLine,
+    String? principalName,
+    String? directorName,
+    String? schoolYear,
   }) {
     return _run(() => _remote.updateBranding({
           if (logoUrl != null) 'logoUrl': logoUrl,
           if (logoFileName != null) 'logoFileName': logoFileName,
           if (schoolName != null) 'schoolName': schoolName,
           if (addressLine != null) 'addressLine': addressLine,
+          if (principalName != null) 'principalName': principalName,
+          if (directorName != null) 'directorName': directorName,
+          if (schoolYear != null) 'schoolYear': schoolYear,
         }));
   }
 }

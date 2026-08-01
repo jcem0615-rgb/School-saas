@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/user_roles.dart';
 import '../../../../core/data_transfer/csv.dart';
+import '../../../../core/widgets/combo_field.dart';
 import '../../../../core/data_transfer/export_import_sheet.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
+import '../../../registrar_portal/domain/entities/student_summary.dart';
+import '../../../registrar_portal/presentation/controllers/registrar_controller.dart';
 import '../../domain/entities/teacher_assignment.dart';
 import '../controllers/admin_controller.dart';
 
@@ -191,14 +194,39 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
                     onChanged: (v) => setState(() => selectedTeacher = v),
                   ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: subjectController,
-                  decoration: const InputDecoration(labelText: 'Subject', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: sectionController,
-                  decoration: const InputDecoration(labelText: 'Section', border: OutlineInputBorder()),
+                // Pick from what the school already uses, or type a new
+                // one -- subjects and sections are free text in this
+                // schema, so a fixed dropdown would block a new offering.
+                Consumer(
+                  builder: (context, ref, _) {
+                    final existingAssignments =
+                        ref.watch(teacherAssignmentsStreamProvider).valueOrNull ??
+                            const <TeacherAssignment>[];
+                    final students =
+                        ref.watch(studentsStreamProvider).valueOrNull ?? const <StudentSummary>[];
+                    return Column(
+                      children: [
+                        ComboField(
+                          controller: subjectController,
+                          label: 'Subject',
+                          suggestions: existingAssignments.map((a) => a.subject).toList(),
+                        ),
+                        const SizedBox(height: 12),
+                        ComboField(
+                          controller: sectionController,
+                          label: 'Section',
+                          // Sections come from the student roll as well as
+                          // from existing assignments, so a section with
+                          // enrolled students but no teacher yet still
+                          // appears.
+                          suggestions: [
+                            ...existingAssignments.map((a) => a.section),
+                            ...students.map((s) => s.section),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextField(

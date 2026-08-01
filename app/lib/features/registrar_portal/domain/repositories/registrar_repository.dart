@@ -25,6 +25,7 @@ abstract class RegistrarRepository {
     required String gradeLevel,
     required String section,
     String? programId,
+    DateTime? birthDate,
     required List<GuardianContact> guardianContacts,
   });
 
@@ -35,6 +36,7 @@ abstract class RegistrarRepository {
     required String gradeLevel,
     required String section,
     required StudentStatus status,
+    DateTime? birthDate,
   });
 
   /// Creates a Student Portal login for an existing academic record and

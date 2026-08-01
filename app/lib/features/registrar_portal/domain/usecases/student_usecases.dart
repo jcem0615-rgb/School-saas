@@ -24,6 +24,7 @@ class RegisterStudentUseCase {
     required String gradeLevel,
     required String section,
     String? programId,
+    DateTime? birthDate,
     List<GuardianContact> guardianContacts = const [],
   }) {
     final firstNameError = Validators.required(firstName, fieldName: 'First name');
@@ -61,6 +62,7 @@ class RegisterStudentUseCase {
       gradeLevel: gradeLevel.trim(),
       section: section.trim(),
       programId: educationLevel == EducationLevel.college ? programId!.trim() : null,
+      birthDate: birthDate,
       guardianContacts: guardianContacts,
     );
   }
@@ -77,6 +79,7 @@ class UpdateStudentUseCase {
     required String gradeLevel,
     required String section,
     required StudentStatus status,
+    DateTime? birthDate,
   }) {
     final firstNameError = Validators.required(firstName, fieldName: 'First name');
     if (firstNameError != null) return Future.value(Error(ValidationFailure(firstNameError)));
@@ -91,6 +94,7 @@ class UpdateStudentUseCase {
       gradeLevel: gradeLevel.trim(),
       section: section.trim(),
       status: status,
+      birthDate: birthDate,
     );
   }
 }

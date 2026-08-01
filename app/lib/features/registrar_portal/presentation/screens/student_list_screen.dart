@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/constants/education_level.dart';
 import '../../../admin_portal/domain/entities/program.dart';
@@ -185,6 +186,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     final guardianPhoneController = TextEditingController();
     EducationLevel? educationLevel;
     Program? selectedProgram;
+    DateTime? birthDate;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -301,6 +303,32 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                     },
                   ),
                 ],
+                const SizedBox(height: 12),
+                // Optional -- a record with no birth date is still a valid
+                // enrolment -- but it is what the ID card prints, so it is
+                // asked for here rather than chased down later.
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
+                    side: BorderSide(color: Theme.of(sheetContext).colorScheme.outline),
+                  ),
+                  leading: const Icon(Icons.cake_outlined),
+                  title: Text(birthDate == null
+                      ? 'Birthday (optional)'
+                      : DateFormat.yMMMd().format(birthDate!)),
+                  trailing: const Icon(Icons.calendar_today_outlined),
+                  onTap: () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: sheetContext,
+                      firstDate: DateTime(now.year - 80),
+                      lastDate: now,
+                      initialDate: birthDate ?? DateTime(now.year - 12),
+                    );
+                    if (picked != null) setState(() => birthDate = picked);
+                  },
+                ),
                 const SizedBox(height: 16),
                 Text('Guardian Contact', style: Theme.of(sheetContext).textTheme.labelLarge),
                 const SizedBox(height: 8),
@@ -340,6 +368,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                           gradeLevel: gradeController.text,
                           section: sectionController.text,
                           programId: selectedProgram?.id,
+                          birthDate: birthDate,
                           guardianContacts: guardians,
                         );
                     if (outcome != null) {
