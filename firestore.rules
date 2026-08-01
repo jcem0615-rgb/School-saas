@@ -262,6 +262,65 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ---- paymentSubmissions ----
+      // A family's claim that they sent money online. Deliberately NOT a
+      // payment: this collection moves no balance, which is exactly why a
+      // student or parent is allowed to write to it at all.
+      //
+      // The balance only changes when decidePaymentSubmission (Admin SDK)
+      // approves one, so the worst a bogus submission can do is waste a
+      // cashier's time -- not credit an account.
+      match /paymentSubmissions/{submissionId} {
+        allow read: if schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin', 'registrar'])
+                        // The submitter can follow their own claim through
+                        // to its decision rather than having to ask.
+                        || resource.data.createdBy == request.auth.uid
+                        || (claims().role == 'parent'
+                            && resource.data.studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+
+        // Families file their own; a cashier may also file one on their
+        // behalf (e.g. a walk-in showing a phone screenshot).
+        allow create: if schoolIsAccessible(schoolId)
+                        && isAccountActive()
+                        && request.resource.data.createdBy == request.auth.uid
+                        // Cannot be filed pre-approved -- approval is a
+                        // decision, never an input.
+                        && request.resource.data.status == 'pending'
+                        && request.resource.data.amount is number
+                        && request.resource.data.amount > 0
+                        && request.resource.data.referenceNumber is string
+                        && request.resource.data.referenceNumber.size() > 0
+                        && (
+                          hasRole(schoolId, ['director', 'admin', 'registrar'])
+                          || (claims().role == 'student'
+                              && get(/databases/$(database)/documents/schools/$(schoolId)/students/$(request.resource.data.studentId)).data.userId == request.auth.uid)
+                          || (claims().role == 'parent'
+                              && request.resource.data.studentId in
+                                 get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                        );
+
+        // No client update path at all: deciding runs through the callable
+        // so the payment and the status change happen in one transaction.
+        // A family editing their own pending claim would also let them
+        // change the amount after a cashier had started checking it.
+        allow update, delete: if false;
+      }
+
+      // ---- settings (payment QR and account details) ----
+      // One document, school-wide. Everyone needs to read it -- a family
+      // cannot pay without it -- but only the roles that handle money may
+      // change where money is sent. Pointing the QR at another account
+      // would be the single most damaging write in this system.
+      match /settings/{settingId} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow write: if hasRole(schoolId, ['director', 'admin', 'registrar'])
+                       && schoolIsAccessible(schoolId);
+      }
+
       // ---- expenses ----
       // Financial data: visible to the roles that manage school finances,
       // not to every tenant member the way announcements/meetings are.

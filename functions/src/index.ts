@@ -34,6 +34,7 @@ export {markAttendance} from "./callable/attendance/markAttendance";
 // ---------------------------------------------------------------------------
 export {recordPayment} from "./callable/payments/recordPayment";
 export {recordRefund} from "./callable/payments/recordRefund";
+export {decidePaymentSubmission} from "./callable/payments/decidePaymentSubmission";
 
 // ---------------------------------------------------------------------------
 // Module: Registrar/Cashier Portal

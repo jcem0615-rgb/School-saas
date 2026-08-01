@@ -41,6 +41,15 @@ class FirestorePaths {
 
   static String payments(String schoolId) => '${school(schoolId)}/payments';
 
+  /// Claims of online payment awaiting a cashier's verification. Separate
+  /// from `payments`, which only ever holds money the school has confirmed.
+  static String paymentSubmissions(String schoolId) =>
+      '${school(schoolId)}/paymentSubmissions';
+
+  /// Single document: the school's e-wallet QR and account details.
+  static String paymentSettingsDoc(String schoolId) =>
+      '${school(schoolId)}/settings/payments';
+
   static String programs(String schoolId) => '${school(schoolId)}/programs';
 
   static String inventory(String schoolId) => '${school(schoolId)}/inventory';

@@ -3,11 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/result.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider, firestoreProvider;
 import '../../data/datasources/faculty_remote_datasource.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-
-import '../../data/repositories_impl/attachment_repository_impl.dart';
 import '../../data/repositories_impl/faculty_repository_impl.dart';
-import '../../domain/repositories/attachment_repository.dart';
 import '../../domain/entities/coursework_item.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/grade.dart';
@@ -23,21 +19,6 @@ final facultyRemoteDataSourceProvider = Provider<FacultyRemoteDataSource>((ref) 
   return FacultyRemoteDataSource(
     firestore: ref.watch(firestoreProvider),
     actingUser: ActingFaculty(uid: user.uid, schoolId: user.schoolId!, name: user.fullName),
-  );
-});
-
-/// Storage-backed attachment uploader, scoped to the signed-in teacher so
-/// uploads land under their own school prefix (which is what storage.rules
-/// gates read access on).
-final attachmentRepositoryProvider = Provider<AttachmentRepository>((ref) {
-  final user = ref.watch(authStateProvider).valueOrNull;
-  if (user == null || user.schoolId == null) {
-    throw StateError('AttachmentRepository requires a signed-in, school-scoped user.');
-  }
-  return AttachmentRepositoryImpl(
-    storage: FirebaseStorage.instance,
-    schoolId: user.schoolId!,
-    uid: user.uid,
   );
 });
 

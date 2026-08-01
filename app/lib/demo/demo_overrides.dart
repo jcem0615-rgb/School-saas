@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/router/app_router.dart';
+import '../core/storage/upload_providers.dart';
 import '../features/auth/domain/entities/app_user.dart';
 import '../features/admin_portal/presentation/controllers/admin_controller.dart';
 import '../features/audit_trail/presentation/controllers/audit_trail_controller.dart';
@@ -83,9 +84,9 @@ List<Override> demoOverrides() {
       ref.watch(authStateProvider);
       return DemoFacultyRepository(ref.watch(demoStoreProvider));
     }),
-    attachmentRepositoryProvider.overrideWith((ref) {
+    uploadRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
-      return DemoAttachmentRepository(ref.watch(demoStoreProvider));
+      return DemoUploadRepository(ref.watch(demoStoreProvider));
     }),
     studentRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);

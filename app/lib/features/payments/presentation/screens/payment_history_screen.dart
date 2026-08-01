@@ -93,7 +93,9 @@ class PaymentHistoryScreen extends ConsumerWidget {
                         MaterialPageRoute(
                           builder: (_) => OnlinePaymentScreen(
                             studentId: studentId,
-                            studentName: studentName,
+                            // The submission records who the money is for,
+                            // so a reviewer sees a name rather than an id.
+                            studentName: studentName ?? 'This student',
                             outstandingBalance: balance,
                           ),
                         ),

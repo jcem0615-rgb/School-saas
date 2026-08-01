@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../payments/presentation/screens/payment_review_screen.dart';
+import '../../../payments/presentation/screens/payment_settings_screen.dart';
 import 'student_list_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 
@@ -49,6 +51,30 @@ class RegistrarDashboardScreen extends StatelessWidget {
                   icon: Icons.qr_code_scanner,
                   label: 'Scan Attendance',
                   onTap: () => context.push('/scan-attendance'),
+                ),
+
+                _QuickLinkTile(
+
+                  icon: Icons.fact_check_outlined,
+
+                  label: 'Online Payments',
+
+                  onTap: () => Navigator.of(context)
+
+                      .push(MaterialPageRoute(builder: (_) => const PaymentReviewScreen())),
+
+                ),
+
+                _QuickLinkTile(
+
+                  icon: Icons.qr_code_2,
+
+                  label: 'Payment Setup',
+
+                  onTap: () => Navigator.of(context)
+
+                      .push(MaterialPageRoute(builder: (_) => const PaymentSettingsScreen())),
+
                 ),
               ],
             ),

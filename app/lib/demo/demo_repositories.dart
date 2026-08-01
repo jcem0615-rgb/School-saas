@@ -21,7 +21,7 @@ import '../features/director_portal/domain/entities/meeting.dart';
 import '../features/director_portal/domain/repositories/director_repository.dart';
 import '../features/faculty_portal/domain/entities/coursework_item.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
-import '../features/faculty_portal/domain/repositories/attachment_repository.dart';
+import '../core/storage/upload_repository.dart';
 import '../features/faculty_portal/domain/repositories/faculty_repository.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
 import '../features/guidance_portal/domain/entities/summons.dart';
@@ -35,6 +35,8 @@ import '../features/owner_portal/domain/entities/school_summary.dart';
 import '../features/owner_portal/domain/repositories/owner_repository.dart';
 import '../features/parent_portal/domain/repositories/parent_repository.dart';
 import '../features/payments/domain/entities/payment.dart';
+import '../features/payments/domain/entities/payment_settings.dart';
+import '../features/payments/domain/entities/payment_submission.dart';
 import '../features/payments/domain/repositories/payment_repository.dart';
 import '../features/profile/domain/repositories/profile_repository.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
@@ -1318,16 +1320,17 @@ class DemoFacultyRepository implements FacultyRepository {
 
 /// Stands in for Firebase Storage.
 ///
-/// Encodes the file as a data URI rather than uploading anywhere, so an
-/// attachment picked in demo mode is genuinely openable from the student
-/// portal on the same device -- the flow can be exercised end to end with
-/// no Storage bucket, and nothing leaves the browser.
-class DemoAttachmentRepository implements AttachmentRepository {
+/// Encodes the file as a data URI rather than uploading anywhere, so a
+/// receipt or attachment picked in demo mode is genuinely viewable on the
+/// same device -- the flow can be exercised end to end with no bucket, and
+/// nothing leaves the browser.
+class DemoUploadRepository implements UploadRepository {
   final DemoStore _store;
-  DemoAttachmentRepository(this._store);
+  DemoUploadRepository(this._store);
 
   @override
-  Future<Result<CourseworkAttachment>> uploadCourseworkAttachment({
+  Future<Result<UploadedFile>> upload({
+    required UploadFolder folder,
     required String fileName,
     required Uint8List bytes,
     required String contentType,
@@ -1338,18 +1341,18 @@ class DemoAttachmentRepository implements AttachmentRepository {
     // the real backend would reject rather than silently accepting more.
     const maxBytes = 10 * 1024 * 1024;
     if (bytes.lengthInBytes > maxBytes) {
-      return const Error(ValidationFailure('Attachments are limited to 10MB.'));
+      return const Error(ValidationFailure('Files are limited to 10MB.'));
     }
 
     _store.audit(
-      module: 'courseworkItems',
+      module: folder.folder,
       action: 'upload',
-      targetCollection: 'courseworkItems',
+      targetCollection: folder.folder,
       targetId: fileName,
       newValue: {'fileName': fileName, 'sizeBytes': bytes.lengthInBytes},
     );
 
-    return Success(CourseworkAttachment(
+    return Success(UploadedFile(
       fileName: fileName,
       url: 'data:$contentType;base64,${base64Encode(bytes)}',
       sizeBytes: bytes.lengthInBytes,
@@ -1481,6 +1484,190 @@ class DemoPaymentRepository implements PaymentRepository {
       receiptNumber: receiptNumber,
       newBalance: newBalance,
     ));
+  }
+
+  // ---- Online payment submissions ----
+
+  @override
+  Stream<List<PaymentSubmission>> watchSubmissionsForStudent(String studentId) =>
+      _store.paymentSubmissions.stream.map(
+        (all) => all.where((s) => s.studentId == studentId).toList()
+          ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt)),
+      );
+
+  @override
+  Stream<List<PaymentSubmission>> watchSubmissions({bool pendingOnly = true}) =>
+      _store.paymentSubmissions.stream.map(
+        (all) => all.where((s) => !pendingOnly || s.isPending).toList()
+          ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt)),
+      );
+
+  @override
+  Future<Result<void>> submitOnlinePayment({
+    required String studentId,
+    required String studentName,
+    required double amount,
+    required PaymentMethod method,
+    required PaymentPurpose purpose,
+    required String referenceNumber,
+    String? receiptUrl,
+    String? receiptFileName,
+  }) async {
+    await _latency(600);
+    final user = _store.requireUser;
+    final id = _store.nextId('sub');
+
+    // Deliberately does NOT touch the balance. That only happens when a
+    // registrar approves, which is the whole point of the review step.
+    _store.prepend(
+      _store.paymentSubmissions,
+      PaymentSubmission(
+        id: id,
+        studentId: studentId,
+        studentName: studentName,
+        submittedByName: user.fullName,
+        submittedByRole: user.role.value,
+        amount: amount,
+        method: method,
+        purpose: purpose,
+        referenceNumber: referenceNumber,
+        receiptUrl: receiptUrl,
+        receiptFileName: receiptFileName,
+        status: SubmissionStatus.pending,
+        submittedAt: DateTime.now(),
+      ),
+    );
+    _store.audit(
+      module: 'paymentSubmissions',
+      action: 'create',
+      targetCollection: 'paymentSubmissions',
+      targetId: id,
+      newValue: {
+        'studentId': studentId,
+        'amount': amount,
+        'referenceNumber': referenceNumber,
+      },
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> decideSubmission({
+    required String submissionId,
+    required bool approve,
+    String? remarks,
+  }) async {
+    await _latency(600);
+    final submission =
+        _store.paymentSubmissions.value.where((s) => s.id == submissionId).firstOrNull;
+    if (submission == null) {
+      return const Error(ValidationFailure('Submission not found.'));
+    }
+    if (!submission.isPending) {
+      return const Error(ValidationFailure('That submission has already been decided.'));
+    }
+
+    final reviewer = _store.requireUser;
+    String? paymentId;
+
+    if (approve) {
+      // Approval is what turns a claim into money: it creates the Payment
+      // and moves the balance, using the same receipt-numbering the
+      // counter flow uses so the two are indistinguishable afterwards.
+      paymentId = _store.nextId('pay');
+      final receiptNumber =
+          'OR-${DateTime.now().year}-${(_store.payments.value.length + 1).toString().padLeft(6, '0')}';
+      _store.prepend(
+        _store.payments,
+        Payment(
+          id: paymentId,
+          studentId: submission.studentId,
+          amount: submission.amount,
+          method: submission.method,
+          referenceNumber: submission.referenceNumber,
+          receiptNumber: receiptNumber,
+          collectedByName: reviewer.fullName,
+          purpose: submission.purpose,
+          status: PaymentStatus.completed,
+          createdAt: DateTime.now(),
+        ),
+      );
+      _store.update<StudentSummary>(
+        _store.students,
+        (s) => s.id == submission.studentId,
+        (s) => _copyStudent(s, balance: s.balance - submission.amount),
+      );
+    }
+
+    _store.update<PaymentSubmission>(
+      _store.paymentSubmissions,
+      (s) => s.id == submissionId,
+      (s) => PaymentSubmission(
+        id: s.id,
+        studentId: s.studentId,
+        studentName: s.studentName,
+        submittedByName: s.submittedByName,
+        submittedByRole: s.submittedByRole,
+        amount: s.amount,
+        method: s.method,
+        purpose: s.purpose,
+        referenceNumber: s.referenceNumber,
+        receiptUrl: s.receiptUrl,
+        receiptFileName: s.receiptFileName,
+        status: approve ? SubmissionStatus.approved : SubmissionStatus.rejected,
+        reviewedByName: reviewer.fullName,
+        reviewedAt: DateTime.now(),
+        decisionRemarks: remarks,
+        resultingPaymentId: paymentId,
+        submittedAt: s.submittedAt,
+      ),
+    );
+
+    _store.audit(
+      module: 'paymentSubmissions',
+      action: approve ? 'approve' : 'reject',
+      targetCollection: 'paymentSubmissions',
+      targetId: submissionId,
+      newValue: {if (paymentId != null) 'resultingPaymentId': paymentId},
+      remarks: remarks,
+    );
+    return const Success(null);
+  }
+
+  // ---- Payment settings ----
+
+  @override
+  Stream<PaymentSettings> watchPaymentSettings() => _store.paymentSettings.stream;
+
+  @override
+  Future<Result<void>> updatePaymentSettings({
+    String? qrCodeUrl,
+    String? qrCodeFileName,
+    String? accountName,
+    String? accountNumber,
+    String? instructions,
+  }) async {
+    await _latency();
+    final current = _store.paymentSettings.value;
+    _store.paymentSettings.add(PaymentSettings(
+      // Null means "not being changed" -- saving account details must not
+      // wipe a previously uploaded QR.
+      qrCodeUrl: qrCodeUrl ?? current.qrCodeUrl,
+      qrCodeFileName: qrCodeFileName ?? current.qrCodeFileName,
+      accountName: accountName ?? current.accountName,
+      accountNumber: accountNumber ?? current.accountNumber,
+      instructions: instructions ?? current.instructions,
+      updatedAt: DateTime.now(),
+      updatedByName: _store.requireUser.fullName,
+    ));
+    _store.audit(
+      module: 'paymentSettings',
+      action: 'update',
+      targetCollection: 'settings',
+      targetId: 'payments',
+      newValue: {if (qrCodeFileName != null) 'qrCodeFileName': qrCodeFileName},
+    );
+    return const Success(null);
   }
 
   @override

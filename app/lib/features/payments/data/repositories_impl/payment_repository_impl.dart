@@ -2,6 +2,8 @@ import '../../../../core/errors/app_exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../../domain/entities/payment.dart';
+import '../../domain/entities/payment_settings.dart';
+import '../../domain/entities/payment_submission.dart';
 import '../../domain/repositories/payment_repository.dart';
 import '../datasources/payment_remote_datasource.dart';
 
@@ -48,6 +50,93 @@ class PaymentRepositoryImpl implements PaymentRepository {
   Future<Result<void>> recordRefund({required String paymentId, required String reason}) async {
     try {
       await _remote.recordRefund(paymentId: paymentId, reason: reason);
+      return const Success(null);
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Stream<List<PaymentSubmission>> watchSubmissionsForStudent(String studentId) =>
+      _remote.watchSubmissionsForStudent(studentId);
+
+  @override
+  Stream<List<PaymentSubmission>> watchSubmissions({bool pendingOnly = true}) =>
+      _remote.watchSubmissions(pendingOnly: pendingOnly);
+
+  @override
+  Future<Result<void>> submitOnlinePayment({
+    required String studentId,
+    required String studentName,
+    required double amount,
+    required PaymentMethod method,
+    required PaymentPurpose purpose,
+    required String referenceNumber,
+    String? receiptUrl,
+    String? receiptFileName,
+  }) async {
+    try {
+      await _remote.submitOnlinePayment(
+        studentId: studentId,
+        studentName: studentName,
+        amount: amount,
+        method: method.value,
+        purpose: purpose.value,
+        referenceNumber: referenceNumber,
+        receiptUrl: receiptUrl,
+        receiptFileName: receiptFileName,
+      );
+      return const Success(null);
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Result<void>> decideSubmission({
+    required String submissionId,
+    required bool approve,
+    String? remarks,
+  }) async {
+    try {
+      await _remote.decideSubmission(
+        submissionId: submissionId,
+        approve: approve,
+        remarks: remarks,
+      );
+      return const Success(null);
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Stream<PaymentSettings> watchPaymentSettings() => _remote.watchPaymentSettings();
+
+  @override
+  Future<Result<void>> updatePaymentSettings({
+    String? qrCodeUrl,
+    String? qrCodeFileName,
+    String? accountName,
+    String? accountNumber,
+    String? instructions,
+  }) async {
+    try {
+      // Only send what was provided, so saving the account details does
+      // not wipe a previously uploaded QR (and vice versa).
+      await _remote.updatePaymentSettings({
+        if (qrCodeUrl != null) 'qrCodeUrl': qrCodeUrl,
+        if (qrCodeFileName != null) 'qrCodeFileName': qrCodeFileName,
+        if (accountName != null) 'accountName': accountName,
+        if (accountNumber != null) 'accountNumber': accountNumber,
+        if (instructions != null) 'instructions': instructions,
+      });
       return const Success(null);
     } on ServerException catch (e) {
       return Error(ServerFailure(e.message));

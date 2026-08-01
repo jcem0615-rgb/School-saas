@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:school_saas/core/constants/user_roles.dart';
 import 'package:school_saas/core/errors/result.dart';
+import 'package:school_saas/core/storage/upload_providers.dart';
+import 'package:school_saas/core/storage/upload_repository.dart';
 import 'package:school_saas/demo/demo_overrides.dart';
 import 'package:school_saas/demo/demo_store.dart';
 import 'package:school_saas/features/faculty_portal/domain/entities/coursework_item.dart';
@@ -46,15 +48,16 @@ void main() {
     addTearDown(sub.close);
 
     final bytes = Uint8List.fromList(utf8.encode('%PDF-1.4 pretend worksheet'));
-    final upload = await container.read(attachmentRepositoryProvider).uploadCourseworkAttachment(
+    final upload = await container.read(uploadRepositoryProvider).upload(
+          folder: UploadFolder.coursework,
           fileName: 'worksheet.pdf',
           bytes: bytes,
           contentType: 'application/pdf',
         );
 
     final attachment = switch (upload) {
-      Success(:final value) => value,
-      Error(:final failure) => fail('upload failed: ${failure.message}'),
+      Success<UploadedFile>(:final value) => value,
+      Error<UploadedFile>(:final failure) => fail('upload failed: ${failure.message}'),
     };
     expect(attachment.fileName, 'worksheet.pdf');
     expect(attachment.sizeBytes, bytes.lengthInBytes);
@@ -101,7 +104,8 @@ void main() {
     // so the failure is a clear message rather than a permission error
     // after the bytes have gone over the wire.
     final tooBig = Uint8List(10 * 1024 * 1024 + 1);
-    final result = await container.read(attachmentRepositoryProvider).uploadCourseworkAttachment(
+    final result = await container.read(uploadRepositoryProvider).upload(
+          folder: UploadFolder.coursework,
           fileName: 'huge.pdf',
           bytes: tooBig,
           contentType: 'application/pdf',

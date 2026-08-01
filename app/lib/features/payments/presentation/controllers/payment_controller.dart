@@ -7,9 +7,12 @@ import '../../../auth/presentation/controllers/auth_controller.dart'
 import '../../data/datasources/payment_remote_datasource.dart';
 import '../../data/repositories_impl/payment_repository_impl.dart';
 import '../../domain/entities/payment.dart';
+import '../../domain/entities/payment_settings.dart';
+import '../../domain/entities/payment_submission.dart';
 import '../../domain/repositories/payment_repository.dart';
 import '../../domain/usecases/record_payment_usecase.dart';
 import '../../domain/usecases/record_refund_usecase.dart';
+import '../../domain/usecases/submission_usecases.dart';
 import '../../domain/usecases/watch_payments_usecase.dart';
 
 final paymentRemoteDataSourceProvider = Provider<PaymentRemoteDataSource>((ref) {
@@ -21,6 +24,11 @@ final paymentRemoteDataSourceProvider = Provider<PaymentRemoteDataSource>((ref) 
     firestore: ref.watch(firestoreProvider),
     functions: ref.watch(firebaseFunctionsProvider),
     schoolId: user.schoolId!,
+    actingUser: ActingPayer(
+      uid: user.uid,
+      name: user.fullName,
+      role: user.role.value,
+    ),
   );
 });
 
@@ -38,6 +46,29 @@ final studentBalanceStreamProvider =
   return WatchStudentBalanceUseCase(ref.watch(paymentRepositoryProvider))(studentId);
 });
 
+/// The school's e-wallet details. Watched by the pay screen (to show the
+/// QR) and by the registrar's settings screen (to edit it).
+final paymentSettingsProvider = StreamProvider.autoDispose<PaymentSettings>((ref) {
+  return WatchPaymentSettingsUseCase(ref.watch(paymentRepositoryProvider))();
+});
+
+/// The registrar's review queue.
+final pendingSubmissionsProvider =
+    StreamProvider.autoDispose<List<PaymentSubmission>>((ref) {
+  return WatchSubmissionsUseCase(ref.watch(paymentRepositoryProvider))(pendingOnly: true);
+});
+
+/// Every submission, decided or not -- used for the "all" filter.
+final allSubmissionsProvider = StreamProvider.autoDispose<List<PaymentSubmission>>((ref) {
+  return WatchSubmissionsUseCase(ref.watch(paymentRepositoryProvider))(pendingOnly: false);
+});
+
+/// A family's own submissions, so they can see the outcome of a claim.
+final mySubmissionsProvider =
+    StreamProvider.autoDispose.family<List<PaymentSubmission>, String>((ref, studentId) {
+  return WatchMySubmissionsUseCase(ref.watch(paymentRepositoryProvider))(studentId);
+});
+
 class PaymentActionController extends StateNotifier<AsyncValue<void>> {
   // `mounted` guards below: these action controllers are autoDispose, and
   // the repositories they depend on rebuild whenever authStateProvider
@@ -47,12 +78,21 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
   // nothing even though the write succeeded.
   final RecordPaymentUseCase _recordPayment;
   final RecordRefundUseCase _recordRefund;
+  final SubmitOnlinePaymentUseCase _submitOnlinePayment;
+  final DecideSubmissionUseCase _decideSubmission;
+  final UpdatePaymentSettingsUseCase _updatePaymentSettings;
 
   PaymentActionController({
     required RecordPaymentUseCase recordPayment,
     required RecordRefundUseCase recordRefund,
+    required SubmitOnlinePaymentUseCase submitOnlinePayment,
+    required DecideSubmissionUseCase decideSubmission,
+    required UpdatePaymentSettingsUseCase updatePaymentSettings,
   })  : _recordPayment = recordPayment,
         _recordRefund = recordRefund,
+        _submitOnlinePayment = submitOnlinePayment,
+        _decideSubmission = decideSubmission,
+        _updatePaymentSettings = updatePaymentSettings,
         super(const AsyncData(null));
 
   /// Returns the full outcome on success -- receipt number for navigating
@@ -78,6 +118,91 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
     return switch (result) {
       Success(:final value) => _succeed(value),
       Error(:final failure) => _fail(failure.message),
+    };
+  }
+
+  /// Files a claim that money was sent. Returns true on success. Nothing
+  /// is credited until a registrar approves it.
+  Future<bool> submitOnlinePayment({
+    required String studentId,
+    required String studentName,
+    required double amount,
+    required PaymentMethod method,
+    required PaymentPurpose purpose,
+    required String referenceNumber,
+    String? receiptUrl,
+    String? receiptFileName,
+  }) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _submitOnlinePayment(
+      studentId: studentId,
+      studentName: studentName,
+      amount: amount,
+      method: method,
+      purpose: purpose,
+      referenceNumber: referenceNumber,
+      receiptUrl: receiptUrl,
+      receiptFileName: receiptFileName,
+    );
+    return switch (result) {
+      Success() => () {
+          if (mounted) state = const AsyncData(null);
+          return true;
+        }(),
+      Error(:final failure) => () {
+          if (mounted) state = AsyncError(failure.message, StackTrace.current);
+          return false;
+        }(),
+    };
+  }
+
+  Future<bool> decideSubmission({
+    required String submissionId,
+    required bool approve,
+    String? remarks,
+  }) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _decideSubmission(
+      submissionId: submissionId,
+      approve: approve,
+      remarks: remarks,
+    );
+    return switch (result) {
+      Success() => () {
+          if (mounted) state = const AsyncData(null);
+          return true;
+        }(),
+      Error(:final failure) => () {
+          if (mounted) state = AsyncError(failure.message, StackTrace.current);
+          return false;
+        }(),
+    };
+  }
+
+  Future<bool> updatePaymentSettings({
+    String? qrCodeUrl,
+    String? qrCodeFileName,
+    String? accountName,
+    String? accountNumber,
+    String? instructions,
+  }) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _updatePaymentSettings(
+      qrCodeUrl: qrCodeUrl,
+      qrCodeFileName: qrCodeFileName,
+      accountName: accountName,
+      accountNumber: accountNumber,
+      instructions: instructions,
+    );
+    return switch (result) {
+      Success() => () {
+          if (mounted) state = const AsyncData(null);
+          return true;
+        }(),
+      Error(:final failure) => () {
+          if (mounted) state = AsyncError(failure.message, StackTrace.current);
+          return false;
+        }(),
     };
   }
 
@@ -113,5 +238,8 @@ final paymentActionControllerProvider =
   return PaymentActionController(
     recordPayment: RecordPaymentUseCase(repo),
     recordRefund: RecordRefundUseCase(repo),
+    submitOnlinePayment: SubmitOnlinePaymentUseCase(repo),
+    decideSubmission: DecideSubmissionUseCase(repo),
+    updatePaymentSettings: UpdatePaymentSettingsUseCase(repo),
   );
 });

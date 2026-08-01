@@ -34,6 +34,9 @@ export const FirestorePaths = {
 
   payments: (schoolId: string) => `schools/${schoolId}/payments`,
   paymentDoc: (schoolId: string, paymentId: string) => `schools/${schoolId}/payments/${paymentId}`,
+  // Claims of online payment awaiting a cashier's verification. Kept apart
+  // from `payments`, which only ever holds money the school has confirmed.
+  paymentSubmissions: (schoolId: string) => `schools/${schoolId}/paymentSubmissions`,
 
   programs: (schoolId: string) => `schools/${schoolId}/programs`,
   programDoc: (schoolId: string, programId: string) => `schools/${schoolId}/programs/${programId}`,

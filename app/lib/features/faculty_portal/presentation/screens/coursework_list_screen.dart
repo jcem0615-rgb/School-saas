@@ -6,6 +6,8 @@ import '../../../../core/widgets/confirm_delete_dialog.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/errors/result.dart';
+import '../../../../core/storage/upload_providers.dart';
+import '../../../../core/storage/upload_repository.dart';
 import '../../../../core/widgets/combo_field.dart';
 import '../../domain/entities/coursework_item.dart';
 import '../controllers/faculty_controller.dart';
@@ -219,9 +221,8 @@ class CourseworkListScreen extends ConsumerWidget {
                                 if (file?.bytes == null) return;
 
                                 setState(() => uploading = true);
-                                final result = await ref
-                                    .read(attachmentRepositoryProvider)
-                                    .uploadCourseworkAttachment(
+                                final result = await ref.read(uploadRepositoryProvider).upload(
+                                      folder: UploadFolder.coursework,
                                       fileName: file!.name,
                                       bytes: file.bytes!,
                                       contentType: file.extension == 'pdf'

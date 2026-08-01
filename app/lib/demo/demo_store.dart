@@ -23,6 +23,8 @@ import '../features/owner_portal/domain/entities/invoice.dart' as billing;
 import '../features/owner_portal/domain/entities/revenue_summary.dart';
 import '../features/owner_portal/domain/entities/school_summary.dart';
 import '../features/payments/domain/entities/payment.dart';
+import '../features/payments/domain/entities/payment_settings.dart';
+import '../features/payments/domain/entities/payment_submission.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/staff_portal/domain/entities/checklist_item.dart';
@@ -100,6 +102,9 @@ class DemoStore {
   late final guidanceRecords = BehaviorSubject<List<GuidanceRecord>>.seeded(_seedGuidanceRecords());
   late final summonses = BehaviorSubject<List<Summons>>.seeded(_seedSummonses());
   late final auditLog = BehaviorSubject<List<AuditLogEntry>>.seeded(_seedAuditLog());
+  late final paymentSubmissions =
+      BehaviorSubject<List<PaymentSubmission>>.seeded(_seedSubmissions());
+  late final paymentSettings = BehaviorSubject<PaymentSettings>.seeded(_seedPaymentSettings());
 
   /// Prepends [item] to a collection and republishes it. Insert-at-front
   /// matches how every list screen in this app sorts (newest first).
@@ -181,6 +186,7 @@ class DemoStore {
       assignments, programs, payments, attendance, coursework, grades,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog,
+      paymentSubmissions, paymentSettings,
     ]) {
       s.close();
     }
@@ -1082,6 +1088,52 @@ class DemoStore {
           createdAt: _daysAgo(8),
         ),
       ];
+
+  /// One pending submission so the registrar's review queue is not empty
+  /// on first open, and one already approved so the family-side history
+  /// shows both outcomes.
+  List<PaymentSubmission> _seedSubmissions() => [
+        PaymentSubmission(
+          id: 'sub_0001',
+          studentId: 'stu_003',
+          studentName: 'Andrea Villanueva',
+          submittedByName: 'Andrea Villanueva',
+          submittedByRole: 'student',
+          amount: 4000,
+          method: PaymentMethod.gcash,
+          purpose: PaymentPurpose.tuition,
+          referenceNumber: 'GC-2210044',
+          status: SubmissionStatus.pending,
+          submittedAt: _daysAgo(1),
+        ),
+        PaymentSubmission(
+          id: 'sub_0002',
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+          submittedByName: 'Rosario Torres',
+          submittedByRole: 'parent',
+          amount: 3500,
+          method: PaymentMethod.gcash,
+          purpose: PaymentPurpose.miscFee,
+          referenceNumber: 'GC-8871203',
+          status: SubmissionStatus.approved,
+          reviewedByName: 'Joel Bautista',
+          reviewedAt: _daysAgo(6),
+          resultingPaymentId: 'pay_002',
+          submittedAt: _daysAgo(6),
+        ),
+      ];
+
+  PaymentSettings _seedPaymentSettings() => PaymentSettings(
+        accountName: 'St. Nicholas Academy',
+        accountNumber: '0917 555 0100',
+        instructions:
+            'Scan the QR or send to the number above, then upload your receipt '
+            'with the reference number. Payments are posted once the cashier '
+            'verifies them.',
+        updatedAt: _daysAgo(30),
+        updatedByName: 'Joel Bautista',
+      );
 
   List<AuditLogEntry> _seedAuditLog() => [
         AuditLogEntry(
