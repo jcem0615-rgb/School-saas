@@ -23,6 +23,7 @@ class CourseworkDetailScreen extends ConsumerWidget {
     final overdue = item.dueDate != null &&
         item.dueDate!.isBefore(DateTime.now()) &&
         item.type.isGradable;
+    final online = item.delivery == CourseworkDelivery.online;
 
     return Scaffold(
       appBar: AppBar(title: Text(item.type.displayLabel)),
@@ -43,6 +44,16 @@ class CourseworkDetailScreen extends ConsumerWidget {
               Chip(
                 avatar: const Icon(Icons.groups_outlined, size: 16),
                 label: Text(item.section),
+                visualDensity: VisualDensity.compact,
+              ),
+              Chip(
+                avatar: Icon(
+                  item.delivery == CourseworkDelivery.online
+                      ? Icons.cloud_outlined
+                      : Icons.meeting_room_outlined,
+                  size: 16,
+                ),
+                label: Text(item.delivery.displayLabel),
                 visualDensity: VisualDensity.compact,
               ),
               if (item.totalPoints != null)
@@ -87,15 +98,40 @@ class CourseworkDetailScreen extends ConsumerWidget {
                 ? 'No further details were provided.'
                 : item.description,
           ),
+          if (online && item.attachmentUrl == null) ...[
+            const SizedBox(height: 20),
+            Card(
+              color: theme.colorScheme.errorContainer,
+              child: ListTile(
+                leading: const Icon(Icons.error_outline),
+                title: const Text('The material is missing'),
+                subtitle: const Text(
+                  'This is marked online but has no file attached. Ask your '
+                  'teacher to add it.',
+                ),
+              ),
+            ),
+          ],
           if (item.attachmentUrl != null) ...[
             const SizedBox(height: 20),
-            Text('Attachment', style: theme.textTheme.titleMedium),
+            Text(
+              online ? 'Take it here' : 'Attachment',
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             Card(
+              // For online work this file IS the work -- the teacher had
+              // to attach one before they could publish it -- so it gets
+              // the emphasis rather than sitting at the bottom like a
+              // supporting handout.
+              color: online ? theme.colorScheme.primaryContainer : null,
               child: ListTile(
-                leading: const Icon(Icons.insert_drive_file_outlined),
+                leading: Icon(
+                  online ? Icons.play_circle_outline : Icons.insert_drive_file_outlined,
+                  color: online ? theme.colorScheme.onPrimaryContainer : null,
+                ),
                 title: Text(item.attachmentName ?? 'Attached file'),
-                subtitle: const Text('Tap to open'),
+                subtitle: Text(online ? 'Open to take this online' : 'Tap to open'),
                 trailing: const Icon(Icons.open_in_new),
                 onTap: () async {
                   final uri = Uri.parse(item.attachmentUrl!);

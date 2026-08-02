@@ -27,6 +27,7 @@ class FacultyRepositoryImpl implements FacultyRepository {
   @override
   Future<Result<void>> createCourseworkItem({
     required CourseworkType type,
+    required CourseworkDelivery delivery,
     required String title,
     required String description,
     required String subject,
@@ -40,6 +41,7 @@ class FacultyRepositoryImpl implements FacultyRepository {
     try {
       await _remote.createCourseworkItem(
         type: type.value,
+        delivery: delivery.value,
         title: title,
         description: description,
         subject: subject,
@@ -60,6 +62,7 @@ class FacultyRepositoryImpl implements FacultyRepository {
   Future<Result<void>> updateCourseworkItem({
     required String itemId,
     required CourseworkType type,
+    required CourseworkDelivery delivery,
     required String title,
     required String description,
     required String subject,
@@ -73,6 +76,7 @@ class FacultyRepositoryImpl implements FacultyRepository {
     return _run(() => _remote.updateCourseworkItem(
           itemId: itemId,
           type: type.value,
+        delivery: delivery.value,
           title: title,
           description: description,
           subject: subject,

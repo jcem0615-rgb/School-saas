@@ -33,6 +33,7 @@ class FacultyRemoteDataSource {
 
   Future<void> createCourseworkItem({
     required String type,
+    required String delivery,
     required String title,
     required String description,
     required String subject,
@@ -47,6 +48,7 @@ class FacultyRemoteDataSource {
     await ref.set({
       'id': ref.id,
       'type': type,
+      'delivery': delivery,
       'title': title,
       'description': description,
       'subject': subject,
@@ -75,6 +77,7 @@ class FacultyRemoteDataSource {
   Future<void> updateCourseworkItem({
     required String itemId,
     required String type,
+    required String delivery,
     required String title,
     required String description,
     required String subject,
@@ -92,6 +95,7 @@ class FacultyRemoteDataSource {
       'attachmentUrl': attachmentUrl,
       'attachmentName': attachmentName,
       'type': type,
+      'delivery': delivery,
       'title': title,
       'description': description,
       'subject': subject,

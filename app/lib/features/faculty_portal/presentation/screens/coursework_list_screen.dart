@@ -59,7 +59,8 @@ class CourseworkListScreen extends ConsumerWidget {
                   leading: CircleAvatar(child: Text(item.type.displayLabel[0])),
                   title: Text(item.title),
                   subtitle: Text(
-                    '${item.type.displayLabel} · ${item.subject} - ${item.section}'
+                    '${item.type.displayLabel} · ${item.delivery.displayLabel} · '
+                    '${item.subject} - ${item.section}'
                     '${item.dueDate != null ? ' · Due ${_dateFormat.format(item.dueDate!)}' : ''}',
                   ),
                   trailing: Row(
@@ -101,6 +102,7 @@ class CourseworkListScreen extends ConsumerWidget {
     final pointsController =
         TextEditingController(text: existing?.totalPoints?.toString() ?? '');
     CourseworkType type = existing?.type ?? CourseworkType.lesson;
+    CourseworkDelivery delivery = existing?.delivery ?? CourseworkDelivery.faceToFace;
     DateTime? dueDate = existing?.dueDate;
     bool published = existing?.published ?? true;
     String? attachmentUrl = existing?.attachmentUrl;
@@ -132,6 +134,23 @@ class CourseworkListScreen extends ConsumerWidget {
                       .map((t) => DropdownMenuItem(value: t, child: Text(t.displayLabel)))
                       .toList(),
                   onChanged: (v) => setState(() => type = v ?? type),
+                ),
+                const SizedBox(height: 12),
+                // Face-to-face or online. Online is the one that changes
+                // what the form demands: the student is not in the room,
+                // so the file below stops being optional.
+                SegmentedButton<CourseworkDelivery>(
+                  segments: CourseworkDelivery.values
+                      .map((d) => ButtonSegment(
+                            value: d,
+                            label: Text(d.displayLabel),
+                            icon: Icon(d == CourseworkDelivery.online
+                                ? Icons.cloud_outlined
+                                : Icons.meeting_room_outlined),
+                          ))
+                      .toList(),
+                  selected: {delivery},
+                  onSelectionChanged: (s) => setState(() => delivery = s.first),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -248,8 +267,26 @@ class CourseworkListScreen extends ConsumerWidget {
                                 height: 16, width: 16,
                                 child: CircularProgressIndicator(strokeWidth: 2))
                             : const Icon(Icons.attach_file),
-                        label: Text(uploading ? 'Uploading…' : 'Attach file'),
+                        label: Text(
+                          uploading
+                              ? 'Uploading…'
+                              : delivery.requiresAttachment
+                                  ? 'Attach the file students will open'
+                                  : 'Attach file (optional)',
+                        ),
                       ),
+                      if (delivery.requiresAttachment && attachmentName == null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Online coursework needs a file — that is what the '
+                            'student opens to take it.',
+                            style: Theme.of(sheetContext)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Theme.of(sheetContext).colorScheme.error),
+                          ),
+                        ),
                       if (attachmentName != null)
                         ListTile(
                           contentPadding: EdgeInsets.zero,
@@ -282,6 +319,7 @@ class CourseworkListScreen extends ConsumerWidget {
                         ? await notifier.updateCourseworkItem(
                             itemId: existing.id,
                             type: type,
+                            delivery: delivery,
                             title: titleController.text,
                             description: descriptionController.text,
                             subject: subjectController.text,
@@ -294,6 +332,7 @@ class CourseworkListScreen extends ConsumerWidget {
                           )
                         : await notifier.createCourseworkItem(
                             type: type,
+                            delivery: delivery,
                             title: titleController.text,
                             description: descriptionController.text,
                             subject: subjectController.text,

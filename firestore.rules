@@ -582,7 +582,7 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      // ---- programs (college degree programs / courses) ----
+      // ---- programs (Senior High strands + College degree programs) ----
       // Readable tenant-wide (needed by Registrar during Student
       // Registration and by Student Portal to display a student's
       // program) -- programs are institutional configuration, not

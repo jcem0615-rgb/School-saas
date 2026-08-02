@@ -1,3 +1,4 @@
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../../../../core/utils/validators.dart';
@@ -15,7 +16,22 @@ class CreateProgramUseCase {
   final AdminRepository _repository;
   const CreateProgramUseCase(this._repository);
 
-  Future<Result<void>> call({required String name, required String code, required String department}) {
+  Future<Result<void>> call({
+    required String name,
+    required String code,
+    required String department,
+    required EducationLevel educationLevel,
+  }) {
+    // Elementary and Junior High students never reference the catalogue,
+    // so an entry filed under one of them could never be selected -- it
+    // would sit in the list forever looking like a configuration someone
+    // forgot to finish.
+    if (!educationLevel.usesProgramCatalogue) {
+      return Future.value(const Error(ValidationFailure(
+        'Only Senior High School and College have a curriculum catalogue.',
+      )));
+    }
+
     final nameError = Validators.required(name, fieldName: 'Program name');
     if (nameError != null) return Future.value(Error(ValidationFailure(nameError)));
 
@@ -25,7 +41,12 @@ class CreateProgramUseCase {
     final deptError = Validators.required(department, fieldName: 'Department');
     if (deptError != null) return Future.value(Error(ValidationFailure(deptError)));
 
-    return _repository.createProgram(name: name.trim(), code: code.trim(), department: department.trim());
+    return _repository.createProgram(
+      name: name.trim(),
+      code: code.trim(),
+      department: department.trim(),
+      educationLevel: educationLevel,
+    );
   }
 }
 

@@ -62,6 +62,20 @@ async function seed() {
       department: "College of Business",
     });
 
+    // A Senior High student. Making Senior High its own division is only
+    // worth anything if the isolation rules actually treat it as one --
+    // that is what the tests below check.
+    await setDoc(doc(db, `schools/${SCHOOL}/students/shs_student`), {
+      id: "shs_student",
+      educationLevel: "senior_high",
+      department: "Academic",
+    });
+    // A Junior High student, to prove the two do not bleed into each other.
+    await setDoc(doc(db, `schools/${SCHOOL}/students/jhs_student`), {
+      id: "jhs_student",
+      educationLevel: "high_school",
+    });
+
     // Registrar scoped to Elementary only.
     await setDoc(doc(db, `schools/${SCHOOL}/users/registrar_elem`), {
       role: "registrar",
@@ -71,6 +85,13 @@ async function seed() {
     await setDoc(doc(db, `schools/${SCHOOL}/users/registrar_unrestricted`), {
       role: "registrar",
       employeeInfo: {department: "Registrar's Office", position: "Registrar"},
+    });
+    // Faculty scoped to Junior High. Before Senior High was split out,
+    // "high_school" covered Grades 7-12, so this account would have seen
+    // Senior High records too.
+    await setDoc(doc(db, `schools/${SCHOOL}/users/faculty_jhs`), {
+      role: "faculty",
+      employeeInfo: {assignedDivision: "high_school"},
     });
     // Faculty scoped to College + College of Engineering specifically.
     await setDoc(doc(db, `schools/${SCHOOL}/users/faculty_eng`), {
@@ -104,6 +125,26 @@ describe("division-scoped registrar", () => {
     await seed();
     const registrar = contextAs("registrar", "registrar_elem");
     await assertSucceeds(getDoc(doc(registrar.firestore(), `schools/${SCHOOL}/students/elem_student`)));
+  });
+});
+
+describe("Senior High is a division of its own", () => {
+  test("a Junior High teacher CANNOT read a Senior High student", async () => {
+    await seed();
+    const faculty = contextAs("faculty", "faculty_jhs");
+    await assertFails(getDoc(doc(faculty.firestore(), `schools/${SCHOOL}/students/shs_student`)));
+  });
+
+  test("a Junior High teacher CAN still read their own division", async () => {
+    await seed();
+    const faculty = contextAs("faculty", "faculty_jhs");
+    await assertSucceeds(getDoc(doc(faculty.firestore(), `schools/${SCHOOL}/students/jhs_student`)));
+  });
+
+  test("an Elementary registrar CANNOT read a Senior High student either", async () => {
+    await seed();
+    const registrar = contextAs("registrar", "registrar_elem");
+    await assertFails(getDoc(doc(registrar.firestore(), `schools/${SCHOOL}/students/shs_student`)));
   });
 });
 

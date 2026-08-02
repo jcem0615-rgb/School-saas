@@ -1,3 +1,4 @@
+import 'package:school_saas/core/constants/education_level.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:school_saas/core/constants/user_roles.dart';
@@ -104,14 +105,41 @@ void main() {
   group('CreateProgramUseCase', () {
     test('rejects an empty program name', () async {
       final useCase = CreateProgramUseCase(repository);
-      final result = await useCase(name: '', code: 'BSCS', department: 'College of Engineering');
+      final result = await useCase(
+        name: '',
+        code: 'BSCS',
+        department: 'College of Engineering',
+        educationLevel: EducationLevel.college,
+      );
       expect((result as Error).failure, isA<ValidationFailure>());
     });
 
     test('rejects an empty department', () async {
       final useCase = CreateProgramUseCase(repository);
-      final result = await useCase(name: 'BS Computer Science', code: 'BSCS', department: '');
+      final result = await useCase(
+        name: 'BS Computer Science',
+        code: 'BSCS',
+        department: '',
+        educationLevel: EducationLevel.college,
+      );
       expect((result as Error).failure, isA<ValidationFailure>());
+    });
+
+    // Elementary and Junior High students never reference the catalogue,
+    // so an entry filed under one of them could never be selected -- it
+    // would sit in the list forever looking like unfinished configuration.
+    test('rejects a catalogue entry for a division that has no catalogue', () async {
+      final useCase = CreateProgramUseCase(repository);
+      for (final level in [EducationLevel.elementary, EducationLevel.highSchool]) {
+        final result = await useCase(
+          name: 'Something',
+          code: 'X',
+          department: 'Y',
+          educationLevel: level,
+        );
+        expect((result as Error).failure, isA<ValidationFailure>(),
+            reason: '${level.displayLabel} has no catalogue');
+      }
     });
 
     test('delegates a valid program to the repository', () async {
@@ -119,11 +147,35 @@ void main() {
             name: 'BS Computer Science',
             code: 'BSCS',
             department: 'College of Engineering',
+            educationLevel: EducationLevel.college,
           )).thenAnswer((_) async => const Success(null));
 
       final useCase = CreateProgramUseCase(repository);
-      final result =
-          await useCase(name: 'BS Computer Science', code: 'BSCS', department: 'College of Engineering');
+      final result = await useCase(
+        name: 'BS Computer Science',
+        code: 'BSCS',
+        department: 'College of Engineering',
+        educationLevel: EducationLevel.college,
+      );
+
+      expect(result, isA<Success<void>>());
+    });
+
+    test('delegates a Senior High strand to the repository', () async {
+      when(() => repository.createProgram(
+            name: 'Science, Technology, Engineering and Mathematics',
+            code: 'STEM',
+            department: 'Academic',
+            educationLevel: EducationLevel.seniorHigh,
+          )).thenAnswer((_) async => const Success(null));
+
+      final useCase = CreateProgramUseCase(repository);
+      final result = await useCase(
+        name: 'Science, Technology, Engineering and Mathematics',
+        code: 'STEM',
+        department: 'Academic',
+        educationLevel: EducationLevel.seniorHigh,
+      );
 
       expect(result, isA<Success<void>>());
     });

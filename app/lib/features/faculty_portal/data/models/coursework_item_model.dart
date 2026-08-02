@@ -7,6 +7,7 @@ class CourseworkItemModel extends CourseworkItem {
     required super.id,
     required super.type,
     required super.title,
+    super.delivery,
     required super.description,
     required super.subject,
     required super.section,
@@ -24,6 +25,9 @@ class CourseworkItemModel extends CourseworkItem {
     return CourseworkItemModel(
       id: id,
       type: CourseworkType.fromString(data['type'] as String),
+      // Defaults to face-to-face for items written before the field
+      // existed -- see CourseworkDelivery.fromString.
+      delivery: CourseworkDelivery.fromString(data['delivery'] as String? ?? ''),
       title: data['title'] as String? ?? '',
       description: data['description'] as String? ?? '',
       subject: data['subject'] as String? ?? '',

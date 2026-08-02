@@ -1,27 +1,56 @@
-# Module 15: Divisions, College Programs, and Data Isolation
+# Module 15: Divisions, Strands and Programs, and Data Isolation
 
 ## Overview
 
-A single school (tenant) can run Elementary, High School, and College
-under one roof — very common for PH private schools. This module makes
-that explicit in the data model (every student declares a division at
-registration, college students declare a program/course) and, more
-importantly, makes it enforceable: staff can now be scoped to a division
-(and, for College, a department) so that data genuinely cannot leak
-across them — not just hidden in the UI, but denied by
-`firestore.rules`.
+A single school (tenant) can run Elementary, Junior High, Senior High and
+College under one roof — very common for PH private schools. This module
+makes that explicit in the data model (every student declares a division
+at registration; Senior High and College students also declare what they
+are enrolled in) and, more importantly, makes it enforceable: staff can
+be scoped to a division (and, for College, a department) so that data
+genuinely cannot leak across them — not just hidden in the UI, but
+denied by `firestore.rules`.
+
+## The four divisions
+
+Senior High is its own division rather than the tail end of High School
+because that is what K-12 made it: Grades 11–12 pick a track and strand,
+are taught by their own faculty, and are reported to DepEd separately.
+Folding them into High School would mean a Junior High teacher's
+division scope silently covered Senior High.
+
+Two of the four enrol students in something from a catalogue:
+
+| Division | Catalogue entry | Grouping field |
+| --- | --- | --- |
+| Elementary | — | — |
+| Junior High School | — | — |
+| Senior High School | Strand (STEM, ABM, HUMSS, GAS, TVL, Arts and Design, Sports) | DepEd track |
+| College | Degree program (BS Computer Science) | Department |
+
+Elementary and Junior High have no entry at all — their grade level and
+section say everything the record needs — which is why the registration
+form shows them no catalogue field, and why
+`CreateProgramUseCase` refuses to file an entry under either.
 
 ## What changed
 
 **Sign-up (Student Registration, Registrar Portal)** — the division
-dropdown (Elementary / High School / College) is now a required field.
-Selecting College reveals a Program/Course dropdown, populated from
-Admin's program catalog, and registration is rejected — client-side
-*and* server-side in `registerStudent.ts` — without one selected.
+dropdown is a required field. Selecting Senior High or College reveals
+the catalogue dropdown, **filtered to that division**, and registration
+is rejected — client-side *and* server-side in `registerStudent.ts` —
+without one selected. The server also rejects a strand chosen for a
+college student and vice versa: the client's filtering is a convenience,
+not a boundary.
 
-**College Programs (new, Admin Portal)** — a simple catalog
-(`programs/{id}`: name, code, department) Director/Admin manage, the same
-institutional-configuration pattern as Teacher Assignment.
+**Strands & Programs (Admin Portal)** — one catalog
+(`programs/{id}`: name, code, department, educationLevel) Director/Admin
+manage, the same institutional-configuration pattern as Teacher
+Assignment. Senior High strands and College programs share it because
+they are the same record answering the same question at registration:
+what is this student enrolled in? `educationLevel` is fixed at creation —
+moving a strand into the college catalogue would silently reclassify
+every student already enrolled in it.
 
 **Denormalization, not joins** — `registerStudent.ts` looks up the
 selected program *once*, at registration, and copies its `department`

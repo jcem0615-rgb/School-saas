@@ -1,3 +1,4 @@
+import '../../../../core/constants/education_level.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/result.dart';
@@ -221,8 +222,18 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
 
   void reset() => state = const AsyncData(null);
 
-  Future<bool> createProgram({required String name, required String code, required String department}) async {
-    final result = await _createProgram(name: name, code: code, department: department);
+  Future<bool> createProgram({
+    required String name,
+    required String code,
+    required String department,
+    required EducationLevel educationLevel,
+  }) async {
+    final result = await _createProgram(
+      name: name,
+      code: code,
+      department: department,
+      educationLevel: educationLevel,
+    );
     return result.isSuccess;
   }
 }

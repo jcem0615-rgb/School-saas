@@ -20,6 +20,7 @@ void main() {
     test('requires a due date for gradable types (assignment/project/exam/quiz)', () async {
       final useCase = CreateCourseworkItemUseCase(repository);
       final result = await useCase(
+        delivery: CourseworkDelivery.faceToFace,
         type: CourseworkType.assignment,
         title: 'Essay',
         description: 'Write an essay',
@@ -31,7 +32,8 @@ void main() {
 
     test('does NOT require a due date for a Lesson Plan', () async {
       when(() => repository.createCourseworkItem(
-            type: CourseworkType.lessonPlan,
+            delivery: CourseworkDelivery.faceToFace,
+        type: CourseworkType.lessonPlan,
             title: 'Photosynthesis',
             description: 'Intro lesson',
             subject: 'Science',
@@ -43,6 +45,7 @@ void main() {
 
       final useCase = CreateCourseworkItemUseCase(repository);
       final result = await useCase(
+        delivery: CourseworkDelivery.faceToFace,
         type: CourseworkType.lessonPlan,
         title: 'Photosynthesis',
         description: 'Intro lesson',
@@ -55,11 +58,115 @@ void main() {
     test('rejects an empty title', () async {
       final useCase = CreateCourseworkItemUseCase(repository);
       final result = await useCase(
+        delivery: CourseworkDelivery.faceToFace,
         type: CourseworkType.lesson,
         title: '',
         description: 'desc',
         subject: 'Math',
         section: '7-A',
+      );
+      expect((result as Error).failure, isA<ValidationFailure>());
+    });
+
+    // The point of the online mode: the student is not in the room, so
+    // the material has to travel with the item. Publishing an online item
+    // with nothing attached would leave them with a title and no work.
+    test('rejects online coursework with no file attached', () async {
+      final useCase = CreateCourseworkItemUseCase(repository);
+      final result = await useCase(
+        delivery: CourseworkDelivery.online,
+        type: CourseworkType.lesson,
+        title: 'Module 4',
+        description: 'Read the module',
+        subject: 'Science',
+        section: '7-A',
+      );
+      expect((result as Error).failure, isA<ValidationFailure>());
+    });
+
+    test('accepts online coursework once a file is attached', () async {
+      when(() => repository.createCourseworkItem(
+            delivery: CourseworkDelivery.online,
+            type: CourseworkType.lesson,
+            title: 'Module 4',
+            description: 'Read the module',
+            subject: 'Science',
+            section: '7-A',
+            dueDate: null,
+            totalPoints: null,
+            published: true,
+            attachmentUrl: 'https://example.org/module-4.pdf',
+            attachmentName: 'module-4.pdf',
+          )).thenAnswer((_) async => const Success(null));
+
+      final useCase = CreateCourseworkItemUseCase(repository);
+      final result = await useCase(
+        delivery: CourseworkDelivery.online,
+        type: CourseworkType.lesson,
+        title: 'Module 4',
+        description: 'Read the module',
+        subject: 'Science',
+        section: '7-A',
+        attachmentUrl: 'https://example.org/module-4.pdf',
+        attachmentName: 'module-4.pdf',
+      );
+      expect(result, isA<Success<void>>());
+    });
+
+    test('face-to-face coursework needs no attachment', () async {
+      when(() => repository.createCourseworkItem(
+            delivery: CourseworkDelivery.faceToFace,
+            type: CourseworkType.lesson,
+            title: 'Board work',
+            description: 'Solve on the board',
+            subject: 'Math',
+            section: '7-A',
+            dueDate: null,
+            totalPoints: null,
+            published: true,
+          )).thenAnswer((_) async => const Success(null));
+
+      final useCase = CreateCourseworkItemUseCase(repository);
+      final result = await useCase(
+        delivery: CourseworkDelivery.faceToFace,
+        type: CourseworkType.lesson,
+        title: 'Board work',
+        description: 'Solve on the board',
+        subject: 'Math',
+        section: '7-A',
+      );
+      expect(result, isA<Success<void>>());
+    });
+  });
+
+  group('UpdateCourseworkItemUseCase', () {
+    // An edit that switches an item to online, or strips the file off one
+    // that already is, breaks it exactly as badly as creating it that way.
+    test('rejects an edit that switches to online without a file', () async {
+      final useCase = UpdateCourseworkItemUseCase(repository);
+      final result = await useCase(
+        itemId: 'cw_1',
+        delivery: CourseworkDelivery.online,
+        type: CourseworkType.lesson,
+        title: 'Module 4',
+        description: 'Read the module',
+        subject: 'Science',
+        section: '7-A',
+      );
+      expect((result as Error).failure, isA<ValidationFailure>());
+    });
+
+    test('rejects an edit that removes the file from an online item', () async {
+      final useCase = UpdateCourseworkItemUseCase(repository);
+      final result = await useCase(
+        itemId: 'cw_1',
+        delivery: CourseworkDelivery.online,
+        type: CourseworkType.lesson,
+        title: 'Module 4',
+        description: 'Read the module',
+        subject: 'Science',
+        section: '7-A',
+        attachmentUrl: '',
       );
       expect((result as Error).failure, isA<ValidationFailure>());
     });

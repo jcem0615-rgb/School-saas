@@ -185,13 +185,19 @@ class AdminRemoteDataSource {
         .map((snap) => snap.docs.map((d) => ProgramModel.fromFirestore(d.id, d.data())).toList());
   }
 
-  Future<void> createProgram({required String name, required String code, required String department}) async {
+  Future<void> createProgram({
+    required String name,
+    required String code,
+    required String department,
+    required String educationLevel,
+  }) async {
     final ref = _firestore.collection(FirestorePaths.programs(_actingUser.schoolId)).doc();
     await ref.set({
       'id': ref.id,
       'name': name,
       'code': code,
       'department': department,
+      'educationLevel': educationLevel,
       'schoolId': _actingUser.schoolId,
       'createdBy': _actingUser.uid,
       'createdAt': FieldValue.serverTimestamp(),

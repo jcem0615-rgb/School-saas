@@ -213,7 +213,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                   isExpanded: true,
                   value: educationLevel,
                   decoration: const InputDecoration(
-                    labelText: 'Division (Elementary / High School / College)',
+                    labelText: 'Division',
                     border: OutlineInputBorder(),
                   ),
                   items: EducationLevel.values
@@ -269,29 +269,41 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                     );
                   },
                 ),
-                // Course selection only ever appears for College -- this
-                // is the "include the courses if it is college" piece.
-                if (educationLevel == EducationLevel.college) ...[
+                // The catalogue field appears only for the two divisions
+                // that have one: a strand for Senior High, a degree
+                // program for College. Elementary and Junior High get no
+                // field at all -- their grade level and section already
+                // say everything the record needs.
+                if (educationLevel?.usesProgramCatalogue ?? false) ...[
                   const SizedBox(height: 12),
                   Consumer(
                     builder: (context, ref, _) {
                       final programsAsync = ref.watch(programsStreamProvider);
                       return programsAsync.when(
                         loading: () => const LinearProgressIndicator(),
-                        error: (err, _) => Text('Failed to load programs: $err'),
-                        data: (programs) {
+                        error: (err, _) => Text('Failed to load the catalogue: $err'),
+                        data: (all) {
+                          // A college program is not a valid choice for a
+                          // Senior High student and vice versa, so the
+                          // list is filtered to the division rather than
+                          // relying on the registrar to pick correctly.
+                          final programs = all
+                              .where((p) => p.educationLevel == educationLevel)
+                              .toList();
+                          final label = educationLevel!.programLabel;
                           if (programs.isEmpty) {
-                            return const Text(
-                              'No college programs configured yet. Ask an Admin to add one under College Programs first.',
-                              style: TextStyle(color: Colors.red),
+                            return Text(
+                              'No ${label.toLowerCase()} options configured yet. Ask an '
+                              'Admin to add one under Strands & Programs first.',
+                              style: const TextStyle(color: Colors.red),
                             );
                           }
                           return DropdownButtonFormField<Program>(
                             isExpanded: true,
-                            value: selectedProgram,
-                            decoration: const InputDecoration(
-                              labelText: 'Program / Course',
-                              border: OutlineInputBorder(),
+                            value: programs.contains(selectedProgram) ? selectedProgram : null,
+                            decoration: InputDecoration(
+                              labelText: label,
+                              border: const OutlineInputBorder(),
                             ),
                             items: programs
                                 .map((p) => DropdownMenuItem(value: p, child: Text('${p.name} (${p.code})')))
@@ -304,9 +316,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                   ),
                 ],
                 const SizedBox(height: 12),
-                // Optional -- a record with no birth date is still a valid
-                // enrolment -- but it is what the ID card prints, so it is
-                // asked for here rather than chased down later.
+                // Required: it is printed on the ID card, and chasing it
+                // down after the fact is what left records without one.
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   shape: RoundedRectangleBorder(
@@ -315,7 +326,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                   ),
                   leading: const Icon(Icons.cake_outlined),
                   title: Text(birthDate == null
-                      ? 'Birthday (optional)'
+                      ? 'Birthday (required)'
                       : DateFormat.yMMMd().format(birthDate!)),
                   trailing: const Icon(Icons.calendar_today_outlined),
                   onTap: () async {

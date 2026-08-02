@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/entities/program.dart';
 import '../controllers/admin_controller.dart';
 
-/// Admin manages the college program/course catalog here (e.g. "BS
-/// Computer Science", department "College of Engineering"). Elementary
-/// and High School have no equivalent -- their "gradeLevel"/"section"
-/// fields on the student record are sufficient, since they don't have
-/// the many-programs-per-department structure a college does.
+/// Admin manages the school's curriculum catalogue here: Senior High
+/// strands ("STEM", under the Academic track) and College degree programs
+/// ("BS Computer Science", under the College of Engineering).
+///
+/// Elementary and Junior High have no equivalent -- their gradeLevel and
+/// section fields on the student record say everything needed, since they
+/// have neither strands nor the many-programs-per-department structure a
+/// college does. The two divisions are grouped rather than split into two
+/// screens because they are the same record answering the same question
+/// at registration: what is this student enrolled in?
 class ProgramsScreen extends ConsumerWidget {
   const ProgramsScreen({super.key});
 
@@ -18,11 +24,11 @@ class ProgramsScreen extends ConsumerWidget {
     final programsAsync = ref.watch(programsStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('College Programs')),
+      appBar: AppBar(title: const Text('Strands & Programs')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showEditor(context, ref),
         icon: const Icon(Icons.add),
-        label: const Text('New Program'),
+        label: const Text('New Entry'),
       ),
       body: programsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -33,7 +39,8 @@ class ProgramsScreen extends ConsumerWidget {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  'No college programs yet. Add one so Registrar can enroll college students.',
+                  'No strands or programs yet. Add one so Registrar can enrol '
+                  'Senior High and College students.',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -54,7 +61,9 @@ class ProgramsScreen extends ConsumerWidget {
                 child: ListTile(
                   leading: const Icon(Icons.school_outlined),
                   title: Text(p.name),
-                  subtitle: Text('${p.code} · ${p.department}'),
+                  subtitle: Text(
+                    '${p.educationLevel.displayLabel} · ${p.code} · ${p.department}',
+                  ),
                   trailing: RowActionsMenu(
                     onEdit: () => _showEditor(context, ref, existing: p),
                     onDelete: () => _confirmDelete(context, ref, p),
@@ -85,39 +94,68 @@ class ProgramsScreen extends ConsumerWidget {
     final nameController = TextEditingController(text: existing?.name ?? '');
     final codeController = TextEditingController(text: existing?.code ?? '');
     final departmentController = TextEditingController(text: existing?.department ?? '');
+    // Fixed once saved: moving a strand into the college catalogue would
+    // silently reclassify every student already enrolled in it.
+    EducationLevel level = existing?.educationLevel ?? EducationLevel.seniorHigh;
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(isEdit ? 'Edit College Program' : 'New College Program'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) {
+          final seniorHigh = level == EducationLevel.seniorHigh;
+          return AlertDialog(
+        title: Text(isEdit
+            ? 'Edit ${existing.educationLevel.programLabel}'
+            : 'New Strand or Program'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (!isEdit) ...[
+                SegmentedButton<EducationLevel>(
+                  segments: const [
+                    ButtonSegment(
+                      value: EducationLevel.seniorHigh,
+                      label: Text('Senior High'),
+                    ),
+                    ButtonSegment(
+                      value: EducationLevel.college,
+                      label: Text('College'),
+                    ),
+                  ],
+                  selected: {level},
+                  onSelectionChanged: (s) => setState(() => level = s.first),
+                ),
+                const SizedBox(height: 12),
+              ],
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Program Name',
-                  hintText: 'e.g. BS Computer Science',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: seniorHigh ? 'Strand Name' : 'Program Name',
+                  hintText: seniorHigh
+                      ? 'e.g. Science, Technology, Engineering and Mathematics'
+                      : 'e.g. BS Computer Science',
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: codeController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Code',
-                  hintText: 'e.g. BSCS',
-                  border: OutlineInputBorder(),
+                  hintText: seniorHigh ? 'e.g. STEM' : 'e.g. BSCS',
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: departmentController,
-                decoration: const InputDecoration(
-                  labelText: 'Department',
-                  hintText: 'e.g. College of Engineering',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: seniorHigh ? 'Track' : 'Department',
+                  hintText: seniorHigh
+                      ? 'e.g. Academic'
+                      : 'e.g. College of Engineering',
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -139,12 +177,15 @@ class ProgramsScreen extends ConsumerWidget {
                       name: nameController.text,
                       code: codeController.text,
                       department: departmentController.text,
+                      educationLevel: level,
                     );
               if (success && dialogContext.mounted) Navigator.of(dialogContext).pop();
             },
             child: Text(isEdit ? 'Save Changes' : 'Save'),
           ),
         ],
+          );
+        },
       ),
     );
   }

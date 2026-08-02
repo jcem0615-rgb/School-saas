@@ -25,15 +25,32 @@ import '../../../student_portal/presentation/controllers/student_controller.dart
 const _cardWidthMm = 85.6;
 const _cardHeightMm = 54.0;
 
+/// Photo and QR sizes, in mm, shared by the print and screen layouts so
+/// the preview matches what comes out of the printer.
+///
+/// These are the two things a card is checked with -- a guard compares
+/// the face, a scanner reads the code -- so they get the space, and
+/// everything else fits around them. The photo is a 3:4 rectangle, the
+/// shape of an actual ID photo, rather than a circle: same height, more
+/// of the face.
+/// Sized to fill the body of the card. They sit on their own row, photo
+/// left and QR right, with the name spanning the full width beneath --
+/// squeezing all three onto one row left the name in a ~22mm column,
+/// wrapping "Miguel Torres" onto two lines to make room for a QR that
+/// was still too small.
+const _photoHeightMm = 27.0;
+const _photoWidthMm = _photoHeightMm * 3 / 4;
+const _qrSizeMm = 27.0;
+
 final _dateFormat = DateFormat.yMMMd();
 
 /// Everything printed on one person's card, gathered in one place.
 ///
 /// The card is built from two sources -- the account ([AppUser]) and, for
-/// students, the registrar's record -- and every field below is optional
+/// students, the registrar's record -- and most fields below are optional
 /// because a card still has to print when the school has not filled in
-/// its signatories or a student has no birth date on file. Rendering
-/// "not set" is always better than refusing to print an ID.
+/// its signatories. Rendering "not set" is always better than refusing to
+/// print an ID.
 class _IdDetails {
   final AppUser user;
   final SchoolBranding branding;
@@ -47,8 +64,25 @@ class _IdDetails {
   /// carries the middle name and is what the school's own paperwork uses.
   String get fullName => student?.fullName ?? user.fullName;
 
-  String? get gradeLevel => student?.gradeLevel;
-  String? get section => student?.section;
+  String? get photoUrl => student?.photoUrl ?? user.photoUrl;
+
+  /// Stands in for a missing photo. A blank grey box reads as a printing
+  /// fault; initials read as "no photo on file yet".
+  String get initials {
+    final parts = fullName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+  }
+
+  /// The one line under the name on the front: what this person is to the
+  /// school. For a student that is their year and section, which is what
+  /// anyone checking the card actually wants; for everyone else, the role.
+  String get frontSubtitle => user.role.displayName;
+
+  String? get frontDetail =>
+      student == null ? null : '${student!.gradeLevel} · ${student!.section}';
+
   String? get schoolYear => _clean(branding.schoolYear);
   String? get principalName => _clean(branding.principalName);
   String? get directorName => _clean(branding.directorName);
@@ -70,15 +104,19 @@ class _IdDetails {
     ].join(' ');
   }
 
-  /// The rows printed on the back of the card, in order, skipping
-  /// anything the school has not recorded.
+  /// The rows printed on the back, in order.
+  ///
+  /// Nothing here repeats the front. The name, role, year, section and
+  /// school year are all on the face of the card; printing them again on
+  /// the back cost the space that the photo and QR now use, and gave a
+  /// reader nothing they could not already see.
   List<(String, String)> get backRows => [
-        if (isStudent) ('Student No.', student!.studentNumber),
-        if (gradeLevel != null) (student!.isCollege ? 'Year Level' : 'Grade Level', gradeLevel!),
-        if (section != null) ('Section', section!),
-        if (schoolYear != null) ('School Year', schoolYear!),
-        if (birthDate != null) ('Birthday', birthDate!),
-        if (emergencyContact != null) ('Emergency Contact', emergencyContact!),
+        if (isStudent) ...[
+          ('Student No.', student!.studentNumber),
+          if (birthDate != null) ('Birthday', birthDate!),
+          if (emergencyContact != null) ('Emergency Contact', emergencyContact!),
+        ] else
+          ('Email', user.email),
       ];
 
   static String? _clean(String? value) =>
@@ -140,10 +178,9 @@ class EIdScreen extends ConsumerWidget {
             style: Theme.of(context).textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),
-          if (details.isStudent &&
-              (details.schoolYear == null ||
-                  details.principalName == null ||
-                  details.directorName == null)) ...[
+          if (details.schoolYear == null ||
+              details.principalName == null ||
+              details.directorName == null) ...[
             const SizedBox(height: 12),
             Text(
               'The school year and signatories are blank because an Admin '
@@ -186,8 +223,8 @@ class EIdScreen extends ConsumerWidget {
   /// front, page 2 the back.
   ///
   /// Two sides rather than one crowded face -- a CR80 card is 85.6mm wide,
-  /// and a photo, a QR and eight lines of detail on one side would print
-  /// at a size nobody can read. Duplex or two cuts both work.
+  /// and a photo, a QR and the record details on one side would print at a
+  /// size nobody can read. Duplex or two cuts both work.
   ///
   /// The QR is regenerated here rather than screenshotting the widget, so
   /// it prints as crisp vectors at any scale -- a rasterised QR at 54mm is
@@ -197,21 +234,15 @@ class EIdScreen extends ConsumerWidget {
     final user = details.user;
     final branding = details.branding;
 
-    // Only fetch the logo when there is one; a failed network image would
-    // otherwise abort the whole print.
-    pw.MemoryImage? logo;
-    if (branding.hasLogo) {
-      try {
-        logo = await networkImage(branding.logoUrl!) as pw.MemoryImage;
-      } catch (_) {
-        logo = null;
-      }
-    }
+    // Fetched one at a time and each guarded: a logo or photo that fails
+    // to load must degrade to its placeholder, never abort the print.
+    final logo = branding.hasLogo ? await _pdfImage(branding.logoUrl!) : null;
+    final photo = details.photoUrl == null ? null : await _pdfImage(details.photoUrl!);
 
     final pageFormat = PdfPageFormat(
       _cardWidthMm * PdfPageFormat.mm,
       _cardHeightMm * PdfPageFormat.mm,
-      marginAll: 4 * PdfPageFormat.mm,
+      marginAll: 3 * PdfPageFormat.mm,
     );
 
     pw.Widget watermark() => logo == null
@@ -222,16 +253,17 @@ class EIdScreen extends ConsumerWidget {
               // fight the text over it.
               child: pw.Opacity(
                 opacity: 0.08,
-                child: pw.Image(logo, height: 40 * PdfPageFormat.mm),
+                child: pw.Image(logo, height: 38 * PdfPageFormat.mm),
               ),
             ),
           );
 
     pw.Widget header() => pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             if (logo != null) ...[
-              pw.Image(logo, height: 8 * PdfPageFormat.mm),
-              pw.SizedBox(width: 4),
+              pw.Image(logo, height: 7 * PdfPageFormat.mm),
+              pw.SizedBox(width: 3),
             ],
             pw.Expanded(
               child: pw.Column(
@@ -239,11 +271,15 @@ class EIdScreen extends ConsumerWidget {
                 children: [
                   pw.Text(
                     branding.schoolName ?? 'School ID',
-                    style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                    style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold),
                     maxLines: 1,
                   ),
                   if (branding.addressLine != null)
-                    pw.Text(branding.addressLine!, style: const pw.TextStyle(fontSize: 5)),
+                    pw.Text(
+                      branding.addressLine!,
+                      style: const pw.TextStyle(fontSize: 4.5),
+                      maxLines: 1,
+                    ),
                 ],
               ),
             ),
@@ -263,40 +299,37 @@ class EIdScreen extends ConsumerWidget {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 header(),
-                pw.Divider(height: 4),
+                pw.Divider(height: 5),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _pdfPhoto(photo, details.initials),
+                    pw.BarcodeWidget(
+                      barcode: pw.Barcode.qrCode(),
+                      data: user.qrCode,
+                      width: _qrSizeMm * PdfPageFormat.mm,
+                      height: _qrSizeMm * PdfPageFormat.mm,
+                      drawText: false,
+                    ),
+                  ],
+                ),
                 pw.Expanded(
-                  child: pw.Row(
+                  child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    mainAxisAlignment: pw.MainAxisAlignment.end,
                     children: [
-                      pw.Expanded(
-                        flex: 3,
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              details.fullName,
-                              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
-                            ),
-                            pw.SizedBox(height: 1),
-                            pw.Text(user.role.displayName, style: const pw.TextStyle(fontSize: 7)),
-                            if (details.gradeLevel != null)
-                              pw.Text(
-                                '${details.gradeLevel} · ${details.section}',
-                                style: const pw.TextStyle(fontSize: 7),
-                              ),
-                            pw.SizedBox(height: 4),
-                            pw.Text(user.email, style: const pw.TextStyle(fontSize: 5)),
-                            pw.Text('ID ${user.qrCode}', style: const pw.TextStyle(fontSize: 5)),
-                          ],
-                        ),
+                      pw.Text(
+                        details.fullName,
+                        style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+                        maxLines: 1,
                       ),
-                      pw.SizedBox(width: 4),
-                      pw.BarcodeWidget(
-                        barcode: pw.Barcode.qrCode(),
-                        data: user.qrCode,
-                        width: 22 * PdfPageFormat.mm,
-                        height: 22 * PdfPageFormat.mm,
-                        drawText: false,
+                      pw.Text(
+                        details.frontDetail == null
+                            ? details.frontSubtitle
+                            : '${details.frontSubtitle} · ${details.frontDetail}',
+                        style: const pw.TextStyle(fontSize: 6.5),
+                        maxLines: 1,
                       ),
                     ],
                   ),
@@ -318,33 +351,25 @@ class EIdScreen extends ConsumerWidget {
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text(
-                  details.fullName,
-                  style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
-                ),
-                pw.Divider(height: 4),
                 pw.Expanded(
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: details.backRows
                         .map(
                           (row) => pw.Padding(
-                            padding: const pw.EdgeInsets.only(bottom: 1.5),
+                            padding: const pw.EdgeInsets.only(bottom: 2.5),
                             child: pw.Row(
                               crossAxisAlignment: pw.CrossAxisAlignment.start,
                               children: [
                                 pw.SizedBox(
                                   width: 24 * PdfPageFormat.mm,
-                                  child: pw.Text(
-                                    row.$1,
-                                    style: const pw.TextStyle(fontSize: 5.5),
-                                  ),
+                                  child: pw.Text(row.$1, style: const pw.TextStyle(fontSize: 6)),
                                 ),
                                 pw.Expanded(
                                   child: pw.Text(
                                     row.$2,
-                                    style: pw.TextStyle(
-                                        fontSize: 5.5, fontWeight: pw.FontWeight.bold),
+                                    style:
+                                        pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
                                   ),
                                 ),
                               ],
@@ -374,16 +399,44 @@ class EIdScreen extends ConsumerWidget {
     return doc.save();
   }
 
+  Future<pw.MemoryImage?> _pdfImage(String url) async {
+    try {
+      return await networkImage(url) as pw.MemoryImage;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  pw.Widget _pdfPhoto(pw.MemoryImage? photo, String initials) => pw.Container(
+        width: _photoWidthMm * PdfPageFormat.mm,
+        height: _photoHeightMm * PdfPageFormat.mm,
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(width: 0.4, color: PdfColors.grey600),
+          borderRadius: pw.BorderRadius.circular(2),
+          image: photo == null
+              ? null
+              : pw.DecorationImage(image: photo, fit: pw.BoxFit.cover),
+        ),
+        child: photo != null
+            ? null
+            : pw.Center(
+                child: pw.Text(
+                  initials,
+                  style: pw.TextStyle(fontSize: 16, color: PdfColors.grey600),
+                ),
+              ),
+      );
+
   pw.Widget _pdfSignatory(String label, String? name) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
             name ?? ' ',
-            style: pw.TextStyle(fontSize: 5.5, fontWeight: pw.FontWeight.bold),
+            style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
             maxLines: 1,
           ),
           pw.Divider(height: 2, thickness: 0.4),
-          pw.Text(label, style: const pw.TextStyle(fontSize: 4.5)),
+          pw.Text(label, style: const pw.TextStyle(fontSize: 5)),
         ],
       );
 }
@@ -410,33 +463,58 @@ class _CardShell extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 420),
       child: AspectRatio(
         aspectRatio: _cardWidthMm / _cardHeightMm,
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            children: [
-              if (branding.hasLogo)
-                Positioned.fill(
-                  child: Opacity(
-                    opacity: 0.07,
-                    child: Image.network(
-                      branding.logoUrl!,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Everything inside is sized in card-millimetres so the
+            // preview scales with the card instead of drifting from the
+            // print at different widths.
+            final pxPerMm = constraints.maxWidth / _cardWidthMm;
+            return Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.colorScheme.outlineVariant),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                children: [
+                  if (branding.hasLogo)
+                    Positioned.fill(
+                      child: Opacity(
+                        opacity: 0.07,
+                        child: Image.network(
+                          branding.logoUrl!,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      ),
                     ),
+                  Padding(
+                    padding: EdgeInsets.all(3 * pxPerMm),
+                    child: _CardScale(pxPerMm: pxPerMm, child: child),
                   ),
-                ),
-              Padding(padding: const EdgeInsets.all(12), child: child),
-            ],
-          ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
   }
+}
+
+/// Hands the card-millimetre scale down to the faces, so they can size the
+/// photo and QR to the same physical dimensions the PDF uses.
+class _CardScale extends InheritedWidget {
+  final double pxPerMm;
+
+  const _CardScale({required this.pxPerMm, required super.child});
+
+  static double of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_CardScale>()?.pxPerMm ?? 1;
+
+  @override
+  bool updateShouldNotify(_CardScale oldWidget) => oldWidget.pxPerMm != pxPerMm;
 }
 
 /// On-screen preview of the printed front.
@@ -447,89 +525,142 @@ class _IdCardFront extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final branding = details.branding;
-    final user = details.user;
-
     return _CardShell(
-      branding: branding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      branding: details.branding,
+      child: Builder(
+        builder: (context) {
+          final theme = Theme.of(context);
+          final branding = details.branding;
+          final mm = _CardScale.of(context);
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (branding.hasLogo)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Image.network(
-                    branding.logoUrl!,
-                    height: 20,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
-                ),
-              Expanded(
-                child: Text(
-                  branding.schoolName ?? 'School ID',
-                  style: theme.textTheme.labelLarge,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (details.schoolYear != null)
-                Text(
-                  'SY ${details.schoolYear}',
-                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 9),
-                ),
-            ],
-          ),
-          const Divider(height: 10),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 26,
-                  backgroundImage: user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
-                  child: user.photoUrl == null ? const Icon(Icons.person) : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        details.fullName,
-                        style: theme.textTheme.titleSmall,
-                        overflow: TextOverflow.ellipsis,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (branding.hasLogo)
+                    Padding(
+                      padding: EdgeInsets.only(right: 1.5 * mm),
+                      child: Image.network(
+                        branding.logoUrl!,
+                        height: 7 * mm,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       ),
-                      Text(user.role.displayName, style: theme.textTheme.bodySmall),
-                      if (details.gradeLevel != null)
+                    ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          '${details.gradeLevel} · ${details.section}',
-                          style: theme.textTheme.bodySmall,
+                          branding.schoolName ?? 'School ID',
+                          style: theme.textTheme.labelMedium,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      const SizedBox(height: 4),
-                      Text(
-                        user.email,
-                        style: theme.textTheme.bodySmall?.copyWith(fontSize: 9),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                        if (branding.addressLine != null)
+                          Text(
+                            branding.addressLine!,
+                            style: theme.textTheme.bodySmall?.copyWith(fontSize: 1.6 * mm),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
                   ),
+                  if (details.schoolYear != null)
+                    Text(
+                      'SY ${details.schoolYear}',
+                      style: theme.textTheme.bodySmall?.copyWith(fontSize: 1.8 * mm),
+                    ),
+                ],
+              ),
+              Divider(height: 2 * mm),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _PhotoBox(details: details),
+                  QrImageView(
+                    data: details.user.qrCode,
+                    size: _qrSizeMm * mm,
+                    padding: EdgeInsets.zero,
+                    backgroundColor: Colors.white,
+                  ),
+                ],
+              ),
+              // Full width, under both: the name is the longest thing on
+              // the card and the only one that has to stay on one line.
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      details.fullName,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontSize: 4 * mm,
+                        fontWeight: FontWeight.bold,
+                        height: 1.1,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      details.frontDetail == null
+                          ? details.frontSubtitle
+                          : '${details.frontSubtitle} · ${details.frontDetail}',
+                      style: theme.textTheme.bodySmall?.copyWith(fontSize: 2.4 * mm),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                QrImageView(data: user.qrCode, size: 62, padding: EdgeInsets.zero),
-              ],
-            ),
-          ),
-          if (branding.addressLine != null)
-            Text(
-              branding.addressLine!,
-              style: theme.textTheme.bodySmall?.copyWith(fontSize: 8),
-              overflow: TextOverflow.ellipsis,
-            ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
+    );
+  }
+}
+
+/// The ID photo, at the same 3:4 proportions the printer uses. Falls back
+/// to initials rather than an empty box, which reads as a printing fault.
+class _PhotoBox extends StatelessWidget {
+  final _IdDetails details;
+
+  const _PhotoBox({required this.details});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mm = _CardScale.of(context);
+    final url = details.photoUrl;
+
+    return Container(
+      width: _photoWidthMm * mm,
+      height: _photoHeightMm * mm,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(0.7 * mm),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      alignment: Alignment.center,
+      child: url == null
+          ? Text(
+              details.initials,
+              style: theme.textTheme.titleLarge?.copyWith(fontSize: 6 * mm),
+            )
+          : Image.network(
+              url,
+              fit: BoxFit.cover,
+              width: _photoWidthMm * mm,
+              height: _photoHeightMm * mm,
+              errorBuilder: (_, __, ___) => Text(
+                details.initials,
+                style: theme.textTheme.titleLarge?.copyWith(fontSize: 6 * mm),
+              ),
+            ),
     );
   }
 }
@@ -542,50 +673,54 @@ class _IdCardBack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final labelStyle = theme.textTheme.bodySmall?.copyWith(fontSize: 9);
-    final valueStyle = theme.textTheme.bodySmall?.copyWith(
-      fontSize: 9,
-      fontWeight: FontWeight.bold,
-    );
-
     return _CardShell(
       branding: details.branding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(details.fullName, style: theme.textTheme.labelMedium, overflow: TextOverflow.ellipsis),
-          const Divider(height: 8),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: details.backRows
-                  .map(
-                    (row) => Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(width: 108, child: Text(row.$1, style: labelStyle)),
-                          Expanded(
-                            child: Text(row.$2, style: valueStyle, overflow: TextOverflow.ellipsis),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+      child: Builder(
+        builder: (context) {
+          final theme = Theme.of(context);
+          final mm = _CardScale.of(context);
+          final labelStyle = theme.textTheme.bodySmall?.copyWith(fontSize: 2.3 * mm);
+          final valueStyle = theme.textTheme.bodySmall?.copyWith(
+            fontSize: 2.3 * mm,
+            fontWeight: FontWeight.bold,
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _Signatory(label: 'Principal', name: details.principalName)),
-              const SizedBox(width: 12),
-              Expanded(child: _Signatory(label: 'Director', name: details.directorName)),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: details.backRows
+                      .map(
+                        (row) => Padding(
+                          padding: EdgeInsets.only(bottom: mm),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(width: 24 * mm, child: Text(row.$1, style: labelStyle)),
+                              Expanded(
+                                child:
+                                    Text(row.$2, style: valueStyle, overflow: TextOverflow.ellipsis),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(child: _Signatory(label: 'Principal', name: details.principalName)),
+                  SizedBox(width: 3 * mm),
+                  Expanded(child: _Signatory(label: 'Director', name: details.directorName)),
+                ],
+              ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -600,16 +735,19 @@ class _Signatory extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final mm = _CardScale.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           name ?? ' ',
-          style: theme.textTheme.bodySmall?.copyWith(fontSize: 9, fontWeight: FontWeight.bold),
+          style: theme.textTheme.bodySmall
+              ?.copyWith(fontSize: 2.3 * mm, fontWeight: FontWeight.bold),
           overflow: TextOverflow.ellipsis,
         ),
-        const Divider(height: 4),
-        Text(label, style: theme.textTheme.bodySmall?.copyWith(fontSize: 8)),
+        Divider(height: mm),
+        Text(label, style: theme.textTheme.bodySmall?.copyWith(fontSize: 2 * mm)),
       ],
     );
   }

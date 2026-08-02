@@ -5,7 +5,7 @@ import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
 import {getNextSequence} from "../../shared/counters/getNextSequence";
 import {formatStudentNumber} from "../../shared/students/studentNumber";
-import {isValidEducationLevel} from "../../shared/education/educationLevel";
+import {isValidEducationLevel, usesProgramCatalogue} from "../../shared/education/educationLevel";
 
 interface GuardianContact {
   name: string;
@@ -24,7 +24,7 @@ interface RegisterStudentData {
   section: string;
   programId?: string; // required when educationLevel === 'college'
   enrollmentDate?: string; // ISO date, defaults to now
-  birthDate?: string; // ISO date; printed on the student's ID card
+  birthDate?: string; // ISO date; required to register, printed on the ID card
   guardianContacts?: GuardianContact[];
 }
 
@@ -55,6 +55,16 @@ export const registerStudent = onCall(
     if (!schoolId || !firstName || !lastName || !gradeLevel || !section) {
       throw new HttpsError("invalid-argument", "Missing required student fields.");
     }
+    // Required to register, but the field stays nullable on the document:
+    // records written before this rule existed have no birth date and must
+    // remain readable and editable.
+    const parsedBirthDate = birthDate ? new Date(birthDate) : null;
+    if (!parsedBirthDate || Number.isNaN(parsedBirthDate.getTime())) {
+      throw new HttpsError("invalid-argument", "A valid birthday is required.");
+    }
+    if (parsedBirthDate.getTime() > Date.now()) {
+      throw new HttpsError("invalid-argument", "A birthday cannot be in the future.");
+    }
     if (!isValidEducationLevel(educationLevel)) {
       throw new HttpsError(
         "invalid-argument",
@@ -73,20 +83,34 @@ export const registerStudent = onCall(
     // programs at read time.
     let programName: string | null = null;
     let department: string | null = null;
-    if (educationLevel === "college") {
+    if (usesProgramCatalogue(educationLevel)) {
       if (!programId) {
-        throw new HttpsError("invalid-argument", "A college student must be enrolled in a program.");
+        throw new HttpsError(
+          "invalid-argument",
+          "A Senior High or College student must be enrolled in a strand or program."
+        );
       }
       const programSnap = await db.doc(FirestorePaths.programDoc(schoolId, programId)).get();
       if (!programSnap.exists || programSnap.data()?.isDeleted) {
-        throw new HttpsError("not-found", "Selected program not found.");
+        throw new HttpsError("not-found", "Selected strand or program not found.");
+      }
+      // A college program is not a valid enrolment for a Senior High
+      // student and vice versa. The client filters the dropdown by
+      // division; this is the check that actually holds, since the
+      // client's filtering is a convenience, not a boundary.
+      const programLevel = (programSnap.data()?.educationLevel as string) ?? "college";
+      if (programLevel !== educationLevel) {
+        throw new HttpsError(
+          "invalid-argument",
+          "That strand or program belongs to a different division."
+        );
       }
       programName = (programSnap.data()?.name as string) ?? null;
       department = (programSnap.data()?.department as string) ?? null;
     } else if (programId) {
       throw new HttpsError(
         "invalid-argument",
-        "programId is only applicable to college students."
+        "programId only applies to Senior High and College students."
       );
     }
 
@@ -112,10 +136,7 @@ export const registerStudent = onCall(
       enrollmentDate: admin.firestore.Timestamp.fromDate(
         enrollmentDate ? new Date(enrollmentDate) : new Date()
       ),
-      // Optional: an ID card prints it, but a record with no birth date
-      // on file is still a valid enrolment, so this never blocks
-      // registration.
-      birthDate: birthDate ? admin.firestore.Timestamp.fromDate(new Date(birthDate)) : null,
+      birthDate: admin.firestore.Timestamp.fromDate(parsedBirthDate),
       guardianContacts: guardianContacts ?? [],
       balance: 0,
       photoUrl: null,

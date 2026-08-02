@@ -1,3 +1,4 @@
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/constants/user_roles.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../../../../core/errors/failures.dart';
@@ -150,9 +151,19 @@ class AdminRepositoryImpl implements AdminRepository {
   Stream<List<Program>> watchPrograms() => _remote.watchPrograms();
 
   @override
-  Future<Result<void>> createProgram({required String name, required String code, required String department}) async {
+  Future<Result<void>> createProgram({
+    required String name,
+    required String code,
+    required String department,
+    required EducationLevel educationLevel,
+  }) async {
     try {
-      await _remote.createProgram(name: name, code: code, department: department);
+      await _remote.createProgram(
+        name: name,
+        code: code,
+        department: department,
+        educationLevel: educationLevel.value,
+      );
       return const Success(null);
     } catch (_) {
       return const Error(UnknownFailure());

@@ -485,6 +485,31 @@ class DemoStore {
           balance: 0,
           enrollmentDate: DateTime(now.year, 6, 5),
         ),
+        // A Senior High student, so the strand path is visible in the
+        // demo without anyone having to register one first.
+        StudentSummary(
+          id: 'stu_009',
+          studentNumber: '2025-00061',
+          firstName: 'Trisha',
+          lastName: 'Mercado',
+          educationLevel: EducationLevel.seniorHigh,
+          gradeLevel: 'Grade 11',
+          section: 'STEM 11-A',
+          programId: 'shs_stem',
+          programName: 'Science, Technology, Engineering and Mathematics',
+          department: 'Academic',
+          status: StudentStatus.enrolled,
+          balance: 12500,
+          enrollmentDate: DateTime(now.year, 6, 3),
+          birthDate: DateTime(now.year - 17, 9, 8),
+          guardianContacts: const [
+            GuardianContact(
+              name: 'Elena Mercado',
+              relationship: 'Mother',
+              phone: '0918 555 0177',
+            ),
+          ],
+        ),
         StudentSummary(
           id: 'stu_005',
           studentNumber: '2023-00118',
@@ -636,6 +661,60 @@ class DemoStore {
   }
 
   List<Program> _seedPrograms() => const [
+        // Senior High: the DepEd tracks and strands as they are actually
+        // offered in a PH private school. Seeded rather than left blank
+        // because these are national, not per-school -- an Admin renames
+        // or removes what they do not offer instead of typing all seven.
+        Program(
+          id: 'shs_stem',
+          name: 'Science, Technology, Engineering and Mathematics',
+          code: 'STEM',
+          department: 'Academic',
+          educationLevel: EducationLevel.seniorHigh,
+        ),
+        Program(
+          id: 'shs_abm',
+          name: 'Accountancy, Business and Management',
+          code: 'ABM',
+          department: 'Academic',
+          educationLevel: EducationLevel.seniorHigh,
+        ),
+        Program(
+          id: 'shs_humss',
+          name: 'Humanities and Social Sciences',
+          code: 'HUMSS',
+          department: 'Academic',
+          educationLevel: EducationLevel.seniorHigh,
+        ),
+        Program(
+          id: 'shs_gas',
+          name: 'General Academic Strand',
+          code: 'GAS',
+          department: 'Academic',
+          educationLevel: EducationLevel.seniorHigh,
+        ),
+        Program(
+          id: 'shs_tvl',
+          name: 'Technical-Vocational-Livelihood',
+          code: 'TVL',
+          department: 'Technical-Vocational-Livelihood',
+          educationLevel: EducationLevel.seniorHigh,
+        ),
+        Program(
+          id: 'shs_arts',
+          name: 'Arts and Design',
+          code: 'ARTS',
+          department: 'Arts and Design',
+          educationLevel: EducationLevel.seniorHigh,
+        ),
+        Program(
+          id: 'shs_sports',
+          name: 'Sports',
+          code: 'SPORTS',
+          department: 'Sports',
+          educationLevel: EducationLevel.seniorHigh,
+        ),
+        // College.
         Program(id: 'prog_001', name: 'BS Computer Science', code: 'BSCS', department: 'Computer Studies'),
         Program(id: 'prog_002', name: 'BS Accountancy', code: 'BSA', department: 'Business Administration'),
         Program(id: 'prog_003', name: 'BS Education', code: 'BSED', department: 'Teacher Education'),
@@ -756,11 +835,17 @@ class DemoStore {
           id: 'cw_002',
           type: CourseworkType.quiz,
           title: 'Quiz 3 - Cell Division',
-          description: 'Short quiz covering mitosis and meiosis.',
+          description: 'Answer the quiz sheet and submit it before the due date.',
           subject: 'Science',
           section: 'Grade 10 - Rizal',
           teacherId: 'u_faculty',
           teacherName: 'Maria Santos',
+          // The one online item in the seed, so the student portal shows
+          // what taking work through the app looks like without anyone
+          // having to create one first.
+          delivery: CourseworkDelivery.online,
+          attachmentUrl: 'https://example.org/demo/quiz-3-cell-division.pdf',
+          attachmentName: 'quiz-3-cell-division.pdf',
           dueDate: _daysAhead(1),
           totalPoints: 25,
           published: true,

@@ -39,19 +39,32 @@ class RegisterStudentUseCase {
     final sectionError = Validators.required(section, fieldName: 'Section');
     if (sectionError != null) return Future.value(Error(ValidationFailure(sectionError)));
 
+    // Required at registration, but still nullable on the record: student
+    // records created before this rule existed have no birth date, and
+    // they must stay editable rather than becoming unsaveable.
+    if (birthDate == null) {
+      return Future.value(const Error(ValidationFailure('A birthday is required.')));
+    }
+    if (birthDate.isAfter(DateTime.now())) {
+      return Future.value(const Error(ValidationFailure('A birthday cannot be in the future.')));
+    }
+
     // The explicit ask: every student declares Elementary/High School/
     // College, and a College student must also declare which program --
     // this is enforced here (client-side, fast feedback) AND again
     // server-side in registerStudent.ts (the actual security boundary).
-    if (educationLevel == EducationLevel.college && (programId == null || programId.trim().isEmpty)) {
-      return Future.value(
-        const Error(ValidationFailure('A college student must be enrolled in a program/course.')),
-      );
+    if (educationLevel.usesProgramCatalogue && (programId == null || programId.trim().isEmpty)) {
+      return Future.value(Error(ValidationFailure(
+        'A ${educationLevel.displayLabel} student must be enrolled in a '
+        '${educationLevel.programLabel.toLowerCase()}.',
+      )));
     }
-    if (educationLevel != EducationLevel.college && programId != null && programId.trim().isNotEmpty) {
-      return Future.value(
-        const Error(ValidationFailure('A program can only be set for college students.')),
-      );
+    if (!educationLevel.usesProgramCatalogue &&
+        programId != null &&
+        programId.trim().isNotEmpty) {
+      return Future.value(const Error(ValidationFailure(
+        'Only Senior High School and College students enrol in a strand or program.',
+      )));
     }
 
     return _repository.registerStudent(
@@ -61,7 +74,7 @@ class RegisterStudentUseCase {
       educationLevel: educationLevel,
       gradeLevel: gradeLevel.trim(),
       section: section.trim(),
-      programId: educationLevel == EducationLevel.college ? programId!.trim() : null,
+      programId: educationLevel.usesProgramCatalogue ? programId!.trim() : null,
       birthDate: birthDate,
       guardianContacts: guardianContacts,
     );

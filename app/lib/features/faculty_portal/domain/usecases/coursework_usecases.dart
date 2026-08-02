@@ -17,6 +17,7 @@ class CreateCourseworkItemUseCase {
 
   Future<Result<void>> call({
     required CourseworkType type,
+    required CourseworkDelivery delivery,
     required String title,
     required String description,
     required String subject,
@@ -42,8 +43,12 @@ class CreateCourseworkItemUseCase {
       );
     }
 
+    final deliveryError = _validateDelivery(delivery, attachmentUrl);
+    if (deliveryError != null) return Future.value(Error(ValidationFailure(deliveryError)));
+
     return _repository.createCourseworkItem(
       type: type,
+      delivery: delivery,
       title: title.trim(),
       description: description.trim(),
       subject: subject.trim(),
@@ -66,6 +71,7 @@ class UpdateCourseworkItemUseCase {
   Future<Result<void>> call({
     required String itemId,
     required CourseworkType type,
+    required CourseworkDelivery delivery,
     required String title,
     required String description,
     required String subject,
@@ -94,9 +100,13 @@ class UpdateCourseworkItemUseCase {
       );
     }
 
+    final deliveryError = _validateDelivery(delivery, attachmentUrl);
+    if (deliveryError != null) return Future.value(Error(ValidationFailure(deliveryError)));
+
     return _repository.updateCourseworkItem(
       itemId: itemId,
       type: type,
+      delivery: delivery,
       title: title.trim(),
       description: description.trim(),
       subject: subject.trim(),
@@ -120,4 +130,17 @@ class DeleteCourseworkItemUseCase {
     }
     return _repository.deleteCourseworkItem(itemId);
   }
+}
+
+/// The one rule that makes an online item usable: the student is not in
+/// the room, so the material has to be attached or there is nothing for
+/// them to open. Enforced on create and edit alike -- an edit that
+/// switches an item to online, or strips the file off one that already
+/// is, breaks it exactly as badly as creating it that way.
+String? _validateDelivery(CourseworkDelivery delivery, String? attachmentUrl) {
+  if (delivery.requiresAttachment && (attachmentUrl == null || attachmentUrl.isEmpty)) {
+    return 'Online coursework needs a file attached -- that is what the '
+        'student opens to take it.';
+  }
+  return null;
 }

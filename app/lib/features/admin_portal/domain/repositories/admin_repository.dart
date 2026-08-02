@@ -1,3 +1,4 @@
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/constants/user_roles.dart';
 import '../../../../core/errors/result.dart';
 import '../entities/employee_summary.dart';
@@ -56,7 +57,12 @@ abstract class AdminRepository {
   Future<Result<void>> deleteTeacherAssignment(String assignmentId);
 
   Stream<List<Program>> watchPrograms();
-  Future<Result<void>> createProgram({required String name, required String code, required String department});
+  Future<Result<void>> createProgram({
+    required String name,
+    required String code,
+    required String department,
+    required EducationLevel educationLevel,
+  });
   Future<Result<void>> updateProgram({
     required String programId,
     required String name,

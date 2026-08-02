@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:school_saas/core/constants/user_roles.dart';
 import 'package:school_saas/demo/demo_overrides.dart';
@@ -40,11 +41,25 @@ void main() {
     await pumpEId(tester, UserRole.student);
 
     final year = DateTime.now().year;
-    expect(find.text('Miguel Torres'), findsWidgets);
-    expect(find.text('Grade 10'), findsOneWidget, reason: 'year/grade level row');
-    expect(find.text('Grade 10 - Rizal'), findsOneWidget, reason: 'section row');
-    expect(find.text('$year-${year + 1}'), findsOneWidget, reason: 'school year row');
+    expect(find.text('Miguel Torres'), findsOneWidget);
+    expect(find.text('Student · Grade 10 · Grade 10 - Rizal'), findsOneWidget,
+        reason: 'role, year level and section, on the front under the name');
+    expect(find.text('SY $year-${year + 1}'), findsOneWidget, reason: 'school year, in the header');
     expect(find.text('2024-00001'), findsOneWidget, reason: 'student number row');
+  });
+
+  testWidgets('the two faces do not repeat each other', (tester) async {
+    // The back used to reprint the name, year, section and school year
+    // that are already on the face of the card. That cost the space the
+    // photo and QR now use and told a reader nothing new.
+    await pumpEId(tester, UserRole.student);
+
+    for (final repeated in ['Miguel Torres', 'Student · Grade 10 · Grade 10 - Rizal']) {
+      expect(find.text(repeated), findsOneWidget, reason: '$repeated belongs on one face only');
+    }
+    expect(find.text('Grade Level'), findsNothing);
+    expect(find.text('Section'), findsNothing);
+    expect(find.text('School Year'), findsNothing);
   });
 
   testWidgets('a student ID carries the birthday and emergency contact', (tester) async {
@@ -83,6 +98,29 @@ void main() {
 
     final card = tester.getSize(find.byType(AspectRatio).first);
     expect(card.width, lessThanOrEqualTo(420));
+  });
+
+  testWidgets('the photo and the QR get the space on the front', (tester) async {
+    // These are the two things a card is actually checked with -- a guard
+    // compares the face, a scanner reads the code -- so they are sized in
+    // card-millimetres against the print layout rather than in fixed
+    // pixels that shrink relative to the card.
+    await pumpEId(tester, UserRole.student);
+
+    final front = tester.getSize(find.byType(AspectRatio).first);
+    final qr = tester.getSize(find.byType(QrImageView).first);
+
+    // Stated as floors rather than exact ratios so tuning the millimetres
+    // does not fail the test -- what matters is that neither shrinks back
+    // to the postage stamp they were.
+    expect(qr.width / front.width, greaterThan(0.28));
+    expect(qr.height / front.height, greaterThan(0.45));
+
+    // The name spans the full width beneath them rather than sharing a
+    // row: squeezed into the leftover ~22mm column it wrapped onto two
+    // lines, which is what forced this layout.
+    final name = tester.getSize(find.text('Miguel Torres'));
+    expect(name.width, greaterThan(qr.width));
   });
 
   testWidgets('an employee ID still renders, without the student-only rows', (tester) async {

@@ -40,9 +40,42 @@ enum CourseworkType {
       };
 }
 
+/// How the class actually meets this piece of work.
+///
+/// Face-to-face work is handed out and taken in the room -- the app is
+/// just the announcement. Online work has to be self-contained: the
+/// student is not in the room, so the material has to travel with the
+/// item or there is nothing for them to do. That is why [online] requires
+/// an attachment and [faceToFace] does not.
+enum CourseworkDelivery {
+  faceToFace('face_to_face'),
+  online('online');
+
+  final String value;
+  const CourseworkDelivery(this.value);
+
+  static CourseworkDelivery fromString(String value) =>
+      CourseworkDelivery.values.firstWhere(
+        (d) => d.value == value,
+        // Everything created before this field existed was handed out in
+        // the room, so that is the honest default for an old record.
+        orElse: () => CourseworkDelivery.faceToFace,
+      );
+
+  String get displayLabel => switch (this) {
+        CourseworkDelivery.faceToFace => 'Face-to-face',
+        CourseworkDelivery.online => 'Online',
+      };
+
+  /// An online item is taken through the app, so it must carry the file
+  /// the student works from.
+  bool get requiresAttachment => this == CourseworkDelivery.online;
+}
+
 class CourseworkItem {
   final String id;
   final CourseworkType type;
+  final CourseworkDelivery delivery;
   final String title;
   final String description;
   final String subject;
@@ -62,6 +95,7 @@ class CourseworkItem {
     required this.id,
     required this.type,
     required this.title,
+    this.delivery = CourseworkDelivery.faceToFace,
     required this.description,
     required this.subject,
     required this.section,

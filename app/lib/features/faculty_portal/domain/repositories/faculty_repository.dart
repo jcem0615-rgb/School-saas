@@ -12,6 +12,7 @@ abstract class FacultyRepository {
 
   Future<Result<void>> createCourseworkItem({
     required CourseworkType type,
+    required CourseworkDelivery delivery,
     required String title,
     required String description,
     required String subject,
@@ -26,6 +27,7 @@ abstract class FacultyRepository {
   Future<Result<void>> updateCourseworkItem({
     required String itemId,
     required CourseworkType type,
+    required CourseworkDelivery delivery,
     required String title,
     required String description,
     required String subject,

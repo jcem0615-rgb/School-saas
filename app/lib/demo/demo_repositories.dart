@@ -892,13 +892,23 @@ class DemoAdminRepository implements AdminRepository {
 
   @override
   Future<Result<void>> createProgram({
+    required EducationLevel educationLevel,
     required String name,
     required String code,
     required String department,
   }) async {
     await _latency();
     final id = _store.nextId('prog');
-    _store.prepend(_store.programs, Program(id: id, name: name, code: code, department: department));
+    _store.prepend(
+      _store.programs,
+      Program(
+        id: id,
+        name: name,
+        code: code,
+        department: department,
+        educationLevel: educationLevel,
+      ),
+    );
     _store.audit(
       module: 'programs',
       action: 'create',
@@ -920,7 +930,16 @@ class DemoAdminRepository implements AdminRepository {
     _store.update<Program>(
       _store.programs,
       (p) => p.id == programId,
-      (p) => Program(id: p.id, name: name, code: code, department: department),
+      // The division is fixed at creation: moving a strand into the
+      // college catalogue (or the reverse) would silently reclassify every
+      // student already enrolled in it.
+      (p) => Program(
+            id: p.id,
+            name: name,
+            code: code,
+            department: department,
+            educationLevel: p.educationLevel,
+          ),
     );
     _store.audit(
       module: 'programs',
@@ -1198,6 +1217,7 @@ class DemoFacultyRepository implements FacultyRepository {
   @override
   Future<Result<void>> createCourseworkItem({
     required CourseworkType type,
+    required CourseworkDelivery delivery,
     required String title,
     required String description,
     required String subject,
@@ -1216,6 +1236,7 @@ class DemoFacultyRepository implements FacultyRepository {
       CourseworkItem(
         id: id,
         type: type,
+        delivery: delivery,
         title: title,
         description: description,
         subject: subject,
@@ -1244,6 +1265,7 @@ class DemoFacultyRepository implements FacultyRepository {
   Future<Result<void>> updateCourseworkItem({
     required String itemId,
     required CourseworkType type,
+    required CourseworkDelivery delivery,
     required String title,
     required String description,
     required String subject,
@@ -1261,6 +1283,7 @@ class DemoFacultyRepository implements FacultyRepository {
       (c) => CourseworkItem(
         id: c.id,
         type: type,
+        delivery: delivery,
         title: title,
         description: description,
         subject: subject,

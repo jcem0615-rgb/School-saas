@@ -59,7 +59,7 @@ class AdminDashboardScreen extends StatelessWidget {
                 ),
                 _QuickLinkTile(
                   icon: Icons.school_outlined,
-                  label: 'College Programs',
+                  label: 'Strands & Programs',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const ProgramsScreen())),
                 ),

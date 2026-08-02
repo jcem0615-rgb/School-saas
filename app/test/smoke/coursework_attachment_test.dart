@@ -63,6 +63,9 @@ void main() {
     expect(attachment.sizeBytes, bytes.lengthInBytes);
 
     final posted = await container.read(facultyActionControllerProvider.notifier).createCourseworkItem(
+          // The attachment is what this test is about, so it posts the
+          // item as online -- which is the mode that requires one.
+          delivery: CourseworkDelivery.online,
           type: CourseworkType.assignment,
           title: 'Worksheet 5',
           description: 'See the attached file.',
@@ -121,6 +124,7 @@ void main() {
     addTearDown(sub.close);
 
     await container.read(facultyActionControllerProvider.notifier).createCourseworkItem(
+          delivery: CourseworkDelivery.faceToFace,
           type: CourseworkType.lessonPlan,
           title: 'Draft plan, not for students',
           description: 'Working notes.',

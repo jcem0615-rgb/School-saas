@@ -79,6 +79,7 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
 
   Future<bool> createCourseworkItem({
     required CourseworkType type,
+    required CourseworkDelivery delivery,
     required String title,
     required String description,
     required String subject,
@@ -90,6 +91,7 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
     String? attachmentName,
   }) => _run(() => _createCourseworkItem(
         type: type,
+      delivery: delivery,
         title: title,
         description: description,
         subject: subject,
@@ -104,6 +106,7 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
   Future<bool> updateCourseworkItem({
     required String itemId,
     required CourseworkType type,
+    required CourseworkDelivery delivery,
     required String title,
     required String description,
     required String subject,
@@ -116,6 +119,7 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
   }) => _run(() => _updateCourseworkItem(
         itemId: itemId,
         type: type,
+      delivery: delivery,
         title: title,
         description: description,
         subject: subject,
