@@ -1,3 +1,4 @@
+import '../../../../core/constants/user_roles.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../../../../core/utils/validators.dart';
@@ -8,7 +9,25 @@ class WatchAnnouncementsUseCase {
   final DirectorRepository _repository;
   const WatchAnnouncementsUseCase(this._repository);
 
-  Stream<List<Announcement>> call() => _repository.watchAnnouncements();
+  /// Announcements the given [role] is actually addressed by.
+  ///
+  /// The filter lives here rather than on a screen because every portal
+  /// -- staff, student and parent alike -- opens the same
+  /// AnnouncementsScreen. Filtering per screen would mean filtering it
+  /// nine times and forgetting once, which is how a student ended up
+  /// reading the payroll cut-off notice.
+  ///
+  /// See AnnouncementAudience: this is relevance, not secrecy. The
+  /// collection is readable tenant-wide, because Firestore rules reject
+  /// queries rather than filtering them.
+  Stream<List<Announcement>> call(UserRole role) => _repository
+      .watchAnnouncements()
+      .map((all) => all.where((a) => a.audience.includes(role)).toList());
+
+  /// Everything posted, for the roles that manage announcements. Separate
+  /// from [call] so that reading unfiltered is a deliberate choice at the
+  /// call site rather than a default someone forgets to narrow.
+  Stream<List<Announcement>> unfiltered() => _repository.watchAnnouncements();
 }
 
 class CreateAnnouncementUseCase {

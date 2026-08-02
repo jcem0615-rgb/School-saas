@@ -978,7 +978,7 @@ class DemoStore {
         Announcement(
           id: 'ann_001',
           title: 'Class suspension - Typhoon Signal No. 2',
-          body: 'All classes across Elementary, High School, and College are suspended tomorrow. '
+          body: 'All classes across every division are suspended tomorrow. '
               'Faculty need not report. Skeletal admin staff only.',
           audience: AnnouncementAudience.everyone,
           pinned: true,

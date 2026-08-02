@@ -51,8 +51,25 @@ final dashboardSummaryProvider = FutureProvider.autoDispose<DirectorDashboardSum
   };
 });
 
+/// What the signed-in user is addressed by. Every portal opens the same
+/// AnnouncementsScreen, so the audience filter belongs here, once, rather
+/// than on nine screens.
 final announcementsStreamProvider = StreamProvider.autoDispose<List<Announcement>>((ref) {
-  return WatchAnnouncementsUseCase(ref.watch(directorRepositoryProvider))();
+  final role = ref.watch(authStateProvider).valueOrNull?.role;
+  if (role == null) return const Stream<List<Announcement>>.empty();
+  return WatchAnnouncementsUseCase(ref.watch(directorRepositoryProvider))(role);
+});
+
+/// Everything posted, regardless of audience -- the management view.
+///
+/// An author needs this rather than their own list for two reasons: they
+/// have to be able to edit a notice they are not themselves addressed by
+/// (a director editing a payroll notice for the office), and previewing
+/// "what does a student see" is meaningless if it can only ever narrow a
+/// list the director was already on. Only the three roles that
+/// firestore.rules lets write the collection read through this.
+final allAnnouncementsStreamProvider = StreamProvider.autoDispose<List<Announcement>>((ref) {
+  return WatchAnnouncementsUseCase(ref.watch(directorRepositoryProvider)).unfiltered();
 });
 
 final meetingsStreamProvider = StreamProvider.autoDispose<List<Meeting>>((ref) {
