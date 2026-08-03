@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/push/push_providers.dart';
+import '../core/push/push_registrar.dart';
 import '../core/router/app_router.dart';
 import '../core/storage/upload_providers.dart';
 import '../features/auth/domain/entities/app_user.dart';
@@ -88,6 +90,10 @@ List<Override> demoOverrides() {
       ref.watch(authStateProvider);
       return DemoUploadRepository(ref.watch(demoStoreProvider));
     }),
+    // Demo mode never initialises Firebase, and prompting a stranger's
+    // browser for notification permission to look at a demo would be
+    // rude even if it worked.
+    pushRegistrarProvider.overrideWith((ref) => const NoOpPushRegistrar()),
     studentRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoStudentRepository(ref.watch(demoStoreProvider));

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/push/push_providers.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../controllers/profile_controller.dart';
 
@@ -20,11 +21,56 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _phoneController = TextEditingController();
   bool _editing = false;
+  /// Null until we have asked the registrar. Rendering the switch off
+  /// before that would show every returning user a lie for a frame.
+  bool? _pushOn;
+  bool _pushBusy = false;
 
   @override
   void dispose() {
     _phoneController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Reflects the real state of this device rather than a preference we
+    // stored and hoped still matched: a user can revoke notification
+    // permission in the browser without ever opening the app.
+    Future.microtask(() async {
+      final on = await ref.read(pushRegistrarProvider).isRegistered();
+      if (mounted) setState(() => _pushOn = on);
+    });
+  }
+
+  Future<void> _togglePush(bool wanted) async {
+    setState(() => _pushBusy = true);
+    final registrar = ref.read(pushRegistrarProvider);
+    var on = false;
+    if (wanted) {
+      on = await registrar.register();
+    } else {
+      await registrar.unregister();
+    }
+    if (!mounted) return;
+    setState(() {
+      _pushOn = on;
+      _pushBusy = false;
+    });
+    if (wanted && !on) {
+      // The most common cause by far is a declined permission prompt, and
+      // that is not something the app can retry its way out of -- say so
+      // and point at the fix rather than silently flipping back.
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text(
+            'Notifications are blocked for this site. Allow them in your '
+            'browser settings, then try again.',
+          ),
+        ));
+    }
   }
 
   Future<void> _save() async {
@@ -117,6 +163,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             title: const Text('My Attendance'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/my-attendance'),
+          ),
+          const Divider(height: 40),
+          Text('Notifications', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            secondary: const Icon(Icons.notifications_active_outlined),
+            title: const Text('Announcements on this device'),
+            subtitle: const Text(
+              'Get a notification when the school posts an announcement '
+              'for you — even when the app is closed.',
+            ),
+            value: _pushOn ?? false,
+            onChanged: _pushBusy || _pushOn == null ? null : _togglePush,
           ),
         ],
       ),

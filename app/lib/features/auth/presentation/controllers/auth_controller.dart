@@ -1,3 +1,5 @@
+import '../../../../core/push/push_providers.dart';
+import '../../../../core/push/push_registrar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
@@ -84,16 +86,19 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   final LogoutUseCase _logout;
   final ForgotPasswordUseCase _forgotPassword;
   final ChangePasswordUseCase _changePassword;
+  final PushRegistrar _pushRegistrar;
 
   AuthController({
     required LoginUseCase login,
     required LogoutUseCase logout,
     required ForgotPasswordUseCase forgotPassword,
     required ChangePasswordUseCase changePassword,
+    required PushRegistrar pushRegistrar,
   })  : _login = login,
         _logout = logout,
         _forgotPassword = forgotPassword,
         _changePassword = changePassword,
+        _pushRegistrar = pushRegistrar,
         super(const AsyncData(null));
 
   /// Returns true on success so the screen can navigate; the router will
@@ -110,6 +115,19 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
 
   Future<bool> logout() async {
     if (mounted) state = const AsyncLoading();
+    // Before the sign-out, while the registrar is still scoped to this
+    // user: school computers get shared, and the next person to sign in
+    // must not keep receiving the last person's announcements.
+    //
+    // Guarded here rather than relying on the implementation to swallow
+    // its own errors. Failing to tidy up a token is not a reason to leave
+    // somebody signed in on a shared machine -- that is the worse of the
+    // two outcomes by a wide margin.
+    try {
+      await _pushRegistrar.unregister();
+    } catch (_) {
+      // Deliberately ignored; see above.
+    }
     final result = await _logout();
     return switch (result) {
       Success() => _succeed(),
@@ -160,5 +178,6 @@ final authControllerProvider = StateNotifierProvider<AuthController, AsyncValue<
     logout: ref.watch(logoutUseCaseProvider),
     forgotPassword: ref.watch(forgotPasswordUseCaseProvider),
     changePassword: ref.watch(changePasswordUseCaseProvider),
+    pushRegistrar: ref.watch(pushRegistrarProvider),
   );
 });

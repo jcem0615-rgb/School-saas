@@ -42,7 +42,12 @@ export {decidePaymentSubmission} from "./callable/payments/decidePaymentSubmissi
 export {registerStudent} from "./callable/students/registerStudent";
 export {setStudentBalance} from "./callable/students/setStudentBalance";
 
-// Additional modules (billing, attendance, payments, notifications, ...)
+// ---------------------------------------------------------------------------
+// Module: Announcements (push notifications)
+// ---------------------------------------------------------------------------
+export {onAnnouncementCreated} from "./triggers/announcements/onAnnouncementCreated";
+
+// Additional modules (billing, attendance, payments, ...)
 // export their callables/triggers/scheduled functions here as each module
 // is implemented, keeping this file as the single index of everything
 // deployed to the project.

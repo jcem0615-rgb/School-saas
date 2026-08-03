@@ -203,6 +203,23 @@ service cloud.firestore {
         // Creation and hard security-field changes only via Admin SDK
         // (provisionUser, resetPasswordAdmin, clearForcePasswordChangeFlag).
         allow create, delete: if false;
+
+        // ---- push notification device tokens ----
+        // One document per device, keyed BY the token, so registering the
+        // same browser twice overwrites rather than accumulates.
+        //
+        // A subcollection rather than a field on the user document, and
+        // this is the reason: users/{userId} is readable by everyone in
+        // the school (see `allow read` above), so a token stored there
+        // would let any colleague read it -- and anyone holding a token
+        // can push notifications to that device. Here, only the owner can
+        // read or write their own. The fan-out in
+        // onAnnouncementCreated.ts uses the Admin SDK, which bypasses
+        // rules entirely.
+        match /deviceTokens/{token} {
+          allow read, write: if belongsToSchool(schoolId)
+                               && request.auth.uid == userId;
+        }
       }
 
       // ---- audit log: append-only from server, read-only from client ----
