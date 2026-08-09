@@ -1,5 +1,6 @@
 import '../../../../core/errors/result.dart';
 import '../entities/coursework_item.dart';
+import '../entities/answer_key.dart';
 import '../entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../entities/grade.dart';
@@ -13,6 +14,25 @@ abstract class FacultyRepository {
 
   /// What has been handed in for one piece of coursework.
   Stream<List<CourseworkSubmission>> watchSubmissionsFor(String courseworkId);
+
+  /// The correct answers, for the teacher who owns them. Students have no
+  /// path to this at all -- there is no student-side equivalent, by
+  /// design.
+  Stream<AnswerKey?> watchAnswerKey(String courseworkId);
+
+  Future<Result<void>> saveAnswerKey({
+    required String courseworkId,
+    required List<String> answers,
+    required double pointsPerQuestion,
+  });
+
+  /// A teacher's own mark on one submission, overriding whatever the
+  /// automatic pass produced.
+  Future<Result<void>> gradeSubmission({
+    required String submissionId,
+    required double score,
+    String? feedback,
+  });
 
   Future<Result<void>> createCourseworkItem({
     required CourseworkType type,

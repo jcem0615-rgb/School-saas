@@ -80,6 +80,7 @@ class StudentActionController extends StateNotifier<AsyncValue<void>> {
     required String studentName,
     required String section,
     required String answer,
+    List<String> answers = const [],
     String? attachmentUrl,
     String? attachmentName,
   }) async {
@@ -96,6 +97,7 @@ class StudentActionController extends StateNotifier<AsyncValue<void>> {
       studentName: studentName,
       section: section,
       answer: answer,
+      answers: answers,
       attachmentUrl: attachmentUrl,
       attachmentName: attachmentName,
     );

@@ -5,6 +5,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart' show authSt
 import '../../data/datasources/faculty_remote_datasource.dart';
 import '../../data/repositories_impl/faculty_repository_impl.dart';
 import '../../domain/entities/coursework_item.dart';
+import '../../domain/entities/answer_key.dart';
 import '../../domain/entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/grade.dart';
@@ -67,15 +68,23 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
   final DeleteCourseworkItemUseCase _deleteCourseworkItem;
   final SubmitGradeUseCase _submitGrade;
 
+  /// Answer keys and per-submission marks go straight to the repository:
+  /// the validation that would live in a use case (a non-empty key, marks
+  /// above zero, a score within range) belongs to the screens that
+  /// collect it, and inventing a use case per field would be ceremony.
+  final FacultyRepository _repository;
+
   FacultyActionController({
     required CreateCourseworkItemUseCase createCourseworkItem,
     required UpdateCourseworkItemUseCase updateCourseworkItem,
     required DeleteCourseworkItemUseCase deleteCourseworkItem,
     required SubmitGradeUseCase submitGrade,
+    required FacultyRepository repository,
   })  : _createCourseworkItem = createCourseworkItem,
         _updateCourseworkItem = updateCourseworkItem,
         _deleteCourseworkItem = deleteCourseworkItem,
         _submitGrade = submitGrade,
+        _repository = repository,
         super(const AsyncData(null));
 
   Future<bool> createCourseworkItem({
@@ -157,6 +166,28 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
         remarks: remarks,
       ));
 
+  Future<bool> saveAnswerKey({
+    required String courseworkId,
+    required List<String> answers,
+    required double pointsPerQuestion,
+  }) =>
+      _run(() => _repository.saveAnswerKey(
+            courseworkId: courseworkId,
+            answers: answers,
+            pointsPerQuestion: pointsPerQuestion,
+          ));
+
+  Future<bool> gradeSubmission({
+    required String submissionId,
+    required double score,
+    String? feedback,
+  }) =>
+      _run(() => _repository.gradeSubmission(
+            submissionId: submissionId,
+            score: score,
+            feedback: feedback,
+          ));
+
   Future<bool> _run(Future<dynamic> Function() action) async {
     if (mounted) state = const AsyncLoading();
     final result = await action();
@@ -178,7 +209,13 @@ final facultyActionControllerProvider =
     updateCourseworkItem: UpdateCourseworkItemUseCase(repo),
     deleteCourseworkItem: DeleteCourseworkItemUseCase(repo),
     submitGrade: SubmitGradeUseCase(repo),
+    repository: repo,
   );
+});
+
+final answerKeyProvider =
+    StreamProvider.autoDispose.family<AnswerKey?, String>((ref, courseworkId) {
+  return ref.watch(facultyRepositoryProvider).watchAnswerKey(courseworkId);
 });
 
 final submissionsForProvider =

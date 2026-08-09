@@ -89,6 +89,15 @@ class CourseworkItem {
   /// without parsing it back out of a signed Storage URL.
   final String? attachmentName;
   final bool published;
+
+  /// How many questions the answer key holds, or 0 when there is no key.
+  ///
+  /// The *count* is safe to publish to students -- it is how their form
+  /// knows to draw six answer boxes -- while the answers themselves live
+  /// in a collection students cannot read. Storing the count here rather
+  /// than deriving it means the student form never has to touch the key.
+  final int questionCount;
+
   final DateTime createdAt;
 
   const CourseworkItem({
@@ -103,9 +112,16 @@ class CourseworkItem {
     required this.teacherName,
     required this.published,
     required this.createdAt,
+    this.questionCount = 0,
     this.dueDate,
     this.totalPoints,
     this.attachmentUrl,
     this.attachmentName,
   });
+}
+
+/// Whether this is marked by comparing answers rather than by reading
+/// them. Only true once a teacher has actually supplied a key.
+extension AutoMarkable on CourseworkItem {
+  bool get isAutoScored => questionCount > 0 && type.isGradable;
 }

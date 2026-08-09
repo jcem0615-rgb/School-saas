@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/firestore_paths.dart';
 import '../models/coursework_item_model.dart';
+import '../models/answer_key_model.dart';
 import '../models/coursework_submission_model.dart';
 import '../../../registrar_portal/data/models/student_summary_model.dart';
 import '../models/grade_model.dart';
@@ -40,6 +41,57 @@ class FacultyRemoteDataSource {
         .snapshots()
         .map((snap) =>
             snap.docs.map((d) => CourseworkSubmissionModel.fromFirestore(d.id, d.data())).toList());
+  }
+
+  Stream<AnswerKeyModel?> watchAnswerKey(String courseworkId) {
+    return _firestore
+        .doc('${FirestorePaths.courseworkAnswerKeys(_actingUser.schoolId)}/$courseworkId')
+        .snapshots()
+        .map((snap) => snap.exists ? AnswerKeyModel.fromFirestore(courseworkId, snap.data()!) : null);
+  }
+
+  Future<void> saveAnswerKey({
+    required String courseworkId,
+    required List<String> answers,
+    required double pointsPerQuestion,
+  }) async {
+    await _firestore
+        .doc('${FirestorePaths.courseworkAnswerKeys(_actingUser.schoolId)}/$courseworkId')
+        .set({
+      'courseworkId': courseworkId,
+      'answers': answers,
+      'pointsPerQuestion': pointsPerQuestion,
+      'schoolId': _actingUser.schoolId,
+      'updatedBy': _actingUser.uid,
+      'updatedByName': _actingUser.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // The count lives on the coursework item because the student form
+    // needs it and must never see the key itself.
+    await _firestore
+        .doc('${FirestorePaths.courseworkItems(_actingUser.schoolId)}/$courseworkId')
+        .update({
+      'questionCount': answers.length,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedBy': _actingUser.uid,
+    });
+  }
+
+  Future<void> gradeSubmission({
+    required String submissionId,
+    required double score,
+    String? feedback,
+  }) async {
+    await _firestore
+        .doc('${FirestorePaths.courseworkSubmissions(_actingUser.schoolId)}/$submissionId')
+        .update({
+      'score': score,
+      'feedback': feedback,
+      'gradedBy': _actingUser.uid,
+      'gradedByName': _actingUser.name,
+      'gradedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> createCourseworkItem({

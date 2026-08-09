@@ -37,6 +37,7 @@ class StudentRepositoryImpl implements StudentRepository {
     required String studentName,
     required String section,
     required String answer,
+    List<String> answers = const [],
     String? attachmentUrl,
     String? attachmentName,
   }) async {
@@ -48,6 +49,7 @@ class StudentRepositoryImpl implements StudentRepository {
         studentName: studentName,
         section: section,
         answer: answer,
+        answers: answers,
         attachmentUrl: attachmentUrl,
         attachmentName: attachmentName,
         isRevision: submissionId != null,

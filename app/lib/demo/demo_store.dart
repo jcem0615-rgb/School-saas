@@ -13,6 +13,7 @@ import '../features/director_portal/domain/entities/approval_request.dart';
 import '../features/director_portal/domain/entities/expense.dart';
 import '../features/director_portal/domain/entities/meeting.dart';
 import '../features/faculty_portal/domain/entities/coursework_item.dart';
+import '../features/faculty_portal/domain/entities/answer_key.dart';
 import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
@@ -96,6 +97,7 @@ class DemoStore {
   late final coursework = BehaviorSubject<List<CourseworkItem>>.seeded(_seedCoursework());
   /// Named for the collection, not shortened to `submissions` -- payment
   /// submissions already own that word in this store.
+  late final answerKeys = BehaviorSubject<List<AnswerKey>>.seeded(_seedAnswerKeys());
   late final courseworkSubmissions =
       BehaviorSubject<List<CourseworkSubmission>>.seeded(_seedCourseworkSubmissions());
   late final grades = BehaviorSubject<List<Grade>>.seeded(_seedGrades());
@@ -203,7 +205,7 @@ class DemoStore {
     for (final s in <BehaviorSubject<dynamic>>[
       currentUser, schools, revenue, invoices, students, employees,
       assignments, programs, payments, attendance, coursework, grades,
-      courseworkSubmissions,
+      courseworkSubmissions, answerKeys,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog,
       paymentSubmissions, paymentSettings, branding,
@@ -854,6 +856,7 @@ class DemoStore {
           attachmentName: 'quiz-3-cell-division.pdf',
           dueDate: _daysAhead(1),
           totalPoints: 25,
+          questionCount: 4,
           published: true,
           createdAt: _daysAgo(4),
         ),
@@ -1028,6 +1031,18 @@ class DemoStore {
           attachmentUrl: 'https://example.org/demo/problem-set-4-miguel.pdf',
           attachmentName: 'problem-set-4-miguel.pdf',
           submittedAt: _daysAgo(1),
+        ),
+      ];
+
+  /// A key on the online quiz, so automatic marking is visible in the
+  /// demo without a teacher having to write one first.
+  List<AnswerKey> _seedAnswerKeys() => [
+        AnswerKey(
+          courseworkId: 'cw_002',
+          answers: const ['Mitosis', 'Meiosis', 'Four', 'Prophase'],
+          pointsPerQuestion: 6.25,
+          updatedByName: 'Maria Santos',
+          updatedAt: _daysAgo(4),
         ),
       ];
 

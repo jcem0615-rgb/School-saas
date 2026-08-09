@@ -180,6 +180,135 @@ describe("revising work", () => {
   });
 });
 
+describe("scores are not the client's to write", () => {
+  // Automatic marking runs server-side against a key the student cannot
+  // read. All of that is decorative if the student can simply write the
+  // score field themselves, so these are the tests that make the feature
+  // real rather than cosmetic.
+  test("a student CANNOT submit with a score attached", async () => {
+    await seed();
+    const db = contextAs("student", "student_a").firestore();
+    await assertFails(
+      setDoc(doc(db, `schools/${SCHOOL}/courseworkSubmissions/cw_2_stu_a`), {
+        courseworkId: "cw_2",
+        studentId: "stu_a",
+        userId: "student_a",
+        answer: "my work",
+        score: 100,
+        submittedAt: serverTimestamp(),
+        isDeleted: false,
+      })
+    );
+  });
+
+  test("a student CANNOT claim an automatic score", async () => {
+    await seed();
+    const db = contextAs("student", "student_a").firestore();
+    await assertFails(
+      setDoc(doc(db, `schools/${SCHOOL}/courseworkSubmissions/cw_2_stu_a`), {
+        courseworkId: "cw_2",
+        studentId: "stu_a",
+        userId: "student_a",
+        answer: "my work",
+        autoScore: 100,
+        correctCount: 10,
+        submittedAt: serverTimestamp(),
+        isDeleted: false,
+      })
+    );
+  });
+
+  test("a student CANNOT add a score by editing their submission", async () => {
+    await seed();
+    const db = contextAs("student", "student_a").firestore();
+    await assertFails(
+      updateDoc(doc(db, `schools/${SCHOOL}/courseworkSubmissions/cw_1_stu_a`), {
+        answer: "revised",
+        score: 100,
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  test("a teacher CAN mark it", async () => {
+    await seed();
+    const db = contextAs("faculty", "faculty_a").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, `schools/${SCHOOL}/courseworkSubmissions/cw_1_stu_a`), {
+        score: 18,
+        feedback: "Good working shown.",
+        gradedByName: "Maria Santos",
+        gradedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  test("a teacher CANNOT rewrite the answer while marking it", async () => {
+    // Marking must not be a route to editing the evidence.
+    await seed();
+    const db = contextAs("faculty", "faculty_a").firestore();
+    await assertFails(
+      updateDoc(doc(db, `schools/${SCHOOL}/courseworkSubmissions/cw_1_stu_a`), {
+        score: 18,
+        answer: "what I wish they had written",
+      })
+    );
+  });
+
+  test("a teacher CANNOT overwrite the automatic score", async () => {
+    // Their own mark overrides it for display; the machine's result stays
+    // on the record so the two can be compared afterwards.
+    await seed();
+    const db = contextAs("faculty", "faculty_a").firestore();
+    await assertFails(
+      updateDoc(doc(db, `schools/${SCHOOL}/courseworkSubmissions/cw_1_stu_a`), {
+        autoScore: 25,
+      })
+    );
+  });
+});
+
+describe("the answer key", () => {
+  // The single most important rule in this feature. A readable key is a
+  // published answer sheet.
+  test("a student CANNOT read the answer key", async () => {
+    await seed();
+    const db = contextAs("student", "student_a").firestore();
+    await assertFails(getDoc(doc(db, `schools/${SCHOOL}/courseworkAnswerKeys/cw_1`)));
+  });
+
+  test("a parent CANNOT read the answer key either", async () => {
+    await seed();
+    const db = contextAs("parent", "parent_a").firestore();
+    await assertFails(getDoc(doc(db, `schools/${SCHOOL}/courseworkAnswerKeys/cw_1`)));
+  });
+
+  test("a teacher CAN read and write it", async () => {
+    await seed();
+    const db = contextAs("faculty", "faculty_a").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, `schools/${SCHOOL}/courseworkAnswerKeys/cw_1`), {
+        courseworkId: "cw_1",
+        answers: ["Manila", "B"],
+        pointsPerQuestion: 5,
+      })
+    );
+    await assertSucceeds(getDoc(doc(db, `schools/${SCHOOL}/courseworkAnswerKeys/cw_1`)));
+  });
+
+  test("a student CANNOT write one to make everything correct", async () => {
+    await seed();
+    const db = contextAs("student", "student_a").firestore();
+    await assertFails(
+      setDoc(doc(db, `schools/${SCHOOL}/courseworkAnswerKeys/cw_1`), {
+        courseworkId: "cw_1",
+        answers: ["whatever I wrote"],
+        pointsPerQuestion: 100,
+      })
+    );
+  });
+});
+
 describe("who can read a submission", () => {
   test("the student who wrote it CAN", async () => {
     await seed();

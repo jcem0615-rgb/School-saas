@@ -33,6 +33,15 @@ class SubmissionPanel extends ConsumerStatefulWidget {
 class _SubmissionPanelState extends ConsumerState<SubmissionPanel> {
   final _answerController = TextEditingController();
 
+  /// One controller per question for auto-marked work. Built from
+  /// item.questionCount, which is all the student's copy of the
+  /// coursework carries -- the answers themselves are in a collection
+  /// they cannot read.
+  late final List<TextEditingController> _questionControllers = List.generate(
+    widget.item.questionCount,
+    (_) => TextEditingController(),
+  );
+
   /// Set once from whatever was already handed in, so opening the screen
   /// to revise shows the previous answer rather than a blank box that
   /// looks like the work was lost.
@@ -46,6 +55,9 @@ class _SubmissionPanelState extends ConsumerState<SubmissionPanel> {
   @override
   void dispose() {
     _answerController.dispose();
+    for (final c in _questionControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -53,6 +65,10 @@ class _SubmissionPanelState extends ConsumerState<SubmissionPanel> {
     setState(() {
       _editing = true;
       _answerController.text = existing?.answer ?? '';
+      for (var i = 0; i < _questionControllers.length; i++) {
+        _questionControllers[i].text =
+            i < (existing?.answers.length ?? 0) ? existing!.answers[i] : '';
+      }
       _attachmentUrl = existing?.attachmentUrl;
       _attachmentName = existing?.attachmentName;
     });
@@ -100,6 +116,7 @@ class _SubmissionPanelState extends ConsumerState<SubmissionPanel> {
           studentName: widget.student.fullName,
           section: widget.student.section,
           answer: _answerController.text,
+          answers: _questionControllers.map((c) => c.text).toList(),
           attachmentUrl: _attachmentUrl,
           attachmentName: _attachmentName,
         );
@@ -179,15 +196,35 @@ class _SubmissionPanelState extends ConsumerState<SubmissionPanel> {
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
             ),
           ),
-        TextField(
-          controller: _answerController,
-          maxLines: 6,
-          decoration: const InputDecoration(
-            labelText: 'Your answer',
-            alignLabelWithHint: true,
-            border: OutlineInputBorder(),
+        if (widget.item.isAutoScored) ...[
+          Text(
+            '${widget.item.questionCount} questions. This is marked '
+            'automatically as soon as you hand it in.',
+            style: theme.textTheme.bodySmall,
           ),
-        ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < _questionControllers.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: TextField(
+                controller: _questionControllers[i],
+                decoration: InputDecoration(
+                  labelText: 'Question ${i + 1}',
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+            ),
+        ] else
+          TextField(
+            controller: _answerController,
+            maxLines: 6,
+            decoration: const InputDecoration(
+              labelText: 'Your answer',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
           onPressed: _uploading ? null : _pickFile,
@@ -256,9 +293,24 @@ class _SubmissionPanelState extends ConsumerState<SubmissionPanel> {
                       : ''),
               style: theme.textTheme.bodySmall,
             ),
+            if (submission.isGraded) ...[
+              const SizedBox(height: 12),
+              _ScoreLine(submission: submission, item: widget.item),
+            ],
+            if (submission.feedback != null && submission.feedback!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('Teacher feedback', style: theme.textTheme.labelMedium),
+              Text(submission.feedback!),
+            ],
             if (submission.answer.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(submission.answer),
+            ],
+            if (submission.answers.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              for (var i = 0; i < submission.answers.length; i++)
+                Text('${i + 1}. ${submission.answers[i]}',
+                    style: theme.textTheme.bodySmall),
             ],
             if (submission.hasAttachment)
               ListTile(
@@ -285,6 +337,51 @@ class _SubmissionPanelState extends ConsumerState<SubmissionPanel> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The mark, and where it came from. A student is entitled to know
+/// whether a machine or their teacher decided it -- an automatic score on
+/// an exact-match quiz is a different kind of claim from a person's
+/// judgement, and quietly presenting them as the same thing invites an
+/// argument nobody can settle.
+class _ScoreLine extends StatelessWidget {
+  final CourseworkSubmission submission;
+  final CourseworkItem item;
+
+  const _ScoreLine({required this.submission, required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final score = submission.effectiveScore!;
+    final total = item.totalPoints;
+
+    return Row(
+      children: [
+        Icon(
+          submission.wasGradedByTeacher ? Icons.person_outline : Icons.auto_awesome_outlined,
+          size: 18,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            total == null
+                ? 'Score: ${score.toStringAsFixed(score.truncateToDouble() == score ? 0 : 1)}'
+                : 'Score: ${score.toStringAsFixed(score.truncateToDouble() == score ? 0 : 1)}'
+                    ' / ${total.toStringAsFixed(0)}',
+            style: theme.textTheme.titleSmall,
+          ),
+        ),
+        Text(
+          submission.wasGradedByTeacher
+              ? 'Marked by ${submission.gradedByName ?? 'your teacher'}'
+              : 'Marked automatically'
+                  '${submission.correctCount != null ? ' · ${submission.correctCount}/${item.questionCount} correct' : ''}',
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }

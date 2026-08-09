@@ -48,6 +48,7 @@ class SubmitCourseworkUseCase {
     required String studentName,
     required String section,
     required String answer,
+    List<String> answers = const [],
     String? attachmentUrl,
     String? attachmentName,
   }) {
@@ -60,13 +61,18 @@ class SubmitCourseworkUseCase {
       )));
     }
 
-    // Something has to have been handed in. A submission with an empty
-    // answer and no file is somebody tapping Submit by accident, and
-    // recording it as done is worse than not recording it -- the student
-    // believes they are finished and the teacher sees a blank.
+    // Something has to have been handed in. A submission with nothing in
+    // it is somebody tapping Submit by accident, and recording it as done
+    // is worse than not recording it -- the student believes they are
+    // finished and the teacher sees a blank.
+    //
+    // "Something" includes the per-question answers: on auto-marked work
+    // those ARE the submission, and the free-text box is not even shown.
+    // Checking only the box and the file rejected every quiz answer.
     final hasAnswer = answer.trim().isNotEmpty;
     final hasFile = attachmentUrl != null && attachmentUrl.isNotEmpty;
-    if (!hasAnswer && !hasFile) {
+    final hasQuestionAnswers = answers.any((a) => a.trim().isNotEmpty);
+    if (!hasAnswer && !hasFile && !hasQuestionAnswers) {
       return Future.value(const Error(ValidationFailure(
         'Write an answer or attach a file before submitting.',
       )));
@@ -83,6 +89,7 @@ class SubmitCourseworkUseCase {
       studentName: studentName,
       section: section,
       answer: answer.trim(),
+      answers: answers,
       attachmentUrl: attachmentUrl,
       attachmentName: attachmentName,
     );

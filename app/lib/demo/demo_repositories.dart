@@ -21,6 +21,7 @@ import '../features/director_portal/domain/entities/expense.dart';
 import '../features/director_portal/domain/entities/meeting.dart';
 import '../features/director_portal/domain/repositories/director_repository.dart';
 import '../features/faculty_portal/domain/entities/coursework_item.dart';
+import '../features/faculty_portal/domain/entities/answer_key.dart';
 import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
 import '../core/storage/upload_repository.dart';
@@ -1223,6 +1224,83 @@ class DemoFacultyRepository implements FacultyRepository {
         ..sort((a, b) => a.studentName.compareTo(b.studentName)));
 
   @override
+  Stream<AnswerKey?> watchAnswerKey(String courseworkId) => _store.answerKeys.stream
+      .map((all) => all.where((k) => k.courseworkId == courseworkId).firstOrNull);
+
+  @override
+  Future<Result<void>> saveAnswerKey({
+    required String courseworkId,
+    required List<String> answers,
+    required double pointsPerQuestion,
+  }) async {
+    await _latency();
+    final key = AnswerKey(
+      courseworkId: courseworkId,
+      answers: answers,
+      pointsPerQuestion: pointsPerQuestion,
+      updatedByName: _store.requireUser.fullName,
+      updatedAt: DateTime.now(),
+    );
+    final existing =
+        _store.answerKeys.value.where((k) => k.courseworkId == courseworkId).firstOrNull;
+    if (existing == null) {
+      _store.prepend(_store.answerKeys, key);
+    } else {
+      _store.update<AnswerKey>(
+          _store.answerKeys, (k) => k.courseworkId == courseworkId, (_) => key);
+    }
+
+    // Mirrors what the real datasource does: the question count lives on
+    // the item so the student form can size itself without the key.
+    _store.update<CourseworkItem>(
+      _store.coursework,
+      (c) => c.id == courseworkId,
+      (c) => _copyCoursework(c, questionCount: answers.length),
+    );
+
+    // Demo mode has no Cloud Functions, so the re-marking the trigger
+    // would do on the server happens here instead. Same arithmetic, same
+    // AnswerKey.scoreFor -- what differs is only who runs it.
+    for (final sub in _store.courseworkSubmissions.value
+        .where((s) => s.courseworkId == courseworkId)
+        .toList()) {
+      _store.update<CourseworkSubmission>(
+        _store.courseworkSubmissions,
+        (s) => s.id == sub.id,
+        (s) => _copySubmission(s,
+            autoScore: key.scoreFor(s.answers), correctCount: key.correctCount(s.answers)),
+      );
+    }
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> gradeSubmission({
+    required String submissionId,
+    required double score,
+    String? feedback,
+  }) async {
+    await _latency();
+    _store.update<CourseworkSubmission>(
+      _store.courseworkSubmissions,
+      (s) => s.id == submissionId,
+      (s) => _copySubmission(s,
+          score: score,
+          feedback: feedback,
+          gradedByName: _store.requireUser.fullName,
+          gradedAt: DateTime.now()),
+    );
+    _store.audit(
+      module: 'courseworkSubmissions',
+      action: 'grade',
+      targetCollection: 'courseworkSubmissions',
+      targetId: submissionId,
+      newValue: {'score': score},
+    );
+    return const Success(null);
+  }
+
+  @override
   Future<Result<void>> createCourseworkItem({
     required CourseworkType type,
     required CourseworkDelivery delivery,
@@ -1483,6 +1561,7 @@ class DemoStudentRepository implements StudentRepository {
     required String studentName,
     required String section,
     required String answer,
+    List<String> answers = const [],
     String? attachmentUrl,
     String? attachmentName,
   }) async {
@@ -1494,6 +1573,15 @@ class DemoStudentRepository implements StudentRepository {
     final existing =
         _store.courseworkSubmissions.value.where((sub) => sub.id == id).firstOrNull;
 
+    // Demo mode has no Cloud Functions, so the marking that
+    // onCourseworkSubmissionWritten does on the server happens here.
+    // Same arithmetic via AnswerKey.scoreFor -- what differs is only who
+    // runs it, and in the real app the student's device never sees the
+    // key at all.
+    final key = _store.answerKeys.value
+        .where((k) => k.courseworkId == item.id)
+        .firstOrNull;
+
     final record = CourseworkSubmission(
       id: id,
       courseworkId: item.id,
@@ -1503,6 +1591,16 @@ class DemoStudentRepository implements StudentRepository {
       section: section,
       userId: _store.requireUser.uid,
       answer: answer,
+      answers: answers,
+      autoScore: key?.scoreFor(answers),
+      correctCount: key?.correctCount(answers),
+      // A teacher's mark survives a resubmission: they marked the work,
+      // and silently dropping that because the student edited a typo
+      // would be worse than leaving a stale score for them to revisit.
+      score: existing?.score,
+      feedback: existing?.feedback,
+      gradedByName: existing?.gradedByName,
+      gradedAt: existing?.gradedAt,
       attachmentUrl: attachmentUrl,
       attachmentName: attachmentName,
       // A first submission stamps submittedAt; a revision keeps the
@@ -2397,4 +2495,60 @@ class DemoAuditTrailRepository implements AuditTrailRepository {
       return list.take(limit).toList();
     });
   }
+}
+
+/// Copies a submission with the marking fields replaced. Demo mode has no
+/// Cloud Function, so these are set locally by the same code paths that
+/// would otherwise be server writes.
+CourseworkSubmission _copySubmission(
+  CourseworkSubmission s, {
+  double? autoScore,
+  int? correctCount,
+  double? score,
+  String? feedback,
+  String? gradedByName,
+  DateTime? gradedAt,
+}) {
+  return CourseworkSubmission(
+    id: s.id,
+    courseworkId: s.courseworkId,
+    courseworkTitle: s.courseworkTitle,
+    studentId: s.studentId,
+    studentName: s.studentName,
+    section: s.section,
+    userId: s.userId,
+    answer: s.answer,
+    answers: s.answers,
+    attachmentUrl: s.attachmentUrl,
+    attachmentName: s.attachmentName,
+    submittedAt: s.submittedAt,
+    updatedAt: s.updatedAt,
+    autoScore: autoScore ?? s.autoScore,
+    correctCount: correctCount ?? s.correctCount,
+    score: score ?? s.score,
+    feedback: feedback ?? s.feedback,
+    gradedByName: gradedByName ?? s.gradedByName,
+    gradedAt: gradedAt ?? s.gradedAt,
+  );
+}
+
+CourseworkItem _copyCoursework(CourseworkItem c, {int? questionCount}) {
+  return CourseworkItem(
+    id: c.id,
+    type: c.type,
+    delivery: c.delivery,
+    title: c.title,
+    description: c.description,
+    subject: c.subject,
+    section: c.section,
+    teacherId: c.teacherId,
+    teacherName: c.teacherName,
+    dueDate: c.dueDate,
+    totalPoints: c.totalPoints,
+    attachmentUrl: c.attachmentUrl,
+    attachmentName: c.attachmentName,
+    published: c.published,
+    questionCount: questionCount ?? c.questionCount,
+    createdAt: c.createdAt,
+  );
 }

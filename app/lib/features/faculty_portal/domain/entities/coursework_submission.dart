@@ -45,6 +45,25 @@ class CourseworkSubmission {
   /// see the work was revised rather than silently swapped.
   final DateTime? updatedAt;
 
+  /// One answer per question, in order, for auto-marked coursework.
+  /// Empty for free-text work, which is marked by reading it.
+  final List<String> answers;
+
+  /// What the marking ran out at, written by the server and never by the
+  /// client. A student who could write this field would be writing their
+  /// own mark.
+  final double? autoScore;
+  final int? correctCount;
+
+  /// The teacher's mark. Overrides [autoScore] when set -- automatic
+  /// marking is a first pass, not a verdict, and a teacher has to be able
+  /// to disagree with it without the disagreement being erased on the
+  /// next resubmission.
+  final double? score;
+  final String? feedback;
+  final String? gradedByName;
+  final DateTime? gradedAt;
+
   const CourseworkSubmission({
     required this.id,
     required this.courseworkId,
@@ -58,7 +77,21 @@ class CourseworkSubmission {
     this.attachmentUrl,
     this.attachmentName,
     this.updatedAt,
+    this.answers = const [],
+    this.autoScore,
+    this.correctCount,
+    this.score,
+    this.feedback,
+    this.gradedByName,
+    this.gradedAt,
   });
+
+  /// What to show as the mark: the teacher's if they have given one,
+  /// otherwise whatever the automatic pass worked out.
+  double? get effectiveScore => score ?? autoScore;
+
+  bool get isGraded => effectiveScore != null;
+  bool get wasGradedByTeacher => score != null;
 
   bool get hasAttachment => attachmentUrl != null && attachmentUrl!.isNotEmpty;
   bool get wasRevised => updatedAt != null;

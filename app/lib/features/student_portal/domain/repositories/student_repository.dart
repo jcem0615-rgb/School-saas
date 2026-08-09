@@ -45,6 +45,7 @@ abstract class StudentRepository {
     required String studentName,
     required String section,
     required String answer,
+    List<String> answers = const [],
     String? attachmentUrl,
     String? attachmentName,
   });

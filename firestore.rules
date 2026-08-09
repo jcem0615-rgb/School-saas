@@ -382,6 +382,24 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ---- courseworkAnswerKeys: the correct answers ----
+      //
+      // Kept out of courseworkItems on purpose. Students read coursework
+      // items -- that is how they see the assignment -- so an answer key
+      // stored there would be an answer key handed to the class.
+      //
+      // There is no student branch on this read rule and there must never
+      // be one. The count of questions lives on the coursework item,
+      // which is all a student's form needs to draw its boxes.
+      match /courseworkAnswerKeys/{courseworkId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && claims().role in ['director', 'principal', 'admin', 'faculty'];
+        allow create, update: if schoolIsAccessible(schoolId)
+                                && hasRole(schoolId, ['faculty', 'director', 'principal', 'admin']);
+        allow delete: if false;
+      }
+
       // ---- courseworkSubmissions: what students hand in ----
       //
       // The one collection in this schema a student writes to. Everything
@@ -411,12 +429,19 @@ service cloud.firestore {
         // server's clock: whether work arrived before a deadline is
         // exactly the field a student has a motive to shade, and a
         // client-supplied timestamp would make the late flag meaningless.
+        //
+        // No score field of any kind may come from the client. Marking
+        // runs server-side in onCourseworkSubmissionWritten, using a key
+        // the student cannot read -- a client-computed score is just a
+        // student writing their own mark.
         allow create: if schoolIsAccessible(schoolId)
                         && isAccountActive()
                         && claims().role == 'student'
                         && request.resource.data.userId == request.auth.uid
                         && request.resource.data.submittedAt == request.time
-                        && request.resource.data.answer is string;
+                        && request.resource.data.answer is string
+                        && !request.resource.data.keys()
+                              .hasAny(['autoScore', 'correctCount', 'score', 'feedback', 'gradedByName', 'gradedAt']);
 
         // Revising an answer. The original submittedAt is immutable --
         // rewriting it would let a late submission relabel itself as
@@ -428,7 +453,18 @@ service cloud.firestore {
                         && request.resource.data.studentId == resource.data.studentId
                         && request.resource.data.courseworkId == resource.data.courseworkId
                         && request.resource.data.submittedAt == resource.data.submittedAt
-                        && request.resource.data.updatedAt == request.time;
+                        && request.resource.data.updatedAt == request.time
+                        && !request.resource.data.diff(resource.data).affectedKeys()
+                              .hasAny(['autoScore', 'correctCount', 'score', 'feedback', 'gradedByName', 'gradedAt']);
+
+        // A teacher marking the work. The mirror image of the student
+        // rule: they may touch the score fields and nothing else, so
+        // grading can never quietly rewrite what was handed in.
+        allow update: if schoolIsAccessible(schoolId)
+                        && hasRole(schoolId, ['faculty', 'director', 'principal', 'admin'])
+                        && !request.resource.data.diff(resource.data).affectedKeys()
+                              .hasAny(['userId', 'studentId', 'courseworkId', 'answer', 'answers',
+                                       'attachmentUrl', 'submittedAt', 'autoScore', 'correctCount']);
 
         // Handed-in work is not something the student who handed it in
         // gets to make disappear.

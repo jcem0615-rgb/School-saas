@@ -16,6 +16,13 @@ class CourseworkSubmissionModel extends CourseworkSubmission {
     super.attachmentUrl,
     super.attachmentName,
     super.updatedAt,
+    super.answers,
+    super.autoScore,
+    super.correctCount,
+    super.score,
+    super.feedback,
+    super.gradedByName,
+    super.gradedAt,
   });
 
   factory CourseworkSubmissionModel.fromFirestore(String id, Map<String, dynamic> data) {
@@ -36,6 +43,15 @@ class CourseworkSubmissionModel extends CourseworkSubmission {
       // moment later.
       submittedAt: (data['submittedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
+      answers: (data['answers'] as List<dynamic>? ?? const []).whereType<String>().toList(),
+      // Written only by onCourseworkSubmissionWritten; firestore.rules
+      // rejects any client that tries to set these.
+      autoScore: (data['autoScore'] as num?)?.toDouble(),
+      correctCount: (data['correctCount'] as num?)?.toInt(),
+      score: (data['score'] as num?)?.toDouble(),
+      feedback: data['feedback'] as String?,
+      gradedByName: data['gradedByName'] as String?,
+      gradedAt: (data['gradedAt'] as Timestamp?)?.toDate(),
     );
   }
 }

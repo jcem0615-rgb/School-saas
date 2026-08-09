@@ -47,6 +47,11 @@ export {setStudentBalance} from "./callable/students/setStudentBalance";
 // ---------------------------------------------------------------------------
 export {onAnnouncementCreated} from "./triggers/announcements/onAnnouncementCreated";
 
+// ---------------------------------------------------------------------------
+// Module: Coursework (automatic marking)
+// ---------------------------------------------------------------------------
+export {onCourseworkSubmissionWritten} from "./triggers/coursework/onCourseworkSubmissionWritten";
+
 // Additional modules (billing, attendance, payments, ...)
 // export their callables/triggers/scheduled functions here as each module
 // is implemented, keeping this file as the single index of everything

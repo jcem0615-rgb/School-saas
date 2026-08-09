@@ -1,6 +1,7 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../../domain/entities/coursework_item.dart';
+import '../../domain/entities/answer_key.dart';
 import '../../domain/entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/grade.dart';
@@ -28,6 +29,35 @@ class FacultyRepositoryImpl implements FacultyRepository {
   @override
   Stream<List<CourseworkSubmission>> watchSubmissionsFor(String courseworkId) =>
       _remote.watchSubmissionsFor(courseworkId);
+
+  @override
+  Stream<AnswerKey?> watchAnswerKey(String courseworkId) => _remote.watchAnswerKey(courseworkId);
+
+  @override
+  Future<Result<void>> saveAnswerKey({
+    required String courseworkId,
+    required List<String> answers,
+    required double pointsPerQuestion,
+  }) {
+    return _run(() => _remote.saveAnswerKey(
+          courseworkId: courseworkId,
+          answers: answers,
+          pointsPerQuestion: pointsPerQuestion,
+        ));
+  }
+
+  @override
+  Future<Result<void>> gradeSubmission({
+    required String submissionId,
+    required double score,
+    String? feedback,
+  }) {
+    return _run(() => _remote.gradeSubmission(
+          submissionId: submissionId,
+          score: score,
+          feedback: feedback,
+        ));
+  }
 
   @override
   Future<Result<void>> createCourseworkItem({

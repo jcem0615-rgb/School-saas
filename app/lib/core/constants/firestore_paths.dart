@@ -79,6 +79,12 @@ class FirestorePaths {
   static String courseworkSubmissions(String schoolId) =>
       '${school(schoolId)}/courseworkSubmissions';
 
+  /// The correct answers. Never readable by students -- see
+  /// firestore.rules. Keyed by courseworkId so there is exactly one key
+  /// per item and no way to end up with two disagreeing.
+  static String courseworkAnswerKeys(String schoolId) =>
+      '${school(schoolId)}/courseworkAnswerKeys';
+
   static String grades(String schoolId) => '${school(schoolId)}/grades';
 
   static String checklistItems(String schoolId) => '${school(schoolId)}/checklistItems';

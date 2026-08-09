@@ -162,6 +162,121 @@ void main() {
     expect(submissions.single.hasAttachment, isTrue);
   });
 
+  group('automatic marking', () {
+    // cw_002 is the online quiz, seeded with a four-answer key.
+    test('a correct submission is marked without a teacher touching it', () async {
+      final container = await signedInAs(UserRole.student);
+      final sub = container.listen(studentActionControllerProvider, (_, __) {});
+      addTearDown(sub.close);
+      final store = container.read(demoStoreProvider);
+
+      await container.read(studentActionControllerProvider.notifier).submitCoursework(
+            item: itemFrom(container, 'cw_002'),
+            studentId: 'stu_001',
+            studentName: 'Miguel Torres',
+            section: 'Grade 10 - Rizal',
+            answer: '',
+            answers: const ['Mitosis', 'Meiosis', 'Four', 'Prophase'],
+          );
+
+      final saved =
+          store.courseworkSubmissions.value.firstWhere((s) => s.courseworkId == 'cw_002');
+      expect(saved.correctCount, 4);
+      expect(saved.autoScore, 25);
+      expect(saved.isGraded, isTrue);
+      expect(saved.wasGradedByTeacher, isFalse,
+          reason: 'nobody has marked it by hand yet, and the UI has to be able to say so');
+    });
+
+    test('partly right is partly marked, ignoring case', () async {
+      final container = await signedInAs(UserRole.student);
+      final sub = container.listen(studentActionControllerProvider, (_, __) {});
+      addTearDown(sub.close);
+      final store = container.read(demoStoreProvider);
+
+      await container.read(studentActionControllerProvider.notifier).submitCoursework(
+            item: itemFrom(container, 'cw_002'),
+            studentId: 'stu_001',
+            studentName: 'Miguel Torres',
+            section: 'Grade 10 - Rizal',
+            answer: '',
+            answers: const ['mitosis', 'wrong', 'four', ''],
+          );
+
+      final saved =
+          store.courseworkSubmissions.value.firstWhere((s) => s.courseworkId == 'cw_002');
+      expect(saved.correctCount, 2, reason: 'case-insensitive matches count; blanks do not');
+      expect(saved.autoScore, 12.5);
+    });
+
+    test('a teacher mark overrides the automatic one', () async {
+      // Automatic marking is a first pass. A teacher who disagrees has to
+      // win, or the feature makes them argue with a machine.
+      final student = await signedInAs(UserRole.student);
+      final studentSub = student.listen(studentActionControllerProvider, (_, __) {});
+      addTearDown(studentSub.close);
+
+      await student.read(studentActionControllerProvider.notifier).submitCoursework(
+            item: itemFrom(student, 'cw_002'),
+            studentId: 'stu_001',
+            studentName: 'Miguel Torres',
+            section: 'Grade 10 - Rizal',
+            answer: '',
+            answers: const ['Mitosis', 'wrong', 'wrong', 'wrong'],
+          );
+
+      final store = student.read(demoStoreProvider);
+      final id = store.courseworkSubmissions.value
+          .firstWhere((s) => s.courseworkId == 'cw_002')
+          .id;
+      expect(store.courseworkSubmissions.value.firstWhere((s) => s.id == id).autoScore, 6.25);
+
+      final teacher = await signedInAs(UserRole.faculty);
+      final teacherSub = teacher.listen(facultyActionControllerProvider, (_, __) {});
+      addTearDown(teacherSub.close);
+      // Same process, same store instance is NOT guaranteed across
+      // containers, so mark through the one that has the submission.
+      final ok = await student.read(facultyActionControllerProvider.notifier).gradeSubmission(
+            submissionId: id,
+            score: 20,
+            feedback: 'Q2 was close enough - marked up.',
+          );
+
+      expect(ok, isTrue);
+      final marked = store.courseworkSubmissions.value.firstWhere((s) => s.id == id);
+      expect(marked.score, 20);
+      expect(marked.autoScore, 6.25, reason: 'the automatic result is kept, not overwritten');
+      expect(marked.effectiveScore, 20, reason: 'what the student is shown is the teacher mark');
+      expect(marked.wasGradedByTeacher, isTrue);
+      expect(marked.feedback, 'Q2 was close enough - marked up.');
+    });
+
+    test('saving a key re-marks work already handed in', () async {
+      // A teacher who typos an answer has to be able to fix the whole
+      // class at once, not chase every student individually.
+      final container = await signedInAs(UserRole.faculty);
+      final sub = container.listen(facultyActionControllerProvider, (_, __) {});
+      addTearDown(sub.close);
+      final store = container.read(demoStoreProvider);
+
+      final ok = await container.read(facultyActionControllerProvider.notifier).saveAnswerKey(
+            courseworkId: 'cw_001',
+            answers: const ['x', 'y'],
+            pointsPerQuestion: 10,
+          );
+      expect(ok, isTrue);
+
+      final item = store.coursework.value.firstWhere((c) => c.id == 'cw_001');
+      expect(item.questionCount, 2,
+          reason: 'the student form sizes itself from this, and it must not leak the answers');
+
+      final existing =
+          store.courseworkSubmissions.value.firstWhere((s) => s.courseworkId == 'cw_001');
+      expect(existing.autoScore, 0,
+          reason: 'the seeded submission answered nothing against this new key');
+    });
+  });
+
   group('lateness', () {
     // Derived from the item at read time rather than stored, so a client
     // never gets to assert it and a moved due date re-evaluates honestly.
