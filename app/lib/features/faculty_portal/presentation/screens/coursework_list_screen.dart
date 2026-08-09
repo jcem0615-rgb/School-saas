@@ -10,7 +10,9 @@ import '../../../../core/storage/upload_providers.dart';
 import '../../../../core/storage/upload_repository.dart';
 import '../../../../core/widgets/combo_field.dart';
 import '../../domain/entities/coursework_item.dart';
+import '../../domain/entities/coursework_submission.dart';
 import '../controllers/faculty_controller.dart';
+import 'submissions_screen.dart';
 
 final _dateFormat = DateFormat.yMMMd();
 
@@ -68,6 +70,16 @@ class CourseworkListScreen extends ConsumerWidget {
                     children: [
                       if (!item.published)
                         const Chip(label: Text('Draft'), visualDensity: VisualDensity.compact),
+                      // Only gradable work is handed in, so only gradable
+                      // work has anything to look at here.
+                      if (item.acceptsSubmissions)
+                        IconButton(
+                          icon: const Icon(Icons.assignment_turned_in_outlined),
+                          tooltip: 'Submissions',
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => SubmissionsScreen(item: item)),
+                          ),
+                        ),
                       RowActionsMenu(
                         onEdit: () => _showEditor(context, ref, existing: item),
                         onDelete: () => _confirmDelete(context, ref, item),

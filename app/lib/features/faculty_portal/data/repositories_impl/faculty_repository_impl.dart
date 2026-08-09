@@ -1,6 +1,7 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../../domain/entities/coursework_item.dart';
+import '../../domain/entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/grade.dart';
 import '../../domain/repositories/faculty_repository.dart';
@@ -23,6 +24,10 @@ class FacultyRepositoryImpl implements FacultyRepository {
 
   @override
   Stream<List<CourseworkItem>> watchMyCourseworkItems() => _remote.watchMyCourseworkItems();
+
+  @override
+  Stream<List<CourseworkSubmission>> watchSubmissionsFor(String courseworkId) =>
+      _remote.watchSubmissionsFor(courseworkId);
 
   @override
   Future<Result<void>> createCourseworkItem({

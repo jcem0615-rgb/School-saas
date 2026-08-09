@@ -21,6 +21,7 @@ import '../features/director_portal/domain/entities/expense.dart';
 import '../features/director_portal/domain/entities/meeting.dart';
 import '../features/director_portal/domain/repositories/director_repository.dart';
 import '../features/faculty_portal/domain/entities/coursework_item.dart';
+import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
 import '../core/storage/upload_repository.dart';
 import '../features/faculty_portal/domain/repositories/faculty_repository.dart';
@@ -1215,6 +1216,13 @@ class DemoFacultyRepository implements FacultyRepository {
   }
 
   @override
+  Stream<List<CourseworkSubmission>> watchSubmissionsFor(String courseworkId) =>
+      _store.courseworkSubmissions.stream.map((all) => all
+          .where((sub) => sub.courseworkId == courseworkId)
+          .toList()
+        ..sort((a, b) => a.studentName.compareTo(b.studentName)));
+
+  @override
   Future<Result<void>> createCourseworkItem({
     required CourseworkType type,
     required CourseworkDelivery delivery,
@@ -1462,6 +1470,67 @@ class DemoStudentRepository implements StudentRepository {
         (all) => all.where((g) => g.studentId == studentId).toList()
           ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt)),
       );
+  @override
+  Stream<List<CourseworkSubmission>> watchMySubmissions(String studentId) =>
+      _store.courseworkSubmissions.stream
+          .map((all) => all.where((sub) => sub.studentId == studentId).toList());
+
+  @override
+  Future<Result<void>> submitCoursework({
+    String? submissionId,
+    required CourseworkItem item,
+    required String studentId,
+    required String studentName,
+    required String section,
+    required String answer,
+    String? attachmentUrl,
+    String? attachmentName,
+  }) async {
+    await _latency();
+    // The same deterministic key the real datasource uses, so tapping
+    // Submit twice replaces the answer instead of leaving a teacher two
+    // documents to reconcile.
+    final id = '${item.id}_$studentId';
+    final existing =
+        _store.courseworkSubmissions.value.where((sub) => sub.id == id).firstOrNull;
+
+    final record = CourseworkSubmission(
+      id: id,
+      courseworkId: item.id,
+      courseworkTitle: item.title,
+      studentId: studentId,
+      studentName: studentName,
+      section: section,
+      userId: _store.requireUser.uid,
+      answer: answer,
+      attachmentUrl: attachmentUrl,
+      attachmentName: attachmentName,
+      // A first submission stamps submittedAt; a revision keeps the
+      // original time and records separately that it changed, so a
+      // teacher can tell a rewrite from a late arrival.
+      submittedAt: existing?.submittedAt ?? DateTime.now(),
+      updatedAt: existing == null ? null : DateTime.now(),
+    );
+
+    if (existing == null) {
+      _store.prepend(_store.courseworkSubmissions, record);
+    } else {
+      _store.update<CourseworkSubmission>(
+        _store.courseworkSubmissions,
+        (sub) => sub.id == id,
+        (_) => record,
+      );
+    }
+    _store.audit(
+      module: 'courseworkSubmissions',
+      action: existing == null ? 'create' : 'update',
+      targetCollection: 'courseworkSubmissions',
+      targetId: id,
+      newValue: {'courseworkId': item.id, 'studentId': studentId},
+    );
+    return const Success(null);
+  }
+
 }
 
 // ---------------------------------------------------------------------------

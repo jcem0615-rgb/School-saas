@@ -5,6 +5,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart' show authSt
 import '../../data/datasources/faculty_remote_datasource.dart';
 import '../../data/repositories_impl/faculty_repository_impl.dart';
 import '../../domain/entities/coursework_item.dart';
+import '../../domain/entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/grade.dart';
 import '../../domain/repositories/faculty_repository.dart';
@@ -178,4 +179,9 @@ final facultyActionControllerProvider =
     deleteCourseworkItem: DeleteCourseworkItemUseCase(repo),
     submitGrade: SubmitGradeUseCase(repo),
   );
+});
+
+final submissionsForProvider =
+    StreamProvider.autoDispose.family<List<CourseworkSubmission>, String>((ref, courseworkId) {
+  return ref.watch(facultyRepositoryProvider).watchSubmissionsFor(courseworkId);
 });

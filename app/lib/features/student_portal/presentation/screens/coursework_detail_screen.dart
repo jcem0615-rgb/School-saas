@@ -4,6 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../faculty_portal/domain/entities/coursework_item.dart';
+import '../../../faculty_portal/domain/entities/coursework_submission.dart';
+import '../controllers/student_controller.dart';
+import '../widgets/submission_panel.dart';
 
 final _dateFormat = DateFormat.yMMMd().add_jm();
 
@@ -147,6 +150,17 @@ class CourseworkDetailScreen extends ConsumerWidget {
               ),
             ),
           ],
+          // Gradable work gets a place to do it. Lessons and lesson
+          // plans do not -- they are material to read, and a Submit
+          // button under one would invite handing in nothing.
+          if (item.acceptsSubmissions)
+            Consumer(
+              builder: (context, ref, _) {
+                final student = ref.watch(myStudentRecordProvider).valueOrNull;
+                if (student == null) return const SizedBox.shrink();
+                return SubmissionPanel(item: item, student: student);
+              },
+            ),
           const SizedBox(height: 24),
           Text(
             'Posted by ${item.teacherName} · ${_dateFormat.format(item.createdAt)}',

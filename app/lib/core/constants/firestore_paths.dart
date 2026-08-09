@@ -71,6 +71,14 @@ class FirestorePaths {
 
   static String courseworkItems(String schoolId) => '${school(schoolId)}/courseworkItems';
 
+  /// What students hand in against a courseworkItem. A sibling
+  /// collection rather than a subcollection: a teacher's "who has
+  /// submitted" view and a student's "what have I handed in" view are
+  /// both flat queries across many items, which a subcollection would
+  /// turn into a collectionGroup query and a second index.
+  static String courseworkSubmissions(String schoolId) =>
+      '${school(schoolId)}/courseworkSubmissions';
+
   static String grades(String schoolId) => '${school(schoolId)}/grades';
 
   static String checklistItems(String schoolId) => '${school(schoolId)}/checklistItems';

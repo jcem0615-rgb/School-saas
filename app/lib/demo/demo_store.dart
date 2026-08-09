@@ -13,6 +13,7 @@ import '../features/director_portal/domain/entities/approval_request.dart';
 import '../features/director_portal/domain/entities/expense.dart';
 import '../features/director_portal/domain/entities/meeting.dart';
 import '../features/faculty_portal/domain/entities/coursework_item.dart';
+import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
 import '../features/guidance_portal/domain/entities/summons.dart';
@@ -93,6 +94,10 @@ class DemoStore {
   late final payments = BehaviorSubject<List<Payment>>.seeded(_seedPayments());
   late final attendance = BehaviorSubject<List<AttendanceRecord>>.seeded(_seedAttendance());
   late final coursework = BehaviorSubject<List<CourseworkItem>>.seeded(_seedCoursework());
+  /// Named for the collection, not shortened to `submissions` -- payment
+  /// submissions already own that word in this store.
+  late final courseworkSubmissions =
+      BehaviorSubject<List<CourseworkSubmission>>.seeded(_seedCourseworkSubmissions());
   late final grades = BehaviorSubject<List<Grade>>.seeded(_seedGrades());
   late final announcements = BehaviorSubject<List<Announcement>>.seeded(_seedAnnouncements());
   late final meetings = BehaviorSubject<List<Meeting>>.seeded(_seedMeetings());
@@ -198,6 +203,7 @@ class DemoStore {
     for (final s in <BehaviorSubject<dynamic>>[
       currentUser, schools, revenue, invoices, students, employees,
       assignments, programs, payments, attendance, coursework, grades,
+      courseworkSubmissions,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog,
       paymentSubmissions, paymentSettings, branding,
@@ -1002,6 +1008,26 @@ class DemoStore {
           pinned: false,
           createdByName: 'Grace Mendoza',
           createdAt: _daysAgo(8),
+        ),
+      ];
+
+  /// One assignment already handed in, so the student portal shows the
+  /// "submitted" state and the faculty view is not empty. Quiz 3 is left
+  /// undone on purpose -- the not-yet-handed-in path is the one that
+  /// actually needs looking at.
+  List<CourseworkSubmission> _seedCourseworkSubmissions() => [
+        CourseworkSubmission(
+          id: 'cw_001_stu_001',
+          courseworkId: 'cw_001',
+          courseworkTitle: 'Quadratic Equations - Problem Set 4',
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+          section: 'Grade 10 - Rizal',
+          userId: 'u_student',
+          answer: 'Items 1-20 answered. Solutions attached, shown per step.',
+          attachmentUrl: 'https://example.org/demo/problem-set-4-miguel.pdf',
+          attachmentName: 'problem-set-4-miguel.pdf',
+          submittedAt: _daysAgo(1),
         ),
       ];
 

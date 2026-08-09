@@ -382,6 +382,59 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ---- courseworkSubmissions: what students hand in ----
+      //
+      // The one collection in this schema a student writes to. Everything
+      // else they touch is read-only, so the rules here carry more weight
+      // than usual.
+      //
+      // Ownership is anchored on userId == request.auth.uid, never on
+      // studentId: a studentId is a record identifier anyone could type,
+      // while the uid is the one field the client cannot forge.
+      match /courseworkSubmissions/{submissionId} {
+        // A student reads their own; staff read everything, because a
+        // teacher marking work needs the whole class and Firestore rules
+        // reject queries rather than filtering them -- a per-document
+        // teacher check would fail the whole "submissions for this item"
+        // query. A parent reads their linked children's.
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        resource.data.userId == request.auth.uid
+                        || claims().role in ['director', 'principal', 'admin', 'faculty', 'registrar', 'guidance']
+                        || (claims().role == 'parent'
+                            && resource.data.studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+
+        // Students only, and only as themselves. submittedAt must be the
+        // server's clock: whether work arrived before a deadline is
+        // exactly the field a student has a motive to shade, and a
+        // client-supplied timestamp would make the late flag meaningless.
+        allow create: if schoolIsAccessible(schoolId)
+                        && isAccountActive()
+                        && claims().role == 'student'
+                        && request.resource.data.userId == request.auth.uid
+                        && request.resource.data.submittedAt == request.time
+                        && request.resource.data.answer is string;
+
+        // Revising an answer. The original submittedAt is immutable --
+        // rewriting it would let a late submission relabel itself as
+        // on time -- and ownership cannot be reassigned.
+        allow update: if schoolIsAccessible(schoolId)
+                        && isAccountActive()
+                        && resource.data.userId == request.auth.uid
+                        && request.resource.data.userId == resource.data.userId
+                        && request.resource.data.studentId == resource.data.studentId
+                        && request.resource.data.courseworkId == resource.data.courseworkId
+                        && request.resource.data.submittedAt == resource.data.submittedAt
+                        && request.resource.data.updatedAt == request.time;
+
+        // Handed-in work is not something the student who handed it in
+        // gets to make disappear.
+        allow delete: if false;
+      }
+
       // ---- grades ----
       match /grades/{gradeId} {
         allow read: if belongsToSchool(schoolId)

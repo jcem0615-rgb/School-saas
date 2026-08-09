@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/firestore_paths.dart';
 import '../models/coursework_item_model.dart';
+import '../models/coursework_submission_model.dart';
 import '../../../registrar_portal/data/models/student_summary_model.dart';
 import '../models/grade_model.dart';
 
@@ -29,6 +30,16 @@ class FacultyRemoteDataSource {
         .limit(200)
         .snapshots()
         .map((snap) => snap.docs.map((d) => CourseworkItemModel.fromFirestore(d.id, d.data())).toList());
+  }
+
+  Stream<List<CourseworkSubmissionModel>> watchSubmissionsFor(String courseworkId) {
+    return _firestore
+        .collection(FirestorePaths.courseworkSubmissions(_actingUser.schoolId))
+        .where('courseworkId', isEqualTo: courseworkId)
+        .limit(300)
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => CourseworkSubmissionModel.fromFirestore(d.id, d.data())).toList());
   }
 
   Future<void> createCourseworkItem({

@@ -1,5 +1,6 @@
 import '../../../../core/errors/result.dart';
 import '../entities/coursework_item.dart';
+import '../entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../entities/grade.dart';
 
@@ -9,6 +10,9 @@ abstract class FacultyRepository {
   /// (A school-wide or student-facing view is a different query, built in
   /// the Student Portal module.)
   Stream<List<CourseworkItem>> watchMyCourseworkItems();
+
+  /// What has been handed in for one piece of coursework.
+  Stream<List<CourseworkSubmission>> watchSubmissionsFor(String courseworkId);
 
   Future<Result<void>> createCourseworkItem({
     required CourseworkType type,
