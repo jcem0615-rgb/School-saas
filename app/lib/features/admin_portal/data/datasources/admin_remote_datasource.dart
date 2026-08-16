@@ -126,6 +126,7 @@ class AdminRemoteDataSource {
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   }) async {
     final ref = _firestore.collection(FirestorePaths.teacherAssignments(_actingUser.schoolId)).doc();
     await ref.set({
@@ -135,6 +136,7 @@ class AdminRemoteDataSource {
       'subject': subject,
       'section': section,
       'schoolYear': schoolYear,
+      'isAdviser': isAdviser,
       'schoolId': _actingUser.schoolId,
       'createdBy': _actingUser.uid,
       'createdAt': FieldValue.serverTimestamp(),
@@ -155,6 +157,7 @@ class AdminRemoteDataSource {
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   }) async {
     await _firestore
         .collection(FirestorePaths.teacherAssignments(_actingUser.schoolId))
@@ -165,6 +168,7 @@ class AdminRemoteDataSource {
       'subject': subject,
       'section': section,
       'schoolYear': schoolYear,
+      'isAdviser': isAdviser,
       ..._editFields(),
     });
   }

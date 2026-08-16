@@ -85,6 +85,16 @@ class FirestorePaths {
   static String courseworkAnswerKeys(String schoolId) =>
       '${school(schoolId)}/courseworkAnswerKeys';
 
+  /// Published emergency numbers (BFP, PNP, clinic). Readable by every
+  /// role in the school -- a number nobody can reach is not a safety
+  /// feature.
+  static String emergencyContacts(String schoolId) =>
+      '${school(schoolId)}/emergencyContacts';
+
+  /// Emergency alerts raised by students.
+  static String emergencyAlerts(String schoolId) =>
+      '${school(schoolId)}/emergencyAlerts';
+
   static String grades(String schoolId) => '${school(schoolId)}/grades';
 
   static String checklistItems(String schoolId) => '${school(schoolId)}/checklistItems';

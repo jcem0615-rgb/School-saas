@@ -382,6 +382,58 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ---- emergencyContacts: the numbers on the wall ----
+      //
+      // Readable by every role in the school, with no scoping at all.
+      // That is unusual here and it is the point: a number a student
+      // cannot reach during a fire is not a safety feature. Nothing in
+      // this collection is personal data -- it is what a school prints on
+      // a poster by the door.
+      match /emergencyContacts/{contactId} {
+        allow read: if belongsToSchool(schoolId);
+        allow create, update: if schoolIsAccessible(schoolId)
+                                && hasRole(schoolId, ['director', 'principal', 'admin']);
+        allow delete: if false; // soft delete only
+      }
+
+      // ---- emergencyAlerts: a student pressing the button ----
+      match /emergencyAlerts/{alertId} {
+        // The student who raised it, their linked parents, and staff.
+        // Staff read the whole collection because someone has to be able
+        // to see an alert they were not personally addressed by -- and
+        // because Firestore rules reject queries rather than filtering
+        // them, a narrower rule would fail the staff list entirely.
+        allow read: if belongsToSchool(schoolId)
+                      && (
+                        resource.data.userId == request.auth.uid
+                        || claims().role in ['director', 'principal', 'admin', 'registrar', 'faculty', 'staff', 'guidance']
+                        || (claims().role == 'parent'
+                            && resource.data.studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+
+        // Raised by a student, as themselves, on the server's clock.
+        //
+        // Note there is no schoolIsAccessible() check here, unlike
+        // everywhere else in this file. A school whose subscription has
+        // lapsed still has children in it; billing is not a reason to
+        // drop an emergency alert on the floor.
+        allow create: if belongsToSchool(schoolId)
+                        && claims().role == 'student'
+                        && request.resource.data.userId == request.auth.uid
+                        && request.resource.data.raisedAt == request.time;
+
+        // Staff acknowledge and resolve. The student cannot edit their
+        // own alert afterwards -- an alert that can be quietly retracted
+        // is worth less than one that cannot.
+        allow update: if belongsToSchool(schoolId)
+                        && claims().role in ['director', 'principal', 'admin', 'registrar', 'faculty', 'staff', 'guidance']
+                        && !request.resource.data.diff(resource.data).affectedKeys()
+                              .hasAny(['userId', 'studentId', 'section', 'message', 'raisedAt']);
+
+        allow delete: if false;
+      }
+
       // ---- courseworkAnswerKeys: the correct answers ----
       //
       // Kept out of courseworkItems on purpose. Students read coursework

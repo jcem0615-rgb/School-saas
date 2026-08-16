@@ -21,6 +21,7 @@ class CreateTeacherAssignmentUseCase {
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   }) {
     if (teacherId.trim().isEmpty) {
       return Future.value(const Error(ValidationFailure('A teacher must be selected.')));
@@ -34,6 +35,7 @@ class CreateTeacherAssignmentUseCase {
       subject: subject.trim(),
       section: section.trim(),
       schoolYear: schoolYear.trim(),
+      isAdviser: isAdviser,
     );
   }
 }
@@ -49,6 +51,7 @@ class UpdateTeacherAssignmentUseCase {
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   }) {
     if (assignmentId.trim().isEmpty) {
       return Future.value(const Error(ValidationFailure('Missing assignment.')));
@@ -69,6 +72,7 @@ class UpdateTeacherAssignmentUseCase {
       subject: subject.trim(),
       section: section.trim(),
       schoolYear: schoolYear.trim(),
+      isAdviser: isAdviser,
     );
   }
 }

@@ -41,6 +41,9 @@ export const FirestorePaths = {
   programs: (schoolId: string) => `schools/${schoolId}/programs`,
   programDoc: (schoolId: string, programId: string) => `schools/${schoolId}/programs/${programId}`,
 
+  teacherAssignments: (schoolId: string) => `schools/${schoolId}/teacherAssignments`,
+  emergencyAlerts: (schoolId: string) => `schools/${schoolId}/emergencyAlerts`,
+
   courseworkSubmissions: (schoolId: string) => `schools/${schoolId}/courseworkSubmissions`,
   // The correct answers. Never readable by students -- see firestore.rules.
   courseworkAnswerKeys: (schoolId: string) => `schools/${schoolId}/courseworkAnswerKeys`,

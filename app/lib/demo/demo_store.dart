@@ -13,6 +13,8 @@ import '../features/director_portal/domain/entities/approval_request.dart';
 import '../features/director_portal/domain/entities/expense.dart';
 import '../features/director_portal/domain/entities/meeting.dart';
 import '../features/faculty_portal/domain/entities/coursework_item.dart';
+import '../features/emergency/domain/entities/emergency_alert.dart';
+import '../features/emergency/domain/entities/emergency_contact.dart';
 import '../features/faculty_portal/domain/entities/answer_key.dart';
 import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
@@ -97,6 +99,9 @@ class DemoStore {
   late final coursework = BehaviorSubject<List<CourseworkItem>>.seeded(_seedCoursework());
   /// Named for the collection, not shortened to `submissions` -- payment
   /// submissions already own that word in this store.
+  late final emergencyContacts =
+      BehaviorSubject<List<EmergencyContact>>.seeded(_seedEmergencyContacts());
+  late final emergencyAlerts = BehaviorSubject<List<EmergencyAlert>>.seeded(const []);
   late final answerKeys = BehaviorSubject<List<AnswerKey>>.seeded(_seedAnswerKeys());
   late final courseworkSubmissions =
       BehaviorSubject<List<CourseworkSubmission>>.seeded(_seedCourseworkSubmissions());
@@ -205,7 +210,7 @@ class DemoStore {
     for (final s in <BehaviorSubject<dynamic>>[
       currentUser, schools, revenue, invoices, students, employees,
       assignments, programs, payments, attendance, coursework, grades,
-      courseworkSubmissions, answerKeys,
+      courseworkSubmissions, answerKeys, emergencyContacts, emergencyAlerts,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog,
       paymentSubmissions, paymentSettings, branding,
@@ -640,6 +645,9 @@ class DemoStore {
         subject: 'Mathematics',
         section: 'Grade 10 - Rizal',
         schoolYear: sy,
+        // Maria advises this section, so the demo's emergency alert has
+        // somebody real to reach.
+        isAdviser: true,
       ),
       TeacherAssignment(
         id: 'ta_002',
@@ -1043,6 +1051,49 @@ class DemoStore {
           pointsPerQuestion: 6.25,
           updatedByName: 'Maria Santos',
           updatedAt: _daysAgo(4),
+        ),
+      ];
+
+  /// Seeded with the numbers a PH school actually posts by the door.
+  /// Real hotlines, so the demo is not teaching anyone a fake number:
+  /// 911 is the national emergency line, and the rest are the local
+  /// offices this fictional school would list.
+  List<EmergencyContact> _seedEmergencyContacts() => [
+        EmergencyContact(
+          id: 'emg_911',
+          label: 'National Emergency Hotline',
+          phone: '911',
+          notes: 'Police, fire and medical, nationwide.',
+          sortOrder: 0,
+          updatedAt: _daysAgo(30),
+          updatedByName: 'Grace Mendoza',
+        ),
+        EmergencyContact(
+          id: 'emg_bfp',
+          label: 'BFP - San Nicolas Fire Station',
+          phone: '(043) 555 0161',
+          notes: 'Bureau of Fire Protection.',
+          sortOrder: 1,
+          updatedAt: _daysAgo(30),
+          updatedByName: 'Grace Mendoza',
+        ),
+        EmergencyContact(
+          id: 'emg_pnp',
+          label: 'PNP - San Nicolas Police Station',
+          phone: '(043) 555 0117',
+          notes: 'Ask for the desk officer.',
+          sortOrder: 2,
+          updatedAt: _daysAgo(30),
+          updatedByName: 'Grace Mendoza',
+        ),
+        EmergencyContact(
+          id: 'emg_clinic',
+          label: 'School Clinic',
+          phone: '0917 555 0188',
+          notes: 'Ground floor, beside the registrar. 7am-5pm.',
+          sortOrder: 3,
+          updatedAt: _daysAgo(30),
+          updatedByName: 'Grace Mendoza',
         ),
       ];
 

@@ -10,6 +10,7 @@ import '../features/admin_portal/presentation/controllers/admin_controller.dart'
 import '../features/audit_trail/presentation/controllers/audit_trail_controller.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/director_portal/presentation/controllers/director_controller.dart';
+import '../features/emergency/presentation/controllers/emergency_controller.dart';
 import '../features/faculty_portal/presentation/controllers/faculty_controller.dart';
 import '../features/guidance_portal/presentation/controllers/guidance_controller.dart';
 import '../features/owner_portal/presentation/controllers/owner_controller.dart';
@@ -94,6 +95,10 @@ List<Override> demoOverrides() {
     // browser for notification permission to look at a demo would be
     // rude even if it worked.
     pushRegistrarProvider.overrideWith((ref) => const NoOpPushRegistrar()),
+    emergencyRepositoryProvider.overrideWith((ref) {
+      ref.watch(authStateProvider);
+      return DemoEmergencyRepository(ref.watch(demoStoreProvider));
+    }),
     studentRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoStudentRepository(ref.watch(demoStoreProvider));

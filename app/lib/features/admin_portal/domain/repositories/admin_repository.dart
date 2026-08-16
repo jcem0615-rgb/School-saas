@@ -38,6 +38,7 @@ abstract class AdminRepository {
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   });
 
   /// College degree programs/courses. Read by any tenant member (needed
@@ -50,6 +51,7 @@ abstract class AdminRepository {
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   });
 
   /// Soft delete throughout -- firestore.rules denies hard delete on

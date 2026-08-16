@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/push/push_providers.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../controllers/profile_controller.dart';
 
 /// Every role's Profile screen (General Requirement). Shows identity
@@ -163,6 +164,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             title: const Text('My Attendance'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/my-attendance'),
+          ),
+          // Every role reaches the school's emergency numbers from here.
+          // Profile is the one screen all ten portals share, which is why
+          // it is the honest place for something everyone must be able to
+          // find.
+          ListTile(
+            leading: const Icon(Icons.emergency_outlined),
+            title: const Text('Emergency Numbers'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const EmergencyContactsScreen()),
+            ),
           ),
           const Divider(height: 40),
           Text('Notifications', style: Theme.of(context).textTheme.titleMedium),

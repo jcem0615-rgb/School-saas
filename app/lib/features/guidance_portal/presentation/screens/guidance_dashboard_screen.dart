@@ -1,3 +1,4 @@
+import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
 import 'package:flutter/material.dart';
 
 import 'guidance_records_screen.dart';
@@ -36,6 +37,12 @@ class GuidanceDashboardScreen extends StatelessWidget {
               spacing: 12,
               runSpacing: 12,
               children: [
+                _QuickLinkTile(
+                  icon: Icons.emergency_share,
+                  label: 'Emergency Alerts',
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const EmergencyAlertsScreen())),
+                ),
                 _QuickLinkTile(
                   icon: Icons.folder_shared_outlined,
                   label: 'Guidance Records',

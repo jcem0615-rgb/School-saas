@@ -1,3 +1,4 @@
+import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../../../admin_portal/presentation/screens/teacher_assignments_screen.dart';
@@ -59,6 +60,12 @@ class PrincipalDashboardScreen extends StatelessWidget {
                   label: 'Teacher Assignment',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const TeacherAssignmentsScreen())),
+                ),
+                _QuickLinkTile(
+                  icon: Icons.emergency_share,
+                  label: 'Emergency Alerts',
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const EmergencyAlertsScreen())),
                 ),
                 _QuickLinkTile(
                   icon: Icons.campaign_outlined,

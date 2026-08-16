@@ -21,6 +21,9 @@ import '../features/director_portal/domain/entities/expense.dart';
 import '../features/director_portal/domain/entities/meeting.dart';
 import '../features/director_portal/domain/repositories/director_repository.dart';
 import '../features/faculty_portal/domain/entities/coursework_item.dart';
+import '../features/emergency/domain/entities/emergency_alert.dart';
+import '../features/emergency/domain/entities/emergency_contact.dart';
+import '../features/emergency/domain/repositories/emergency_repository.dart';
 import '../features/faculty_portal/domain/entities/answer_key.dart';
 import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
@@ -819,6 +822,7 @@ class DemoAdminRepository implements AdminRepository {
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   }) async {
     await _latency();
     final id = _store.nextId('ta');
@@ -831,6 +835,7 @@ class DemoAdminRepository implements AdminRepository {
         subject: subject,
         section: section,
         schoolYear: schoolYear,
+        isAdviser: isAdviser,
       ),
     );
     _store.audit(
@@ -851,6 +856,7 @@ class DemoAdminRepository implements AdminRepository {
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   }) async {
     await _latency();
     _store.update<TeacherAssignment>(
@@ -863,6 +869,7 @@ class DemoAdminRepository implements AdminRepository {
         subject: subject,
         section: section,
         schoolYear: schoolYear,
+        isAdviser: isAdviser,
       ),
     );
     _store.audit(
@@ -2550,5 +2557,154 @@ CourseworkItem _copyCoursework(CourseworkItem c, {int? questionCount}) {
     published: c.published,
     questionCount: questionCount ?? c.questionCount,
     createdAt: c.createdAt,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Emergency
+// ---------------------------------------------------------------------------
+
+class DemoEmergencyRepository implements EmergencyRepository {
+  final DemoStore _store;
+  DemoEmergencyRepository(this._store);
+
+  @override
+  Stream<List<EmergencyContact>> watchContacts() => _store.emergencyContacts.stream
+      .map((all) => [...all]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder)));
+
+  @override
+  Stream<List<EmergencyAlert>> watchAlerts() => _store.emergencyAlerts.stream
+      .map((all) => [...all]..sort((a, b) => b.raisedAt.compareTo(a.raisedAt)));
+
+  @override
+  Stream<List<EmergencyAlert>> watchAlertsForStudent(String studentId) =>
+      _store.emergencyAlerts.stream.map((all) => all
+          .where((a) => a.studentId == studentId)
+          .toList()
+        ..sort((a, b) => b.raisedAt.compareTo(a.raisedAt)));
+
+  @override
+  Future<Result<void>> saveContact({
+    String? contactId,
+    required String label,
+    required String phone,
+    String? notes,
+    required int sortOrder,
+  }) async {
+    await _latency();
+    final id = contactId ?? _store.nextId('emg');
+    final contact = EmergencyContact(
+      id: id,
+      label: label,
+      phone: phone,
+      notes: notes,
+      sortOrder: sortOrder,
+      updatedAt: DateTime.now(),
+      updatedByName: _store.requireUser.fullName,
+    );
+    final exists = _store.emergencyContacts.value.any((c) => c.id == id);
+    if (exists) {
+      _store.update<EmergencyContact>(
+          _store.emergencyContacts, (c) => c.id == id, (_) => contact);
+    } else {
+      _store.prepend(_store.emergencyContacts, contact);
+    }
+    _store.audit(
+      module: 'emergencyContacts',
+      action: exists ? 'update' : 'create',
+      targetCollection: 'emergencyContacts',
+      targetId: id,
+      newValue: {'label': label},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteContact(String contactId) async {
+    await _latency();
+    _store.softDelete<EmergencyContact>(_store.emergencyContacts, (c) => c.id == contactId);
+    _store.audit(
+      module: 'emergencyContacts',
+      action: 'delete',
+      targetCollection: 'emergencyContacts',
+      targetId: contactId,
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> raiseAlert({
+    required String studentId,
+    required String studentName,
+    required String section,
+    String? message,
+  }) async {
+    await _latency();
+    final id = _store.nextId('alert');
+    _store.prepend(
+      _store.emergencyAlerts,
+      EmergencyAlert(
+        id: id,
+        studentId: studentId,
+        studentName: studentName,
+        section: section,
+        userId: _store.requireUser.uid,
+        message: message,
+        raisedAt: DateTime.now(),
+      ),
+    );
+    _store.audit(
+      module: 'emergencyAlerts',
+      action: 'create',
+      targetCollection: 'emergencyAlerts',
+      targetId: id,
+      newValue: {'studentId': studentId, 'section': section},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> acknowledgeAlert(String alertId) async {
+    await _latency();
+    _store.update<EmergencyAlert>(
+      _store.emergencyAlerts,
+      (a) => a.id == alertId,
+      (a) => _copyAlert(a,
+          acknowledgedByName: _store.requireUser.fullName, acknowledgedAt: DateTime.now()),
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> resolveAlert({required String alertId, String? note}) async {
+    await _latency();
+    _store.update<EmergencyAlert>(
+      _store.emergencyAlerts,
+      (a) => a.id == alertId,
+      (a) => _copyAlert(a, resolvedAt: DateTime.now(), resolutionNote: note),
+    );
+    return const Success(null);
+  }
+}
+
+EmergencyAlert _copyAlert(
+  EmergencyAlert a, {
+  String? acknowledgedByName,
+  DateTime? acknowledgedAt,
+  DateTime? resolvedAt,
+  String? resolutionNote,
+}) {
+  return EmergencyAlert(
+    id: a.id,
+    studentId: a.studentId,
+    studentName: a.studentName,
+    section: a.section,
+    userId: a.userId,
+    message: a.message,
+    raisedAt: a.raisedAt,
+    acknowledgedByName: acknowledgedByName ?? a.acknowledgedByName,
+    acknowledgedAt: acknowledgedAt ?? a.acknowledgedAt,
+    resolvedAt: resolvedAt ?? a.resolvedAt,
+    resolutionNote: resolutionNote ?? a.resolutionNote,
   );
 }

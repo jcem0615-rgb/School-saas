@@ -144,6 +144,7 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   }) async {
     final result = await _createTeacherAssignment(
       teacherId: teacherId,
@@ -151,6 +152,7 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
       subject: subject,
       section: section,
       schoolYear: schoolYear,
+      isAdviser: isAdviser,
     );
     return result.isSuccess;
   }
@@ -162,6 +164,7 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   }) async {
     final result = await _updateTeacherAssignment(
       assignmentId: assignmentId,
@@ -170,6 +173,7 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
       subject: subject,
       section: section,
       schoolYear: schoolYear,
+      isAdviser: isAdviser,
     );
     return result.isSuccess;
   }

@@ -52,6 +52,11 @@ export {onAnnouncementCreated} from "./triggers/announcements/onAnnouncementCrea
 // ---------------------------------------------------------------------------
 export {onCourseworkSubmissionWritten} from "./triggers/coursework/onCourseworkSubmissionWritten";
 
+// ---------------------------------------------------------------------------
+// Module: Emergency alerts
+// ---------------------------------------------------------------------------
+export {onEmergencyAlertCreated} from "./triggers/emergency/onEmergencyAlertCreated";
+
 // Additional modules (billing, attendance, payments, ...)
 // export their callables/triggers/scheduled functions here as each module
 // is implemented, keeping this file as the single index of everything

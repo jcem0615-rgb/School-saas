@@ -1,3 +1,4 @@
+import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -62,6 +63,12 @@ class AdminDashboardScreen extends StatelessWidget {
                   label: 'Strands & Programs',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const ProgramsScreen())),
+                ),
+                _QuickLinkTile(
+                  icon: Icons.emergency_share,
+                  label: 'Emergency Alerts',
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const EmergencyAlertsScreen())),
                 ),
                 _QuickLinkTile(
                   icon: Icons.campaign_outlined,

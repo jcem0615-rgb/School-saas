@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
+import '../../../emergency/presentation/screens/sos_screen.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
 import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
@@ -123,6 +124,17 @@ class StudentDashboardScreen extends ConsumerWidget {
                     label: 'Promissory Note',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const PromissoryNoteScreen())),
+                  ),
+                  _QuickLinkTile(
+                    icon: Icons.emergency_share,
+                    label: 'Emergency',
+                    onTap: () {
+                      final student = ref.read(myStudentRecordProvider).valueOrNull;
+                      if (student == null) return;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => SosScreen(student: student)),
+                      );
+                    },
                   ),
                   _QuickLinkTile(
                     icon: Icons.campaign_outlined,

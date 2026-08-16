@@ -8,6 +8,7 @@ class TeacherAssignmentModel extends TeacherAssignment {
     required super.subject,
     required super.section,
     required super.schoolYear,
+    super.isAdviser,
   });
 
   factory TeacherAssignmentModel.fromFirestore(String id, Map<String, dynamic> data) {
@@ -18,6 +19,7 @@ class TeacherAssignmentModel extends TeacherAssignment {
       subject: data['subject'] as String? ?? '',
       section: data['section'] as String? ?? '',
       schoolYear: data['schoolYear'] as String? ?? '',
+      isAdviser: data['isAdviser'] as bool? ?? false,
     );
   }
 }

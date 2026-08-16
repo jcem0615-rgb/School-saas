@@ -109,6 +109,7 @@ class AdminRepositoryImpl implements AdminRepository {
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   }) async {
     try {
       await _remote.createTeacherAssignment(
@@ -117,6 +118,7 @@ class AdminRepositoryImpl implements AdminRepository {
         subject: subject,
         section: section,
         schoolYear: schoolYear,
+        isAdviser: isAdviser,
       );
       return const Success(null);
     } catch (_) {
@@ -132,6 +134,7 @@ class AdminRepositoryImpl implements AdminRepository {
     required String subject,
     required String section,
     required String schoolYear,
+    bool isAdviser = false,
   }) {
     return _run(() => _remote.updateTeacherAssignment(
           assignmentId: assignmentId,
@@ -140,6 +143,7 @@ class AdminRepositoryImpl implements AdminRepository {
           subject: subject,
           section: section,
           schoolYear: schoolYear,
+          isAdviser: isAdviser,
         ));
   }
 

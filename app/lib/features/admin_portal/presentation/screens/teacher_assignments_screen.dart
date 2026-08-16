@@ -55,9 +55,20 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
                   side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                 ),
                 child: ListTile(
-                  title: Text('${a.subject} · ${a.section}'),
+                  title: Row(
+                    children: [
+                      Flexible(child: Text('${a.subject} · ${a.section}')),
+                      if (a.isAdviser) ...[
+                        const SizedBox(width: 8),
+                        const Chip(
+                          label: Text('Adviser'),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ],
+                  ),
                   subtitle: Text('${a.teacherName} · SY ${a.schoolYear}'),
-                  leading: const Icon(Icons.school_outlined),
+                  leading: Icon(a.isAdviser ? Icons.shield_outlined : Icons.school_outlined),
                   trailing: RowActionsMenu(
                     onEdit: () => _showEditor(
                         context, ref, employeesAsync.valueOrNull ?? [], existing: a),
@@ -167,6 +178,7 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
     // On edit, preselect the assignment's own teacher rather than the
     // first in the list, so saving without touching the dropdown cannot
     // silently reassign the subject to someone else.
+    bool isAdviser = existing?.isAdviser ?? false;
     dynamic selectedTeacher = isEdit
         ? faculty.where((e) => e.uid == existing.teacherId).firstOrNull ??
             (faculty.isNotEmpty ? faculty.first : null)
@@ -233,6 +245,20 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
                   controller: yearController,
                   decoration: const InputDecoration(labelText: 'School Year', border: OutlineInputBorder()),
                 ),
+                const SizedBox(height: 4),
+                CheckboxListTile(
+                  value: isAdviser,
+                  onChanged: (v) => setState(() => isAdviser = v ?? false),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Class adviser for this section'),
+                  // Not a label for a job title. This is the person a
+                  // student's emergency alert reaches, so it is worth
+                  // saying out loud what ticking it does.
+                  subtitle: const Text(
+                    'Advisers receive emergency alerts raised by students '
+                    'in this section.',
+                  ),
+                ),
               ],
             ),
           ),
@@ -251,6 +277,7 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
                               subject: subjectController.text,
                               section: sectionController.text,
                               schoolYear: yearController.text,
+                              isAdviser: isAdviser,
                             )
                           : await notifier.createTeacherAssignment(
                               teacherId: selectedTeacher.uid as String,
@@ -258,6 +285,7 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
                               subject: subjectController.text,
                               section: sectionController.text,
                               schoolYear: yearController.text,
+                              isAdviser: isAdviser,
                             );
                       if (success && dialogContext.mounted) Navigator.of(dialogContext).pop();
                     },
