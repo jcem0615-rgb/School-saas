@@ -1,0 +1,98 @@
+# Module 9a: Admin Portal
+
+## Overview
+
+Covers Employee Management, User Approval, Reset Password, and Teacher
+Assignment as new features. Announcements, Attendance Monitoring, and
+Audit Trail are wired in as navigation entries into screens already built
+in earlier modules (Director Portal, QR Attendance, and a new shared Audit
+Trail feature respectively) — Admin's rules already permitted these
+actions; this module just gives Admin a front door to them.
+
+## Design choice: no separate `employees` collection
+
+`employeeInfo` (department, position, dateHired) already existed as an
+optional field on `users/{uid}` since the Module 3 schema — every staff
+role in this system has a portal account, so there's no scenario (unlike
+Students) where HR data needs to exist independently of an account. Admin
+Portal's "Employee Management" and "Employee Files" therefore extend the
+existing `users` collection rather than introducing a parallel one. This
+also means editing `employeeInfo` needed **no new backend code** — the
+Module 4 rule already lets Director/Admin update any `users` field except
+the security-sensitive ones (`role`, `schoolId`, `status`,
+`mustChangePassword`), and `employeeInfo` was never in that exclusion list.
+
+"Employee Files" in the sense of *documents* (contracts, certificates,
+IDs) is a Documents module concern — this module only covers the HR data
+fields, not file attachments.
+
+## "User Approval" — implemented as account status management
+
+This build provisions accounts (`provisionUser`, Module 4) rather than
+accepting self-registration, so there's no incoming queue of unverified
+signups to literally "approve." The equivalent control point — and what
+Employee Detail's Activate/Suspend button exercises — is `setUserStatus`,
+a new callable that flips a user's `status` claim and Firestore field.
+Two guardrails worth calling out:
+
+- **Self-protection**: a caller cannot change their own status (can't
+  accidentally or maliciously lock themselves out).
+- **Role hierarchy**: an Admin cannot suspend a Director's account —
+  only another Director can. Prevents a lower-privilege role from
+  disabling a higher one.
+
+If a future module adds self-registration (e.g. Parent sign-up), this
+callable is exactly the mechanism a real "approve this pending signup"
+flow would call — the plumbing is already here.
+
+## Reset Password
+
+Wires the existing `resetPasswordAdmin` callable (built in Module 4) into
+a button on Employee Detail. No new backend logic.
+
+## Teacher Assignment
+
+New collection, `teacherAssignments/{id}` (teacherId, subject, section,
+schoolYear) — deliberately simple, following the same generic
+create/read-by-role/no-delete pattern as Announcements/Meetings/Expenses
+from Director Portal. Full **Schedules** (day/time/room grids) is a
+related but distinctly larger feature, deferred — see below.
+
+## Audit Trail (pulled forward as a shared feature)
+
+Built as its own `features/audit_trail/` module (not nested under Admin
+Portal) since Director and Owner need the same screen. Filters by module
+and date range via Firestore query composition; free-text search over
+`userName`/`remarks` is done client-side over the fetched page, since
+Firestore has no native substring search — full-text search infrastructure
+is a Reports-module concern if usage ever demands it at scale. PDF/Excel
+export and restore-from-soft-delete are also deferred to Reports &
+Documents.
+
+## Firestore collections added
+
+```
+schools/{schoolId}/teacherAssignments/{id}  -- teacherId, subject, section, schoolYear
+```
+
+`employeeInfo` is a field addition to the existing `users` collection, not
+a new collection.
+
+## Testing
+
+| Layer | File | Covers |
+|---|---|---|
+| Domain | `admin_usecases_test.dart` | employee/assignment field validation |
+| Rules | `admin-portal.rules.test.ts` | teacher assignment role gate, employeeInfo editable but status field protected |
+
+## Deferred to later modules
+
+- **Inventory** (Consumables/Non-consumables, Borrowing/Returns, Stock
+  Monitoring, Purchase Requests) — large enough to warrant its own module,
+  per the original spec's separate top-level Inventory section.
+- **Schedules** (day/time/room class schedule grid) — Teacher Assignment
+  answers "who teaches what," Schedules answers "when and where," which is
+  a meaningfully different data model (recurring time-block conflicts) best
+  tackled as its own unit of work.
+- **Monthly Reports** — Reports module.
+- **Employee Files** (documents/certificates) — Documents module.

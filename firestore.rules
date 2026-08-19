@@ -1,0 +1,544 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------
+    // Helper functions
+    // -------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function claims() {
+      return request.auth.token;
+    }
+
+    function isOwner() {
+      return isSignedIn() && claims().role == 'owner';
+    }
+
+    function belongsToSchool(schoolId) {
+      return isSignedIn() && claims().schoolId == schoolId;
+    }
+
+    function hasRole(schoolId, roles) {
+      return belongsToSchool(schoolId) && claims().role in roles;
+    }
+
+    function isAccountActive() {
+      return isSignedIn() && claims().status == 'active';
+    }
+
+    // Reads the school's live subscription status. Used to lock out a
+    // suspended school's data even if the user's ID token hasn't expired
+    // yet (claims are cached client-side up to an hour) -- billing status
+    // is checked fresh on every request via get(), not trusted from claims.
+    function schoolIsAccessible(schoolId) {
+      let sub = get(/databases/$(database)/documents/platform_subscriptions/$(schoolId)).data;
+      return sub.currentStatus != 'suspended';
+    }
+
+    // Whitelist of fields a user may change on their OWN profile doc.
+    // Role, schoolId, status, and mustChangePassword can never be touched
+    // by the client -- those only ever change via Cloud Functions running
+    // with Admin privileges (see functions/src/callable/users/*).
+    function onlySelfEditableFieldsChanged() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(['phone', 'photoUrl', 'privacySettings', 'updatedAt', 'updatedBy']);
+    }
+
+    // -------------------------------------------------------------------
+    // Division / department isolation.
+    //
+    // A school can run Elementary, High School, and College under one
+    // tenant. Every students/{id} record has `educationLevel` (required)
+    // and, for College students, a denormalized `department` (set once at
+    // registration from their program -- see registerStudent.ts -- so
+    // this never needs an extra join at read time).
+    //
+    // A staff member's OWN scope lives on their user doc at
+    // `employeeInfo.assignedDivision` / `employeeInfo.assignedDepartment`,
+    // both OPTIONAL: left unset, the staff member keeps their role's
+    // normal cross-division access (this is what keeps every school/test
+    // that never configures this working exactly as before). Set it, and
+    // access is actually restricted -- not just hidden in the UI.
+    //
+    // Firestore caches get()/exists() results per document path for the
+    // duration of a single rule evaluation, so calling get() on the same
+    // path from multiple OR branches below (e.g. both a "self" check and
+    // a "same division" check reading the same students/{id} doc) does
+    // not multiply cost or risk the ~10-call-per-request budget.
+    // -------------------------------------------------------------------
+
+    function staffEmployeeInfo(schoolId) {
+      let path = /databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid);
+      // get() on a nonexistent document throws in Firestore rules (unlike
+      // exists(), which safely returns false) -- guard against that so a
+      // caller whose own profile doc isn't found is treated the same as
+      // "no scope configured" (unrestricted) rather than erroring the
+      // whole branch out. In practice this only matters for the instant
+      // between account creation and the profile doc write, but it's the
+      // correct defensive default regardless.
+      return exists(path) ? get(path).data.get('employeeInfo', {}) : {};
+    }
+
+    // true if the CALLER's own assigned scope permits access to a student
+    // with the given [studentDivision]/[studentDepartment]. Unset caller
+    // scope (null) means unrestricted, by design -- see comment above.
+    function scopeAllowsStudent(schoolId, studentDivision, studentDepartment) {
+      let info = staffEmployeeInfo(schoolId);
+      let staffDivision = info.get('assignedDivision', null);
+      let staffDepartment = info.get('assignedDepartment', null);
+      return staffDivision == null
+        || (staffDivision == studentDivision
+            && (staffDepartment == null || studentDepartment == null || staffDepartment == studentDepartment));
+    }
+
+    // Convenience for rules on collections that reference a student by ID
+    // (grades, payments, guidanceRecords, summons) rather than being the
+    // student doc itself -- one get() fetches both fields it needs.
+    function scopeAllowsStudentById(schoolId, studentId) {
+      let student = get(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId)).data;
+      return scopeAllowsStudent(schoolId, student.get('educationLevel', 'elementary'), student.get('department', null));
+    }
+
+    // -------------------------------------------------------------------
+    // Platform-level data (Owner only) -- schools registry, subscriptions,
+    // invoices, owner audit log. No tenant user may ever read or write here.
+    // -------------------------------------------------------------------
+
+    match /platform_schools/{schoolId} {
+      allow read, write: if isOwner();
+    }
+
+    match /platform_subscriptions/{schoolId} {
+      allow read, write: if isOwner();
+    }
+
+    match /platform_invoices/{invoiceId} {
+      allow read, write: if isOwner();
+    }
+
+    match /platform_owner_audit_log/{logId} {
+      // Immutable even for the Owner from the client; written only by
+      // Cloud Functions via the Admin SDK, which bypasses these rules.
+      allow read: if isOwner();
+      allow write: if false;
+    }
+
+    match /platform_owner_profiles/{uid} {
+      allow read: if isOwner() && request.auth.uid == uid;
+      allow write: if false; // provisioned only via Admin SDK / console
+    }
+
+    // Denormalized dashboard metrics maintained by dailyBillingJob --
+    // read-only from the client even for the Owner, since a corrupted
+    // client write here would silently mislead revenue reporting.
+    match /platform_revenue_summary/{docId} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+
+    // -------------------------------------------------------------------
+    // Tenant-scoped data: schools/{schoolId}/**
+    // Path-level isolation: a rule bug elsewhere cannot leak cross-tenant
+    // because every tenant collection physically lives under its own
+    // schools/{schoolId} document.
+    // -------------------------------------------------------------------
+
+    match /schools/{schoolId} {
+
+      // The school's own profile doc (name, logo, contact info) --
+      // readable by anyone in the tenant, writable only by school admins;
+      // billing-relevant fields (billingRatePerStudent) are Owner-only and
+      // live in platform_schools instead, never here.
+      allow read: if belongsToSchool(schoolId);
+      allow write: if hasRole(schoolId, ['director', 'admin']);
+
+      // ---- users ----
+      match /users/{userId} {
+        // Always readable regardless of subscription status -- a
+        // suspended school's users must still be able to see their own
+        // profile so the app can render a "school suspended" notice
+        // instead of a blank/broken screen.
+        allow read: if belongsToSchool(schoolId);
+
+        // Self-service edits: limited fields only, and only while active
+        // AND the school itself is not suspended.
+        allow update: if belongsToSchool(schoolId)
+                        && request.auth.uid == userId
+                        && isAccountActive()
+                        && schoolIsAccessible(schoolId)
+                        && onlySelfEditableFieldsChanged();
+
+        // HR-style edits by admin roles: allowed on non-security fields;
+        // security-sensitive fields (role, status, mustChangePassword,
+        // schoolId) are still excluded here too -- those require the
+        // dedicated callable functions so every role change is audited.
+        allow update: if hasRole(schoolId, ['director', 'admin'])
+                        && schoolIsAccessible(schoolId)
+                        && !request.resource.data.diff(resource.data)
+                              .affectedKeys()
+                              .hasAny(['role', 'schoolId', 'status', 'mustChangePassword']);
+
+        // Creation and hard security-field changes only via Admin SDK
+        // (provisionUser, resetPasswordAdmin, clearForcePasswordChangeFlag).
+        allow create, delete: if false;
+      }
+
+      // ---- audit log: append-only from server, read-only from client ----
+      match /auditLog/{logId} {
+        // Admin-tier roles see the full school audit trail; every other
+        // user can see only their own actions ("My Activity History" --
+        // a General Requirement for every role per the spec, distinct
+        // from the full Audit Trail screen Owner/Director/Admin get).
+        allow read: if hasRole(schoolId, ['owner', 'director', 'admin'])
+                      || (belongsToSchool(schoolId) && schoolIsAccessible(schoolId) && resource.data.userId == request.auth.uid);
+        allow write: if false;
+      }
+
+      // ---- announcements ----
+      match /announcements/{announcementId} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow create: if hasRole(schoolId, ['director', 'principal', 'admin']) && schoolIsAccessible(schoolId);
+        // Only the base envelope + content fields may change; no swapping
+        // authorship after the fact.
+        allow update: if hasRole(schoolId, ['director', 'principal', 'admin'])
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.createdBy == resource.data.createdBy;
+        allow delete: if false; // soft delete only, via update
+      }
+
+      // ---- meetings ----
+      match /meetings/{meetingId} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow create: if hasRole(schoolId, ['director', 'principal', 'admin']) && schoolIsAccessible(schoolId);
+        allow update: if hasRole(schoolId, ['director', 'principal', 'admin'])
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.createdBy == resource.data.createdBy;
+        allow delete: if false;
+      }
+
+      // ---- approvals ----
+      // Any active tenant member may FILE a request (e.g. a Staff member's
+      // material request); only Director/Principal/Admin may DECIDE it.
+      // This is why create and update have deliberately different role
+      // gates. Principal's decide-rights are NOT division-scoped here --
+      // approvals (material requests, promissory notes) don't carry a
+      // denormalized division/department the way students/grades/payments
+      // do, and adding that would need a larger redesign; documented as a
+      // deliberate, reasoned boundary in docs/16-principal-role.md rather
+      // than a silent gap.
+      match /approvals/{approvalId} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow create: if belongsToSchool(schoolId)
+                        && isAccountActive()
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.requestedByRole == claims().role
+                        && request.resource.data.status == 'pending';
+        allow update: if hasRole(schoolId, ['director', 'principal', 'admin'])
+                        && schoolIsAccessible(schoolId)
+                        && resource.data.status == 'pending'
+                        && request.resource.data.status in ['approved', 'rejected'];
+        allow delete: if false;
+      }
+
+      // ---- expenses ----
+      // Financial data: visible to the roles that manage school finances,
+      // not to every tenant member the way announcements/meetings are.
+      match /expenses/{expenseId} {
+        allow read: if hasRole(schoolId, ['director', 'admin', 'registrar']) && schoolIsAccessible(schoolId);
+        allow create: if hasRole(schoolId, ['director', 'admin']) && schoolIsAccessible(schoolId);
+        allow update: if hasRole(schoolId, ['director', 'admin'])
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.createdBy == resource.data.createdBy;
+        allow delete: if false;
+      }
+
+      // ---- teacherAssignments ----
+      match /teacherAssignments/{assignmentId} {
+        allow read: if hasRole(schoolId, ['director', 'principal', 'admin', 'registrar', 'faculty']) && schoolIsAccessible(schoolId);
+        allow create: if hasRole(schoolId, ['director', 'principal', 'admin']) && schoolIsAccessible(schoolId);
+        allow update: if hasRole(schoolId, ['director', 'principal', 'admin'])
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.createdBy == resource.data.createdBy;
+        allow delete: if false;
+      }
+
+      // ---- courseworkItems (Lesson Plans, Lessons, Assignments, Projects, Exams, Quizzes) ----
+      match /courseworkItems/{itemId} {
+        // Published items are visible to the whole tenant (students/
+        // parents consume these in the Student Portal module); unpublished
+        // drafts are visible only to staff and the owning teacher, so a
+        // Faculty member can save a draft without it appearing in a
+        // school-wide feed prematurely.
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        resource.data.published == true
+                        || hasRole(schoolId, ['director', 'principal', 'admin', 'faculty', 'registrar', 'guidance'])
+                      );
+        allow create: if hasRole(schoolId, ['faculty', 'director', 'admin'])
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.teacherId == request.auth.uid;
+        allow update: if schoolIsAccessible(schoolId)
+                        && (resource.data.teacherId == request.auth.uid || hasRole(schoolId, ['director', 'principal', 'admin']))
+                        && request.resource.data.teacherId == resource.data.teacherId;
+        allow delete: if false;
+      }
+
+      // ---- grades ----
+      match /grades/{gradeId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin'])
+                        || (hasRole(schoolId, ['principal', 'registrar', 'faculty', 'guidance'])
+                            && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        || get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.studentId)).data.userId == request.auth.uid
+                        || (claims().role == 'parent'
+                            && resource.data.studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+        allow create: if schoolIsAccessible(schoolId)
+                        && (
+                          hasRole(schoolId, ['director', 'admin'])
+                          || (hasRole(schoolId, ['faculty'])
+                              && scopeAllowsStudentById(schoolId, request.resource.data.studentId))
+                        );
+        allow update: if schoolIsAccessible(schoolId)
+                        && request.resource.data.studentId == resource.data.studentId
+                        && (
+                          hasRole(schoolId, ['director', 'admin'])
+                          || (hasRole(schoolId, ['faculty']) && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        );
+        allow delete: if false;
+      }
+
+      // ---- checklistItems (Staff Portal) ----
+      match /checklistItems/{itemId} {
+        allow read: if schoolIsAccessible(schoolId)
+                      && (resource.data.staffId == request.auth.uid || hasRole(schoolId, ['director', 'admin']));
+        allow create: if hasRole(schoolId, ['staff', 'director', 'admin'])
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.staffId == request.auth.uid;
+        allow update: if schoolIsAccessible(schoolId)
+                        && (resource.data.staffId == request.auth.uid || hasRole(schoolId, ['director', 'admin']))
+                        && request.resource.data.staffId == resource.data.staffId;
+        allow delete: if false;
+      }
+
+      // ---- dailyReports (Staff Portal) ----
+      // Immutable once submitted -- a daily work log is a point-in-time
+      // record; corrections happen via a new entry, not an edit, so the
+      // history stays trustworthy. No update rule at all, not even for
+      // the author.
+      match /dailyReports/{reportId} {
+        allow read: if schoolIsAccessible(schoolId)
+                      && (resource.data.staffId == request.auth.uid || hasRole(schoolId, ['director', 'admin']));
+        allow create: if hasRole(schoolId, ['staff', 'director', 'admin'])
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.staffId == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      // ---- guidanceRecords (Guidance Portal) ----
+      // Confidential counseling notes -- deliberately the most restrictive
+      // read rule in the whole schema. NOT visible to the student it's
+      // about, NOT visible to their parent, NOT visible to Faculty or
+      // Registrar. Guidance/Director/Admin, plus Principal for their own
+      // division only (division-level welfare oversight) -- Principal
+      // gets READ ONLY here, never create/update; authoring a counseling
+      // note stays a Guidance Office action. This is a different privacy
+      // posture than every other per-student collection (attendance,
+      // grades, payments), which is intentional -- see
+      // docs/14-staff-guidance-portals.md.
+      match /guidanceRecords/{recordId} {
+        allow read: if schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin'])
+                        || (hasRole(schoolId, ['guidance', 'principal']) && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                      );
+        allow create: if schoolIsAccessible(schoolId)
+                        && (
+                          hasRole(schoolId, ['director', 'admin'])
+                          || (hasRole(schoolId, ['guidance'])
+                              && scopeAllowsStudentById(schoolId, request.resource.data.studentId))
+                        );
+        allow update: if schoolIsAccessible(schoolId)
+                        && request.resource.data.studentId == resource.data.studentId
+                        && (
+                          hasRole(schoolId, ['director', 'admin'])
+                          || (hasRole(schoolId, ['guidance']) && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        );
+        allow delete: if false;
+      }
+
+      // ---- summons (Guidance Portal) ----
+      // Unlike guidanceRecords, a summons IS visible to the student and
+      // their linked parent -- being called to the guidance office is
+      // exactly the kind of thing a family needs to know about, even
+      // though the underlying counseling notes stay private. Principal
+      // gets READ ONLY, same reasoning as guidanceRecords above --
+      // issuing/deciding a summons stays a Guidance Office action.
+      match /summons/{summonsId} {
+        allow read: if schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin'])
+                        || (hasRole(schoolId, ['guidance', 'principal']) && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        || get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.studentId)).data.userId == request.auth.uid
+                        || (claims().role == 'parent'
+                            && resource.data.studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+        allow create: if schoolIsAccessible(schoolId)
+                        && (
+                          hasRole(schoolId, ['director', 'admin'])
+                          || (hasRole(schoolId, ['guidance'])
+                              && scopeAllowsStudentById(schoolId, request.resource.data.studentId))
+                        );
+        allow update: if schoolIsAccessible(schoolId)
+                        && request.resource.data.studentId == resource.data.studentId
+                        && (
+                          hasRole(schoolId, ['director', 'admin'])
+                          || (hasRole(schoolId, ['guidance']) && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        );
+        allow delete: if false;
+      }
+
+      // ---- attendance ----
+      // Written ONLY by markAttendance.ts (Admin SDK, bypasses these
+      // rules entirely) -- status computation, duplicate-scan handling,
+      // and audit logging all need to happen atomically server-side, so
+      // there is no client write path here at all, not even for staff.
+      match /attendance/{recordId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        // the record's own subject -- employees: personId
+                        // IS their auth uid; students: personId is their
+                        // linked students/{studentId} record, so resolve
+                        // that record's userId instead (see
+                        // docs/07-qr-attendance.md, "ID space" section).
+                        resource.data.personId == request.auth.uid
+                        || (resource.data.personRole == 'student'
+                            && get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.personId)).data.userId == request.auth.uid)
+                        // staff-facing monitoring roles
+                        || claims().role in ['director', 'principal', 'admin', 'registrar', 'faculty', 'staff', 'guidance']
+                        // a parent viewing a linked child's record
+                        || (claims().role == 'parent'
+                            && exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid))
+                            && resource.data.personId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+        allow write: if false;
+      }
+
+      // ---- students ----
+      // Read access mirrors the "self, staff-who-need-it, or linked
+      // parent" shape used by attendance and payments for consistency.
+      // Director/Admin stay cross-division by design (school-wide admin
+      // roles); Registrar/Faculty/Guidance are subject to
+      // scopeAllowsStudent -- unrestricted unless their own account has
+      // an assignedDivision/assignedDepartment configured.
+      match /students/{studentId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin'])
+                        || (hasRole(schoolId, ['principal', 'registrar', 'faculty', 'guidance'])
+                            && scopeAllowsStudent(schoolId, resource.data.get('educationLevel', 'elementary'), resource.data.get('department', null)))
+                        || resource.data.userId == request.auth.uid
+                        || (claims().role == 'parent'
+                            && studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+
+        // Creation happens only via registerStudent.ts (Admin SDK) --
+        // the sequential studentNumber must be generated atomically via
+        // the same counter transaction pattern used for receipt numbers,
+        // which the client cannot safely replicate.
+        allow create: if false;
+
+        // Updates to ordinary record fields (name, gradeLevel, section,
+        // guardianContacts, status, photoUrl, ...) are allowed directly
+        // from the client for Registrar/Admin/Director. `balance` stays
+        // server-only (Payments module's recordPayment/recordRefund
+        // transactions are the only writers); `studentNumber` and
+        // `userId` stay server-only too (studentNumber is a permanent
+        // identifier, userId is only ever set by provisionUser.ts's
+        // validated linking step -- a direct client write here could
+        // silently attach a student's records to the wrong account).
+        allow update: if schoolIsAccessible(schoolId)
+                        && !request.resource.data.diff(resource.data)
+                              .affectedKeys()
+                              .hasAny(['balance', 'studentNumber', 'userId', 'schoolId'])
+                        && (
+                          hasRole(schoolId, ['director', 'admin'])
+                          || (hasRole(schoolId, ['registrar'])
+                              && scopeAllowsStudent(schoolId, resource.data.get('educationLevel', 'elementary'), resource.data.get('department', null)))
+                        );
+
+        allow delete: if false; // soft delete only, via update
+      }
+
+      // ---- payments ----
+      // Written ONLY by recordPayment.ts / recordRefund.ts -- receipt
+      // numbering and balance updates must happen atomically server-side
+      // (see docs/08-payments.md), so there is no client write path here.
+      match /payments/{paymentId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin'])
+                        || (hasRole(schoolId, ['registrar']) && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        || get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.studentId)).data.userId == request.auth.uid
+                        || (claims().role == 'parent'
+                            && resource.data.studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+        allow write: if false;
+      }
+
+      // ---- programs (college degree programs / courses) ----
+      // Readable tenant-wide (needed by Registrar during Student
+      // Registration and by Student Portal to display a student's
+      // program) -- programs are institutional configuration, not
+      // sensitive data. Only Director/Admin manage the catalog itself.
+      match /programs/{programId} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow create: if hasRole(schoolId, ['director', 'admin']) && schoolIsAccessible(schoolId);
+        allow update: if hasRole(schoolId, ['director', 'admin']) && schoolIsAccessible(schoolId);
+        allow delete: if false;
+      }
+
+      // Default posture for every other tenant subcollection until its
+      // module is implemented: DENY by default. Every collection that
+      // needs client read access must define its own explicit `allow
+      // read` rule above, even if that rule is as simple as
+      // `belongsToSchool(schoolId) && schoolIsAccessible(schoolId)`.
+      //
+      // This used to default to allowing tenant-wide read, which was a
+      // real bug: Firestore grants access if ANY matching `match` block
+      // allows it (logical OR across all blocks whose path pattern
+      // matches the request, not "most specific wins"). A permissive
+      // catch-all silently overrides every more-restrictive rule written
+      // above it -- e.g. the attendance and expenses blocks' role checks
+      // were being bypassed entirely by this catch-all before this fix,
+      // since the catch-all's own `allow read` independently granted
+      // access to any tenant member regardless of what those blocks said.
+      // Deny-by-default is the only posture under which per-collection
+      // restrictions actually mean anything.
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+
+    // Anything not explicitly matched above is denied by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
