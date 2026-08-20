@@ -43,9 +43,32 @@ class RevenueCard extends StatelessWidget {
               child: Icon(icon, color: color, size: 22),
             ),
             const SizedBox(height: 16),
-            Text(value, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            // The grid gives every tile a fixed height (childAspectRatio),
+            // but the text block's natural height varies with the label --
+            // "Active Students (all schools)" wraps to two lines where
+            // "Daily Revenue" does not -- and with a larger system text
+            // scale it grows again. Letting this block shrink to fit keeps
+            // the tile from overflowing its cell instead of relying on the
+            // aspect ratio being generous enough for the longest label.
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(value,
+                        style: theme.textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(label,
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

@@ -33,6 +33,24 @@ class DemoSwitcher extends ConsumerStatefulWidget {
 class _DemoSwitcherState extends ConsumerState<DemoSwitcher> {
   bool _open = false;
 
+  // This widget wraps the router's content in a Stack. Having that Stack in
+  // the tree for the very first frame changes what the framework walks when
+  // the web view's focus event arrives -- and on web that event lands
+  // *before* the first layout, so ReadingOrderTraversalPolicy ends up
+  // reading semanticBounds off the Overlay's un-laid-out _RenderTheater and
+  // throws "Bad state: RenderBox was not laid out" into the console on every
+  // page load. Staying out of the tree for one frame lets layout run first.
+  // The control appears a frame later, which is not perceptible.
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _ready = true);
+    });
+  }
+
   void _signInAs(AppUser user) {
     demoSignInAs(
       ref.read(demoAuthRepositoryProvider),
@@ -49,6 +67,9 @@ class _DemoSwitcherState extends ConsumerState<DemoSwitcher> {
 
   @override
   Widget build(BuildContext context) {
+    // First frame: hand the router's content straight through, unwrapped.
+    if (!_ready) return widget.child;
+
     final theme = Theme.of(context);
     // authStateProvider, not the store's subject directly: watching the
     // store would only rebuild if the store instance itself changed, so
