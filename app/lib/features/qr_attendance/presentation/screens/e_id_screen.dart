@@ -80,8 +80,10 @@ class _IdDetails {
   /// anyone checking the card actually wants; for everyone else, the role.
   String get frontSubtitle => user.role.displayName;
 
-  String? get frontDetail =>
-      student == null ? null : '${student!.gradeLevel} · ${student!.section}';
+  /// The class, said once. `classLabel` collapses "Grade 10" and
+  /// "Grade 10 - Rizal" into one, which on a card 85.6mm wide is the
+  /// difference between fitting on the line and being ellipsised.
+  String? get frontDetail => student?.classLabel;
 
   String? get schoolYear => _clean(branding.schoolYear);
   String? get principalName => _clean(branding.principalName);

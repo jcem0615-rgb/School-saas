@@ -38,6 +38,20 @@ enum UserRole {
   /// Owner operates outside any school tenant (platform-level).
   bool get isPlatformLevel => this == UserRole.owner;
 
+  /// The role, plus a job title only when the title says something the
+  /// role does not.
+  ///
+  /// Positions are very often just the role typed again -- "Staff /
+  /// Staff", "Guidance / Guidance", "Admin / Admin" -- which fills a
+  /// phone-width subtitle with nothing. A real title ("Canteen
+  /// Supervisor", "College Instructor") still earns its place.
+  String labelWith(String? position) {
+    final title = position?.trim() ?? '';
+    if (title.isEmpty) return displayName;
+    if (title.toLowerCase() == displayName.toLowerCase()) return displayName;
+    return '$displayName · $title';
+  }
+
   /// Roles that manage staff/records vs. roles that only consume them.
   bool get isStaffRole => switch (this) {
         UserRole.director ||

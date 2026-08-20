@@ -116,7 +116,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                         subtitle: Text(
                           s.isCollege
                               ? '${s.studentNumber} · ${s.educationLevel.displayLabel} · ${s.programName ?? "No program"}'
-                              : '${s.studentNumber} · ${s.educationLevel.displayLabel} · ${s.gradeLevel} - ${s.section}',
+                              : '${s.studentNumber} · ${s.educationLevel.displayLabel} · ${s.classLabel}',
                         ),
                         trailing: s.status != StudentStatus.enrolled
                             ? Chip(label: Text(s.status.displayLabel), visualDensity: VisualDensity.compact)

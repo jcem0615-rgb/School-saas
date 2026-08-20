@@ -82,6 +82,28 @@ class StudentSummary {
   });
 
   String get fullName => '$firstName $lastName';
+
+  /// Where this student sits, said once.
+  ///
+  /// Sections in PH schools are almost always named after the grade they
+  /// belong to -- "Grade 10 - Rizal", "BSCS 3-A" -- so printing
+  /// "grade level - section" produced "Grade 10 - Grade 10 - Rizal" on
+  /// every screen that showed both. On a phone that repetition is not
+  /// just untidy: it is half a line of a two-line subtitle spent saying
+  /// the same thing twice, and it pushed the useful part off the edge.
+  ///
+  /// Lives on the entity rather than in each screen so the four places
+  /// that show it cannot disagree about what a class is called.
+  String get classLabel {
+    final grade = gradeLevel.trim();
+    final sec = section.trim();
+    if (grade.isEmpty) return sec;
+    if (sec.isEmpty) return grade;
+    // The common case: the section name already carries the grade.
+    if (sec.toLowerCase().contains(grade.toLowerCase())) return sec;
+    return '$grade - $sec';
+  }
+
   bool get hasPortalAccount => userId != null;
   bool get isCollege => educationLevel == EducationLevel.college;
 }

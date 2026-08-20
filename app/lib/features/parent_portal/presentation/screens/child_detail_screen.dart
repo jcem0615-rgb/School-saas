@@ -37,7 +37,7 @@ class ChildDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(child.fullName, style: Theme.of(context).textTheme.titleLarge),
-                    Text('${child.studentNumber} · ${child.gradeLevel} - ${child.section}'),
+                    Text('${child.studentNumber} · ${child.classLabel}'),
                     Text(child.status.displayLabel, style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ),

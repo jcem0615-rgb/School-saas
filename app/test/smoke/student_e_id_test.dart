@@ -42,8 +42,11 @@ void main() {
 
     final year = DateTime.now().year;
     expect(find.text('Miguel Torres'), findsOneWidget);
-    expect(find.text('Student · Grade 10 · Grade 10 - Rizal'), findsOneWidget,
-        reason: 'role, year level and section, on the front under the name');
+    // Said once: classLabel collapses "Grade 10" and "Grade 10 - Rizal",
+    // which on an 85.6mm card is the difference between fitting on the
+    // line and being ellipsised.
+    expect(find.text('Student · Grade 10 - Rizal'), findsOneWidget,
+        reason: 'role and class, on the front under the name');
     expect(find.text('SY $year-${year + 1}'), findsOneWidget, reason: 'school year, in the header');
     expect(find.text('2024-00001'), findsOneWidget, reason: 'student number row');
   });
@@ -54,7 +57,7 @@ void main() {
     // photo and QR now use and told a reader nothing new.
     await pumpEId(tester, UserRole.student);
 
-    for (final repeated in ['Miguel Torres', 'Student · Grade 10 · Grade 10 - Rizal']) {
+    for (final repeated in ['Miguel Torres', 'Student · Grade 10 - Rizal']) {
       expect(find.text(repeated), findsOneWidget, reason: '$repeated belongs on one face only');
     }
     expect(find.text('Grade Level'), findsNothing);

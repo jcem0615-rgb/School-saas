@@ -61,7 +61,7 @@ class EmployeeListScreen extends ConsumerWidget {
                         : null,
                   ),
                   title: Text(e.fullName),
-                  subtitle: Text('${e.role.displayName}${e.employeeInfo != null ? ' · ${e.employeeInfo!.position}' : ''}'),
+                  subtitle: Text(e.role.labelWith(e.employeeInfo?.position)),
                   trailing: e.status == UserAccountStatus.suspended
                       ? const Chip(label: Text('Suspended'), visualDensity: VisualDensity.compact)
                       : null,

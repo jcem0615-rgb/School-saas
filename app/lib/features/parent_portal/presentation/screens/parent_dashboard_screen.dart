@@ -64,7 +64,7 @@ class ParentDashboardScreen extends ConsumerWidget {
                     child: child.photoUrl == null ? const Icon(Icons.school_outlined) : null,
                   ),
                   title: Text(child.fullName),
-                  subtitle: Text('${child.studentNumber} · ${child.gradeLevel} - ${child.section}'),
+                  subtitle: Text('${child.studentNumber} · ${child.classLabel}'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => ChildDetailScreen(child: child))),

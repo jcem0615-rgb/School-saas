@@ -61,8 +61,13 @@ class CourseworkListScreen extends ConsumerWidget {
                   leading: CircleAvatar(child: Text(item.type.displayLabel[0])),
                   title: Text(item.title),
                   subtitle: Text(
-                    '${item.type.displayLabel} · ${item.delivery.displayLabel} · '
-                    '${item.subject} - ${item.section}'
+                    // Delivery only when it is Online. Nearly everything
+                    // is face-to-face, so printing it on every row spent
+                    // a phone-width line restating the default -- the
+                    // same reason the Draft chip only appears on drafts.
+                    '${item.type.displayLabel}'
+                    '${item.delivery == CourseworkDelivery.online ? ' · Online' : ''}'
+                    ' · ${item.subject} - ${item.section}'
                     '${item.dueDate != null ? ' · Due ${_dateFormat.format(item.dueDate!)}' : ''}',
                   ),
                   trailing: Row(

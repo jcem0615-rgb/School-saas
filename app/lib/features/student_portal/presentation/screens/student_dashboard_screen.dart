@@ -55,7 +55,7 @@ class StudentDashboardScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: [
               Text(student.fullName, style: Theme.of(context).textTheme.headlineSmall),
-              Text('${student.studentNumber} · ${student.gradeLevel} - ${student.section}'),
+              Text('${student.studentNumber} · ${student.classLabel}'),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(16),
