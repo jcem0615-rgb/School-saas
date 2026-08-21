@@ -5,6 +5,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'demo/demo_overrides.dart';
 import 'demo/demo_switcher.dart';
+import 'features/payments/presentation/widgets/payment_submission_alerts.dart';
 
 /// Entry point.
 ///
@@ -62,10 +63,14 @@ class SchoolSaasApp extends ConsumerWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       routerConfig: ref.watch(goRouterProvider),
-      // The role switcher is layered here -- above the router, inside
-      // MaterialApp -- so it stays visible across every route.
+      // Both of these are layered here -- above the router, inside
+      // MaterialApp -- so they apply across every route.
       builder: (context, child) {
-        final content = child ?? const SizedBox.shrink();
+        // Tells the cashier about incoming online payments wherever they
+        // are in the app. Not demo-only: this is a real feature.
+        final content = PaymentSubmissionAlerts(
+          child: child ?? const SizedBox.shrink(),
+        );
         return kDemoMode ? DemoSwitcher(child: content) : content;
       },
     );

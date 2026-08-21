@@ -116,7 +116,16 @@ class StudentDashboardScreen extends ConsumerWidget {
                     icon: Icons.payments_outlined,
                     label: 'Payments & Balance',
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => PaymentHistoryScreen(studentId: student.id)),
+                      MaterialPageRoute(
+                        // Pass the name, not just the id: an online payment
+                        // filed from here records who the money is for, and
+                        // without it the cashier's review queue and alert
+                        // both read "This student".
+                        builder: (_) => PaymentHistoryScreen(
+                          studentId: student.id,
+                          studentName: student.fullName,
+                        ),
+                      ),
                     ),
                   ),
                   _QuickLinkTile(

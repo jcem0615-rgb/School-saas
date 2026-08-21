@@ -67,7 +67,14 @@ class DemoStore {
 
   String get todayKey => _dateKey(now);
 
-  int _idSeq = 0;
+  // Starts above the seed data rather than at zero. A few seeded records
+  // carry hand-written ids in this same format -- `sub_0001`, `inv_0003` --
+  // so a counter starting at 0 hands the very first record created at
+  // runtime an id that already belongs to a seeded one. Two rows sharing
+  // an id is not a cosmetic problem: anything that looks a record up by id
+  // (edit, delete, "is this one new?") then acts on the wrong row, or
+  // cannot tell them apart at all.
+  int _idSeq = 1000;
   String nextId(String prefix) => '${prefix}_${(++_idSeq).toString().padLeft(4, '0')}';
 
   // -------------------------------------------------------------------
