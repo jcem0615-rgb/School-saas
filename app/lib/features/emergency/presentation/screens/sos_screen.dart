@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../controllers/emergency_controller.dart';
+import '../widgets/alert_location.dart';
 import 'emergency_contacts_screen.dart';
 
 final _dateFormat = DateFormat.yMMMd().add_jm();
@@ -47,6 +48,8 @@ class _SosScreenState extends ConsumerState<SosScreen> {
         content: const Text(
           'This notifies your class adviser and your parents or guardians '
           'straight away, on their phones.\n\n'
+          'Your location is sent with it, so they can find you. If your '
+          'phone cannot get a location, the alert still goes.\n\n'
           'If you are in immediate danger, call the emergency numbers on '
           'this screen as well.',
         ),
@@ -123,6 +126,12 @@ class _SosScreenState extends ConsumerState<SosScreen> {
                           ? '${active.first.acknowledgedByName} has seen this and is on the way.'
                           : 'Waiting for someone to acknowledge it.',
                     ),
+                    const SizedBox(height: 8),
+                    // What staff can actually see. A student whose phone
+                    // could not get a fix needs to know that nobody has
+                    // their location, while there is still time to say
+                    // where they are in the message or over the phone.
+                    AlertLocation(alert: active.first),
                   ],
                 ),
               ),
@@ -154,12 +163,13 @@ class _SosScreenState extends ConsumerState<SosScreen> {
               icon: _sending
                   ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.emergency_share, size: 32),
-              label: Text(_sending ? 'Sending…' : 'Send emergency alert'),
+              label: Text(_sending ? 'Finding you and sending…' : 'Send emergency alert'),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Goes to your class adviser and your parents or guardians.',
+            'Goes to your class adviser and your parents or guardians, '
+            'with your location.',
             style: theme.textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),

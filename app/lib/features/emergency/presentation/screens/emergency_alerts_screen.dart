@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../domain/entities/emergency_alert.dart';
 import '../controllers/emergency_controller.dart';
+import '../widgets/alert_location.dart';
 
 final _dateFormat = DateFormat.yMMMd().add_jm();
 
@@ -104,6 +105,11 @@ class _AlertCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(alert.message!),
             ],
+            // Above the acknowledge/resolve buttons on purpose: where the
+            // student is, is what somebody reading this needs before they
+            // decide anything else.
+            const SizedBox(height: 8),
+            AlertLocation(alert: alert),
             if (alert.isAcknowledged)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -120,8 +126,14 @@ class _AlertCard extends StatelessWidget {
               ),
             if (alert.isActive) ...[
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              // Wrap, not Row: at phone width with a large text scale
+              // "I'm on it" and "Resolve" together are wider than the
+              // card, and the buttons that deal with an emergency are the
+              // last thing that should be clipped off the edge of it.
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   if (!alert.isAcknowledged)
                     TextButton(
@@ -134,7 +146,6 @@ class _AlertCard extends StatelessWidget {
                           .acknowledgeAlert(alert.id),
                       child: const Text("I'm on it"),
                     ),
-                  const SizedBox(width: 8),
                   FilledButton(
                     onPressed: () => _resolve(context),
                     child: const Text('Resolve'),

@@ -1,3 +1,4 @@
+import '../core/location/location_probe.dart';
 import '../core/constants/education_level.dart';
 import '../core/constants/user_roles.dart';
 import '../core/errors/failures.dart';
@@ -2638,9 +2639,11 @@ class DemoEmergencyRepository implements EmergencyRepository {
     required String studentName,
     required String section,
     String? message,
+    LocationResult? location,
   }) async {
     await _latency();
     final id = _store.nextId('alert');
+    final fix = location?.fix;
     _store.prepend(
       _store.emergencyAlerts,
       EmergencyAlert(
@@ -2651,6 +2654,10 @@ class DemoEmergencyRepository implements EmergencyRepository {
         userId: _store.requireUser.uid,
         message: message,
         raisedAt: DateTime.now(),
+        latitude: fix?.latitude,
+        longitude: fix?.longitude,
+        locationAccuracyMeters: fix?.accuracyMeters,
+        locationFailure: location?.failure,
       ),
     );
     _store.audit(
@@ -2658,7 +2665,11 @@ class DemoEmergencyRepository implements EmergencyRepository {
       action: 'create',
       targetCollection: 'emergencyAlerts',
       targetId: id,
-      newValue: {'studentId': studentId, 'section': section},
+      newValue: {
+        'studentId': studentId,
+        'section': section,
+        'hasLocation': fix != null,
+      },
     );
     return const Success(null);
   }

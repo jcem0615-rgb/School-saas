@@ -426,10 +426,17 @@ service cloud.firestore {
         // Staff acknowledge and resolve. The student cannot edit their
         // own alert afterwards -- an alert that can be quietly retracted
         // is worth less than one that cannot.
+        // The location is in the immutable set with everything else the
+        // student wrote. Where they said they were when they called for
+        // help is evidence; staff acknowledging an alert must not be able
+        // to move it, and nor should a later edit be able to quietly
+        // erase it.
         allow update: if belongsToSchool(schoolId)
                         && claims().role in ['director', 'principal', 'admin', 'registrar', 'faculty', 'staff', 'guidance']
                         && !request.resource.data.diff(resource.data).affectedKeys()
-                              .hasAny(['userId', 'studentId', 'section', 'message', 'raisedAt']);
+                              .hasAny(['userId', 'studentId', 'section', 'message', 'raisedAt',
+                                       'latitude', 'longitude', 'locationAccuracyMeters',
+                                       'locationFailure']);
 
         allow delete: if false;
       }

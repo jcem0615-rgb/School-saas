@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/location/location_providers.dart';
 import '../core/push/push_providers.dart';
 import '../core/push/push_registrar.dart';
 import '../core/router/app_router.dart';
@@ -21,6 +22,7 @@ import '../features/qr_attendance/presentation/controllers/qr_attendance_control
 import '../features/registrar_portal/presentation/controllers/registrar_controller.dart';
 import '../features/staff_portal/presentation/controllers/staff_controller.dart';
 import '../features/student_portal/presentation/controllers/student_controller.dart';
+import 'demo_location_probe.dart';
 import 'demo_repositories.dart';
 import 'demo_store.dart';
 
@@ -95,6 +97,8 @@ List<Override> demoOverrides() {
     // browser for notification permission to look at a demo would be
     // rude even if it worked.
     pushRegistrarProvider.overrideWith((ref) => const NoOpPushRegistrar()),
+    // Never asks the browser for the real thing -- see DemoLocationProbe.
+    locationProbeProvider.overrideWith((ref) => const DemoLocationProbe()),
     emergencyRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoEmergencyRepository(ref.watch(demoStoreProvider));

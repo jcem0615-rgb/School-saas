@@ -51,6 +51,11 @@ dependencies:
   # Connectivity / offline
   connectivity_plus: ^6.0.5
 
+  # Browser APIs (Geolocation, for the emergency alert's location).
+  # Reached only through lib/core/location/location_probe_factory.dart's
+  # conditional export, so it is never compiled into a non-web build.
+  web: ^1.1.0
+
   cupertino_icons: ^1.0.8
   file_picker: ^11.0.2
   url_launcher: ^6.3.2

@@ -1,5 +1,6 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
+import '../../../../core/location/location_probe.dart';
 import '../../domain/entities/emergency_alert.dart';
 import '../../domain/entities/emergency_contact.dart';
 import '../../domain/repositories/emergency_repository.dart';
@@ -45,12 +46,14 @@ class EmergencyRepositoryImpl implements EmergencyRepository {
     required String studentName,
     required String section,
     String? message,
+    LocationResult? location,
   }) =>
       _run(() => _remote.raiseAlert(
             studentId: studentId,
             studentName: studentName,
             section: section,
             message: message,
+            location: location,
           ));
 
   @override

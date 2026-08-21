@@ -1,4 +1,5 @@
 import '../../../../core/errors/result.dart';
+import '../../../../core/location/location_probe.dart';
 import '../entities/emergency_alert.dart';
 import '../entities/emergency_contact.dart';
 
@@ -24,11 +25,16 @@ abstract class EmergencyRepository {
   Stream<List<EmergencyAlert>> watchAlertsForStudent(String studentId);
 
   /// Raises one. Only a student does this, and only for themselves.
+  ///
+  /// [location] is whatever the device managed to produce -- a fix, or a
+  /// reason there isn't one. Passed in rather than fetched here so that
+  /// asking for it never sits between the button and the alert.
   Future<Result<void>> raiseAlert({
     required String studentId,
     required String studentName,
     required String section,
     String? message,
+    LocationResult? location,
   });
 
   Future<Result<void>> acknowledgeAlert(String alertId);

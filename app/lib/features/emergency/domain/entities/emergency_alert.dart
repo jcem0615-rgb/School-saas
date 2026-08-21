@@ -1,3 +1,5 @@
+import '../../../../core/location/location_probe.dart';
+
 /// A student pressing the emergency button.
 ///
 /// The record exists for its own sake, not only to trigger a push. Push
@@ -24,6 +26,30 @@ class EmergencyAlert {
   /// later need to rely on.
   final DateTime raisedAt;
 
+  /// Where the student was when they pressed it, if their device could
+  /// say. "Send help" is not actionable without "and here is where I am":
+  /// a school is a big place and a student in trouble may not be able to
+  /// describe where they are, or may not know.
+  ///
+  /// Captured once, at the moment the button is pressed, and never
+  /// updated afterwards -- this is where they raised the alert, not a
+  /// live track. Following someone around the campus after the fact is a
+  /// different and much larger decision than recording where they called
+  /// for help from.
+  final double? latitude;
+  final double? longitude;
+
+  /// Radius in metres the true position is expected to lie within, as
+  /// reported by the device. Shown to staff because a fix good to 5m and
+  /// one good to 2km call for very different responses.
+  final double? locationAccuracyMeters;
+
+  /// Set instead when there is no fix, so staff can tell "the student
+  /// declined to share" from "nobody ever asked". Without it, an alert
+  /// with no location is ambiguous in exactly the moment when guessing is
+  /// most expensive.
+  final LocationFailure? locationFailure;
+
   /// Who acknowledged it, and when. An alert nobody has picked up looks
   /// different from one being dealt with, and staff need to be able to
   /// tell at a glance which is which.
@@ -42,11 +68,18 @@ class EmergencyAlert {
     required this.userId,
     required this.raisedAt,
     this.message,
+    this.latitude,
+    this.longitude,
+    this.locationAccuracyMeters,
+    this.locationFailure,
     this.acknowledgedByName,
     this.acknowledgedAt,
     this.resolvedAt,
     this.resolutionNote,
   });
+
+  /// Both halves or neither -- a lone latitude is not a place.
+  bool get hasLocation => latitude != null && longitude != null;
 
   bool get isAcknowledged => acknowledgedAt != null;
   bool get isResolved => resolvedAt != null;

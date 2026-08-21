@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/result.dart';
+import '../../../../core/location/location_probe.dart';
+import '../../../../core/location/location_providers.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart'
     show authStateProvider, firestoreProvider;
 import '../../data/datasources/emergency_remote_datasource.dart';
@@ -37,8 +41,19 @@ final myEmergencyAlertsProvider =
 
 class EmergencyActionController extends StateNotifier<AsyncValue<void>> {
   final EmergencyRepository _repository;
+  final LocationProbe _locationProbe;
 
-  EmergencyActionController(this._repository) : super(const AsyncData(null));
+  /// How long the alert is willing to wait for a position.
+  ///
+  /// Short on purpose. A student who has pressed the button is waiting,
+  /// and an alert that reaches an adviser eight seconds late with a
+  /// location is still better than one that reaches them thirty seconds
+  /// late with a slightly better one. Whatever has not arrived by then is
+  /// recorded as a timeout and the alert goes without it.
+  static const locationTimeout = Duration(seconds: 8);
+
+  EmergencyActionController(this._repository, this._locationProbe)
+      : super(const AsyncData(null));
 
   Future<bool> saveContact({
     String? contactId,
@@ -66,18 +81,43 @@ class EmergencyActionController extends StateNotifier<AsyncValue<void>> {
 
   Future<bool> deleteContact(String contactId) => _run(() => _repository.deleteContact(contactId));
 
+  /// Raises an alert, attaching wherever the device says the student is.
+  ///
+  /// The probe is asked here rather than in the screen so that the rule
+  /// that matters lives in one place: asking for a location must never
+  /// stop the alert. The probe is bounded and does not throw, so the
+  /// worst case is an alert carrying a reason instead of a position.
   Future<bool> raiseAlert({
     required String studentId,
     required String studentName,
     required String section,
     String? message,
-  }) =>
-      _run(() => _repository.raiseAlert(
-            studentId: studentId,
-            studentName: studentName,
-            section: section,
-            message: message?.trim().isEmpty ?? true ? null : message!.trim(),
-          ));
+  }) async {
+    // The deadline is enforced here as well as passed down. LocationProbe
+    // promises to be bounded and not to throw, but this is the one call in
+    // the app where a probe that quietly breaks that promise -- a plugin
+    // that hangs on a device with no signal, an exception from an
+    // embedded webview -- would leave a student who pressed the button
+    // waiting on a spinner instead of getting help. Whichever gives up
+    // first, the alert still goes.
+    final location = await _locationProbe
+        .current(timeout: locationTimeout)
+        .timeout(
+          locationTimeout,
+          onTimeout: () => const LocationResult.failed(LocationFailure.timeout),
+        )
+        .catchError(
+          (_) => const LocationResult.failed(LocationFailure.unavailable),
+        );
+
+    return _run(() => _repository.raiseAlert(
+          studentId: studentId,
+          studentName: studentName,
+          section: section,
+          message: message?.trim().isEmpty ?? true ? null : message!.trim(),
+          location: location,
+        ));
+  }
 
   Future<bool> acknowledgeAlert(String alertId) =>
       _run(() => _repository.acknowledgeAlert(alertId));
@@ -100,5 +140,8 @@ class EmergencyActionController extends StateNotifier<AsyncValue<void>> {
 
 final emergencyActionControllerProvider =
     StateNotifierProvider.autoDispose<EmergencyActionController, AsyncValue<void>>((ref) {
-  return EmergencyActionController(ref.watch(emergencyRepositoryProvider));
+  return EmergencyActionController(
+    ref.watch(emergencyRepositoryProvider),
+    ref.watch(locationProbeProvider),
+  );
 });

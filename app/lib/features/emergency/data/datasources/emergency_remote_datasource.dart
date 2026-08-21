@@ -1,3 +1,4 @@
+import '../../../../core/location/location_probe.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/firestore_paths.dart';
@@ -80,7 +81,9 @@ class EmergencyRemoteDataSource {
     required String studentName,
     required String section,
     String? message,
+    LocationResult? location,
   }) async {
+    final fix = location?.fix;
     await _firestore.collection(FirestorePaths.emergencyAlerts(_schoolId)).add({
       'studentId': studentId,
       'studentName': studentName,
@@ -91,6 +94,16 @@ class EmergencyRemoteDataSource {
       // Server clock. When an alert was raised is the first question
       // anyone asks afterwards.
       'raisedAt': FieldValue.serverTimestamp(),
+      // Where they were, or why that is not known. Written as fields on
+      // the alert rather than a GeoPoint: staff read these as numbers and
+      // hand them to a map URL, and a GeoPoint would need unpacking at
+      // every one of those points for no gain.
+      if (fix != null) ...{
+        'latitude': fix.latitude,
+        'longitude': fix.longitude,
+        if (fix.accuracyMeters != null) 'locationAccuracyMeters': fix.accuracyMeters,
+      },
+      if (location?.failure != null) 'locationFailure': location!.failure!.value,
     });
   }
 
