@@ -142,6 +142,43 @@ To run against real Firebase instead, generate `firebase_options.dart`,
 uncomment the `Firebase.initializeApp` call in `lib/main.dart`, and run
 with `--dart-define=DEMO_MODE=false`.
 
+## Running on a phone
+
+The `android/` and `ios/` folders are checked in and configured for the
+plugins this app uses -- camera and gallery for QR scanning and receipts,
+location for the emergency alert, notifications for pushes -- so demo mode
+runs on a device with no further setup:
+
+```bash
+cd app
+flutter run            # with a phone attached, or an emulator/simulator running
+```
+
+Identifiers, both of which must match what you register in the Firebase
+console before the app can talk to a real backend:
+
+| Platform | Identifier | Where |
+|---|---|---|
+| Android | `ph.schoolsaas.school_saas` | `android/app/build.gradle.kts` |
+| iOS | `ph.schoolsaas.schoolSaas` | Xcode target, or `ios/Runner.xcodeproj` |
+
+Change them before your first release -- an Android `applicationId` cannot
+be changed once the app is on the Play Store.
+
+**What is still needed for a real (non-demo) build on a phone:** the same
+Firebase config this repo has never carried. `flutterfire configure`
+generates `app/lib/firebase_options.dart`, writes
+`android/app/google-services.json` and
+`ios/Runner/GoogleService-Info.plist`, and adds the `google-services`
+Gradle plugin. That plugin is deliberately *not* wired up here: without
+the matching JSON file it fails the Android build, which would mean nobody
+could run demo mode on a phone until they had a Firebase project.
+
+Minimums are pinned rather than inherited: `minSdk = 23` (firebase_auth
+5.x requires it) and iOS 15. Notification scheduling needs Java 8+ APIs on
+older Androids, so core library desugaring is switched on in the app's
+Gradle file.
+
 ## Running the tests
 
 Three independent suites, each covering a different layer:
