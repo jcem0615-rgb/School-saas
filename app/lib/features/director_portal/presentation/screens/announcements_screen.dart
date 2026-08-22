@@ -137,13 +137,13 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
               children: [
                 TextField(
                   controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Title'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: bodyController,
                   maxLines: 4,
-                  decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Message'),
                 ),
                 const SizedBox(height: 16),
                 Text('Who sees this', style: Theme.of(dialogContext).textTheme.labelLarge),

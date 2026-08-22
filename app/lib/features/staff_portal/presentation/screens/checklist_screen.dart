@@ -117,7 +117,7 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
         content: TextField(
           controller: taskController,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'Task', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'Task'),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
@@ -143,7 +143,7 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
         title: const Text('Add Task'),
         content: TextField(
           controller: taskController,
-          decoration: const InputDecoration(labelText: 'Task', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'Task'),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),

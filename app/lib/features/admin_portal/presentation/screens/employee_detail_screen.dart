@@ -147,12 +147,12 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
           const SizedBox(height: 8),
           TextField(
             controller: _departmentController,
-            decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'Department'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _positionController,
-            decoration: const InputDecoration(labelText: 'Position', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'Position'),
           ),
           if (e.employeeInfo != null) ...[
             const SizedBox(height: 8),
@@ -170,7 +170,7 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
           DropdownButtonFormField<EducationLevel?>(
             isExpanded: true,
             value: _assignedDivision,
-            decoration: const InputDecoration(labelText: 'Assigned Division', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'Assigned Division'),
             items: [
               const DropdownMenuItem<EducationLevel?>(value: null, child: Text('Unrestricted (all divisions)')),
               ...EducationLevel.values.map((l) => DropdownMenuItem(value: l, child: Text(l.displayLabel))),
@@ -184,7 +184,6 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
               decoration: const InputDecoration(
                 labelText: 'Assigned College Department (optional)',
                 hintText: 'Leave blank to scope to all of College',
-                border: OutlineInputBorder(),
               ),
             ),
           ],

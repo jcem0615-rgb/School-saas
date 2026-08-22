@@ -110,19 +110,19 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
               TextField(
                 controller: _studentIdController,
                 enabled: widget.studentId == null,
-                decoration: const InputDecoration(labelText: 'Student ID', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Student ID'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Amount (₱)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Amount (₱)'),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<PaymentPurpose>(
                 isExpanded: true,
                 value: _purpose,
-                decoration: const InputDecoration(labelText: 'Purpose', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Purpose'),
                 items: PaymentPurpose.values
                     .map((p) => DropdownMenuItem(value: p, child: Text(p.displayLabel)))
                     .toList(),
@@ -132,7 +132,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
               DropdownButtonFormField<PaymentMethod>(
                 isExpanded: true,
                 value: _method,
-                decoration: const InputDecoration(labelText: 'Payment Method', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Payment Method'),
                 items: PaymentMethod.values
                     .map((m) => DropdownMenuItem(value: m, child: Text(m.displayLabel)))
                     .toList(),
@@ -142,7 +142,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _referenceController,
-                  decoration: const InputDecoration(labelText: 'Reference Number', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Reference Number'),
                 ),
               ],
               const SizedBox(height: 24),

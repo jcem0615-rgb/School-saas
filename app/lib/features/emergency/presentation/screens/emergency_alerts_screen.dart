@@ -171,7 +171,6 @@ class _AlertCard extends StatelessWidget {
           decoration: const InputDecoration(
             labelText: 'What happened',
             hintText: 'Brought to the clinic, parents called.',
-            border: OutlineInputBorder(),
           ),
         ),
         actions: [

@@ -119,7 +119,7 @@ class SchoolDetailScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             TextField(
               controller: reasonController,
-              decoration: const InputDecoration(labelText: 'Reason', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Reason'),
             ),
           ],
         ),

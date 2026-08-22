@@ -104,7 +104,6 @@ class _ComboFieldState extends State<ComboField> {
       decoration: InputDecoration(
         labelText: widget.label,
         hintText: widget.hintText,
-        border: const OutlineInputBorder(),
         prefixIcon: widget.prefixIcon != null ? Icon(widget.prefixIcon) : null,
         suffixIcon: IconButton(
           icon: const Icon(Icons.arrow_drop_down),

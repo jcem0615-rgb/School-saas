@@ -115,13 +115,13 @@ class PromissoryNoteScreen extends ConsumerWidget {
             TextField(
               controller: amountController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Amount (₱)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Amount (₱)'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: reasonController,
               maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Reason', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Reason'),
             ),
           ],
         ),

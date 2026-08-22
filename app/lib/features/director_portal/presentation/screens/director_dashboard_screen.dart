@@ -52,7 +52,18 @@ class DirectorDashboardScreen extends ConsumerWidget {
                     physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 1.6,
+                    // A fixed height, not an aspect ratio. At four columns
+                    // 1.6 gave a sensible tile; at one column -- which is
+                    // what a phone gets -- it made each stat 220pt tall for
+                    // one number and a label, so the four of them filled
+                    // the screen twice over before anything else appeared.
+                    // The content does not grow with the width, so the
+                    // height should not either. 164 is what the contents
+                    // actually need -- 20+20 padding, a 44 icon, the gap,
+                    // and two lines of label for the longest one -- so the
+                    // card's own FittedBox never has to shrink the number
+                    // to fit, which is what a tighter guess did.
+                    mainAxisExtent: 164,
                     children: [
                       RevenueCard(
                         label: 'Attendance Rate Today',

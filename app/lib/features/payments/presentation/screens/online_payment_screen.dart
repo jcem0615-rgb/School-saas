@@ -227,7 +227,6 @@ class _OnlinePaymentScreenState extends ConsumerState<OnlinePaymentScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Transaction reference number',
                         hintText: 'From your e-wallet receipt',
-                        border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.confirmation_number_outlined),
                       ),
                     ),
@@ -237,7 +236,6 @@ class _OnlinePaymentScreenState extends ConsumerState<OnlinePaymentScreen> {
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: const InputDecoration(
                         labelText: 'Amount sent (₱)',
-                        border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.payments_outlined),
                       ),
                     ),
@@ -246,7 +244,7 @@ class _OnlinePaymentScreenState extends ConsumerState<OnlinePaymentScreen> {
                       isExpanded: true,
                       value: _method,
                       decoration: const InputDecoration(
-                          labelText: 'Paid via', border: OutlineInputBorder()),
+                          labelText: 'Paid via'),
                       // Only the online methods: cash and bank transfer are
                       // things a cashier attests to, not a family.
                       items: const [PaymentMethod.gcash, PaymentMethod.online]
@@ -259,7 +257,7 @@ class _OnlinePaymentScreenState extends ConsumerState<OnlinePaymentScreen> {
                       isExpanded: true,
                       value: _purpose,
                       decoration: const InputDecoration(
-                          labelText: 'Purpose', border: OutlineInputBorder()),
+                          labelText: 'Purpose'),
                       items: PaymentPurpose.values
                           .map((p) => DropdownMenuItem(value: p, child: Text(p.displayLabel)))
                           .toList(),

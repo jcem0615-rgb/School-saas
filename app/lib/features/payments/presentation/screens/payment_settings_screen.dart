@@ -152,13 +152,13 @@ class _PaymentSettingsScreenState extends ConsumerState<PaymentSettingsScreen> {
               TextField(
                 controller: _accountNameController,
                 decoration: const InputDecoration(
-                    labelText: 'Account name', border: OutlineInputBorder()),
+                    labelText: 'Account name'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _accountNumberController,
                 decoration: const InputDecoration(
-                    labelText: 'Account / mobile number', border: OutlineInputBorder()),
+                    labelText: 'Account / mobile number'),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -166,7 +166,6 @@ class _PaymentSettingsScreenState extends ConsumerState<PaymentSettingsScreen> {
                 maxLines: 3,
                 decoration: const InputDecoration(
                   labelText: 'Instructions for families',
-                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 20),

@@ -128,7 +128,6 @@ class _DailyReportsScreenState extends ConsumerState<DailyReportsScreen> {
           maxLines: 5,
           decoration: const InputDecoration(
             labelText: 'What did you work on today?',
-            border: OutlineInputBorder(),
           ),
         ),
         actions: [

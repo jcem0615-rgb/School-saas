@@ -138,6 +138,10 @@ class StudentDashboardScreen extends ConsumerWidget {
                   GlassTile(
                     icon: Icons.emergency_share,
                     label: 'Emergency',
+                    // The one tile here that is not navigation. A student
+                    // reaching for it is in trouble and should not have to
+                    // read six labels to find it.
+                    emphasis: true,
                     onTap: () {
                       final student = ref.read(myStudentRecordProvider).valueOrNull;
                       if (student == null) return;

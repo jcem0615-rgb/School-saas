@@ -192,7 +192,7 @@ class _PaymentTile extends ConsumerWidget {
         title: const Text('Refund this payment?'),
         content: TextField(
           controller: reasonController,
-          decoration: const InputDecoration(labelText: 'Reason', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'Reason'),
           maxLines: 3,
         ),
         actions: [

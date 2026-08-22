@@ -135,7 +135,6 @@ class ProgramsScreen extends ConsumerWidget {
                   hintText: seniorHigh
                       ? 'e.g. Science, Technology, Engineering and Mathematics'
                       : 'e.g. BS Computer Science',
-                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
@@ -144,7 +143,6 @@ class ProgramsScreen extends ConsumerWidget {
                 decoration: InputDecoration(
                   labelText: 'Code',
                   hintText: seniorHigh ? 'e.g. STEM' : 'e.g. BSCS',
-                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
@@ -155,7 +153,6 @@ class ProgramsScreen extends ConsumerWidget {
                   hintText: seniorHigh
                       ? 'e.g. Academic'
                       : 'e.g. College of Engineering',
-                  border: const OutlineInputBorder(),
                 ),
               ),
             ],

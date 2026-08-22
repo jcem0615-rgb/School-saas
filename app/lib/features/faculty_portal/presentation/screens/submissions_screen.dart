@@ -162,7 +162,7 @@ Future<void> _showGradeDialog(
             TextField(
               controller: scoreController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Score', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Score'),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -171,7 +171,6 @@ Future<void> _showGradeDialog(
               decoration: const InputDecoration(
                 labelText: 'Feedback (optional)',
                 alignLabelWithHint: true,
-                border: OutlineInputBorder(),
               ),
             ),
           ],

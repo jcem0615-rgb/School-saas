@@ -73,11 +73,13 @@ class AppTheme {
       // put something *into*, which on a white pane means a tinted well
       // and a border you can actually see rather than white-on-white.
       //
-      // Every border state is named. Thirty-odd screens set
-      // `border: OutlineInputBorder()` inline, and InputDecoration resolves
-      // the enabled and focused states from their own slots first -- so
-      // leaving those unset here is how a form ends up with one field
-      // styled and the next one not.
+      // Every border state is named, not just `border`. InputDecoration
+      // resolves the enabled, focused, disabled and error states from
+      // their own slots first and only falls back to `border`, so setting
+      // one and not the others is how a form ends up with one field styled
+      // and the next one not. This is now the only place any of them is
+      // set: the inline overrides the screens used to carry were stripped
+      // once they became inert, so there is nothing left to drift.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: glass.fieldFill,

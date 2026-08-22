@@ -141,17 +141,17 @@ class MeetingsScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 TextField(
                   controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Title'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: descriptionController,
-                  decoration: const InputDecoration(labelText: 'Description (optional)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Description (optional)'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: locationController,
-                  decoration: const InputDecoration(labelText: 'Location (optional)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Location (optional)'),
                 ),
                 const SizedBox(height: 12),
                 ListTile(

@@ -199,7 +199,7 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
                   DropdownButtonFormField<dynamic>(
                     isExpanded: true,
                     value: selectedTeacher,
-                    decoration: const InputDecoration(labelText: 'Teacher', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Teacher'),
                     items: faculty
                         .map((f) => DropdownMenuItem(value: f, child: Text(f.fullName as String)))
                         .toList(),
@@ -243,7 +243,7 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 TextField(
                   controller: yearController,
-                  decoration: const InputDecoration(labelText: 'School Year', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'School Year'),
                 ),
                 const SizedBox(height: 4),
                 CheckboxListTile(

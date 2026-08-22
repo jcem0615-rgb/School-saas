@@ -147,7 +147,6 @@ class _SosScreenState extends ConsumerState<SosScreen> {
             maxLines: 3,
             decoration: const InputDecoration(
               hintText: 'Where you are, and what kind of help you need',
-              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 16),

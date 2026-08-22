@@ -155,7 +155,6 @@ class _AnswerKeyScreenState extends ConsumerState<AnswerKeyScreen> {
               labelText: 'Correct answers — one per line',
               hintText: 'Mitosis\nMeiosis\nFour\nProphase',
               alignLabelWithHint: true,
-              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),
@@ -165,7 +164,6 @@ class _AnswerKeyScreenState extends ConsumerState<AnswerKeyScreen> {
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
               labelText: 'Marks per question',
-              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),

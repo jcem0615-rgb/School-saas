@@ -72,7 +72,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
         content: TextField(
           controller: emailController,
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'Email'),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
@@ -140,7 +140,6 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
               keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
               decoration: const InputDecoration(
                 labelText: 'Balance (₱)',
-                border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
@@ -149,7 +148,6 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
               decoration: const InputDecoration(
                 labelText: 'Reason',
                 hintText: 'e.g. First semester assessment',
-                border: OutlineInputBorder(),
               ),
             ),
           ],
@@ -306,7 +304,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
           DropdownButtonFormField<StudentStatus>(
             isExpanded: true,
             value: _status,
-            decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'Status'),
             items: StudentStatus.values
                 .map((s) => DropdownMenuItem(value: s, child: Text(s.displayLabel)))
                 .toList(),

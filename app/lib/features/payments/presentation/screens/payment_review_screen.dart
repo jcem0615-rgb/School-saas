@@ -114,7 +114,6 @@ class _PaymentReviewScreenState extends ConsumerState<PaymentReviewScreen> {
               controller: remarksController,
               decoration: InputDecoration(
                 labelText: approve ? 'Note (optional)' : 'Reason',
-                border: const OutlineInputBorder(),
               ),
             ),
           ],

@@ -147,7 +147,7 @@ class CourseworkListScreen extends ConsumerWidget {
                 DropdownButtonFormField<CourseworkType>(
                   isExpanded: true,
                   value: type,
-                  decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Type'),
                   items: CourseworkType.values
                       .map((t) => DropdownMenuItem(value: t, child: Text(t.displayLabel)))
                       .toList(),
@@ -173,13 +173,13 @@ class CourseworkListScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 TextField(
                   controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Title'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: descriptionController,
                   maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Description'),
                 ),
                 const SizedBox(height: 12),
                 // Suggested from the teacher's own assignments, so the
@@ -230,7 +230,7 @@ class CourseworkListScreen extends ConsumerWidget {
                   TextField(
                     controller: pointsController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Total Points (optional)', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Total Points (optional)'),
                   ),
                 ],
                 const SizedBox(height: 12),

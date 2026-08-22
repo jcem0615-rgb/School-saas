@@ -157,7 +157,7 @@ class _ApprovalTile extends ConsumerWidget {
         title: const Text('Reject this request?'),
         content: TextField(
           controller: remarksController,
-          decoration: const InputDecoration(labelText: 'Reason', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'Reason'),
           maxLines: 3,
         ),
         actions: [

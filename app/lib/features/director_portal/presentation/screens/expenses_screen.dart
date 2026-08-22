@@ -168,20 +168,20 @@ class ExpensesScreen extends ConsumerWidget {
                 DropdownButtonFormField<String>(
                   isExpanded: true,
                   value: category,
-                  decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Category'),
                   items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                   onChanged: (v) => setState(() => category = v ?? category),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: descriptionController,
-                  decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Description'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: amountController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Amount (₱)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Amount (₱)'),
                 ),
                 const SizedBox(height: 12),
                 FieldTile(

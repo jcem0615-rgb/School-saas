@@ -140,7 +140,6 @@ class EmergencyContactsScreen extends ConsumerWidget {
                 decoration: const InputDecoration(
                   labelText: 'Who answers',
                   hintText: 'BFP - San Nicolas Fire Station',
-                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
@@ -150,7 +149,6 @@ class EmergencyContactsScreen extends ConsumerWidget {
                 decoration: const InputDecoration(
                   labelText: 'Number',
                   hintText: '(043) 555 0161',
-                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
@@ -159,7 +157,6 @@ class EmergencyContactsScreen extends ConsumerWidget {
                 decoration: const InputDecoration(
                   labelText: 'Notes (optional)',
                   hintText: 'Ask for the desk officer',
-                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
@@ -169,7 +166,6 @@ class EmergencyContactsScreen extends ConsumerWidget {
                 decoration: const InputDecoration(
                   labelText: 'Order in the list',
                   helperText: 'Lower shows first. Put whoever to call first at the top.',
-                  border: OutlineInputBorder(),
                 ),
               ),
             ],

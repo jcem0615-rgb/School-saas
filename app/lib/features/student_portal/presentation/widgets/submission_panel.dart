@@ -210,7 +210,6 @@ class _SubmissionPanelState extends ConsumerState<SubmissionPanel> {
                 controller: _questionControllers[i],
                 decoration: InputDecoration(
                   labelText: 'Question ${i + 1}',
-                  border: const OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
@@ -222,7 +221,6 @@ class _SubmissionPanelState extends ConsumerState<SubmissionPanel> {
             decoration: const InputDecoration(
               labelText: 'Your answer',
               alignLabelWithHint: true,
-              border: OutlineInputBorder(),
             ),
           ),
         const SizedBox(height: 12),

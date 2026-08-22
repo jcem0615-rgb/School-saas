@@ -60,14 +60,14 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
                     Expanded(
                       child: TextField(
                         controller: _studentIdController,
-                        decoration: const InputDecoration(labelText: 'Student ID', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(labelText: 'Student ID'),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _studentNameController,
-                        decoration: const InputDecoration(labelText: 'Student Name', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(labelText: 'Student Name'),
                       ),
                     ),
                   ],
@@ -192,7 +192,7 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
                 DropdownButtonFormField<GuidanceCategory>(
                   isExpanded: true,
                   value: category,
-                  decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Category'),
                   items: GuidanceCategory.values
                       .map((c) => DropdownMenuItem(value: c, child: Text(c.displayLabel)))
                       .toList(),
@@ -202,7 +202,7 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
                 TextField(
                   controller: notesController,
                   maxLines: 5,
-                  decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Notes'),
                 ),
               ],
             ),
@@ -254,7 +254,7 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
                 DropdownButtonFormField<GuidanceCategory>(
                   isExpanded: true,
                   value: category,
-                  decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Category'),
                   items: GuidanceCategory.values
                       .map((c) => DropdownMenuItem(value: c, child: Text(c.displayLabel)))
                       .toList(),
@@ -270,7 +270,7 @@ class _GuidanceRecordsScreenState extends ConsumerState<GuidanceRecordsScreen> {
                 TextField(
                   controller: notesController,
                   maxLines: 5,
-                  decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Notes'),
                 ),
                 const SizedBox(height: 8),
                 Text(

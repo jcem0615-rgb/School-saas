@@ -148,19 +148,19 @@ class SummonsScreen extends ConsumerWidget {
                 TextField(
                   controller: studentIdController,
                   readOnly: isEdit,
-                  decoration: const InputDecoration(labelText: 'Student ID', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Student ID'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: studentNameController,
                   readOnly: isEdit,
-                  decoration: const InputDecoration(labelText: 'Student Name', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Student Name'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: reasonController,
                   maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Reason', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Reason'),
                 ),
                 const SizedBox(height: 12),
                 FieldTile(

@@ -187,7 +187,7 @@ class EmployeeListScreen extends ConsumerWidget {
                 DropdownButtonFormField<UserRole>(
                   isExpanded: true,
                   value: role,
-                  decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Role'),
                   items: adminProvisionableRoles
                       .map((r) => DropdownMenuItem(value: r, child: Text(r.displayName)))
                       .toList(),
@@ -196,28 +196,28 @@ class EmployeeListScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 TextField(
                   controller: firstNameController,
-                  decoration: const InputDecoration(labelText: 'First Name', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'First Name'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: lastNameController,
-                  decoration: const InputDecoration(labelText: 'Last Name', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Last Name'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Email'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: departmentController,
-                  decoration: const InputDecoration(labelText: 'Department (optional)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Department (optional)'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: positionController,
-                  decoration: const InputDecoration(labelText: 'Position (optional)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Position (optional)'),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<EducationLevel?>(
@@ -228,7 +228,6 @@ class EmployeeListScreen extends ConsumerWidget {
                     helperText: 'Leave unset for normal cross-division access. Set to restrict '
                         'this staff member to only their assigned division.',
                     helperMaxLines: 3,
-                    border: OutlineInputBorder(),
                   ),
                   items: [
                     const DropdownMenuItem<EducationLevel?>(value: null, child: Text('Unrestricted (all divisions)')),
@@ -243,7 +242,6 @@ class EmployeeListScreen extends ConsumerWidget {
                     decoration: const InputDecoration(
                       labelText: 'Assigned College Department (optional)',
                       hintText: 'e.g. College of Engineering -- leave blank to scope to all of College',
-                      border: OutlineInputBorder(),
                     ),
                   ),
                 ],

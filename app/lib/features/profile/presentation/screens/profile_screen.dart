@@ -120,7 +120,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Phone', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Phone'),
             )
           else
             _InfoTile(label: 'Phone', value: _phoneController.text.isEmpty ? 'Not set' : _phoneController.text),

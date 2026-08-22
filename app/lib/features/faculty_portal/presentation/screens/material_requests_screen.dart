@@ -101,13 +101,13 @@ class MaterialRequestsScreen extends ConsumerWidget {
           children: [
             TextField(
               controller: titleController,
-              decoration: const InputDecoration(labelText: 'What do you need?', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'What do you need?'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: descriptionController,
               maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Details (optional)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Details (optional)'),
             ),
           ],
         ),

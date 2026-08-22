@@ -215,7 +215,6 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                   value: educationLevel,
                   decoration: const InputDecoration(
                     labelText: 'Division',
-                    border: OutlineInputBorder(),
                   ),
                   items: EducationLevel.values
                       .map((level) => DropdownMenuItem(value: level, child: Text(level.displayLabel)))
@@ -228,17 +227,17 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: firstNameController,
-                  decoration: const InputDecoration(labelText: 'First Name', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'First Name'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: lastNameController,
-                  decoration: const InputDecoration(labelText: 'Last Name', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Last Name'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: middleNameController,
-                  decoration: const InputDecoration(labelText: 'Middle Name (optional)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Middle Name (optional)'),
                 ),
                 const SizedBox(height: 12),
                 // Suggest what the school already uses, but still allow a
@@ -304,7 +303,6 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                             value: programs.contains(selectedProgram) ? selectedProgram : null,
                             decoration: InputDecoration(
                               labelText: label,
-                              border: const OutlineInputBorder(),
                             ),
                             items: programs
                                 .map((p) => DropdownMenuItem(value: p, child: Text('${p.name} (${p.code})')))
@@ -341,12 +339,12 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: guardianNameController,
-                  decoration: const InputDecoration(labelText: 'Guardian Name', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Guardian Name'),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: guardianPhoneController,
-                  decoration: const InputDecoration(labelText: 'Guardian Phone', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Guardian Phone'),
                 ),
                 const SizedBox(height: 20),
                 FilledButton(

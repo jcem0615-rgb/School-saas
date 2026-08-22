@@ -136,13 +136,13 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                    labelText: 'School name (as printed)', border: OutlineInputBorder()),
+                    labelText: 'School name (as printed)'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _addressController,
                 decoration: const InputDecoration(
-                    labelText: 'Address line', border: OutlineInputBorder()),
+                    labelText: 'Address line'),
               ),
               const Divider(height: 32),
               Text('Printed on every ID', style: theme.textTheme.titleMedium),
@@ -157,19 +157,19 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
               TextField(
                 controller: _schoolYearController,
                 decoration: const InputDecoration(
-                    labelText: 'School year (e.g. 2026-2027)', border: OutlineInputBorder()),
+                    labelText: 'School year (e.g. 2026-2027)'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _principalController,
                 decoration: const InputDecoration(
-                    labelText: 'Principal name', border: OutlineInputBorder()),
+                    labelText: 'Principal name'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _directorController,
                 decoration: const InputDecoration(
-                    labelText: 'Director name', border: OutlineInputBorder()),
+                    labelText: 'Director name'),
               ),
               const SizedBox(height: 20),
               FilledButton(

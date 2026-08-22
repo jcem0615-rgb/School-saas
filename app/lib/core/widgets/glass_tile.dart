@@ -40,6 +40,11 @@ class GlassTile extends StatelessWidget {
 
     return SizedBox(
       width: 148,
+      // Fixed, not intrinsic: a two-line label ("Assignments & Exams")
+      // made its tile taller than the one-line tile beside it, which on a
+      // phone -- two columns wide -- turned the grid ragged. Tall enough
+      // for two lines at the largest text scale the label allows.
+      height: 132,
       child: GlassSurface(
         blur: false,
         radius: 20,
