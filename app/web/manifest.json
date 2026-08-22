@@ -1,6 +1,6 @@
 {
-  "name": "School Management",
-  "short_name": "School",
+  "name": "LogicClass",
+  "short_name": "LogicClass",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#101014",

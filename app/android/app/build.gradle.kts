@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "ph.schoolsaas.school_saas"
+    namespace = "ph.logicclass.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -23,7 +23,7 @@ android {
         // (and therefore the package in google-services.json). Change it
         // here before the first release -- it cannot be changed on the
         // Play Store afterwards.
-        applicationId = "ph.schoolsaas.school_saas"
+        applicationId = "ph.logicclass.app"
         // Pinned rather than taken from flutter.minSdkVersion: firebase_auth
         // 5.x requires 23, and inheriting the Flutter default silently
         // drops below that when the SDK moves.

@@ -4,10 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/features/qr_attendance/presentation/screens/e_id_screen.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/qr_attendance/presentation/screens/e_id_screen.dart';
 
 /// A student ID card is only useful if it carries the details a guard or a
 /// teacher actually checks it for. Those come from three different places

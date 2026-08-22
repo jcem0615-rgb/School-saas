@@ -1,6 +1,6 @@
-# School Management SaaS
+# LogicClass
 
-A multi-tenant School Management SaaS for Philippine schools, billed at
+LogicClass is a multi-tenant school management SaaS for Philippine schools, billed at
 ₱3/active-student/day. Supports Elementary, High School, and College
 divisions under a single school tenant, with data isolation enforced by
 role, division, and (for College) department.

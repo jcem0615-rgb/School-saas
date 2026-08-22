@@ -4,15 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/core/location/location_probe.dart';
-import 'package:school_saas/core/location/location_providers.dart';
-import 'package:school_saas/core/theme/app_theme.dart';
-import 'package:school_saas/demo/demo_location_probe.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/features/emergency/presentation/controllers/emergency_controller.dart';
-import 'package:school_saas/features/emergency/presentation/screens/emergency_alerts_screen.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/core/location/location_probe.dart';
+import 'package:logicclass/core/location/location_providers.dart';
+import 'package:logicclass/core/theme/app_theme.dart';
+import 'package:logicclass/demo/demo_location_probe.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/emergency/presentation/controllers/emergency_controller.dart';
+import 'package:logicclass/features/emergency/presentation/screens/emergency_alerts_screen.dart';
 
 /// An emergency alert carries where the student was.
 ///

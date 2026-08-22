@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/features/faculty_portal/domain/entities/coursework_item.dart';
-import 'package:school_saas/features/faculty_portal/domain/entities/coursework_submission.dart';
-import 'package:school_saas/features/faculty_portal/presentation/controllers/faculty_controller.dart';
-import 'package:school_saas/features/student_portal/presentation/controllers/student_controller.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/faculty_portal/domain/entities/coursework_item.dart';
+import 'package:logicclass/features/faculty_portal/domain/entities/coursework_submission.dart';
+import 'package:logicclass/features/faculty_portal/presentation/controllers/faculty_controller.dart';
+import 'package:logicclass/features/student_portal/presentation/controllers/student_controller.dart';
 
 /// Handing work in is the only write a student account makes anywhere in
 /// this app. Everything else they touch is read-only, so this path

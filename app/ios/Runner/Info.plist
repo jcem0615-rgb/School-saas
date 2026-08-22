@@ -6,17 +6,8 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<!-- iOS requires a reason string for each of these. Without one the
-	     app does not merely get denied, it is terminated the moment it
-	     asks, and App Review rejects the build before that. -->
-	<key>NSCameraUsageDescription</key>
-	<string>Used to scan attendance QR codes and to photograph payment receipts and ID photos.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Used to attach a payment receipt or a profile photo you have already saved.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Sent with an emergency alert so your school can find you. Only used when you press the emergency button.</string>
 	<key>CFBundleDisplayName</key>
-	<string>School Management</string>
+	<string>LogicClass</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -35,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Used to scan attendance QR codes and to photograph payment receipts and ID photos.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Sent with an emergency alert so your school can find you. Only used when you press the emergency button.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Used to attach a payment receipt or a profile photo you have already saved.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

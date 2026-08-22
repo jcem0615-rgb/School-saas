@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:school_saas/core/errors/failures.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/features/owner_portal/domain/entities/invoice.dart';
-import 'package:school_saas/features/owner_portal/domain/repositories/owner_repository.dart';
-import 'package:school_saas/features/owner_portal/domain/usecases/pause_school_usecase.dart';
-import 'package:school_saas/features/owner_portal/domain/usecases/record_manual_payment_usecase.dart';
+import 'package:logicclass/core/errors/failures.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/features/owner_portal/domain/entities/invoice.dart';
+import 'package:logicclass/features/owner_portal/domain/repositories/owner_repository.dart';
+import 'package:logicclass/features/owner_portal/domain/usecases/pause_school_usecase.dart';
+import 'package:logicclass/features/owner_portal/domain/usecases/record_manual_payment_usecase.dart';
 
 class MockOwnerRepository extends Mock implements OwnerRepository {}
 

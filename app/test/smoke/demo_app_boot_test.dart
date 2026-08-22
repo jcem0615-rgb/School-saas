@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:school_saas/core/router/app_router.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/main.dart';
+import 'package:logicclass/core/router/app_router.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/main.dart';
 
 /// Boots the real widget tree (router, theme, all ten portals) against the
 /// demo repositories.
@@ -19,14 +19,16 @@ import 'package:school_saas/main.dart';
 void main() {
   testWidgets('boots to the login screen with no exception', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(overrides: demoOverrides(), child: const SchoolSaasApp()),
+      ProviderScope(overrides: demoOverrides(), child: const LogicClassApp()),
     );
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    // Heading and submit button both read "Sign in".
-    expect(find.text('Sign in'), findsWidgets);
-    expect(find.text('Enter your school-issued credentials'), findsOneWidget);
+    // The product name and the submit button: the two things that have to
+    // be on the front door. Asserting the wordmark rather than the strap
+    // line, which is copy and free to change.
+    expect(find.text('LogicClass'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Sign in'), findsOneWidget);
   });
 
   testWidgets('every demo role lands on its own portal without throwing',
@@ -35,7 +37,7 @@ void main() {
     addTearDown(container.dispose);
 
     await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SchoolSaasApp()),
+      UncontrolledProviderScope(container: container, child: const LogicClassApp()),
     );
     await tester.pumpAndSettle();
 
@@ -65,7 +67,7 @@ void main() {
     addTearDown(container.dispose);
 
     await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SchoolSaasApp()),
+      UncontrolledProviderScope(container: container, child: const LogicClassApp()),
     );
     await tester.pumpAndSettle();
 
@@ -117,7 +119,7 @@ void main() {
     addTearDown(container.dispose);
 
     await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const SchoolSaasApp()),
+      UncontrolledProviderScope(container: container, child: const LogicClassApp()),
     );
     await tester.pumpAndSettle();
 

@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/features/registrar_portal/presentation/controllers/registrar_controller.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/registrar_portal/presentation/controllers/registrar_controller.dart';
 
 /// Balance is the one field a registrar edits that does NOT go through an
 /// ordinary document update -- firestore.rules keeps it server-only, so the

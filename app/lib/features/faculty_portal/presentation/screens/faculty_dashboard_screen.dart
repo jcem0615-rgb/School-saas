@@ -7,6 +7,7 @@ import 'coursework_list_screen.dart';
 import 'grades_screen.dart';
 import 'material_requests_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
+import '../../../../core/widgets/glass_tile.dart';
 
 /// Landing screen for the Faculty role. Coursework (Lesson Plans/Lessons/
 /// Assignments/Projects/Exams/Quizzes), Grade Submission, and Material
@@ -42,36 +43,36 @@ class FacultyDashboardScreen extends StatelessWidget {
               spacing: 12,
               runSpacing: 12,
               children: [
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.menu_book_outlined,
                   label: 'Coursework',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const CourseworkListScreen())),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.grade_outlined,
                   label: 'Grade Submission',
                   onTap: () =>
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GradesScreen())),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.inventory_2_outlined,
                   label: 'Material Requests',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const MaterialRequestsScreen())),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.qr_code_scanner,
                   label: 'Scan Attendance',
                   onTap: () => context.push('/scan-attendance'),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.emergency_share,
                   label: 'Emergency Alerts',
                   onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const EmergencyAlertsScreen())),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.campaign_outlined,
                   label: 'Announcements',
                   onTap: () => Navigator.of(context)
@@ -79,36 +80,6 @@ class FacultyDashboardScreen extends StatelessWidget {
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickLinkTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _QuickLinkTile({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 140,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
           ],
         ),
       ),

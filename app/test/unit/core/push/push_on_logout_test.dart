@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/core/push/push_registrar.dart';
-import 'package:school_saas/features/auth/domain/usecases/change_password_usecase.dart';
-import 'package:school_saas/features/auth/domain/usecases/forgot_password_usecase.dart';
-import 'package:school_saas/features/auth/domain/usecases/login_usecase.dart';
-import 'package:school_saas/features/auth/domain/usecases/logout_usecase.dart';
-import 'package:school_saas/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/core/push/push_registrar.dart';
+import 'package:logicclass/features/auth/domain/usecases/change_password_usecase.dart';
+import 'package:logicclass/features/auth/domain/usecases/forgot_password_usecase.dart';
+import 'package:logicclass/features/auth/domain/usecases/login_usecase.dart';
+import 'package:logicclass/features/auth/domain/usecases/logout_usecase.dart';
+import 'package:logicclass/features/auth/presentation/controllers/auth_controller.dart';
 
 class _MockLogin extends Mock implements LoginUseCase {}
 

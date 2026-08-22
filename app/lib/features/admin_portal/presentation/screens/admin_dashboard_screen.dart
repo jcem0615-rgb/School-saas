@@ -9,6 +9,7 @@ import 'employee_list_screen.dart';
 import 'programs_screen.dart';
 import 'teacher_assignments_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
+import '../../../../core/widgets/glass_tile.dart';
 
 /// Landing screen for the Admin role. Employee Management, User Approval
 /// (via Employee detail's activate/suspend action), Reset Password (also
@@ -46,49 +47,49 @@ class AdminDashboardScreen extends StatelessWidget {
               spacing: 12,
               runSpacing: 12,
               children: [
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.badge_outlined,
                   label: 'Employee Management',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const EmployeeListScreen())),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.assignment_ind_outlined,
                   label: 'Teacher Assignment',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const TeacherAssignmentsScreen())),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.school_outlined,
                   label: 'Strands & Programs',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const ProgramsScreen())),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.emergency_share,
                   label: 'Emergency Alerts',
                   onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const EmergencyAlertsScreen())),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.campaign_outlined,
                   label: 'Announcements',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const AnnouncementsScreen())),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.qr_code_scanner,
                   label: 'Scan Attendance',
                   onTap: () => context.push('/scan-attendance'),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.history_outlined,
                   label: 'Audit Trail',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const AuditTrailScreen())),
                 ),
 
-                _QuickLinkTile(
+                GlassTile(
 
                   icon: Icons.palette_outlined,
 
@@ -101,36 +102,6 @@ class AdminDashboardScreen extends StatelessWidget {
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickLinkTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _QuickLinkTile({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 140,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
           ],
         ),
       ),

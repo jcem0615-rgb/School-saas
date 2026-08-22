@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:school_saas/core/errors/failures.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/features/qr_attendance/domain/entities/attendance_record.dart';
-import 'package:school_saas/features/qr_attendance/domain/entities/qr_scan_result.dart';
-import 'package:school_saas/features/qr_attendance/domain/repositories/qr_attendance_repository.dart';
-import 'package:school_saas/features/qr_attendance/domain/usecases/scan_qr_usecase.dart';
+import 'package:logicclass/core/errors/failures.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/features/qr_attendance/domain/entities/attendance_record.dart';
+import 'package:logicclass/features/qr_attendance/domain/entities/qr_scan_result.dart';
+import 'package:logicclass/features/qr_attendance/domain/repositories/qr_attendance_repository.dart';
+import 'package:logicclass/features/qr_attendance/domain/usecases/scan_qr_usecase.dart';
 
 class MockQrAttendanceRepository extends Mock implements QrAttendanceRepository {}
 

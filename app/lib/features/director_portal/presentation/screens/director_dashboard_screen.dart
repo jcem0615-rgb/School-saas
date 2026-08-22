@@ -10,6 +10,7 @@ import 'announcements_screen.dart';
 import 'approvals_screen.dart';
 import 'expenses_screen.dart';
 import 'meetings_screen.dart';
+import '../../../../core/widgets/glass_tile.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
 final _percentFormat = NumberFormat.percentPattern();
@@ -87,25 +88,25 @@ class DirectorDashboardScreen extends ConsumerWidget {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.campaign_outlined,
                     label: 'Announcements',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const AnnouncementsScreen())),
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.event_available_outlined,
                     label: 'Meeting Scheduler',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const MeetingsScreen())),
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.rule_folder_outlined,
                     label: 'Approvals',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const ApprovalsScreen())),
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.receipt_long_outlined,
                     label: 'Expenses',
                     onTap: () => Navigator.of(context)
@@ -115,13 +116,13 @@ class DirectorDashboardScreen extends ConsumerWidget {
                   // anywhere in the portal lands here via the audit
                   // trigger, which is what makes those actions reversible
                   // in practice -- you can see what changed and who did it.
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.history,
                     label: 'Audit Trail',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const AuditTrailScreen())),
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.person_outline,
                     label: 'My Activity',
                     onTap: () => Navigator.of(context)
@@ -131,36 +132,6 @@ class DirectorDashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickLinkTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _QuickLinkTile({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 140,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
-          ],
         ),
       ),
     );

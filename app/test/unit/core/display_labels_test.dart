@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/education_level.dart';
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/features/registrar_portal/domain/entities/student_summary.dart';
+import 'package:logicclass/core/constants/education_level.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/features/registrar_portal/domain/entities/student_summary.dart';
 
 /// Two things this app said twice on every screen that showed them.
 ///

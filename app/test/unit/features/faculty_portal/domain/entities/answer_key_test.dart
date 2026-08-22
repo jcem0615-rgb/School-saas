@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:school_saas/features/faculty_portal/domain/entities/answer_key.dart';
+import 'package:logicclass/features/faculty_portal/domain/entities/answer_key.dart';
 
 /// The same table asserted server-side in
 /// functions/test/shared/coursework/autoScore.test.ts. This copy is what

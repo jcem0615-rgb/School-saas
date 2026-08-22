@@ -1,4 +1,4 @@
-package ph.schoolsaas.school_saas
+package ph.logicclass.app
 
 import io.flutter.embedding.android.FlutterActivity
 

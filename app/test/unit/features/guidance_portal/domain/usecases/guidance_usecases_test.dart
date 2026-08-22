@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:school_saas/core/errors/failures.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/features/guidance_portal/domain/entities/guidance_record.dart';
-import 'package:school_saas/features/guidance_portal/domain/repositories/guidance_repository.dart';
-import 'package:school_saas/features/guidance_portal/domain/usecases/guidance_record_usecases.dart';
-import 'package:school_saas/features/guidance_portal/domain/usecases/summons_usecases.dart';
+import 'package:logicclass/core/errors/failures.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/features/guidance_portal/domain/entities/guidance_record.dart';
+import 'package:logicclass/features/guidance_portal/domain/repositories/guidance_repository.dart';
+import 'package:logicclass/features/guidance_portal/domain/usecases/guidance_record_usecases.dart';
+import 'package:logicclass/features/guidance_portal/domain/usecases/summons_usecases.dart';
 
 class MockGuidanceRepository extends Mock implements GuidanceRepository {}
 

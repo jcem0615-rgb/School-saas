@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/core/theme/app_theme.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/features/admin_portal/presentation/screens/employee_list_screen.dart';
-import 'package:school_saas/features/registrar_portal/presentation/screens/student_list_screen.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/core/theme/app_theme.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/admin_portal/presentation/screens/employee_list_screen.dart';
+import 'package:logicclass/features/registrar_portal/presentation/screens/student_list_screen.dart';
 
 /// What the app looks like on the device most of these users actually
 /// have.

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:school_saas/core/data_transfer/csv.dart';
+import 'package:logicclass/core/data_transfer/csv.dart';
 
 /// School data is full of the exact things naive CSV handling breaks on:
 /// names with commas ("Dela Cruz, Jr."), remarks with quotes, addresses

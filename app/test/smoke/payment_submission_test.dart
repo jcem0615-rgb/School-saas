@@ -4,15 +4,15 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/core/storage/upload_providers.dart';
-import 'package:school_saas/core/storage/upload_repository.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/features/payments/domain/entities/payment.dart';
-import 'package:school_saas/features/payments/domain/entities/payment_submission.dart';
-import 'package:school_saas/features/payments/presentation/controllers/payment_controller.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/core/storage/upload_providers.dart';
+import 'package:logicclass/core/storage/upload_repository.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/payments/domain/entities/payment.dart';
+import 'package:logicclass/features/payments/domain/entities/payment_submission.dart';
+import 'package:logicclass/features/payments/presentation/controllers/payment_controller.dart';
 
 /// The property this whole feature exists to establish: a family saying
 /// they paid must not move a balance. Only a reviewer approving does.

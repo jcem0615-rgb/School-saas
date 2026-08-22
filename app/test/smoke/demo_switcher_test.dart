@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_switcher.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/main.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_switcher.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/main.dart';
 
 /// The demo role switcher is layered over every screen, so a build error in
 /// it takes the whole app down -- and in a release web build that shows up
@@ -13,7 +13,7 @@ import 'package:school_saas/main.dart';
 void main() {
   testWidgets('the demo switcher panel opens without throwing', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(overrides: demoOverrides(), child: const SchoolSaasApp()),
+      ProviderScope(overrides: demoOverrides(), child: const LogicClassApp()),
     );
     await tester.pumpAndSettle();
 
@@ -35,7 +35,7 @@ void main() {
     // unreachable -- which is exactly what happened when it was anchored
     // bottom-right.
     await tester.pumpWidget(
-      ProviderScope(overrides: demoOverrides(), child: const SchoolSaasApp()),
+      ProviderScope(overrides: demoOverrides(), child: const LogicClassApp()),
     );
     await tester.pumpAndSettle();
 

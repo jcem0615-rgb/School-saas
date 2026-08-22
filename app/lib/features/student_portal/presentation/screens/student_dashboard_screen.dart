@@ -13,6 +13,7 @@ import 'coursework_feed_screen.dart';
 import 'my_grades_screen.dart';
 import 'my_subjects_screen.dart';
 import 'promissory_note_screen.dart';
+import '../../../../core/widgets/glass_tile.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
 
@@ -82,7 +83,7 @@ class StudentDashboardScreen extends ConsumerWidget {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.menu_book_outlined,
                     label: 'Subjects',
                     onTap: () => Navigator.of(context)
@@ -91,19 +92,19 @@ class StudentDashboardScreen extends ConsumerWidget {
                               studentId: student.id,
                             ))),
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.assignment_outlined,
                     label: 'Assignments & Exams',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => CourseworkFeedScreen(section: student.section))),
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.grade_outlined,
                     label: 'Grades',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => MyGradesScreen(studentId: student.id))),
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.fact_check_outlined,
                     label: 'Attendance',
                     onTap: () => Navigator.of(context).push(
@@ -112,7 +113,7 @@ class StudentDashboardScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.payments_outlined,
                     label: 'Payments & Balance',
                     onTap: () => Navigator.of(context).push(
@@ -128,13 +129,13 @@ class StudentDashboardScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.description_outlined,
                     label: 'Promissory Note',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const PromissoryNoteScreen())),
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.emergency_share,
                     label: 'Emergency',
                     onTap: () {
@@ -145,13 +146,13 @@ class StudentDashboardScreen extends ConsumerWidget {
                       );
                     },
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.campaign_outlined,
                     label: 'Announcements',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const AnnouncementsScreen())),
                   ),
-                  _QuickLinkTile(
+                  GlassTile(
                     icon: Icons.qr_code,
                     label: 'My QR ID',
                     onTap: () => context.push('/qr-id'),
@@ -161,36 +162,6 @@ class StudentDashboardScreen extends ConsumerWidget {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _QuickLinkTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _QuickLinkTile({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 140,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
-          ],
-        ),
       ),
     );
   }

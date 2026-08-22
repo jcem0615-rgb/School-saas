@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:school_saas/core/errors/failures.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/features/staff_portal/domain/repositories/staff_repository.dart';
-import 'package:school_saas/features/staff_portal/domain/usecases/checklist_usecases.dart';
-import 'package:school_saas/features/staff_portal/domain/usecases/daily_report_usecases.dart';
+import 'package:logicclass/core/errors/failures.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/features/staff_portal/domain/repositories/staff_repository.dart';
+import 'package:logicclass/features/staff_portal/domain/usecases/checklist_usecases.dart';
+import 'package:logicclass/features/staff_portal/domain/usecases/daily_report_usecases.dart';
 
 class MockStaffRepository extends Mock implements StaffRepository {}
 

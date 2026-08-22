@@ -1,5 +1,5 @@
-name: school_saas
-description: Multi-tenant School Management SaaS.
+name: logicclass
+description: LogicClass - multi-tenant school management for Philippine schools.
 publish_to: 'none'
 version: 0.1.0+1
 

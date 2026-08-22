@@ -1,14 +1,14 @@
-import 'package:school_saas/core/constants/education_level.dart';
+import 'package:logicclass/core/constants/education_level.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/core/errors/failures.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/features/admin_portal/domain/entities/employee_summary.dart';
-import 'package:school_saas/features/admin_portal/domain/repositories/admin_repository.dart';
-import 'package:school_saas/features/admin_portal/domain/usecases/employee_usecases.dart';
-import 'package:school_saas/features/admin_portal/domain/usecases/program_usecases.dart';
-import 'package:school_saas/features/admin_portal/domain/usecases/teacher_assignment_usecases.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/core/errors/failures.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/features/admin_portal/domain/entities/employee_summary.dart';
+import 'package:logicclass/features/admin_portal/domain/repositories/admin_repository.dart';
+import 'package:logicclass/features/admin_portal/domain/usecases/employee_usecases.dart';
+import 'package:logicclass/features/admin_portal/domain/usecases/program_usecases.dart';
+import 'package:logicclass/features/admin_portal/domain/usecases/teacher_assignment_usecases.dart';
 
 class MockAdminRepository extends Mock implements AdminRepository {}
 

@@ -5,6 +5,7 @@ import '../../../../core/utils/validators.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/auth_text_field.dart';
 import 'forgot_password_screen.dart';
+import '../../../../core/theme/glass.dart';
 
 /// Entry point of the app for signed-out users. Role/tenant routing after
 /// a successful login is handled entirely by the router reacting to
@@ -60,25 +61,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
-              child: Form(
+              // The one screen that gets the full treatment: blurred, lifted,
+              // and the only surface on it. Everywhere else the panes are
+              // one of several things on screen and hold back accordingly.
+              child: GlassSurface(
+                elevated: true,
+                radius: 28,
+                padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+                child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.school, size: 56, color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(height: 16),
+                    Icon(Icons.school, size: 44, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(height: 14),
                     Text(
-                      'Sign in',
-                      style: Theme.of(context).textTheme.headlineMedium,
+                      'LogicClass',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontSize: 30,
+                            letterSpacing: -0.8,
+                          ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
-                      'Enter your school-issued credentials',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      'Sign in with your school-issued credentials',
+                      style: Theme.of(context).textTheme.bodySmall,
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
                     AuthTextField(
                       controller: _emailController,
                       label: 'Email',
@@ -122,6 +133,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ],
                 ),
+              ),
               ),
             ),
           ),

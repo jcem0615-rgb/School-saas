@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:school_saas/core/errors/failures.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/features/director_portal/domain/entities/announcement.dart';
-import 'package:school_saas/features/director_portal/domain/repositories/director_repository.dart';
-import 'package:school_saas/features/director_portal/domain/usecases/announcement_usecases.dart';
-import 'package:school_saas/features/director_portal/domain/usecases/approval_usecases.dart';
-import 'package:school_saas/features/director_portal/domain/usecases/expense_usecases.dart';
-import 'package:school_saas/features/director_portal/domain/usecases/meeting_usecases.dart';
+import 'package:logicclass/core/errors/failures.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/features/director_portal/domain/entities/announcement.dart';
+import 'package:logicclass/features/director_portal/domain/repositories/director_repository.dart';
+import 'package:logicclass/features/director_portal/domain/usecases/announcement_usecases.dart';
+import 'package:logicclass/features/director_portal/domain/usecases/approval_usecases.dart';
+import 'package:logicclass/features/director_portal/domain/usecases/expense_usecases.dart';
+import 'package:logicclass/features/director_portal/domain/usecases/meeting_usecases.dart';
 
 class MockDirectorRepository extends Mock implements DirectorRepository {}
 

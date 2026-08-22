@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/glass.dart';
 import 'demo/demo_overrides.dart';
 import 'demo/demo_switcher.dart';
 import 'features/payments/presentation/widgets/payment_submission_alerts.dart';
@@ -47,18 +48,18 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: kDemoMode ? demoOverrides() : const <Override>[],
-      child: const SchoolSaasApp(),
+      child: const LogicClassApp(),
     ),
   );
 }
 
-class SchoolSaasApp extends ConsumerWidget {
-  const SchoolSaasApp({super.key});
+class LogicClassApp extends ConsumerWidget {
+  const LogicClassApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'School Management',
+      title: 'LogicClass',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
@@ -68,8 +69,13 @@ class SchoolSaasApp extends ConsumerWidget {
       builder: (context, child) {
         // Tells the cashier about incoming online payments wherever they
         // are in the app. Not demo-only: this is a real feature.
-        final content = PaymentSubmissionAlerts(
-          child: child ?? const SizedBox.shrink(),
+        // The wash the whole app sits on. Above the router so it is
+        // painted once and every route's transparent scaffold shows it
+        // through, rather than each screen carrying its own copy.
+        final content = AmbientBackground(
+          child: PaymentSubmissionAlerts(
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
         return kDemoMode ? DemoSwitcher(child: content) : content;
       },

@@ -40,7 +40,7 @@
         android:maxSdkVersion="32"/>
 
     <application
-        android:label="School Management"
+        android:label="LogicClass"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

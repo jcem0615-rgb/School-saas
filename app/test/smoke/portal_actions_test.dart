@@ -2,26 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/core/theme/app_theme.dart';
-import 'package:school_saas/core/widgets/confirm_delete_dialog.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/features/admin_portal/presentation/screens/employee_list_screen.dart';
-import 'package:school_saas/features/admin_portal/presentation/screens/programs_screen.dart';
-import 'package:school_saas/features/admin_portal/presentation/screens/teacher_assignments_screen.dart';
-import 'package:school_saas/features/director_portal/presentation/screens/announcements_screen.dart';
-import 'package:school_saas/features/director_portal/presentation/screens/expenses_screen.dart';
-import 'package:school_saas/features/director_portal/presentation/screens/meetings_screen.dart';
-import 'package:school_saas/features/faculty_portal/presentation/screens/coursework_list_screen.dart';
-import 'package:school_saas/features/faculty_portal/presentation/screens/grades_screen.dart';
-import 'package:school_saas/features/faculty_portal/presentation/screens/material_requests_screen.dart';
-import 'package:school_saas/features/guidance_portal/presentation/screens/guidance_records_screen.dart';
-import 'package:school_saas/features/guidance_portal/presentation/screens/summons_screen.dart';
-import 'package:school_saas/features/registrar_portal/presentation/screens/student_list_screen.dart';
-import 'package:school_saas/features/staff_portal/presentation/screens/checklist_screen.dart';
-import 'package:school_saas/features/staff_portal/presentation/screens/daily_reports_screen.dart';
-import 'package:school_saas/features/student_portal/presentation/screens/promissory_note_screen.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/core/theme/app_theme.dart';
+import 'package:logicclass/core/widgets/confirm_delete_dialog.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/admin_portal/presentation/screens/employee_list_screen.dart';
+import 'package:logicclass/features/admin_portal/presentation/screens/programs_screen.dart';
+import 'package:logicclass/features/admin_portal/presentation/screens/teacher_assignments_screen.dart';
+import 'package:logicclass/features/director_portal/presentation/screens/announcements_screen.dart';
+import 'package:logicclass/features/director_portal/presentation/screens/expenses_screen.dart';
+import 'package:logicclass/features/director_portal/presentation/screens/meetings_screen.dart';
+import 'package:logicclass/features/faculty_portal/presentation/screens/coursework_list_screen.dart';
+import 'package:logicclass/features/faculty_portal/presentation/screens/grades_screen.dart';
+import 'package:logicclass/features/faculty_portal/presentation/screens/material_requests_screen.dart';
+import 'package:logicclass/features/guidance_portal/presentation/screens/guidance_records_screen.dart';
+import 'package:logicclass/features/guidance_portal/presentation/screens/summons_screen.dart';
+import 'package:logicclass/features/registrar_portal/presentation/screens/student_list_screen.dart';
+import 'package:logicclass/features/staff_portal/presentation/screens/checklist_screen.dart';
+import 'package:logicclass/features/staff_portal/presentation/screens/daily_reports_screen.dart';
+import 'package:logicclass/features/student_portal/presentation/screens/promissory_note_screen.dart';
 
 /// Exercises the primary action on every screen that has one.
 ///

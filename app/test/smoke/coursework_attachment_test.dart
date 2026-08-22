@@ -4,15 +4,15 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/core/storage/upload_providers.dart';
-import 'package:school_saas/core/storage/upload_repository.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/features/faculty_portal/domain/entities/coursework_item.dart';
-import 'package:school_saas/features/faculty_portal/presentation/controllers/faculty_controller.dart';
-import 'package:school_saas/features/student_portal/presentation/controllers/student_controller.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/core/storage/upload_providers.dart';
+import 'package:logicclass/core/storage/upload_repository.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/faculty_portal/domain/entities/coursework_item.dart';
+import 'package:logicclass/features/faculty_portal/presentation/controllers/faculty_controller.dart';
+import 'package:logicclass/features/student_portal/presentation/controllers/student_controller.dart';
 
 /// The attachment flow cannot be clicked through in a headless browser --
 /// it opens an OS file dialog -- so this drives the same path the picker

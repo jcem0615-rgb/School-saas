@@ -1,19 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/education_level.dart';
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/features/admin_portal/presentation/controllers/admin_controller.dart';
-import 'package:school_saas/features/director_portal/domain/entities/announcement.dart';
-import 'package:school_saas/features/director_portal/presentation/controllers/director_controller.dart';
-import 'package:school_saas/features/faculty_portal/domain/entities/coursework_item.dart';
-import 'package:school_saas/features/faculty_portal/presentation/controllers/faculty_controller.dart';
-import 'package:school_saas/features/guidance_portal/domain/entities/guidance_record.dart';
-import 'package:school_saas/features/guidance_portal/presentation/controllers/guidance_controller.dart';
-import 'package:school_saas/features/registrar_portal/presentation/controllers/registrar_controller.dart';
-import 'package:school_saas/features/staff_portal/presentation/controllers/staff_controller.dart';
+import 'package:logicclass/core/constants/education_level.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/admin_portal/presentation/controllers/admin_controller.dart';
+import 'package:logicclass/features/director_portal/domain/entities/announcement.dart';
+import 'package:logicclass/features/director_portal/presentation/controllers/director_controller.dart';
+import 'package:logicclass/features/faculty_portal/domain/entities/coursework_item.dart';
+import 'package:logicclass/features/faculty_portal/presentation/controllers/faculty_controller.dart';
+import 'package:logicclass/features/guidance_portal/domain/entities/guidance_record.dart';
+import 'package:logicclass/features/guidance_portal/presentation/controllers/guidance_controller.dart';
+import 'package:logicclass/features/registrar_portal/presentation/controllers/registrar_controller.dart';
+import 'package:logicclass/features/staff_portal/presentation/controllers/staff_controller.dart';
 
 /// portal_actions_test proves every primary button opens its form. This
 /// proves the form can still be *submitted* -- which is a different

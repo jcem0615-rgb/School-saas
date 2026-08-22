@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/core/theme/app_theme.dart';
-import 'package:school_saas/core/widgets/confirm_delete_dialog.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/features/director_portal/presentation/screens/announcements_screen.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/core/theme/app_theme.dart';
+import 'package:logicclass/core/widgets/confirm_delete_dialog.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/director_portal/presentation/screens/announcements_screen.dart';
 
 /// Every portal -- staff, student and parent -- opens this same screen.
 /// That is why the audience filter has to live below it, and why the

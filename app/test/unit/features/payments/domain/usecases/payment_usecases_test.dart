@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:school_saas/core/errors/failures.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/features/payments/domain/entities/payment.dart';
-import 'package:school_saas/features/payments/domain/repositories/payment_repository.dart';
-import 'package:school_saas/features/payments/domain/usecases/record_payment_usecase.dart';
-import 'package:school_saas/features/payments/domain/usecases/record_refund_usecase.dart';
+import 'package:logicclass/core/errors/failures.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/features/payments/domain/entities/payment.dart';
+import 'package:logicclass/features/payments/domain/repositories/payment_repository.dart';
+import 'package:logicclass/features/payments/domain/usecases/record_payment_usecase.dart';
+import 'package:logicclass/features/payments/domain/usecases/record_refund_usecase.dart';
 
 class MockPaymentRepository extends Mock implements PaymentRepository {}
 

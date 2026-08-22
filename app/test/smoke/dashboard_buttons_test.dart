@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/main.dart' as app;
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/main.dart' as app;
 
 /// Every dashboard tile, for every role, actually goes somewhere.
 ///
@@ -25,7 +25,7 @@ Future<ProviderContainer> pumpAs(WidgetTester tester, UserRole role) async {
       DemoStore.demoAccounts.firstWhere((a) => a.role == role));
 
   await tester.pumpWidget(
-      UncontrolledProviderScope(container: c, child: const app.SchoolSaasApp()));
+      UncontrolledProviderScope(container: c, child: const app.LogicClassApp()));
   await tester.pumpAndSettle();
   return c;
 }

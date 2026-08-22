@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:school_saas/core/errors/failures.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/features/auth/domain/repositories/auth_repository.dart';
-import 'package:school_saas/features/auth/domain/usecases/change_password_usecase.dart';
+import 'package:logicclass/core/errors/failures.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/features/auth/domain/repositories/auth_repository.dart';
+import 'package:logicclass/features/auth/domain/usecases/change_password_usecase.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'guidance_records_screen.dart';
 import 'summons_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
+import '../../../../core/widgets/glass_tile.dart';
 
 /// Landing screen for the Guidance role. Student Guidance Records and
 /// Student Summons are new this module. Reports is deferred to the
@@ -37,19 +38,19 @@ class GuidanceDashboardScreen extends StatelessWidget {
               spacing: 12,
               runSpacing: 12,
               children: [
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.emergency_share,
                   label: 'Emergency Alerts',
                   onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const EmergencyAlertsScreen())),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.folder_shared_outlined,
                   label: 'Guidance Records',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const GuidanceRecordsScreen())),
                 ),
-                _QuickLinkTile(
+                GlassTile(
                   icon: Icons.meeting_room_outlined,
                   label: 'Student Summons',
                   onTap: () =>
@@ -57,36 +58,6 @@ class GuidanceDashboardScreen extends StatelessWidget {
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickLinkTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _QuickLinkTile({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 140,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
           ],
         ),
       ),

@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/demo/demo_overrides.dart';
-import 'package:school_saas/demo/demo_store.dart';
-import 'package:school_saas/features/payments/domain/entities/payment.dart';
-import 'package:school_saas/features/payments/presentation/controllers/payment_controller.dart'
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/payments/domain/entities/payment.dart';
+import 'package:logicclass/features/payments/presentation/controllers/payment_controller.dart'
     show paymentRepositoryProvider;
-import 'package:school_saas/main.dart' as app;
+import 'package:logicclass/main.dart' as app;
 
 /// The cashier is told when a family submits an online payment.
 ///
@@ -34,7 +34,7 @@ void main() {
     }
 
     await tester.pumpWidget(UncontrolledProviderScope(
-        container: container, child: const app.SchoolSaasApp()));
+        container: container, child: const app.LogicClassApp()));
     await tester.pumpAndSettle();
     return container;
   }

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:school_saas/core/utils/validators.dart';
+import 'package:logicclass/core/utils/validators.dart';
 
 void main() {
   group('Validators.email', () {

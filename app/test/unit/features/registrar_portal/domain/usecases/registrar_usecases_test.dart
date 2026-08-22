@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:school_saas/core/constants/education_level.dart';
-import 'package:school_saas/core/errors/failures.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/features/registrar_portal/domain/entities/student_summary.dart';
-import 'package:school_saas/features/registrar_portal/domain/repositories/registrar_repository.dart';
-import 'package:school_saas/features/registrar_portal/domain/usecases/student_usecases.dart';
+import 'package:logicclass/core/constants/education_level.dart';
+import 'package:logicclass/core/errors/failures.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/features/registrar_portal/domain/entities/student_summary.dart';
+import 'package:logicclass/features/registrar_portal/domain/repositories/registrar_repository.dart';
+import 'package:logicclass/features/registrar_portal/domain/usecases/student_usecases.dart';
 
 class MockRegistrarRepository extends Mock implements RegistrarRepository {}
 

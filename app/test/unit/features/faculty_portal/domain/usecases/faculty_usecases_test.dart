@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:school_saas/core/errors/failures.dart';
-import 'package:school_saas/core/errors/result.dart';
-import 'package:school_saas/features/faculty_portal/domain/entities/coursework_item.dart';
-import 'package:school_saas/features/faculty_portal/domain/repositories/faculty_repository.dart';
-import 'package:school_saas/features/faculty_portal/domain/usecases/coursework_usecases.dart';
-import 'package:school_saas/features/faculty_portal/domain/usecases/grade_usecases.dart';
+import 'package:logicclass/core/errors/failures.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/features/faculty_portal/domain/entities/coursework_item.dart';
+import 'package:logicclass/features/faculty_portal/domain/repositories/faculty_repository.dart';
+import 'package:logicclass/features/faculty_portal/domain/usecases/coursework_usecases.dart';
+import 'package:logicclass/features/faculty_portal/domain/usecases/grade_usecases.dart';
 
 class MockFacultyRepository extends Mock implements FacultyRepository {}
 

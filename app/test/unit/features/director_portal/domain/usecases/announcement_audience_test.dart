@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:school_saas/core/constants/user_roles.dart';
-import 'package:school_saas/features/director_portal/domain/entities/announcement.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
+import 'package:logicclass/features/director_portal/domain/entities/announcement.dart';
 
 /// An announcement carries an audience, and for a long time nothing read
 /// it: every role saw every notice, so a student opened the app and read
