@@ -38,6 +38,14 @@ class GlassPalette extends ThemeExtension<GlassPalette> {
 
   final Color paneShadow;
 
+  /// Input fields, which need the opposite treatment to a pane: a pane
+  /// stands proud of the backdrop, a field sits *into* the surface holding
+  /// it. Without that inversion a text field on a white pane is a white
+  /// slab with a hairline round it, and stops reading as somewhere you can
+  /// type.
+  final Color fieldFill;
+  final Color fieldBorder;
+
   const GlassPalette({
     required this.backdropTop,
     required this.backdropBottom,
@@ -48,6 +56,8 @@ class GlassPalette extends ThemeExtension<GlassPalette> {
     required this.paneHighlight,
     required this.paneBorder,
     required this.paneShadow,
+    required this.fieldFill,
+    required this.fieldBorder,
   });
 
   /// Panes of white glass against a pale sky.
@@ -61,6 +71,8 @@ class GlassPalette extends ThemeExtension<GlassPalette> {
     paneHighlight: Color(0xE6FFFFFF),
     paneBorder: Color(0x33203A63),
     paneShadow: Color(0x1A16233D),
+    fieldFill: Color(0x14203A63),
+    fieldBorder: Color(0x40203A63),
   );
 
   /// A thin film of light over deep blue.
@@ -74,6 +86,8 @@ class GlassPalette extends ThemeExtension<GlassPalette> {
     paneHighlight: Color(0x2EFFFFFF),
     paneBorder: Color(0x24FFFFFF),
     paneShadow: Color(0x59000000),
+    fieldFill: Color(0x33000000),
+    fieldBorder: Color(0x3DFFFFFF),
   );
 
   @override
@@ -87,6 +101,8 @@ class GlassPalette extends ThemeExtension<GlassPalette> {
     Color? paneHighlight,
     Color? paneBorder,
     Color? paneShadow,
+    Color? fieldFill,
+    Color? fieldBorder,
   }) {
     return GlassPalette(
       backdropTop: backdropTop ?? this.backdropTop,
@@ -98,6 +114,8 @@ class GlassPalette extends ThemeExtension<GlassPalette> {
       paneHighlight: paneHighlight ?? this.paneHighlight,
       paneBorder: paneBorder ?? this.paneBorder,
       paneShadow: paneShadow ?? this.paneShadow,
+      fieldFill: fieldFill ?? this.fieldFill,
+      fieldBorder: fieldBorder ?? this.fieldBorder,
     );
   }
 
@@ -114,6 +132,8 @@ class GlassPalette extends ThemeExtension<GlassPalette> {
       paneHighlight: Color.lerp(paneHighlight, other.paneHighlight, t)!,
       paneBorder: Color.lerp(paneBorder, other.paneBorder, t)!,
       paneShadow: Color.lerp(paneShadow, other.paneShadow, t)!,
+      fieldFill: Color.lerp(fieldFill, other.fieldFill, t)!,
+      fieldBorder: Color.lerp(fieldBorder, other.fieldBorder, t)!,
     );
   }
 

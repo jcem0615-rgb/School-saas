@@ -6,6 +6,7 @@ import '../../../../core/data_transfer/export_import_sheet.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/entities/expense.dart';
 import '../controllers/director_controller.dart';
+import '../../../../core/widgets/field_tile.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
 final _dateFormat = DateFormat.yMMMd();
@@ -183,10 +184,10 @@ class ExpensesScreen extends ConsumerWidget {
                   decoration: const InputDecoration(labelText: 'Amount (₱)', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(_dateFormat.format(date)),
-                  trailing: const Icon(Icons.calendar_today_outlined),
+                FieldTile(
+                  icon: Icons.calendar_today_outlined,
+                  label: 'Date',
+                  value: _dateFormat.format(date),
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: dialogContext,

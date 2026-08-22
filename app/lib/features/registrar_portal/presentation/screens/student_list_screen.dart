@@ -10,6 +10,7 @@ import '../../../../core/widgets/combo_field.dart';
 import '../../domain/entities/student_summary.dart';
 import '../controllers/registrar_controller.dart';
 import 'student_detail_screen.dart';
+import '../../../../core/widgets/field_tile.dart';
 
 class StudentListScreen extends ConsumerStatefulWidget {
   const StudentListScreen({super.key});
@@ -318,17 +319,12 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 const SizedBox(height: 12),
                 // Required: it is printed on the ID card, and chasing it
                 // down after the fact is what left records without one.
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4),
-                    side: BorderSide(color: Theme.of(sheetContext).colorScheme.outline),
-                  ),
-                  leading: const Icon(Icons.cake_outlined),
-                  title: Text(birthDate == null
-                      ? 'Birthday (required)'
-                      : DateFormat.yMMMd().format(birthDate!)),
-                  trailing: const Icon(Icons.calendar_today_outlined),
+                FieldTile(
+                  icon: Icons.cake_outlined,
+                  label: 'Birthday (required)',
+                  value: birthDate == null
+                      ? null
+                      : DateFormat.yMMMd().format(birthDate!),
                   onTap: () async {
                     final now = DateTime.now();
                     final picked = await showDatePicker(

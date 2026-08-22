@@ -13,6 +13,7 @@ import '../../domain/entities/coursework_item.dart';
 import '../../domain/entities/coursework_submission.dart';
 import '../controllers/faculty_controller.dart';
 import 'submissions_screen.dart';
+import '../../../../core/widgets/field_tile.dart';
 
 final _dateFormat = DateFormat.yMMMd();
 
@@ -211,10 +212,10 @@ class CourseworkListScreen extends ConsumerWidget {
                 ),
                 if (type.isGradable) ...[
                   const SizedBox(height: 12),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(dueDate == null ? 'Pick due date' : _dateFormat.format(dueDate!)),
-                    trailing: const Icon(Icons.event),
+                  FieldTile(
+                    icon: Icons.event,
+                    label: 'Due date',
+                    value: dueDate == null ? null : _dateFormat.format(dueDate!),
                     onTap: () async {
                       final picked = await showDatePicker(
                         context: sheetContext,

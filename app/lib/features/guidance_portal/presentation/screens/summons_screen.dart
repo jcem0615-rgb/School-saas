@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/entities/summons.dart';
 import '../controllers/guidance_controller.dart';
+import '../../../../core/widgets/field_tile.dart';
 
 final _dateFormat = DateFormat.yMMMd().add_jm();
 
@@ -162,10 +163,10 @@ class SummonsScreen extends ConsumerWidget {
                   decoration: const InputDecoration(labelText: 'Reason', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 12),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('Scheduled: ${_dateFormat.format(scheduledDate)}'),
-                  trailing: const Icon(Icons.event),
+                FieldTile(
+                  icon: Icons.event,
+                  label: 'Scheduled for',
+                  value: _dateFormat.format(scheduledDate),
                   onTap: () async {
                     final date = await showDatePicker(
                       context: sheetContext,

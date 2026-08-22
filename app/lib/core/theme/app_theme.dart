@@ -68,15 +68,37 @@ class AppTheme {
         ),
         clipBehavior: Clip.antiAlias,
       ),
+      // Fields are recessed, not raised. Every other surface in this theme
+      // stands proud of the backdrop; a field has to read as somewhere you
+      // put something *into*, which on a white pane means a tinted well
+      // and a border you can actually see rather than white-on-white.
+      //
+      // Every border state is named. Thirty-odd screens set
+      // `border: OutlineInputBorder()` inline, and InputDecoration resolves
+      // the enabled and focused states from their own slots first -- so
+      // leaving those unset here is how a form ends up with one field
+      // styled and the next one not.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: glass.paneFill,
-        border: _inputBorder(glass.paneBorder),
-        enabledBorder: _inputBorder(glass.paneBorder),
+        fillColor: glass.fieldFill,
+        border: _inputBorder(glass.fieldBorder),
+        enabledBorder: _inputBorder(glass.fieldBorder),
+        disabledBorder: _inputBorder(glass.paneBorder),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: scheme.primary, width: 1.6),
         ),
+        errorBorder: _inputBorder(scheme.error),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.error, width: 1.6),
+        ),
+        // Multi-line fields put the label and hint against the first line
+        // rather than floating them in the middle of an empty box.
+        alignLabelWithHint: true,
+        hintStyle: TextStyle(color: scheme.onSurfaceVariant),
+        prefixIconColor: scheme.onSurfaceVariant,
+        suffixIconColor: scheme.onSurfaceVariant,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
       filledButtonTheme: FilledButtonThemeData(
