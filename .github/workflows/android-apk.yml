@@ -1,0 +1,61 @@
+# Builds an installable APK on GitHub's runners.
+#
+# This exists because the Android SDK cannot be installed everywhere the
+# app can be developed -- dl.google.com is unreachable from some networks,
+# and the SDK is the one part of the toolchain with no mirror. The runner
+# has it preinstalled, so the APK is built where the tools already are and
+# downloaded from the run's artifacts.
+#
+# The APK is signed with the debug key (see android/app/build.gradle.kts),
+# which is what makes it installable by sideloading. It is NOT a Play Store
+# build: replace the signing config with a real upload key before release.
+name: Android APK
+
+on:
+  push:
+    branches: [runnable-demo-mode]
+    paths:
+      - 'app/**'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Java 17: android/app/build.gradle.kts compiles and targets 17, and
+      # the Kotlin jvmTarget is pinned to match.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.1
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # The suite is the reason to trust the binary this job hands back --
+      # a green APK build only proves it compiled.
+      - run: flutter test
+
+      # DEMO_MODE is the default in main.dart, but it is passed explicitly
+      # so the artifact's contents do not depend on a default changing:
+      # this build must be the self-contained one that needs no Firebase
+      # project behind it.
+      - run: flutter build apk --release --dart-define=DEMO_MODE=true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logicclass-demo-apk
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
