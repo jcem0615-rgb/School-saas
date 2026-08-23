@@ -22,6 +22,8 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: app
@@ -59,3 +61,23 @@ jobs:
           name: logicclass-demo-apk
           path: app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+
+      # Also published as a release asset, because an Actions artifact is
+      # only reachable as a zip through the Actions UI -- awkward to get
+      # onto the phone that is meant to install it. A release asset is a
+      # direct .apk link that Android will hand straight to the installer.
+      #
+      # One rolling tag, clobbered each build, so the download link stays
+      # the same instead of moving with every push. The repository is
+      # private, so the asset is too: downloading it needs a signed-in
+      # GitHub account with access.
+      - name: Publish the APK as a release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk logicclass-demo.apk
+          gh release view demo-apk >/dev/null 2>&1 || gh release create demo-apk \
+            --target "$GITHUB_SHA" \
+            --title "LogicClass demo APK" \
+            --notes "Rolling build of the demo-mode app from the runnable-demo-mode branch. Debug-signed for sideloading -- not a Play Store build."
+          gh release upload demo-apk logicclass-demo.apk --clobber
