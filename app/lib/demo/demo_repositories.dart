@@ -303,7 +303,13 @@ class DemoDirectorRepository implements DirectorRepository {
   Future<Result<DirectorDashboardSummary>> getDashboardSummary() async {
     await _latency(250);
     final today = _store.todayKey;
-    final todays = _store.attendance.value.where((a) => a.date == today).toList();
+    // Students only. The faculty scan is in the same collection, and
+    // counting it toward a rate whose denominator is the enrolled student
+    // count made the figure drift up by one person every morning.
+    final todays = _store.attendance.value
+        .where((a) =>
+            a.date == today && a.subjectType == AttendanceSubjectType.student)
+        .toList();
     final todaysPayments = _store.payments.value.where((p) {
       final c = p.createdAt;
       return _sameDay(c, DateTime.now()) && !p.isRefund;

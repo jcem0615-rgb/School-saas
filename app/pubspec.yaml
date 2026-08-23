@@ -70,3 +70,19 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Bundled, not fetched. Flutter's CanvasKit renderer downloads Roboto from
+  # fonts.gstatic.com when an app declares no font of its own -- so on a
+  # school connection that blocks it, or offline, every glyph in the app
+  # silently disappears while the layout stays put. Shipping the three
+  # weights the theme actually asks for (400/500/700) costs ~250KB gzipped
+  # and makes first paint independent of the network.
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700

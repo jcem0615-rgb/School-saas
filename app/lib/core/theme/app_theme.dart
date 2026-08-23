@@ -37,6 +37,7 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       extensions: [glass],
+      fontFamily: 'Roboto',
       // The ambient wash paints the ground; anything opaque here would
       // cover it.
       scaffoldBackgroundColor: Colors.transparent,
@@ -177,11 +178,13 @@ class AppTheme {
 
   /// Tightened rather than replaced.
   ///
-  /// No web font: the app has to start on a school's connection and, in
-  /// demo mode, with no network at all, and a display face that arrives
-  /// late reflows the first screen a student sees. The character comes from
-  /// weight and spacing instead -- heavy, slightly tightened headings
-  /// against normal-width body text.
+  /// No *downloaded* font: the app has to start on a school's connection
+  /// and, in demo mode, with no network at all, and a face that arrives
+  /// late reflows the first screen a student sees -- or, if it never
+  /// arrives, leaves a screen with no text on it at all. Roboto ships in
+  /// the bundle (see pubspec) so nothing here waits on fonts.gstatic.com.
+  /// The character comes from weight and spacing instead -- heavy,
+  /// slightly tightened headings against normal-width body text.
   static TextTheme _textTheme(ColorScheme scheme) {
     return TextTheme(
       headlineSmall: TextStyle(

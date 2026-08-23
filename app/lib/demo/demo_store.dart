@@ -67,6 +67,17 @@ class DemoStore {
 
   String get todayKey => _dateKey(now);
 
+  /// A wall-clock time on one of the seeded days.
+  ///
+  /// Clamped to [now] so a demo opened at breakfast does not show a receipt
+  /// issued at eleven -- the point of seeding today is that the figures look
+  /// like a morning that has actually happened.
+  DateTime _atHour(int daysAgo, int hour, int minute) {
+    final day = _daysAgo(daysAgo);
+    final at = DateTime(day.year, day.month, day.day, hour, minute);
+    return at.isAfter(now) ? now : at;
+  }
+
   // Starts above the seed data rather than at zero. A few seeded records
   // carry hand-written ids in this same format -- `sub_0001`, `inv_0003` --
   // so a counter starting at 0 hands the very first record created at
@@ -802,28 +813,93 @@ class DemoStore {
           refundOf: 'pay_004',
           createdAt: _daysAgo(1),
         ),
+        // Two collected today. Without them the director's "Today's
+        // Collections" tile reads P0.00 on every run for the same reason
+        // the attendance rate used to read 0%: the seed only ever
+        // described the past, so the one figure the dashboard is actually
+        // about was always empty.
+        Payment(
+          id: 'pay_006',
+          studentId: 'stu_002',
+          amount: 4500,
+          method: PaymentMethod.cash,
+          receiptNumber: 'OR-2024-000171',
+          collectedByName: 'Joel Bautista',
+          purpose: PaymentPurpose.tuition,
+          status: PaymentStatus.completed,
+          createdAt: _atHour(0, 9, 14),
+        ),
+        Payment(
+          id: 'pay_007',
+          studentId: 'stu_004',
+          amount: 850,
+          method: PaymentMethod.gcash,
+          receiptNumber: 'OR-2024-000172',
+          referenceNumber: 'GC-9042118',
+          collectedByName: 'Grace Mendoza',
+          purpose: PaymentPurpose.miscFee,
+          status: PaymentStatus.completed,
+          createdAt: _atHour(0, 11, 2),
+        ),
       ];
 
   List<AttendanceRecord> _seedAttendance() {
     final records = <AttendanceRecord>[];
     var seq = 0;
-    // Two weeks of history for the demo student and the demo teacher, so
-    // the history screens are not empty on first open.
+
+    // Every enrolled student, not just one. The Director dashboard reads
+    // "Attendance Rate Today" as scans-today over enrolled-students, so
+    // seeding a single student made a full school look like a 14% turnout.
+    final roll = students.value
+        .where((s) => s.status == StudentStatus.enrolled)
+        .toList();
+
     for (var d = 0; d < 14; d++) {
       final day = _daysAgo(d);
-      if (day.weekday == DateTime.saturday || day.weekday == DateTime.sunday) continue;
-      final late = d % 5 == 3;
-      records.add(AttendanceRecord(
-        id: 'att_${++seq}',
-        personId: 'stu_001',
-        personRole: 'student',
-        subjectType: AttendanceSubjectType.student,
-        date: _dateKey(day),
-        timestampIn: DateTime(day.year, day.month, day.day, late ? 8 : 7, late ? 22 : 41),
-        timestampOut: d == 0 ? null : DateTime(day.year, day.month, day.day, 16, 5),
-        status: late ? AttendanceStatus.late : AttendanceStatus.present,
-        location: 'Main Gate',
-      ));
+
+      // Weekends have no attendance -- except today. A demo opened on a
+      // Saturday would otherwise show a school with nobody in it and a 0%
+      // rate, which reads as a broken app rather than as the weekend.
+      final isWeekend =
+          day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
+      if (isWeekend && d != 0) continue;
+
+      // One student is out each day, rotating through the roll. Absence is
+      // the *absence* of a scan, not a record saying so: that is how the QR
+      // flow actually works, and it keeps the rate honest rather than
+      // hard-coding a number.
+      //
+      // Offset by one so the rotation does not start on roll[0], who is the
+      // student the demo account signs in as: their own "My Attendance"
+      // opening on a blank today looked exactly like the bug this seeding
+      // was written to fix.
+      final absentIndex = roll.isEmpty ? -1 : (d + 1) % roll.length;
+
+      for (var i = 0; i < roll.length; i++) {
+        if (i == absentIndex) continue;
+        final student = roll[i];
+        final late = (i + d) % 7 == 0;
+        // Scattered across the gate queue rather than repeated: a column of
+        // rows all reading 7:35 AM is the tell that a record set was
+        // generated, not collected.
+        final minute = late ? 18 + (i + d) % 9 : 28 + (i * 3 + d * 5) % 17;
+        records.add(AttendanceRecord(
+          id: 'att_${++seq}',
+          personId: student.id,
+          personRole: 'student',
+          subjectType: AttendanceSubjectType.student,
+          date: _dateKey(day),
+          timestampIn:
+              DateTime(day.year, day.month, day.day, late ? 8 : 7, minute),
+          // Nobody has tapped out yet on the current day.
+          timestampOut: d == 0
+              ? null
+              : DateTime(day.year, day.month, day.day, 16, 2 + (i + d) % 12),
+          status: late ? AttendanceStatus.late : AttendanceStatus.present,
+          location: 'Main Gate',
+        ));
+      }
+
       records.add(AttendanceRecord(
         id: 'att_${++seq}',
         personId: 'u_faculty',
@@ -831,7 +907,8 @@ class DemoStore {
         subjectType: AttendanceSubjectType.employee,
         date: _dateKey(day),
         timestampIn: DateTime(day.year, day.month, day.day, 7, 12),
-        timestampOut: d == 0 ? null : DateTime(day.year, day.month, day.day, 17, 2),
+        timestampOut:
+            d == 0 ? null : DateTime(day.year, day.month, day.day, 17, 2),
         status: AttendanceStatus.present,
         location: 'Faculty Entrance',
       ));
