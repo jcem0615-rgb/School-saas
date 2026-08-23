@@ -136,7 +136,19 @@ jobs:
 
       - run: flutter pub get
 
+      # The Firebase C++ SDK for Windows, which firebase_core pulls in and
+      # unpacks at build time, declares cmake_minimum_required below 3.5.
+      # CMake 4 removed compatibility with that and refuses to configure:
+      #
+      #   Compatibility with CMake < 3.5 has been removed from CMake.
+      #
+      # The file is downloaded during the build, so there is nothing in
+      # this repository to fix. This is the escape hatch CMake's own error
+      # message points at -- it raises the floor those old declarations
+      # are treated as, rather than turning any check off.
       - run: flutter build windows --release --dart-define=DEMO_MODE=true
+        env:
+          CMAKE_POLICY_VERSION_MINIMUM: '3.5'
 
       # The whole Release folder, not just the .exe: a Flutter desktop
       # build is the executable plus its DLLs and the data/ directory, and
