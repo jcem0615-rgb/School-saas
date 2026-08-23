@@ -54,12 +54,18 @@ jobs:
       # so the artifact's contents do not depend on a default changing:
       # this build must be the self-contained one that needs no Firebase
       # project behind it.
-      - run: flutter build apk --release --dart-define=DEMO_MODE=true
+      # --split-per-abi rather than one universal APK. A universal build
+      # carries native code for all three architectures and ships ~77MB to
+      # a phone that can only ever run one of them; split, the arm64 build
+      # every modern handset actually uses is roughly half that. The cost
+      # is that the download is no longer one-size-fits-all, which is why
+      # the assets below are named after the architecture.
+      - run: flutter build apk --release --split-per-abi --dart-define=DEMO_MODE=true
 
       - uses: actions/upload-artifact@v4
         with:
           name: logicclass-demo-apk
-          path: app/build/app/outputs/flutter-apk/app-release.apk
+          path: app/build/app/outputs/flutter-apk/app-*-release.apk
           if-no-files-found: error
 
       # Also published as a release asset, because an Actions artifact is
@@ -75,9 +81,35 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp build/app/outputs/flutter-apk/app-release.apk logicclass-demo.apk
+          out=build/app/outputs/flutter-apk
+          # Named by architecture, since the reader of the release page is
+          # the person who has to pick one.
+          cp "$out/app-arm64-v8a-release.apk"   logicclass-demo-arm64.apk
+          cp "$out/app-armeabi-v7a-release.apk" logicclass-demo-arm32.apk
+          cp "$out/app-x86_64-release.apk"      logicclass-demo-x86_64.apk
+
+          notes=$(cat <<'TXT'
+          Rolling build of the demo-mode app from the runnable-demo-mode branch.
+          Debug-signed for sideloading -- not a Play Store build, and it needs
+          Android 7.0 or newer (the APK carries a v2 signature only).
+
+          Which file: **logicclass-demo-arm64.apk** for essentially any phone
+          sold in the last decade. Try logicclass-demo-arm32.apk if that one
+          refuses to install on an older handset. The x86_64 build is for
+          emulators, not phones.
+          TXT
+          )
           gh release view demo-apk >/dev/null 2>&1 || gh release create demo-apk \
             --target "$GITHUB_SHA" \
             --title "LogicClass demo APK" \
-            --notes "Rolling build of the demo-mode app from the runnable-demo-mode branch. Debug-signed for sideloading -- not a Play Store build."
-          gh release upload demo-apk logicclass-demo.apk --clobber
+            --notes "$notes"
+          gh release edit demo-apk --notes "$notes"
+
+          gh release upload demo-apk \
+            logicclass-demo-arm64.apk \
+            logicclass-demo-arm32.apk \
+            logicclass-demo-x86_64.apk --clobber
+
+          # The universal APK the previous build published is now stale and
+          # would sit above these in the asset list, so it goes.
+          gh release delete-asset demo-apk logicclass-demo.apk --yes || true
