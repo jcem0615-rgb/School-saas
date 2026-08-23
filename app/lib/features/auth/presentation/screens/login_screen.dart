@@ -6,6 +6,7 @@ import '../controllers/auth_controller.dart';
 import '../widgets/auth_text_field.dart';
 import 'forgot_password_screen.dart';
 import '../../../../core/theme/glass.dart';
+import '../../../../core/widgets/brand.dart';
 
 /// Entry point of the app for signed-out users. Role/tenant routing after
 /// a successful login is handled entirely by the router reacting to
@@ -73,7 +74,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.school, size: 44, color: Theme.of(context).colorScheme.primary),
+                    const Center(child: LogicClassMark(size: 76)),
                     const SizedBox(height: 14),
                     Text(
                       'LogicClass',
@@ -131,6 +132,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             )
                           : const Text('Sign in'),
                     ),
+                    const SizedBox(height: 24),
+                    const PoweredByLogicGrid(),
                   ],
                 ),
               ),

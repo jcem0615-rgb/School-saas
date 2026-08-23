@@ -63,6 +63,7 @@ dependencies:
   camera_windows: ^0.2.6+4
   zxing2: ^0.2.4
   image: ^4.3.0
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +74,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/brand/
 
   # Bundled, not fetched. Flutter's CanvasKit renderer downloads Roboto from
   # fonts.gstatic.com when an app declares no font of its own -- so on a
