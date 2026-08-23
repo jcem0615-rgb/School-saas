@@ -153,8 +153,16 @@ jobs:
       # The whole Release folder, not just the .exe: a Flutter desktop
       # build is the executable plus its DLLs and the data/ directory, and
       # the exe alone will not start without them.
+      #
+      # Minus the .lib and .exp files, which are what the linker consumed
+      # to produce those DLLs and are dead weight afterwards -- the
+      # Firebase ones alone were 42MB, more than the rest of the download
+      # put together.
       - name: Package the build
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath logicclass-demo-windows.zip
+        run: |
+          $src = 'build/windows/x64/runner/Release'
+          Get-ChildItem $src -Recurse -Include *.lib,*.exp | Remove-Item -Force
+          Compress-Archive -Path "$src/*" -DestinationPath logicclass-demo-windows.zip
         shell: pwsh
 
       - uses: actions/upload-artifact@v4
