@@ -3,11 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/user_roles.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
-
 import '../../domain/entities/qr_scan_result.dart';
 import '../controllers/qr_attendance_controller.dart';
 import '../widgets/attendance_status_badge.dart';
+import '../widgets/qr_camera.dart';
 
 /// Camera-based scanner. Each successful decode is handed to
 /// [ScannerController], which debounces rapid-fire detections and calls
@@ -54,14 +53,9 @@ class QrScannerScreen extends ConsumerWidget {
       ),
       body: Stack(
         children: [
-          MobileScanner(
-            onDetect: (capture) {
-              final barcode = capture.barcodes.isNotEmpty ? capture.barcodes.first : null;
-              final value = barcode?.rawValue;
-              if (value != null) {
-                ref.read(scannerControllerProvider.notifier).handleScan(value);
-              }
-            },
+          QrCamera(
+            onDetect: (value) =>
+                ref.read(scannerControllerProvider.notifier).handleScan(value),
           ),
           _ScanFrameOverlay(),
           if (scanState.isLoading)
