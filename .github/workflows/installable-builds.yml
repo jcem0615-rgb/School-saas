@@ -9,14 +9,14 @@
 # The APK is signed with the debug key (see android/app/build.gradle.kts),
 # which is what makes it installable by sideloading. It is NOT a Play Store
 # build: replace the signing config with a real upload key before release.
-name: Android APK
+name: Installable builds
 
 on:
   push:
     branches: [runnable-demo-mode]
     paths:
       - 'app/**'
-      - '.github/workflows/android-apk.yml'
+      - '.github/workflows/installable-builds.yml'
   workflow_dispatch:
 
 jobs:
@@ -113,3 +113,51 @@ jobs:
           # The universal APK the previous build published is now stale and
           # would sit above these in the asset list, so it goes.
           gh release delete-asset demo-apk logicclass-demo.apk --yes || true
+
+  # The same app as a desktop program, because a school office runs on
+  # computers as much as on phones. Windows binaries can only be produced
+  # on Windows, hence the separate runner rather than another step above.
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.1
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter build windows --release --dart-define=DEMO_MODE=true
+
+      # The whole Release folder, not just the .exe: a Flutter desktop
+      # build is the executable plus its DLLs and the data/ directory, and
+      # the exe alone will not start without them.
+      - name: Package the build
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath logicclass-demo-windows.zip
+        shell: pwsh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logicclass-demo-windows
+          path: app/logicclass-demo-windows.zip
+          if-no-files-found: error
+
+      - name: Publish the Windows build as a release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Runs in parallel with the APK job, so neither can assume the
+          # other created the release first.
+          gh release view demo-apk >/dev/null 2>&1 || gh release create demo-apk \
+            --target "$GITHUB_SHA" --title "LogicClass demo builds" --notes "Build in progress."
+          gh release upload demo-apk logicclass-demo-windows.zip --clobber
+        shell: bash
