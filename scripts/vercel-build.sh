@@ -7,12 +7,40 @@ export PATH="$PWD/_flutter/bin:$PATH"
 git config --global --add safe.directory "$PWD/_flutter" || true
 
 cd app
-# Demo mode: this deployment has no Firebase project behind it, and the
-# in-memory store is what makes the URL worth opening at all. Point it at
-# a real backend by adding the FIREBASE_* values from
-# lib/firebase_config.dart as Vercel environment variables and switching
-# this to DEMO_MODE=false.
-#
+
+# Demo mode unless the deployment says otherwise. Set DEMO_MODE=false in
+# the Vercel project's environment variables, along with the FIREBASE_*
+# values below, and the next deploy is the real thing -- no code change.
+DEMO_MODE="${DEMO_MODE:-true}"
+
+DEFINES=( --dart-define=DEMO_MODE="$DEMO_MODE" )
+
+if [ "$DEMO_MODE" = "false" ]; then
+  # Fail here rather than build a site that loads and then dies on a
+  # missing key. The app checks this too (lib/firebase_config.dart), but
+  # by then it is a white screen in front of a customer instead of a red
+  # line in a build log.
+  MISSING=()
+  for KEY in FIREBASE_API_KEY FIREBASE_APP_ID FIREBASE_PROJECT_ID \
+             FIREBASE_MESSAGING_SENDER_ID; do
+    [ -n "${!KEY:-}" ] || MISSING+=("$KEY")
+  done
+  if [ ${#MISSING[@]} -gt 0 ]; then
+    echo "DEMO_MODE=false needs the Firebase project settings." >&2
+    echo "Missing: ${MISSING[*]}" >&2
+    echo "Add them as environment variables in the Vercel project." >&2
+    exit 1
+  fi
+
+  # Optional ones are passed only when set: an empty --dart-define is not
+  # the same as an absent one, and the SDK would take "" as a real value.
+  for KEY in FIREBASE_API_KEY FIREBASE_APP_ID FIREBASE_PROJECT_ID \
+             FIREBASE_MESSAGING_SENDER_ID FIREBASE_STORAGE_BUCKET \
+             FIREBASE_AUTH_DOMAIN; do
+    [ -n "${!KEY:-}" ] && DEFINES+=( --dart-define="$KEY=${!KEY}" )
+  done
+fi
+
 # --no-web-resources-cdn is not optional here. By default the build
 # fetches CanvasKit -- the renderer itself -- from
 # https://www.gstatic.com/flutter-canvaskit/<engine>/ at startup, even
@@ -27,6 +55,5 @@ cd app
 # and does not: it reaches the Dart side, while flutter.js decides from
 # `useLocalCanvasKit` in the generated build config, which only this flag
 # sets.
-flutter build web --release \
-  --no-web-resources-cdn \
-  --dart-define=DEMO_MODE=true
+echo "Building web (DEMO_MODE=$DEMO_MODE)"
+flutter build web --release --no-web-resources-cdn "${DEFINES[@]}"
