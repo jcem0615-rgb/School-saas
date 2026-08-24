@@ -2,8 +2,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/data_transfer/open_attachment.dart';
 import '../../../../core/errors/result.dart';
 import '../../../../core/storage/upload_providers.dart';
 import '../../../../core/storage/upload_repository.dart';
@@ -316,15 +316,11 @@ class _SubmissionPanelState extends ConsumerState<SubmissionPanel> {
                 leading: const Icon(Icons.insert_drive_file_outlined),
                 title: Text(submission.attachmentName ?? 'Attached file'),
                 trailing: const Icon(Icons.open_in_new),
-                onTap: () async {
-                  final uri = Uri.parse(submission.attachmentUrl!);
-                  if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(const SnackBar(content: Text('Could not open the file.')));
-                  }
-                },
+                onTap: () => openAttachment(
+                  context,
+                  url: submission.attachmentUrl!,
+                  fileName: submission.attachmentName,
+                ),
               ),
             const SizedBox(height: 8),
             OutlinedButton.icon(

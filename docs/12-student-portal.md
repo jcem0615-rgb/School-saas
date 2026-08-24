@@ -76,3 +76,31 @@ here is at the rules layer instead:
 - **Promissory note PDF generation** — Documents module; the request/
   decision workflow itself is fully functional today, only the printable
   document is deferred.
+
+## Opening an attachment
+
+Every attachment — coursework material, a submitted answer, a payment
+receipt — goes through `openAttachment()` rather than `launchUrl`
+directly.
+
+Almost always the URL is a Storage download link and the platform browser
+handles it. The exception is a `data:` URI, which is what
+`DemoUploadRepository` produces because demo mode never touches a bucket.
+`launchUrl` cannot open one: Chrome blocks top-level navigation to
+`data:` outright, and on Android and iOS nothing handles it. So tapping
+an attachment in the demo did nothing at all, which reads as "the file is
+missing" rather than "this build has no storage behind it".
+
+`openAttachment` decodes a data URI and hands the bytes to the platform's
+save dialog instead. The file lands in Downloads and opens in whatever
+the device uses for a PDF — which is where an external launch would have
+sent it anyway.
+
+This is not demo-only plumbing. A teacher who uploads coursework *in the
+demo* produces a data URI, and their students hit exactly this path.
+
+The demo's own coursework now carries real one-page PDFs — the actual
+problem set, the actual quiz, the actual reading — inlined as data URIs
+(`DemoAttachments`). They replace a plausible-looking `example.org` link
+that failed on tap, which was worse than no attachment: a student opened
+the only piece of material on the screen and got a dead end.

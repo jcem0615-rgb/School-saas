@@ -10,6 +10,7 @@ class AnnouncementModel extends Announcement {
     required super.audience,
     required super.pinned,
     required super.createdByName,
+    super.createdBy,
     required super.createdAt,
   });
 
@@ -22,9 +23,14 @@ class AnnouncementModel extends Announcement {
       audience: AnnouncementAudience(
         all: audienceData['all'] as bool? ?? true,
         roles: (audienceData['roles'] as List<dynamic>? ?? []).cast<String>(),
+        // Absent on every announcement posted before teachers could
+        // target a class, which is why it defaults to empty rather than
+        // being required.
+        sections: (audienceData['sections'] as List<dynamic>? ?? []).cast<String>(),
       ),
       pinned: data['pinned'] as bool? ?? false,
       createdByName: data['createdByName'] as String? ?? 'Unknown',
+      createdBy: data['createdBy'] as String? ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }

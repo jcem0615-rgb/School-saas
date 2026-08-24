@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/data_transfer/open_attachment.dart';
 import '../../../faculty_portal/domain/entities/coursework_item.dart';
 import '../../../faculty_portal/domain/entities/coursework_submission.dart';
 import '../controllers/student_controller.dart';
@@ -136,17 +136,11 @@ class CourseworkDetailScreen extends ConsumerWidget {
                 title: Text(item.attachmentName ?? 'Attached file'),
                 subtitle: Text(online ? 'Open to take this online' : 'Tap to open'),
                 trailing: const Icon(Icons.open_in_new),
-                onTap: () async {
-                  final uri = Uri.parse(item.attachmentUrl!);
-                  if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(
-                        const SnackBar(content: Text('Could not open the attachment.')),
-                      );
-                  }
-                },
+                onTap: () => openAttachment(
+                  context,
+                  url: item.attachmentUrl!,
+                  fileName: item.attachmentName,
+                ),
               ),
             ),
           ],

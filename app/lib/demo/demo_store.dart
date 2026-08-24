@@ -1,6 +1,7 @@
 import 'package:diacritic/diacritic.dart';
 import 'package:rxdart/rxdart.dart';
 
+import 'demo_attachments.dart';
 import '../core/constants/education_level.dart';
 import '../core/constants/user_roles.dart';
 import '../features/admin_portal/domain/entities/employee_summary.dart';
@@ -976,6 +977,11 @@ class DemoStore {
           section: 'Grade 10 - Rizal',
           teacherId: 'u_faculty',
           teacherName: 'Maria Santos',
+          // The paper the class is working from. Attached because a
+          // student opening an assignment and finding only a one-line
+          // description has nothing to actually do.
+          attachmentUrl: DemoAttachments.problemSet4,
+          attachmentName: 'problem-set-4.pdf',
           dueDate: _daysAhead(3),
           totalPoints: 40,
           published: true,
@@ -994,7 +1000,7 @@ class DemoStore {
           // what taking work through the app looks like without anyone
           // having to create one first.
           delivery: CourseworkDelivery.online,
-          attachmentUrl: 'https://example.org/demo/quiz-3-cell-division.pdf',
+          attachmentUrl: DemoAttachments.quiz3CellDivision,
           attachmentName: 'quiz-3-cell-division.pdf',
           dueDate: _daysAhead(1),
           totalPoints: 25,
@@ -1037,6 +1043,8 @@ class DemoStore {
           section: 'Grade 10 - Rizal',
           teacherId: 'u_faculty',
           teacherName: 'Maria Santos',
+          attachmentUrl: DemoAttachments.floranteAtLaura,
+          attachmentName: 'florante-at-laura-canto-1-5.pdf',
           published: true,
           createdAt: _daysAgo(5),
         ),
@@ -1153,6 +1161,23 @@ class DemoStore {
           pinned: false,
           createdByName: 'Grace Mendoza',
           createdAt: _daysAgo(8),
+        ),
+        // A teacher's post to her own advisory class. Seeded so the demo
+        // shows what section targeting looks like from both ends: Maria
+        // Santos sees it under "Posted by you", the Grade 10 - Rizal
+        // student and their parent see it in their list, and the Grade 4
+        // student does not see it at all.
+        Announcement(
+          id: 'ann_004',
+          title: 'Bring your permit slip on Friday',
+          body: 'Rizal, please have a parent sign the field trip permit and '
+              'bring it Friday morning. No slip, no trip — I cannot make '
+              'exceptions on the day.',
+          audience: AnnouncementAudience.forSections(const ['Grade 10 - Rizal']),
+          pinned: false,
+          createdByName: 'Maria Santos',
+          createdBy: 'u_faculty',
+          createdAt: _daysAgo(2),
         ),
       ];
 

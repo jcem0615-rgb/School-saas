@@ -246,12 +246,27 @@ service cloud.firestore {
       // ---- announcements ----
       match /announcements/{announcementId} {
         allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
-        allow create: if hasRole(schoolId, ['director', 'principal', 'admin']) && schoolIsAccessible(schoolId);
+
+        // Faculty may post too, but only as themselves. A teacher's
+        // notice is addressed to a class they take, and the audience is
+        // targeting rather than access control (see AnnouncementAudience)
+        // -- so what actually has to be enforced here is authorship, not
+        // who the notice is for.
+        allow create: if schoolIsAccessible(schoolId)
+                        && request.resource.data.createdBy == request.auth.uid
+                        && hasRole(schoolId, ['director', 'principal', 'admin', 'faculty']);
+
         // Only the base envelope + content fields may change; no swapping
-        // authorship after the fact.
-        allow update: if hasRole(schoolId, ['director', 'principal', 'admin'])
-                        && schoolIsAccessible(schoolId)
-                        && request.resource.data.createdBy == resource.data.createdBy;
+        // authorship after the fact. A teacher may edit only their own;
+        // the three management roles may edit any, which is what lets a
+        // director correct or retract a notice.
+        allow update: if schoolIsAccessible(schoolId)
+                        && request.resource.data.createdBy == resource.data.createdBy
+                        && (
+                          hasRole(schoolId, ['director', 'principal', 'admin'])
+                          || (hasRole(schoolId, ['faculty'])
+                              && resource.data.createdBy == request.auth.uid)
+                        );
         allow delete: if false; // soft delete only, via update
       }
 

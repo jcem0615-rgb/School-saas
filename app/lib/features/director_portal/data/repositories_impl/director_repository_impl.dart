@@ -49,6 +49,7 @@ class DirectorRepositoryImpl implements DirectorRepository {
           body: body,
           audienceAll: audience.all,
           audienceRoles: audience.roles,
+          audienceSections: audience.sections,
           pinned: pinned,
         ));
   }
@@ -67,6 +68,7 @@ class DirectorRepositoryImpl implements DirectorRepository {
           body: body,
           audienceAll: audience.all,
           audienceRoles: audience.roles,
+          audienceSections: audience.sections,
           pinned: pinned,
         ));
   }

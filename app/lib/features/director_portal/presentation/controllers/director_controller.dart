@@ -6,6 +6,15 @@ import '../../../auth/presentation/controllers/auth_controller.dart'
     show authStateProvider, firestoreProvider;
 import '../../data/datasources/director_remote_datasource.dart';
 import '../../data/repositories_impl/director_repository_impl.dart';
+import '../../../../core/constants/user_roles.dart';
+import '../../../admin_portal/domain/entities/teacher_assignment.dart';
+import '../../../admin_portal/presentation/controllers/admin_controller.dart'
+    show teacherAssignmentsStreamProvider;
+import '../../../parent_portal/presentation/controllers/parent_controller.dart'
+    show myChildrenProvider;
+import '../../../registrar_portal/domain/entities/student_summary.dart';
+import '../../../student_portal/presentation/controllers/student_controller.dart'
+    show myStudentRecordProvider;
 import '../../domain/entities/announcement.dart';
 import '../../domain/entities/approval_request.dart';
 import '../../domain/entities/director_dashboard_summary.dart';
@@ -51,13 +60,91 @@ final dashboardSummaryProvider = FutureProvider.autoDispose<DirectorDashboardSum
   };
 });
 
+/// The classes the signed-in user belongs to, however they belong to one.
+///
+/// Four roles reach a section by four different routes and this is the
+/// one place that has to know all of them, because an announcement
+/// addressed to "Grade 10 - Rizal" has to reach the students in it, the
+/// parents of those students, and the teachers who take them. Working
+/// that out on each portal's own screen would mean getting it right four
+/// times -- and the failure is silent: a parent simply never sees the
+/// notice about tomorrow's field trip.
+///
+/// Empty for everyone else. An admin or a cashier belongs to no class,
+/// which is exactly right: a section-targeted notice is not for them.
+final viewerSectionsProvider = Provider.autoDispose<List<String>>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return const [];
+
+  switch (user.role) {
+    case UserRole.student:
+      final record = ref.watch(myStudentRecordProvider).valueOrNull;
+      return record == null ? const [] : [record.section];
+    case UserRole.parent:
+      final children = ref.watch(myChildrenProvider).valueOrNull ?? const <StudentSummary>[];
+      return children.map((c) => c.section).toSet().toList();
+    case UserRole.faculty:
+      // Every section this teacher is assigned to, advisory or not. A
+      // subject teacher is part of that class too.
+      final assignments =
+          ref.watch(teacherAssignmentsStreamProvider).valueOrNull ?? const <TeacherAssignment>[];
+      return assignments
+          .where((a) => a.teacherId == user.uid)
+          .map((a) => a.section)
+          .toSet()
+          .toList();
+    default:
+      return const [];
+  }
+});
+
 /// What the signed-in user is addressed by. Every portal opens the same
 /// AnnouncementsScreen, so the audience filter belongs here, once, rather
 /// than on nine screens.
 final announcementsStreamProvider = StreamProvider.autoDispose<List<Announcement>>((ref) {
   final role = ref.watch(authStateProvider).valueOrNull?.role;
   if (role == null) return const Stream<List<Announcement>>.empty();
-  return WatchAnnouncementsUseCase(ref.watch(directorRepositoryProvider))(role);
+  return WatchAnnouncementsUseCase(ref.watch(directorRepositoryProvider))(
+    role,
+    viewerSections: ref.watch(viewerSectionsProvider),
+  );
+});
+
+/// Announcements this teacher posted, for the list they manage.
+///
+/// Separate from [allAnnouncementsStreamProvider]: a teacher is not an
+/// author of the school's notices and must not get Edit buttons on them.
+/// firestore.rules pins authorship on update, so offering one would just
+/// produce a permission error at the end of a filled-in form.
+final myAnnouncementsStreamProvider = StreamProvider.autoDispose<List<Announcement>>((ref) {
+  final uid = ref.watch(authStateProvider).valueOrNull?.uid;
+  if (uid == null) return const Stream<List<Announcement>>.empty();
+  return WatchAnnouncementsUseCase(ref.watch(directorRepositoryProvider))
+      .unfiltered()
+      .map((all) => all.where((a) => a.createdBy == uid).toList());
+});
+
+/// The sections this teacher may post to, advisory first.
+///
+/// Advisory first because it is the one they mean most of the time: the
+/// adviser is the person responsible for the class as a whole, and a
+/// list that buried it among five subject sections would make the common
+/// case the hardest to find.
+final myTeachingSectionsProvider = Provider.autoDispose<List<TeacherAssignment>>((ref) {
+  final uid = ref.watch(authStateProvider).valueOrNull?.uid;
+  if (uid == null) return const [];
+  final assignments =
+      ref.watch(teacherAssignmentsStreamProvider).valueOrNull ?? const <TeacherAssignment>[];
+  final mine = assignments.where((a) => a.teacherId == uid).toList()
+    ..sort((a, b) {
+      if (a.isAdviser != b.isAdviser) return a.isAdviser ? -1 : 1;
+      return a.section.compareTo(b.section);
+    });
+
+  // One row per section, not per subject: a teacher taking three
+  // subjects in one section posts to the class once.
+  final seen = <String>{};
+  return mine.where((a) => seen.add(a.section)).toList();
 });
 
 /// Everything posted, regardless of audience -- the management view.

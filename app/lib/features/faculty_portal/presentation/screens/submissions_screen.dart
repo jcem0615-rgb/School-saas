@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/data_transfer/open_attachment.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../../registrar_portal/presentation/controllers/registrar_controller.dart';
 import '../../domain/entities/coursework_item.dart';
@@ -315,15 +315,11 @@ class _SubmissionCard extends StatelessWidget {
                 leading: const Icon(Icons.insert_drive_file_outlined),
                 title: Text(submission.attachmentName ?? 'Attached file'),
                 trailing: const Icon(Icons.open_in_new),
-                onTap: () async {
-                  final uri = Uri.parse(submission.attachmentUrl!);
-                  if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(const SnackBar(content: Text('Could not open the file.')));
-                  }
-                },
+                onTap: () => openAttachment(
+                  context,
+                  url: submission.attachmentUrl!,
+                  fileName: submission.attachmentName,
+                ),
               ),
             const SizedBox(height: 8),
             Row(

@@ -20,9 +20,17 @@ class WatchAnnouncementsUseCase {
   /// See AnnouncementAudience: this is relevance, not secrecy. The
   /// collection is readable tenant-wide, because Firestore rules reject
   /// queries rather than filtering them.
-  Stream<List<Announcement>> call(UserRole role) => _repository
-      .watchAnnouncements()
-      .map((all) => all.where((a) => a.audience.includes(role)).toList());
+  ///
+  /// [viewerSections] are the classes this viewer belongs to, which is
+  /// how a teacher's notice for one section finds its students, their
+  /// parents and the section's other teachers.
+  Stream<List<Announcement>> call(
+    UserRole role, {
+    Iterable<String> viewerSections = const [],
+  }) =>
+      _repository.watchAnnouncements().map((all) => all
+          .where((a) => a.audience.includes(role, viewerSections: viewerSections))
+          .toList());
 
   /// Everything posted, for the roles that manage announcements. Separate
   /// from [call] so that reading unfiltered is a deliberate choice at the

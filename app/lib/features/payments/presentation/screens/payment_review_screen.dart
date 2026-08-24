@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/data_transfer/open_attachment.dart';
 import '../../domain/entities/payment_submission.dart';
 import '../controllers/payment_controller.dart';
 
@@ -190,15 +190,7 @@ class _SubmissionCard extends StatelessWidget {
             if (s.receiptUrl != null) ...[
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                onPressed: () async {
-                  final uri = Uri.parse(s.receiptUrl!);
-                  if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Could not open the receipt.')),
-                    );
-                  }
-                },
+                onPressed: () => openAttachment(context, url: s.receiptUrl!),
                 icon: const Icon(Icons.receipt_long_outlined, size: 18),
                 label: Text(s.receiptFileName ?? 'View receipt'),
               ),

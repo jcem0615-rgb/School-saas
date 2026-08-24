@@ -82,6 +82,7 @@ class DirectorRemoteDataSource {
     required String body,
     required bool audienceAll,
     required List<String> audienceRoles,
+    required List<String> audienceSections,
     required bool pinned,
   }) async {
     final ref = _firestore.collection(FirestorePaths.announcements(_actingUser.schoolId)).doc();
@@ -89,7 +90,11 @@ class DirectorRemoteDataSource {
       'id': ref.id,
       'title': title,
       'body': body,
-      'audience': {'all': audienceAll, 'roles': audienceRoles},
+      'audience': {
+        'all': audienceAll,
+        'roles': audienceRoles,
+        'sections': audienceSections,
+      },
       'pinned': pinned,
       'createdByName': _actingUser.name,
       ..._baseFields(),
@@ -102,6 +107,7 @@ class DirectorRemoteDataSource {
     required String body,
     required bool audienceAll,
     required List<String> audienceRoles,
+    required List<String> audienceSections,
     required bool pinned,
   }) async {
     await _firestore
@@ -110,7 +116,11 @@ class DirectorRemoteDataSource {
         .update({
       'title': title,
       'body': body,
-      'audience': {'all': audienceAll, 'roles': audienceRoles},
+      'audience': {
+        'all': audienceAll,
+        'roles': audienceRoles,
+        'sections': audienceSections,
+      },
       'pinned': pinned,
       ..._editFields(),
     });

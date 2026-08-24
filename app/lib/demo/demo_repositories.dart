@@ -394,6 +394,7 @@ class DemoDirectorRepository implements DirectorRepository {
         audience: audience,
         pinned: pinned,
         createdByName: _store.requireUser.fullName,
+        createdBy: _store.requireUser.uid,
         createdAt: DateTime.now(),
       ),
     );
@@ -428,6 +429,7 @@ class DemoDirectorRepository implements DirectorRepository {
         // Authorship is never re-attributed by an edit -- firestore.rules
         // rejects any update that changes createdBy.
         createdByName: a.createdByName,
+        createdBy: a.createdBy,
         createdAt: a.createdAt,
       ),
     );

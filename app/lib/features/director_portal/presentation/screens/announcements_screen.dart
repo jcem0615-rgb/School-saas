@@ -5,14 +5,16 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/user_roles.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
+import '../../../admin_portal/domain/entities/teacher_assignment.dart';
 import '../../domain/entities/announcement.dart';
 import '../controllers/director_controller.dart';
 
 final _dateFormat = DateFormat.yMMMd().add_jm();
 
-/// Who may post: the same three roles firestore.rules allows to write the
-/// collection. Everyone else opens this screen read-only -- which is most
-/// of the school, since student and parent portals link here too.
+/// Who may post to the whole school: the three roles firestore.rules
+/// lets write any announcement. Faculty write too, but only to their own
+/// classes and only their own posts, which is a different screen state
+/// rather than a fourth entry here.
 const _authoringRoles = [UserRole.director, UserRole.principal, UserRole.admin];
 
 class AnnouncementsScreen extends ConsumerStatefulWidget {
@@ -32,10 +34,19 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
   Widget build(BuildContext context) {
     final role = ref.watch(authStateProvider).valueOrNull?.role;
     final canAuthor = role != null && _authoringRoles.contains(role);
-    // Authors get everything posted and a filter to preview any role's
-    // view; everyone else gets only what they are addressed by.
+    final isFaculty = role == UserRole.faculty;
+    // A teacher can only post to a class they are assigned to, so with no
+    // assignments there is nothing to post to and no button to offer.
+    final myClasses = ref.watch(myTeachingSectionsProvider);
+    final canPostToClass = isFaculty && myClasses.isNotEmpty;
+
+    // Three lists, because three people want different things here. A
+    // director manages every notice. A teacher manages their own and
+    // reads the ones addressed to them, which are not the same set. A
+    // student just reads.
     final announcementsAsync =
         ref.watch(canAuthor ? allAnnouncementsStreamProvider : announcementsStreamProvider);
+    final mineAsync = isFaculty ? ref.watch(myAnnouncementsStreamProvider) : null;
 
     ref.listen(directorActionControllerProvider, (previous, next) {
       if (next case AsyncError(:final error)) {
@@ -47,11 +58,11 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Announcements')),
-      floatingActionButton: canAuthor
+      floatingActionButton: canAuthor || canPostToClass
           ? FloatingActionButton.extended(
-              onPressed: () => _showEditor(context),
+              onPressed: () => _showEditor(context, classOptions: myClasses),
               icon: const Icon(Icons.add),
-              label: const Text('New'),
+              label: Text(canPostToClass ? 'Post to a class' : 'New'),
             )
           : null,
       body: announcementsAsync.when(
@@ -65,6 +76,18 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
               ? announcements
               : announcements.where((a) => a.audience.includes(_audienceFilter!)).toList();
 
+          // A teacher's own posts sort to the top and carry the edit
+          // controls; everything else on their list is read-only. One
+          // list rather than two sections: the audience line on each card
+          // already says who a notice is for, and a second heading would
+          // push the school's notices below the fold on a phone.
+          final myUid = ref.watch(authStateProvider).valueOrNull?.uid;
+          final mine = mineAsync?.valueOrNull ?? const <Announcement>[];
+          final mineIds = mine.map((a) => a.id).toSet();
+          final rows = isFaculty
+              ? [...mine, ...visible.where((a) => !mineIds.contains(a.id))]
+              : visible;
+
           return Column(
             children: [
               if (canAuthor) _AudienceFilterBar(
@@ -72,7 +95,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                 onChanged: (r) => setState(() => _audienceFilter = r),
               ),
               Expanded(
-                child: visible.isEmpty
+                child: rows.isEmpty
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.all(24),
@@ -87,14 +110,25 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.all(16),
-                        itemCount: visible.length,
+                        itemCount: rows.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) => _AnnouncementCard(
-                          announcement: visible[index],
-                          canAuthor: canAuthor,
-                          onEdit: () => _showEditor(context, existing: visible[index]),
-                          onDelete: () => _confirmDelete(context, visible[index]),
-                        ),
+                        itemBuilder: (context, index) {
+                          final a = rows[index];
+                          // A teacher may edit only what they wrote --
+                          // firestore.rules pins authorship on update, so
+                          // an Edit button on anything else would just
+                          // produce a permission error at the end of a
+                          // filled-in form.
+                          final editable =
+                              canAuthor || (isFaculty && a.createdBy == myUid && myUid != null);
+                          return _AnnouncementCard(
+                            announcement: a,
+                            canAuthor: editable,
+                            onEdit: () =>
+                                _showEditor(context, existing: a, classOptions: myClasses),
+                            onDelete: () => _confirmDelete(context, a),
+                          );
+                        },
                       ),
               ),
             ],
@@ -114,22 +148,46 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
   /// controller method runs on submit and in the labels, so keeping them
   /// as one builder means a new field can never be added to the create
   /// form and forgotten on the edit form.
-  Future<void> _showEditor(BuildContext context, {Announcement? existing}) async {
+  Future<void> _showEditor(
+    BuildContext context, {
+    Announcement? existing,
+    List<TeacherAssignment> classOptions = const [],
+  }) async {
     final isEdit = existing != null;
+    // A teacher gets classes to choose from and no role chips; a
+    // director gets role chips and no classes. Deciding it from the
+    // options rather than the role keeps the editor one widget: there is
+    // no second copy of it to forget a field on.
+    final byClass = classOptions.isNotEmpty;
     final titleController = TextEditingController(text: existing?.title ?? '');
     final bodyController = TextEditingController(text: existing?.body ?? '');
     bool pinned = existing?.pinned ?? false;
     // Everyone is the default because most notices are for everyone, and
     // because a wrongly-broad announcement is a nuisance while a wrongly-
     // narrow one means somebody never hears about the typhoon.
-    bool toEveryone = existing?.audience.all ?? true;
+    // Everyone is the default for a school notice because most are for
+    // everyone, and because a wrongly-broad announcement is a nuisance
+    // while a wrongly-narrow one means somebody never hears about the
+    // typhoon. A teacher's post is never school-wide: they are writing
+    // to a class, and the default is the class they advise.
+    bool toEveryone = byClass ? false : (existing?.audience.all ?? true);
     final selectedRoles = <String>{...?existing?.audience.roles};
+    final selectedSections = <String>{
+      ...?existing?.audience.sections,
+      if (!isEdit && byClass) classOptions.first.section,
+    };
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: Text(isEdit ? 'Edit Announcement' : 'New Announcement'),
+          title: Text(
+            isEdit
+                ? 'Edit Announcement'
+                : byClass
+                    ? 'Post to a class'
+                    : 'New Announcement',
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -154,22 +212,70 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                   style: Theme.of(dialogContext).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 8),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: true, label: Text('Everyone')),
-                    ButtonSegment(value: false, label: Text('Choose roles')),
-                  ],
-                  selected: {toEveryone},
-                  onSelectionChanged: (s) => setState(() {
-                    toEveryone = s.first;
-                    // Reaching for "choose roles" with nothing chosen
-                    // would post to nobody, so start from the common case.
-                    if (!toEveryone && selectedRoles.isEmpty) {
-                      selectedRoles.addAll(AnnouncementAudience.staffOnly.roles);
-                    }
-                  }),
-                ),
-                if (!toEveryone) ...[
+                if (byClass)
+                  // One chip per class this teacher is assigned to.
+                  // Advisory is marked, because the adviser's own class
+                  // is what they mean most of the time.
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: classOptions
+                        .map(
+                          (c) => FilterChip(
+                            avatar: c.isAdviser ? const Icon(Icons.star, size: 16) : null,
+                            label: Text(
+                              c.isAdviser ? '${c.section} (advisory)' : c.section,
+                            ),
+                            selected: selectedSections.contains(c.section),
+                            onSelected: (on) => setState(() {
+                              if (on) {
+                                selectedSections.add(c.section);
+                              } else {
+                                selectedSections.remove(c.section);
+                              }
+                            }),
+                          ),
+                        )
+                        .toList(),
+                  )
+                else
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('Everyone')),
+                      ButtonSegment(value: false, label: Text('Choose roles')),
+                    ],
+                    selected: {toEveryone},
+                    onSelectionChanged: (s) => setState(() {
+                      toEveryone = s.first;
+                      // Reaching for "choose roles" with nothing chosen
+                      // would post to nobody, so start from the common case.
+                      if (!toEveryone && selectedRoles.isEmpty) {
+                        selectedRoles.addAll(AnnouncementAudience.staffOnly.roles);
+                      }
+                    }),
+                  ),
+                if (byClass && selectedSections.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Pick at least one class, or this reaches nobody.',
+                      style: Theme.of(dialogContext)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Theme.of(dialogContext).colorScheme.error),
+                    ),
+                  ),
+                if (byClass && selectedSections.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Everyone in ${selectedSections.join(", ")} sees this — the '
+                      'students, their parents, and the other teachers who take '
+                      'them.',
+                      style: Theme.of(dialogContext).textTheme.bodySmall,
+                    ),
+                  ),
+                if (!byClass && !toEveryone) ...[
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
@@ -216,12 +322,15 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
             FilledButton(
-              onPressed: !toEveryone && selectedRoles.isEmpty
+              onPressed: (byClass ? selectedSections.isEmpty : (!toEveryone && selectedRoles.isEmpty))
                   ? null
                   : () async {
-                      final audience = toEveryone
-                          ? AnnouncementAudience.everyone
-                          : AnnouncementAudience(all: false, roles: selectedRoles.toList());
+                      final audience = byClass
+                          ? AnnouncementAudience.forSections(selectedSections)
+                          : toEveryone
+                              ? AnnouncementAudience.everyone
+                              : AnnouncementAudience(
+                                  all: false, roles: selectedRoles.toList());
                       final notifier = ref.read(directorActionControllerProvider.notifier);
                       final success = isEdit
                           ? await notifier.updateAnnouncement(

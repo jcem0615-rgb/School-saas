@@ -16,7 +16,13 @@ import 'package:logicclass/features/director_portal/presentation/screens/announc
 /// and an edit/delete menu on every card.
 void main() {
   Future<void> pumpAs(WidgetTester tester, UserRole role) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    // Phone *width* on purpose -- that is what makes the audience chip bar
+    // scroll horizontally, which tapAudienceChip below has to cope with.
+    // The height is deliberately taller than a real phone so that every
+    // seeded announcement is built and findable: a ListView only builds a
+    // screenful, and an assertion that a notice is absent would otherwise
+    // pass merely because it had scrolled off the end.
+    tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
 
@@ -100,15 +106,28 @@ void main() {
           reason: 'nor edit or delete one');
     });
 
-    testWidgets('a faculty member reads but does not post', (tester) async {
-      // Faculty are staff, so they see staff notices -- but firestore.rules
-      // only lets director, principal and admin write the collection, and
-      // a button that can only ever produce a permission error is worse
-      // than no button.
+    testWidgets('a faculty member posts to a class, not to the school', (tester) async {
+      // Faculty may write the collection now, but only ever addressed to
+      // a section they are assigned to. The button says so, because a
+      // teacher reaching for "New" and getting the school-wide role
+      // picker is how a class reminder ends up in front of the Grade 3s.
       await pumpAs(tester, UserRole.faculty);
 
       expect(find.text('Payroll cut-off moved to the 25th'), findsOneWidget);
-      expect(find.byType(FloatingActionButton), findsNothing);
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+      expect(find.text('Post to a class'), findsOneWidget);
+    });
+
+    testWidgets('a faculty member may edit their own post and nobody else\'s',
+        (tester) async {
+      await pumpAs(tester, UserRole.faculty);
+
+      // Maria Santos posted exactly one of the four seeded notices.
+      expect(find.text('Bring your permit slip on Friday'), findsOneWidget);
+      expect(find.byType(RowActionsMenu), findsOneWidget,
+          reason: 'edit controls on her own post only -- firestore.rules '
+              'pins authorship, so an Edit button on the payroll notice '
+              'would only ever produce a permission error');
     });
 
     testWidgets('a director gets the authoring controls and the audience filter',

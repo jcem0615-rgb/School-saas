@@ -99,3 +99,49 @@ schools/{schoolId}/grades/{id}           -- studentId, subject/section, term, sc
   and `grades` already account for student/parent access (see
   `docs/07-qr-attendance.md` and `docs/08-payments.md` for the same
   self/staff/linked-parent access pattern reused here).
+
+## Announcements to a class
+
+A teacher posts from the same Announcements screen everyone else uses,
+but the composer is a different one. A director picks roles; a teacher
+picks classes.
+
+Roles are the wrong unit for a teacher. "Students" means every student in
+the school, and a Grade 10 adviser reminding their class to bring a
+permit slip should not put it in front of the Grade 3s. A section is also
+the unit a student, their parent and their teachers already have in
+common, so targeting one needs no new grouping maintained alongside the
+roster.
+
+`AnnouncementAudience` therefore gained `sections` next to `roles`, and
+the two are an **OR**. A notice for "Grade 10 - Rizal" has to reach that
+section's students, their parents and the other teachers who take them;
+making a teacher enumerate those roles as well would mean getting it
+wrong in the direction that leaves the parents out.
+
+`viewerSectionsProvider` is the one place that knows how each role
+reaches a section — a student through their own record, a parent through
+their children's, a teacher through their assignments — because working
+that out on four portals' screens means getting it right four times, and
+the failure is silent: a parent simply never sees the notice about
+tomorrow's field trip. Everyone else belongs to no section, which is
+exactly right: a class notice is not for the cashier.
+
+The class list puts the **advisory** section first (`isAdviser` on the
+teacher assignment). It is the one they mean most of the time, and a list
+that buried it among five subject sections would make the common case the
+hardest to find. One row per section, not per subject — a teacher taking
+three subjects in one class posts to that class once.
+
+`firestore.rules` now lets faculty create announcements, with
+`createdBy == request.auth.uid` enforced on create and edits restricted
+to their own. What has to be enforced there is authorship, not audience:
+the audience is targeting, not access control, and the collection is
+readable tenant-wide because Firestore rejects queries rather than
+filtering them. **Nothing goes in an announcement that a student must not
+read.**
+
+A teacher's own posts sort to the top of their list and carry the edit
+controls; everything else is read-only. An Edit button on the school's
+payroll notice would only ever produce a permission error at the end of a
+filled-in form.
