@@ -8,6 +8,7 @@ import '../../../admin_portal/presentation/controllers/admin_controller.dart' sh
 import '../../../../core/data_transfer/export_import_sheet.dart';
 import '../../../../core/widgets/combo_field.dart';
 import '../../domain/entities/student_summary.dart';
+import '../import/student_import.dart';
 import '../../domain/usecases/student_usecases.dart';
 import '../controllers/registrar_controller.dart';
 import 'student_detail_screen.dart';
@@ -22,7 +23,7 @@ class StudentListScreen extends ConsumerStatefulWidget {
 
 class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   String _query = '';
-  bool _exporting = false;
+  bool _loadingTransfer = false;
 
   /// Load more widens the query rather than appending a page, so the list
   /// stays one live stream. See [pagedStudentsStreamProvider].
@@ -59,12 +60,12 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
         title: const Text('Student Records'),
         actions: [
           IconButton(
-            icon: _exporting
+            icon: _loadingTransfer
                 ? const SizedBox(
                     width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.import_export),
             tooltip: 'Export / Import',
-            onPressed: _exporting ? null : _showTransfer,
+            onPressed: _loadingTransfer ? null : _showTransfer,
           ),
         ],
       ),
@@ -189,38 +190,64 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     );
   }
 
-  /// Export is unrestricted; import deliberately is not offered here.
+  /// Moves the roster in and out as a spreadsheet.
   ///
-  /// Student numbers come from a server-side counter at registration, and
-  /// firestore.rules rejects client writes to `studentNumber`, `userId`
-  /// and `balance`. A CSV import that appeared to create students would
-  /// either bypass those rules or silently drop the fields, so the honest
-  /// option is export-only with the reason stated in the sheet.
+  /// Import used to be refused here, and the reason given was that
+  /// `studentNumber`, `userId` and `balance` are server-owned and
+  /// firestore.rules rejects client writes to them. That reasoning was
+  /// right about the fields and wrong about the conclusion: the import
+  /// does not have to write those fields, because it does not have to
+  /// write documents at all. Every row goes through `registerStudent`,
+  /// the same callable the New Student form uses, which allocates the
+  /// student number from the server-side counter and initialises the
+  /// balance. Three hundred rows take the same path one typed student
+  /// does, and nothing is bypassed.
   ///
   /// The export reads every student explicitly rather than exporting
-  /// whatever the paged list happens to be holding. A CSV that silently
-  /// stopped at the twenty rows on screen is the exact failure paging
-  /// invites, and it is the kind that is only noticed once the file has
-  /// already been sent to the division office.
+  /// whatever the paged list happens to be holding -- a file that
+  /// silently stopped at the twenty rows on screen is the exact failure
+  /// paging invites, and the kind noticed only after the file has gone to
+  /// the division office.
   Future<void> _showTransfer() async {
-    setState(() => _exporting = true);
+    setState(() => _loadingTransfer = true);
+
+    // Held open for as long as the sheet is: the row parser needs the
+    // catalogue to turn "BS Computer Science" into a programId, and it
+    // runs when the user picks a file, long after this method returns.
+    final catalogue = ref.listenManual(programsStreamProvider, (_, __) {});
+
     final List<StudentSummary> students;
+    final List<Program> programs;
     try {
       students = await FetchAllStudentsUseCase(ref.read(registrarRepositoryProvider))();
+      programs = await ref.read(programsStreamProvider.future);
     } catch (err) {
+      catalogue.close();
       if (mounted) {
-        setState(() => _exporting = false);
+        setState(() => _loadingTransfer = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not load the full roster to export: $err')),
+          SnackBar(content: Text('Could not load the roster: $err')),
         );
       }
       return;
     }
-    if (!mounted) return;
-    setState(() => _exporting = false);
-    showExportImportSheet(
+    if (!mounted) {
+      catalogue.close();
+      return;
+    }
+    setState(() => _loadingTransfer = false);
+
+    // A file listing the same student twice is a copy-paste accident, not
+    // twins. Caught per file rather than per row, so it has to live out
+    // here where the parser can close over it.
+    final seen = <String>{};
+
+    await showExportImportSheet(
       context: context,
       label: 'Students',
+      // Everything a record has, including the three fields the server
+      // owns. The importer ignores them by name, so a file exported here
+      // can be imported straight back into another school.
       headers: const [
         'Student Number',
         'Last Name',
@@ -230,9 +257,31 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
         'Grade Level',
         'Section',
         'Program',
+        'Birthday',
+        'Guardian Name',
+        'Guardian Phone',
         'Status',
         'Balance',
       ],
+      importHeaders: const [
+        'Last Name',
+        'First Name',
+        'Middle Name',
+        'Division',
+        'Grade Level',
+        'Section',
+        'Program',
+        'Birthday',
+        'Guardian Name',
+        'Guardian Phone',
+      ],
+      importNote:
+          'Student numbers are assigned by the system as each row is '
+          'registered, and every imported student starts enrolled with a '
+          'zero balance — those three columns are ignored if your file has '
+          'them. Division must be Elementary, Junior High School, Senior '
+          'High School or College. Birthday can be a date cell or written '
+          'as 2012-03-07.',
       rows: () => students
           .map((s) => [
                 s.studentNumber,
@@ -243,11 +292,47 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 s.gradeLevel,
                 s.section,
                 s.programName ?? '',
+                s.birthDate == null ? '' : StudentImport.isoDate(s.birthDate!),
+                s.guardianContacts.firstOrNull?.name ?? '',
+                s.guardianContacts.firstOrNull?.phone ?? '',
                 s.status.displayLabel,
                 s.balance.toStringAsFixed(2),
               ])
           .toList(),
+      parseRow: (row, rowNumber) => StudentImport.parseRow(
+        row: row,
+        rowNumber: rowNumber,
+        programs: programs,
+        existing: students,
+        seen: seen,
+      ),
+      onImport: (records) async {
+        // One at a time, counting what actually lands. registerStudent is
+        // a callable per row, so a failure partway through has already
+        // created the students before it -- reporting the true count is
+        // the difference between "47 of 300 imported, fix and re-run" and
+        // a registrar importing the whole file again on top.
+        final notifier = ref.read(registrarActionControllerProvider.notifier);
+        var created = 0;
+        for (final r in records.cast<StudentImportRow>()) {
+          final outcome = await notifier.registerStudent(
+            firstName: r.firstName,
+            lastName: r.lastName,
+            middleName: r.middleName,
+            educationLevel: r.educationLevel,
+            gradeLevel: r.gradeLevel,
+            section: r.section,
+            programId: r.programId,
+            birthDate: r.birthDate,
+            guardianContacts: r.guardianContacts,
+          );
+          if (outcome != null) created++;
+        }
+        return created;
+      },
     );
+
+    catalogue.close();
   }
 
   Future<void> _showRegisterSheet(BuildContext context, WidgetRef ref) async {

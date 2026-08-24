@@ -131,3 +131,78 @@ the kind only noticed after the file has gone to the division office.
 Demo mode overrides the page size down to four (`studentPageSizeProvider`).
 Nine seeded students would never reach a page of twenty, and paging that
 never triggers is paging nobody can check.
+
+## Bulk import, and why it is allowed now
+
+Import used to be refused on this screen, and the reason given was that
+`studentNumber`, `userId` and `balance` are server-owned and
+`firestore.rules` rejects client writes to them.
+
+That was right about the fields and wrong about the conclusion. The
+import does not have to write those fields, because it does not write
+documents at all: every row goes through `registerStudent`, the same
+callable the New Student form uses. The student number comes from the
+same atomic counter, the balance is initialised the same way, and the
+same rules apply. Three hundred rows take the path one typed student
+takes.
+
+So the checks in `StudentImport` (`presentation/import/student_import.dart`)
+mirror the form's, deliberately — an import that could create records the
+form would refuse is just a side door for bad data. It is a separate file
+from the screen for the same reason: this is where an import is right or
+wrong, and it has to be testable without building a widget.
+
+What it refuses:
+
+- a row missing a first or last name, grade level, section or birthday
+- a division it does not recognise (it accepts `Senior High School`,
+  `senior_high`, `SHS` and `senior high` — but not a guess)
+- a strand or program that is not in the catalogue, **or belongs to a
+  different division** — the registration form filters that dropdown by
+  division and the importer enforces the same thing rather than trusting
+  the file
+- a birthday it cannot read, one in the future, and `2/31` — which
+  `DateTime` would otherwise roll silently into 3 March, filing a student
+  under a birthday nobody typed
+- a student already enrolled, matched on name *and* birthday, and the
+  same student appearing twice in one file
+
+Nothing is applied while any row is bad. A partial import of a
+spreadsheet is far harder to unpick than fixing the file and retrying.
+When rows do apply they are counted as they land, so a failure partway
+through reports what actually happened rather than claiming the file
+imported.
+
+## .xlsx, not CSV
+
+Export writes a real workbook (`core/data_transfer/workbook.dart`), which
+Excel, WPS Office and Google Sheets all open natively. CSV is still
+offered underneath it.
+
+CSV is the wrong default for a roster because Excel and WPS both treat it
+as a suggestion. `2024-00001` becomes a date. `09171234567` loses its
+leading zero. An enye survives or does not depending on the machine's
+regional setting. A registrar exporting a file, mailing it to the
+division office and having the student numbers arrive mangled is not
+hypothetical — it is the normal outcome. Every cell is written as text
+for exactly that reason: a student number is an identifier that happens
+to be made of digits, not a quantity. (The CSV export now carries a UTF-8
+BOM, which is what stops the enye problem there.)
+
+Import accepts `.xlsx` and `.csv`. Columns are matched **by name**, so
+extra columns are ignored and order does not matter. That is what lets a
+file exported here be imported straight back somewhere else: the export
+carries Student Number, Status and Balance, which the importer has no use
+for, and a positional check would reject the app's own output. It also
+survives someone sorting the sheet by surname first.
+
+Export and import therefore have different column lists — `headers` and
+`importHeaders` on the shared sheet. An export shows everything a record
+has; an import can only offer the fields a person is allowed to set, and
+asking someone to fill in a Student Number column that will be ignored
+invites exactly the assumption that it will not be.
+
+The save path is `FilePicker.saveFile`, not `Printing.sharePdf` as it was:
+the latter labels every blob `application/pdf` whatever is in it, so a
+workbook arrived as a PDF that Excel had to be argued into opening and
+Android's share sheet offered it to PDF readers.

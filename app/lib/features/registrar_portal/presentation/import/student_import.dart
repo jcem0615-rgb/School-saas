@@ -1,0 +1,213 @@
+import '../../../../core/constants/education_level.dart';
+import '../../../../core/data_transfer/csv.dart' show ImportIssue;
+import '../../../admin_portal/domain/entities/program.dart';
+import '../../domain/entities/student_summary.dart';
+
+/// Turns spreadsheet rows into students the Registrar could have typed.
+///
+/// Lives apart from the screen because this is where an import is right
+/// or wrong. Every check below mirrors one the New Student form makes: an
+/// import that could create records the form would have refused would
+/// just be a way of getting bad data in through the side door, and the
+/// only way to know it still mirrors the form is to be able to test it
+/// without building a widget.
+class StudentImport {
+  StudentImport._();
+
+  /// Validates one spreadsheet row into something registrable.
+  ///
+  /// Every check here mirrors one the New Student form makes. An import
+  /// that could create records the form would have refused would just be
+  /// a way of getting bad data in through the side door.
+  static Object? parseRow({
+    required List<String> row,
+    required int rowNumber,
+    required List<Program> programs,
+    required List<StudentSummary> existing,
+    required Set<String> seen,
+  }) {
+    final lastName = row[0].trim();
+    final firstName = row[1].trim();
+    final middleName = row[2].trim();
+    final divisionText = row[3].trim();
+    final gradeLevel = row[4].trim();
+    final section = row[5].trim();
+    final programText = row[6].trim();
+    final birthdayText = row[7].trim();
+    final guardianName = row[8].trim();
+    final guardianPhone = row[9].trim();
+
+    if (firstName.isEmpty || lastName.isEmpty) {
+      return ImportIssue(rowNumber, 'First and last name are required.');
+    }
+
+    final division = parseDivision(divisionText);
+    if (division == null) {
+      return ImportIssue(
+        rowNumber,
+        divisionText.isEmpty
+            ? 'Division is required.'
+            : 'Unknown division "$divisionText".',
+      );
+    }
+
+    if (gradeLevel.isEmpty) {
+      return ImportIssue(
+        rowNumber,
+        division == EducationLevel.college
+            ? 'Year level is required.'
+            : 'Grade level is required.',
+      );
+    }
+    if (section.isEmpty) return ImportIssue(rowNumber, 'Section is required.');
+
+    // Only the two divisions that have a catalogue get one. A Program
+    // value on an Elementary row is ignored rather than rejected --
+    // that is what an exported Elementary row looks like anyway.
+    String? programId;
+    if (division.usesProgramCatalogue) {
+      if (programText.isEmpty) {
+        return ImportIssue(rowNumber, '${division.programLabel} is required for ${division.displayLabel}.');
+      }
+      final match = programs
+          .where((p) =>
+              p.educationLevel == division &&
+              (p.name.toLowerCase() == programText.toLowerCase() ||
+                  p.code.toLowerCase() == programText.toLowerCase()))
+          .firstOrNull;
+      if (match == null) {
+        return ImportIssue(
+          rowNumber,
+          'No ${division.programLabel.toLowerCase()} called "$programText" in '
+          '${division.displayLabel}. Add it under Strands & Programs first.',
+        );
+      }
+      programId = match.id;
+    }
+
+    // Required, for the same reason the form requires it: it is printed
+    // on the ID card, and chasing it down afterwards is what left records
+    // without one. A blank cell is one clear row error, not a silently
+    // incomplete record.
+    if (birthdayText.isEmpty) {
+      return ImportIssue(rowNumber, 'Birthday is required.');
+    }
+    final birthDate = parseBirthday(birthdayText);
+    if (birthDate == null) {
+      return ImportIssue(
+        rowNumber,
+        'Could not read the birthday "$birthdayText". Use a date cell or '
+        'write it as 2012-03-07.',
+      );
+    }
+    if (birthDate.isAfter(DateTime.now())) {
+      return ImportIssue(rowNumber, 'Birthday $birthdayText is in the future.');
+    }
+
+    // Name plus birthday, because a school genuinely has two Juan Reyes
+    // and a shared birthday as well is the point at which a human should
+    // look. Checked against the roster and against the rest of the file.
+    final key = '${firstName.toLowerCase()}|${lastName.toLowerCase()}|${isoDate(birthDate)}';
+    if (existing.any((s) =>
+        s.firstName.toLowerCase() == firstName.toLowerCase() &&
+        s.lastName.toLowerCase() == lastName.toLowerCase() &&
+        s.birthDate != null &&
+        isoDate(s.birthDate!) == isoDate(birthDate))) {
+      return ImportIssue(rowNumber, '$firstName $lastName is already enrolled.');
+    }
+    if (!seen.add(key)) {
+      return ImportIssue(rowNumber, '$firstName $lastName appears earlier in this file.');
+    }
+
+    return StudentImportRow(
+      firstName: firstName,
+      lastName: lastName,
+      middleName: middleName.isEmpty ? null : middleName,
+      educationLevel: division,
+      gradeLevel: gradeLevel,
+      section: section,
+      programId: programId,
+      birthDate: birthDate,
+      guardianContacts: guardianName.isEmpty
+          ? const []
+          : [
+              GuardianContact(
+                name: guardianName,
+                relationship: 'Guardian',
+                phone: guardianPhone,
+              ),
+            ],
+    );
+  }
+
+  /// Accepts what the export writes ("Senior High School"), what the
+  /// database stores ("senior_high"), and the shorthand a registrar
+  /// actually types ("SHS", "JHS").
+  static EducationLevel? parseDivision(String text) {
+    final t = text.trim().toLowerCase();
+    if (t.isEmpty) return null;
+    for (final level in EducationLevel.values) {
+      if (t == level.displayLabel.toLowerCase() || t == level.value) return level;
+    }
+    return switch (t) {
+      'jhs' || 'junior high' || 'high school' => EducationLevel.highSchool,
+      'shs' || 'senior high' => EducationLevel.seniorHigh,
+      'elem' => EducationLevel.elementary,
+      _ => null,
+    };
+  }
+
+  /// ISO first, because that is what a date cell and the export both
+  /// produce. Slashed dates are read day-first only when the first number
+  /// cannot be a month -- 25/12/2012 is unambiguous, 03/07/2012 is not,
+  /// and guessing at the ambiguous one would silently file a student
+  /// under the wrong birthday. Month-first matches both the template and
+  /// the Philippine convention.
+  static DateTime? parseBirthday(String text) {
+    final iso = DateTime.tryParse(text);
+    if (iso != null) return DateTime(iso.year, iso.month, iso.day);
+
+    final parts = text.split(RegExp(r'[/\-.]')).where((p) => p.isNotEmpty).toList();
+    if (parts.length != 3) return null;
+    final a = int.tryParse(parts[0]);
+    final b = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (a == null || b == null || year == null || year < 1900) return null;
+
+    final (month, day) = a > 12 ? (b, a) : (a, b);
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    final parsed = DateTime(year, month, day);
+    // Rejects 31 February, which DateTime would happily roll into March.
+    return parsed.month == month && parsed.day == day ? parsed : null;
+  }
+
+  static String isoDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+}
+
+/// One validated spreadsheet row, ready for `registerStudent`.
+class StudentImportRow {
+  final String firstName;
+  final String lastName;
+  final String? middleName;
+  final EducationLevel educationLevel;
+  final String gradeLevel;
+  final String section;
+  final String? programId;
+  final DateTime birthDate;
+  final List<GuardianContact> guardianContacts;
+
+  const StudentImportRow({
+    required this.firstName,
+    required this.lastName,
+    required this.middleName,
+    required this.educationLevel,
+    required this.gradeLevel,
+    required this.section,
+    required this.programId,
+    required this.birthDate,
+    required this.guardianContacts,
+  });
+}

@@ -3,9 +3,10 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
 
 import 'csv.dart';
+import 'import_columns.dart';
+import 'workbook.dart';
 
 /// Shared export/import UI for the staff portals.
 ///
@@ -18,8 +19,21 @@ class ExportImportSheet<T> extends StatefulWidget {
   /// What is being moved, for the labels: "students", "employees".
   final String label;
 
-  /// Column headers, in order, for both export and the import template.
+  /// Column headers, in order, for the exported file.
   final List<String> headers;
+
+  /// Columns the importer needs, if they differ from [headers].
+  ///
+  /// They usually do. An export shows everything a record has, including
+  /// the fields the server owns -- a student number, a balance. An import
+  /// can only supply the fields a person is allowed to set, and asking
+  /// them to fill in a Student Number column that will be ignored invites
+  /// exactly the assumption that it will not be.
+  final List<String>? importHeaders;
+
+  /// One line under the import controls explaining anything surprising
+  /// about what will happen -- typically which fields the server assigns.
+  final String? importNote;
 
   /// Current records as rows, in the same order as [headers].
   final List<List<String>> Function() rows;
@@ -37,6 +51,8 @@ class ExportImportSheet<T> extends StatefulWidget {
     required this.label,
     required this.headers,
     required this.rows,
+    this.importHeaders,
+    this.importNote,
     this.parseRow,
     this.onImport,
   });
@@ -51,62 +67,97 @@ class _ExportImportSheetState<T> extends State<ExportImportSheet<T>> {
 
   bool get _importSupported => widget.parseRow != null && widget.onImport != null;
 
-  Future<void> _export() async {
-    final csv = Csv.encode(widget.headers, widget.rows());
-    final bytes = Uint8List.fromList(utf8.encode(csv));
-    final stamp = DateTime.now().toIso8601String().substring(0, 10);
+  List<String> get _importHeaders => widget.importHeaders ?? widget.headers;
 
-    // sharePdf despite the name is the package's generic "hand these bytes
-    // to the platform" call -- on web it downloads, on mobile it opens the
-    // share sheet. Saves adding a second file-IO dependency.
-    await Printing.sharePdf(
+  String get _slug => widget.label.toLowerCase().replaceAll(' ', '-');
+
+  /// Hands [bytes] to the platform's save dialog (a download, on web).
+  ///
+  /// Not `Printing.sharePdf`, which the export used to go through: it
+  /// labels every blob `application/pdf` regardless of what is in it, so
+  /// a workbook arrived as a PDF that Excel had to be argued into
+  /// opening, and Android's share sheet offered it to PDF readers.
+  Future<void> _save(Uint8List bytes, String filename, String extension) async {
+    await FilePicker.saveFile(
+      fileName: filename,
       bytes: bytes,
-      filename: '${widget.label.toLowerCase().replaceAll(' ', '-')}-$stamp.csv',
+      type: FileType.custom,
+      allowedExtensions: [extension],
     );
   }
 
-  /// Downloads a header-only file, so a user importing for the first time
-  /// starts from the exact columns the parser expects rather than guessing.
+  String get _stamp => DateTime.now().toIso8601String().substring(0, 10);
+
+  /// The default, because it is the one that survives the trip.
+  Future<void> _exportWorkbook() async {
+    final bytes = Workbook.encode(widget.headers, widget.rows(), sheetName: widget.label);
+    await _save(bytes, '$_slug-$_stamp.xlsx', 'xlsx');
+  }
+
+  /// Still offered, for whatever the school's other system eats.
+  Future<void> _exportCsv() async {
+    final csv = Csv.encode(widget.headers, widget.rows());
+    // The BOM is not decoration. Without it Excel on a Windows machine
+    // set to a Philippine locale reads the file in the system codepage,
+    // and every enye in the roster arrives as mojibake.
+    final bytes = Uint8List.fromList([0xEF, 0xBB, 0xBF, ...utf8.encode(csv)]);
+    await _save(bytes, '$_slug-$_stamp.csv', 'csv');
+  }
+
+  /// A header-only workbook, so a first-time import starts from the exact
+  /// columns the parser expects rather than from a guess.
   Future<void> _downloadTemplate() async {
-    final csv = Csv.encode(widget.headers, const []);
-    await Printing.sharePdf(
-      bytes: Uint8List.fromList(utf8.encode(csv)),
-      filename: '${widget.label.toLowerCase().replaceAll(' ', '-')}-template.csv',
-    );
+    final bytes = Workbook.encode(_importHeaders, const [], sheetName: widget.label);
+    await _save(bytes, '$_slug-template.xlsx', 'xlsx');
   }
 
   Future<void> _pickAndPreview() async {
     final picked = await FilePicker.pickFiles(
       withData: true,
       type: FileType.custom,
-      allowedExtensions: const ['csv', 'txt'],
+      allowedExtensions: const ['xlsx', 'csv', 'txt'],
     );
     final file = picked?.files.singleOrNull;
     if (file?.bytes == null) return;
 
     setState(() => _busy = true);
-    final table = Csv.decode(utf8.decode(file!.bytes!, allowMalformed: true));
+
     final records = <Object>[];
     final issues = <ImportIssue>[];
+    List<List<String>> table;
+    try {
+      table = _readTable(file!);
+    } catch (err) {
+      // A workbook that will not open is one message, not a parse error
+      // per row. The most common cause by far is the old .xls format,
+      // which is a different container entirely, so say so.
+      setState(() {
+        _busy = false;
+        _preview = const ImportResult(records: [], issues: [
+          ImportIssue(0,
+              'That file could not be read. Save it as .xlsx or .csv and try '
+              'again — the older .xls format is not supported.'),
+        ]);
+      });
+      return;
+    }
 
     if (table.isEmpty) {
       issues.add(const ImportIssue(0, 'The file is empty.'));
     } else {
-      // Header check first: a mismatched file produces a wall of
-      // per-row errors that all mean the same thing, which is worse
-      // than one clear message.
-      final header = table.first.map((h) => h.trim().toLowerCase()).toList();
-      final expected = widget.headers.map((h) => h.toLowerCase()).toList();
-      if (header.length != expected.length ||
-          !List.generate(expected.length, (i) => header[i] == expected[i]).every((e) => e)) {
-        issues.add(ImportIssue(
-          1,
-          'Columns do not match. Expected: ${widget.headers.join(", ")}',
-        ));
+      final mapping = ImportColumns.resolve(table.first, _importHeaders);
+      if (mapping is ImportIssue) {
+        // Header trouble first and alone: a mismatched file produces a
+        // wall of per-row errors that all mean the same thing, which is
+        // worse than one clear message.
+        issues.add(mapping);
       } else {
+        final columns = mapping as List<int>;
         for (var i = 1; i < table.length; i++) {
           final rowNumber = i + 1; // 1-based, counting the header
-          final parsed = widget.parseRow!(table[i], rowNumber);
+          final row = table[i];
+          if (row.every((cell) => cell.trim().isEmpty)) continue;
+          final parsed = widget.parseRow!(ImportColumns.reorder(row, columns), rowNumber);
           if (parsed == null) continue;
           if (parsed is ImportIssue) {
             issues.add(parsed);
@@ -124,6 +175,19 @@ class _ExportImportSheetState<T> extends State<ExportImportSheet<T>> {
       _busy = false;
       _preview = ImportResult(records: records, issues: issues);
     });
+  }
+
+  /// Decides by extension, not by sniffing: a file named .csv that holds
+  /// a workbook is a mistake worth reporting rather than one to paper
+  /// over.
+  List<List<String>> _readTable(PlatformFile file) {
+    final isWorkbook = (file.extension ?? '').toLowerCase() == 'xlsx';
+    if (isWorkbook) return Workbook.decode(file.bytes!);
+    var text = utf8.decode(file.bytes!, allowMalformed: true);
+    // Excel writes a BOM on "CSV UTF-8"; left in, it becomes part of the
+    // first header and nothing matches.
+    if (text.startsWith('\uFEFF')) text = text.substring(1);
+    return Csv.decode(text);
   }
 
   Future<void> _applyImport() async {
@@ -147,31 +211,59 @@ class _ExportImportSheetState<T> extends State<ExportImportSheet<T>> {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        // Deeper at the bottom than the sides: this is the last thing in
+        // a sheet that can run past the fold, and on a phone the closing
+        // line of the import note otherwise sits flush against the edge
+        // of the screen looking cut off.
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('Export / Import ${widget.label}', style: theme.textTheme.titleLarge),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _export,
+            FilledButton.icon(
+              onPressed: _busy ? null : _exportWorkbook,
               icon: const Icon(Icons.download_outlined),
-              label: Text('Export ${widget.rows().length} ${widget.label.toLowerCase()} to CSV'),
+              label: Text(
+                'Export ${widget.rows().length} ${widget.label.toLowerCase()} to Excel',
+              ),
+            ),
+            const SizedBox(height: 4),
+            TextButton.icon(
+              onPressed: _busy ? null : _exportCsv,
+              icon: const Icon(Icons.text_snippet_outlined),
+              label: const Text('Export as CSV instead'),
+            ),
+            Text(
+              'The Excel file (.xlsx) opens in Microsoft Excel, WPS Office '
+              'and Google Sheets, and keeps student numbers and phone '
+              'numbers exactly as they are.',
+              style: theme.textTheme.bodySmall,
             ),
             if (_importSupported) ...[
               const Divider(height: 32),
+              Text('Bulk import', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: _busy ? null : _downloadTemplate,
                 icon: const Icon(Icons.description_outlined),
-                label: const Text('Download blank template'),
+                label: const Text('Download blank template (.xlsx)'),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _busy ? null : _pickAndPreview,
                 icon: const Icon(Icons.upload_file_outlined),
-                label: const Text('Choose a CSV to import'),
+                label: const Text('Choose an Excel or CSV file'),
               ),
+              if (widget.importNote != null) ...[
+                const SizedBox(height: 8),
+                Text(widget.importNote!, style: theme.textTheme.bodySmall),
+              ],
+              if (_busy && _preview == null) ...[
+                const SizedBox(height: 12),
+                const LinearProgressIndicator(),
+              ],
               if (preview != null) ...[
                 const SizedBox(height: 16),
                 if (preview.hasIssues)
@@ -250,18 +342,26 @@ Future<void> showExportImportSheet({
   required String label,
   required List<String> headers,
   required List<List<String>> Function() rows,
+  List<String>? importHeaders,
+  String? importNote,
   Object? Function(List<String> row, int rowNumber)? parseRow,
   Future<int> Function(List<Object> records)? onImport,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => ExportImportSheet<Object>(
-      label: label,
-      headers: headers,
-      rows: rows,
-      parseRow: parseRow,
-      onImport: onImport,
+    // The import preview can run to a screenful of issues, and a sheet
+    // that cannot scroll would hide the row numbers someone needs.
+    builder: (_) => SingleChildScrollView(
+      child: ExportImportSheet<Object>(
+        label: label,
+        headers: headers,
+        rows: rows,
+        importHeaders: importHeaders,
+        importNote: importNote,
+        parseRow: parseRow,
+        onImport: onImport,
+      ),
     ),
   );
 }
