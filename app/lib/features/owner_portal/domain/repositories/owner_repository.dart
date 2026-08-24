@@ -6,6 +6,22 @@ import '../entities/school_summary.dart';
 abstract class OwnerRepository {
   Stream<List<SchoolSummary>> watchSchools();
 
+  /// Adds a school to the platform. Owner only, enforced server-side.
+  ///
+  /// A school is three documents -- the platform record, its subscription
+  /// and the tenant-side profile -- written together, so this returns the
+  /// new school's id rather than void: it is the id every account in that
+  /// school will be scoped to, and the caller needs it to provision the
+  /// Director next.
+  Future<Result<String>> createSchool({
+    required String name,
+    required double billingRatePerStudent,
+    String? schoolId,
+    String? addressLine,
+    String? contactEmail,
+    String? contactPhone,
+  });
+
   Stream<RevenueSummary> watchRevenueSummary();
 
   Stream<List<Invoice>> watchInvoices(String schoolId);

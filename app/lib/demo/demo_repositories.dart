@@ -191,6 +191,44 @@ class DemoOwnerRepository implements OwnerRepository {
       );
 
   @override
+  Future<Result<String>> createSchool({
+    required String name,
+    required double billingRatePerStudent,
+    String? schoolId,
+    String? addressLine,
+    String? contactEmail,
+    String? contactPhone,
+  }) async {
+    await _latency();
+    // Mirrors the callable: the id is slugified from the name when the
+    // caller does not choose one, and a duplicate is refused rather than
+    // silently overwriting a school that already exists.
+    final id = (schoolId?.trim().isNotEmpty ?? false)
+        ? schoolId!.trim()
+        : DemoStore.slugify(name);
+    if (id.isEmpty) {
+      return const Error(ValidationFailure('That name has no usable id in it.'));
+    }
+    if (_store.schools.value.any((s) => s.id == id)) {
+      return Error(ValidationFailure('A school with the id "$id" already exists.'));
+    }
+
+    _store.prepend(
+      _store.schools,
+      SchoolSummary(
+        id: id,
+        name: name.trim(),
+        // Active with nothing accrued: a school created a moment ago has
+        // no students and has not been billed for any.
+        status: SchoolSubscriptionStatus.active,
+        activeStudentCount: 0,
+        currentCycleAccrued: 0,
+      ),
+    );
+    return Success(id);
+  }
+
+  @override
   Future<Result<void>> pauseSchool({required String schoolId, required String reason}) async {
     await _latency();
     _store.update<SchoolSummary>(

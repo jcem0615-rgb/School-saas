@@ -73,6 +73,33 @@ class OwnerRemoteDataSource {
     }
   }
 
+  /// Returns the new school's id, which the callable decides -- it
+  /// slugifies the name when one is not supplied, so the caller cannot
+  /// assume it.
+  Future<String> createSchool({
+    required String name,
+    required double billingRatePerStudent,
+    String? schoolId,
+    String? addressLine,
+    String? contactEmail,
+    String? contactPhone,
+  }) async {
+    try {
+      final result = await _functions.httpsCallable('createSchool').call({
+        'name': name,
+        'billingRatePerStudent': billingRatePerStudent,
+        if (schoolId != null && schoolId.isNotEmpty) 'schoolId': schoolId,
+        if (addressLine != null && addressLine.isNotEmpty) 'addressLine': addressLine,
+        if (contactEmail != null && contactEmail.isNotEmpty) 'contactEmail': contactEmail,
+        if (contactPhone != null && contactPhone.isNotEmpty) 'contactPhone': contactPhone,
+      });
+      final data = Map<String, dynamic>.from(result.data as Map);
+      return data['schoolId'] as String;
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Failed to create the school.');
+    }
+  }
+
   Future<void> resumeSchool({required String schoolId}) async {
     try {
       await _functions.httpsCallable('resumeSchool').call({'schoolId': schoolId});

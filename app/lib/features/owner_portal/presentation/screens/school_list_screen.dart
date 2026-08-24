@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../domain/entities/school_summary.dart';
 import '../controllers/owner_controller.dart';
 import '../widgets/school_status_badge.dart';
+import 'create_school_screen.dart';
 
 /// Owner's "School Management" screen: every tenant on the platform, with
 /// status filter tabs (All / Active / Grace Period / Suspended) and a
@@ -27,6 +28,22 @@ class _SchoolListScreenState extends ConsumerState<SchoolListScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('School Management')),
+      // The only way a school enters the platform: there is no sign-up,
+      // the Owner takes each one on by hand.
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final id = await Navigator.of(context).push<String>(
+            MaterialPageRoute(builder: (_) => const CreateSchoolScreen()),
+          );
+          if (id != null && context.mounted) {
+            ScaffoldMessenger.of(context)
+              ..clearSnackBars()
+              ..showSnackBar(SnackBar(content: Text('Created "$id".')));
+          }
+        },
+        icon: const Icon(Icons.add_business_outlined),
+        label: const Text('Add School'),
+      ),
       body: Column(
         children: [
           Padding(

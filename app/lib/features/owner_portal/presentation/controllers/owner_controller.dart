@@ -40,6 +40,48 @@ final revenueSummaryStreamProvider = StreamProvider<RevenueSummary>((ref) {
   return WatchRevenueSummaryUseCase(ref.watch(ownerRepositoryProvider))();
 });
 
+/// Creating a school. Holds the id of the school just created, so the
+/// screen can say which one it was and offer to staff it -- a school with
+/// no Director in it is the next thing the Owner has to fix.
+class CreateSchoolController extends AutoDisposeAsyncNotifier<String?> {
+  @override
+  String? build() => null;
+
+  Future<String?> create({
+    required String name,
+    required double billingRatePerStudent,
+    String? schoolId,
+    String? addressLine,
+    String? contactEmail,
+    String? contactPhone,
+  }) async {
+    state = const AsyncLoading();
+    final result = await ref.read(ownerRepositoryProvider).createSchool(
+          name: name,
+          billingRatePerStudent: billingRatePerStudent,
+          schoolId: schoolId,
+          addressLine: addressLine,
+          contactEmail: contactEmail,
+          contactPhone: contactPhone,
+        );
+    return switch (result) {
+      Success(:final value) => () {
+          state = AsyncData(value);
+          return value;
+        }(),
+      Error(:final failure) => () {
+          state = AsyncError(failure.message, StackTrace.current);
+          return null;
+        }(),
+    };
+  }
+}
+
+final createSchoolControllerProvider =
+    AutoDisposeAsyncNotifierProvider<CreateSchoolController, String?>(
+  CreateSchoolController.new,
+);
+
 /// Family provider: invoices for one specific school, used on the school
 /// detail / billing screen.
 final invoicesStreamProvider =

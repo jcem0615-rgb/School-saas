@@ -138,6 +138,16 @@ service cloud.firestore {
       allow read, write: if isOwner();
     }
 
+    // Where bootstrapOwner records that the owner role has been claimed.
+    // Server-written only: a client that could create this doc could lock
+    // the owner out before they ever claimed it, and one that could
+    // delete it could re-open the door and hand the role to a second
+    // account. The Owner can read it to see when and by whom.
+    match /platform_config/{docId} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+
     match /platform_owner_audit_log/{logId} {
       // Immutable even for the Owner from the client; written only by
       // Cloud Functions via the Admin SDK, which bypasses these rules.

@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +8,7 @@ import 'core/theme/glass.dart';
 import 'demo/demo_overrides.dart';
 import 'demo/demo_switcher.dart';
 import 'features/payments/presentation/widgets/payment_submission_alerts.dart';
+import 'firebase_config.dart';
 
 /// Entry point.
 ///
@@ -17,32 +19,34 @@ import 'features/payments/presentation/widgets/payment_submission_alerts.dart';
 ///       Firebase project, emulator, or network is involved -- this is the
 ///       mode to use to click through the portals.
 ///
-///   flutter run --dart-define=DEMO_MODE=false
-///       The real Firestore-backed repositories. Requires a generated
-///       `firebase_options.dart` and the platform config files, plus the
-///       Firebase.initializeApp call restored below.
+///   flutter run --dart-define=DEMO_MODE=false \
+///       --dart-define=FIREBASE_API_KEY=... (and the rest)
+///       The real Firestore-backed repositories, against a live Firebase
+///       project. See [FirebaseConfig] for the full list of values and
+///       why they arrive as --dart-define rather than a generated file.
 ///
-/// Demo mode is the default because the alternative -- launching and
-/// immediately crashing on a missing firebase_options.dart -- is a worse
-/// first run for anyone opening this repo.
+/// Demo mode is the default because the alternative -- a first run that
+/// fails on a project nobody has created yet -- is a worse introduction
+/// for anyone opening this repo. It is also the mode the demo builds and
+/// the test suite use, and none of that changes when a real backend is
+/// configured: the two modes coexist.
 const kDemoMode = bool.fromEnvironment('DEMO_MODE', defaultValue: true);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (!kDemoMode) {
-    // Real-backend startup goes here once firebase_options.dart exists:
-    //
-    //   await Firebase.initializeApp(
-    //     options: DefaultFirebaseOptions.currentPlatform,
-    //   );
-    //
-    // Left as a comment rather than an import so the project builds and
-    // runs without the generated config file present.
-    throw UnsupportedError(
-      'DEMO_MODE=false requires firebase_options.dart (flutterfire configure) '
-      'and the Firebase.initializeApp call in main.dart to be uncommented.',
-    );
+    if (!FirebaseConfig.isConfigured) {
+      // Naming the missing keys, rather than failing with "no Firebase
+      // app", because the cause is always a forgotten --dart-define and
+      // the SDK's own error says nothing about which one.
+      throw StateError(
+        'DEMO_MODE=false needs the Firebase project settings. '
+        'Missing: ${FirebaseConfig.missing.join(', ')}. '
+        'See lib/firebase_config.dart.',
+      );
+    }
+    await Firebase.initializeApp(options: FirebaseConfig.options);
   }
 
   runApp(

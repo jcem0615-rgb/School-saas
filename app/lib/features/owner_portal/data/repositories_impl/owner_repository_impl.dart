@@ -21,6 +21,32 @@ class OwnerRepositoryImpl implements OwnerRepository {
   Stream<List<Invoice>> watchInvoices(String schoolId) => _remote.watchInvoices(schoolId);
 
   @override
+  Future<Result<String>> createSchool({
+    required String name,
+    required double billingRatePerStudent,
+    String? schoolId,
+    String? addressLine,
+    String? contactEmail,
+    String? contactPhone,
+  }) async {
+    try {
+      final id = await _remote.createSchool(
+        name: name,
+        billingRatePerStudent: billingRatePerStudent,
+        schoolId: schoolId,
+        addressLine: addressLine,
+        contactEmail: contactEmail,
+        contactPhone: contactPhone,
+      );
+      return Success(id);
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
   Future<Result<void>> pauseSchool({required String schoolId, required String reason}) async {
     try {
       await _remote.pauseSchool(schoolId: schoolId, reason: reason);

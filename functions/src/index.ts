@@ -6,6 +6,7 @@ admin.initializeApp();
 // Module: Authentication
 // ---------------------------------------------------------------------------
 export {provisionUser} from "./callable/users/provisionUser";
+export {bootstrapOwner} from "./callable/users/bootstrapOwner";
 export {resetPasswordAdmin} from "./callable/users/resetPasswordAdmin";
 export {clearForcePasswordChangeFlag} from "./callable/users/clearForcePasswordChangeFlag";
 export {setUserStatus} from "./callable/users/setUserStatus";
@@ -13,6 +14,7 @@ export {setUserStatus} from "./callable/users/setUserStatus";
 // ---------------------------------------------------------------------------
 // Module: Owner Portal / Subscription Billing
 // ---------------------------------------------------------------------------
+export {createSchool} from "./callable/schools/createSchool";
 export {pauseSchool} from "./callable/schools/pauseSchool";
 export {resumeSchool} from "./callable/schools/resumeSchool";
 export {recordManualPayment} from "./callable/billing/recordManualPayment";

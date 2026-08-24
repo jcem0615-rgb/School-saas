@@ -1,3 +1,4 @@
+import 'package:diacritic/diacritic.dart';
 import 'package:rxdart/rxdart.dart';
 
 import '../core/constants/education_level.dart';
@@ -66,6 +67,23 @@ class DemoStore {
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   String get todayKey => _dateKey(now);
+
+  /// Turns a school name into an id safe to use as a Firestore path
+  /// segment. Kept in step with slugify() in
+  /// functions/src/callable/schools/createSchool.ts, so a school created
+  /// in the demo lands on the same id it would in the real backend.
+  static String slugify(String name) {
+    // Accents are folded, not dropped: without this "Muñoz Elementary"
+    // becomes "mu-oz-elementary", because the enye is not [a-z0-9] and
+    // falls through to the separator rule. Filipino school names carry
+    // enough of them for that to be the common case rather than an edge
+    // one. The callable folds the same way, via NFKD.
+    final slug = removeDiacritics(name)
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    return slug.length > 48 ? slug.substring(0, 48) : slug;
+  }
 
   /// A wall-clock time on one of the seeded days.
   ///
