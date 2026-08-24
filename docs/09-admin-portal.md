@@ -96,3 +96,34 @@ a new collection.
   tackled as its own unit of work.
 - **Monthly Reports** — Reports module.
 - **Employee Files** (documents/certificates) — Documents module.
+
+## Signatures on ID cards
+
+School Branding takes a scanned signature for the Principal and for the
+Director, alongside their names. Upload one and it prints above that name
+on **every** ID card the school issues, students and employees alike —
+which is the point: nobody signs cards one at a time.
+
+Signatures are separate fields from the names, not a replacement for
+them. A signature nobody can read still needs a printed name under it,
+and a school that has entered the names but not scanned the signatures
+should still get usable cards with a blank line to sign by hand.
+
+That blank line is why the signature sits in a fixed-height box on the
+card whether or not there is an image to draw. Collapsing the space when
+a school has not uploaded a scan would shift the name and rule upward and
+print a visibly different card from the school next door, and the empty
+box is exactly the room somebody needs to sign in.
+
+The upload path is shared with the logo (`_pickAndUpload`), and the
+ordering is load-bearing in the same way: the bytes go to Storage first,
+and only a successful upload is written to the branding document. Saving
+the URL first would point every printed ID at a file that does not exist.
+
+Because the Save button sends only the text fields, the branding write is
+a merge — a non-merging write would silently strip both scans off every
+future card. There is a test pinning that.
+
+The preview panel behind a signature is white whatever the app theme is:
+a scanned signature is black ink on paper, and on a dark panel in dark
+mode it is invisible.

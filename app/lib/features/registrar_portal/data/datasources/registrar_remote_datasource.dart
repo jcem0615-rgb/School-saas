@@ -125,6 +125,26 @@ class RegistrarRemoteDataSource {
     });
   }
 
+  /// Sets the student's ID photo.
+  ///
+  /// An ordinary field update, not a callable: firestore.rules names
+  /// `photoUrl` among the fields a Registrar may write directly, and it
+  /// carries none of the weight that put `balance`, `studentNumber` and
+  /// `userId` behind the server. Kept apart from [updateStudent] so that
+  /// uploading a photo does not have to resend the name, grade and
+  /// section -- and so it cannot overwrite an edit someone else is in the
+  /// middle of making.
+  Future<void> setStudentPhoto({
+    required String studentId,
+    required String photoUrl,
+  }) async {
+    await _firestore.doc(FirestorePaths.studentDoc(_actingUser.schoolId, studentId)).update({
+      'photoUrl': photoUrl,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedBy': _actingUser.uid,
+    });
+  }
+
   Future<Map<String, dynamic>> provisionStudentAccount({
     required String studentId,
     required String email,

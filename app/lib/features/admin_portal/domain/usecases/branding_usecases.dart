@@ -21,6 +21,8 @@ class UpdateBrandingUseCase {
     String? schoolName,
     String? addressLine,
     String? principalName,
+    String? principalSignatureUrl,
+    String? directorSignatureUrl,
     String? directorName,
     String? schoolYear,
   }) {
@@ -30,6 +32,8 @@ class UpdateBrandingUseCase {
       schoolName: schoolName?.trim(),
       addressLine: addressLine?.trim(),
       principalName: principalName?.trim(),
+      principalSignatureUrl: principalSignatureUrl,
+      directorSignatureUrl: directorSignatureUrl,
       directorName: directorName?.trim(),
       schoolYear: schoolYear?.trim(),
     );

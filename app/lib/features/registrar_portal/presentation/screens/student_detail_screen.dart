@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:file_picker/file_picker.dart';
+
+import '../../../../core/errors/result.dart';
+import '../../../../core/storage/upload_providers.dart';
+import '../../../../core/storage/upload_repository.dart';
 import '../../../../core/widgets/combo_field.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
 import '../../../payments/presentation/screens/record_payment_screen.dart';
@@ -30,6 +35,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
   late final TextEditingController _sectionController;
   late StudentStatus _status;
   bool _saving = false;
+  bool _uploadingPhoto = false;
 
   @override
   void initState() {
@@ -110,6 +116,56 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
       if (state case AsyncError(:final error)) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
       }
+    }
+  }
+
+  /// Uploads an ID photo for this student.
+  ///
+  /// Two steps that are kept visibly separate: the bytes go to Storage,
+  /// and only if that succeeds does `photoUrl` go onto the record. A
+  /// single combined call would report a photo saved when the upload
+  /// landed and the write did not, leaving a file nothing points at.
+  ///
+  /// The photo is what a guard actually checks the card against, so it is
+  /// worth having here on the Registrar's own screen rather than waiting
+  /// for the student to set one on their profile -- most students are
+  /// issued a card before they ever sign in.
+  Future<void> _uploadPhoto() async {
+    final picked = await FilePicker.pickFiles(
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp'],
+    );
+    final file = picked?.files.singleOrNull;
+    if (file?.bytes == null) return;
+
+    setState(() => _uploadingPhoto = true);
+    final result = await ref.read(uploadRepositoryProvider).upload(
+          folder: UploadFolder.studentPhotos,
+          fileName: file!.name,
+          bytes: file.bytes!,
+          contentType: 'image/${file.extension}',
+        );
+    if (!mounted) return;
+
+    switch (result) {
+      case Success<UploadedFile>(:final value):
+        final ok = await ref.read(registrarActionControllerProvider.notifier).setStudentPhoto(
+              studentId: widget.student.id,
+              photoUrl: value.url,
+            );
+        if (!mounted) return;
+        setState(() => _uploadingPhoto = false);
+        if (ok) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(const SnackBar(content: Text('Photo saved.')));
+        }
+      case Error<UploadedFile>(:final failure):
+        setState(() => _uploadingPhoto = false);
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(failure.message)));
     }
   }
 
@@ -210,6 +266,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          _PhotoHeader(
+            student: s,
+            uploading: _uploadingPhoto,
+            onUpload: _uploadPhoto,
+          ),
+          const SizedBox(height: 16),
           Text(s.studentNumber, style: Theme.of(context).textTheme.titleMedium),
           Row(
             children: [
@@ -341,5 +403,106 @@ class _ActionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ActionChip(avatar: Icon(icon, size: 18), label: Text(label), onPressed: onTap);
+  }
+}
+
+/// The student's ID photo, and the way to change it.
+///
+/// A 3:4 rectangle rather than a circle, because that is the shape it is
+/// printed in on the ID card -- a round preview of a square crop is a
+/// promise the printed card does not keep. Initials stand in for a
+/// missing photo for the same reason they do on the card: a blank grey
+/// box reads as a fault, initials read as "no photo yet".
+class _PhotoHeader extends StatelessWidget {
+  final StudentSummary student;
+  final bool uploading;
+  final VoidCallback onUpload;
+
+  const _PhotoHeader({
+    required this.student,
+    required this.uploading,
+    required this.onUpload,
+  });
+
+  String get _initials {
+    final parts = student.fullName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasPhoto = student.photoUrl != null && student.photoUrl!.isNotEmpty;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 96,
+          height: 128,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+              color: theme.colorScheme.surfaceContainerHighest,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(7),
+              child: hasPhoto
+                  ? Image.network(
+                      student.photoUrl!,
+                      fit: BoxFit.cover,
+                      // A photo that will not load must not take the
+                      // screen with it -- fall back to the same
+                      // placeholder as no photo at all.
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(_initials, style: theme.textTheme.headlineMedium),
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        _initials,
+                        style: theme.textTheme.headlineMedium
+                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('ID photo', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(
+                'Printed on this student\'s ID card and shown on the roster. '
+                'A head-and-shoulders shot works best — the card crops to a '
+                '3:4 portrait.',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: uploading ? null : onUpload,
+                icon: uploading
+                    ? const SizedBox(
+                        height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.add_a_photo_outlined),
+                label: Text(
+                  uploading
+                      ? 'Uploading…'
+                      : hasPhoto
+                          ? 'Replace photo'
+                          : 'Upload photo',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

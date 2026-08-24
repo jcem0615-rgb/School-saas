@@ -1029,6 +1029,8 @@ class DemoAdminRepository implements AdminRepository {
     String? schoolName,
     String? addressLine,
     String? principalName,
+    String? principalSignatureUrl,
+    String? directorSignatureUrl,
     String? directorName,
     String? schoolYear,
   }) async {
@@ -1042,6 +1044,8 @@ class DemoAdminRepository implements AdminRepository {
       schoolName: schoolName ?? current.schoolName,
       addressLine: addressLine ?? current.addressLine,
       principalName: principalName ?? current.principalName,
+      principalSignatureUrl: principalSignatureUrl ?? current.principalSignatureUrl,
+      directorSignatureUrl: directorSignatureUrl ?? current.directorSignatureUrl,
       directorName: directorName ?? current.directorName,
       schoolYear: schoolYear ?? current.schoolYear,
       updatedAt: DateTime.now(),
@@ -1084,6 +1088,27 @@ class DemoRegistrarRepository implements RegistrarRepository {
         // the real thing does, or the Load more button is decoration.
         return limit == null || rows.length <= limit ? rows : rows.sublist(0, limit);
       });
+
+  @override
+  Future<Result<void>> setStudentPhoto({
+    required String studentId,
+    required String photoUrl,
+  }) async {
+    await _latency(300);
+    _store.update<StudentSummary>(
+      _store.students,
+      (s) => s.id == studentId,
+      (s) => _copyStudent(s, photoUrl: photoUrl),
+    );
+    _store.audit(
+      module: 'students',
+      action: 'set_photo',
+      targetCollection: 'students',
+      targetId: studentId,
+      newValue: {'photoUrl': 'set'},
+    );
+    return const Success(null);
+  }
 
   @override
   Future<List<StudentSummary>> fetchAllStudents() async {
@@ -1242,6 +1267,7 @@ StudentSummary _copyStudent(
   double? balance,
   String? userId,
   DateTime? birthDate,
+  String? photoUrl,
 }) {
   return StudentSummary(
     id: s.id,
@@ -1258,7 +1284,7 @@ StudentSummary _copyStudent(
     status: status ?? s.status,
     balance: balance ?? s.balance,
     userId: userId ?? s.userId,
-    photoUrl: s.photoUrl,
+    photoUrl: photoUrl ?? s.photoUrl,
     enrollmentDate: s.enrollmentDate,
     birthDate: birthDate ?? s.birthDate,
     guardianContacts: s.guardianContacts,

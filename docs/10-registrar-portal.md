@@ -206,3 +206,41 @@ The save path is `FilePicker.saveFile`, not `Printing.sharePdf` as it was:
 the latter labels every blob `application/pdf` whatever is in it, so a
 workbook arrived as a PDF that Excel had to be argued into opening and
 Android's share sheet offered it to PDF readers.
+
+### Birthday is optional on import
+
+The form insists on a birthday; the import does not. That is a
+deliberate difference rather than a gap. The form asks one person for one
+birthday and can wait for it. A bulk import is fed by whatever the
+school's previous system held, and rejecting three hundred rows because
+that system never recorded birthdays would keep the roster out of the app
+entirely — which is worse than a card that prints without that line until
+someone fills it in. A record with no birth date is a valid enrolment
+(see `StudentSummary.birthDate`).
+
+A birthday that *is* present still has to be a real one. The unreadable
+and future-dated checks are unchanged.
+
+Two rows with the same name and no birthday on either count as the same
+student. Nothing tells them apart, so the import stops and lets a person
+decide rather than quietly enrolling a duplicate.
+
+## Student ID photos
+
+The Registrar uploads a student's photo from the student detail screen,
+not the student from their own profile: most students are issued a card
+before they ever sign in, and the photo is the thing a guard actually
+checks the card against.
+
+Uploading and recording stay two visible steps — bytes to Storage, then
+`photoUrl` onto the record. A single combined call would report a photo
+saved when the upload landed and the write did not, leaving a file
+nothing points at. `firestore.rules` names `photoUrl` among the fields a
+Registrar may write directly, so this is an ordinary field update and not
+a callable; it is kept apart from `updateStudent` so uploading a photo
+does not resend the name, grade and section over an edit someone else is
+making.
+
+The preview is a 3:4 rectangle because that is the shape the card prints.
+A round preview of a square crop is a promise the printed card does not
+keep.

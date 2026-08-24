@@ -203,6 +203,8 @@ class AdminRepositoryImpl implements AdminRepository {
     String? schoolName,
     String? addressLine,
     String? principalName,
+    String? principalSignatureUrl,
+    String? directorSignatureUrl,
     String? directorName,
     String? schoolYear,
   }) {
@@ -212,6 +214,8 @@ class AdminRepositoryImpl implements AdminRepository {
           if (schoolName != null) 'schoolName': schoolName,
           if (addressLine != null) 'addressLine': addressLine,
           if (principalName != null) 'principalName': principalName,
+          if (principalSignatureUrl != null) 'principalSignatureUrl': principalSignatureUrl,
+          if (directorSignatureUrl != null) 'directorSignatureUrl': directorSignatureUrl,
           if (directorName != null) 'directorName': directorName,
           if (schoolYear != null) 'schoolYear': schoolYear,
         }));

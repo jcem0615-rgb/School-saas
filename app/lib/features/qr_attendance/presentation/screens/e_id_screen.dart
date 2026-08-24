@@ -89,6 +89,9 @@ class _IdDetails {
   String? get principalName => _clean(branding.principalName);
   String? get directorName => _clean(branding.directorName);
 
+  String? get principalSignatureUrl => _clean(branding.principalSignatureUrl);
+  String? get directorSignatureUrl => _clean(branding.directorSignatureUrl);
+
   String? get birthDate =>
       student?.birthDate == null ? null : _dateFormat.format(student!.birthDate!);
 
@@ -240,6 +243,12 @@ class EIdScreen extends ConsumerWidget {
     // to load must degrade to its placeholder, never abort the print.
     final logo = branding.hasLogo ? await _pdfImage(branding.logoUrl!) : null;
     final photo = details.photoUrl == null ? null : await _pdfImage(details.photoUrl!);
+    final principalSignature = details.principalSignatureUrl == null
+        ? null
+        : await _pdfImage(details.principalSignatureUrl!);
+    final directorSignature = details.directorSignatureUrl == null
+        ? null
+        : await _pdfImage(details.directorSignatureUrl!);
 
     final pageFormat = PdfPageFormat(
       _cardWidthMm * PdfPageFormat.mm,
@@ -386,9 +395,14 @@ class EIdScreen extends ConsumerWidget {
                 // be signed by hand.
                 pw.Row(
                   children: [
-                    pw.Expanded(child: _pdfSignatory('Principal', details.principalName)),
+                    pw.Expanded(
+                      child: _pdfSignatory(
+                          'Principal', details.principalName, principalSignature),
+                    ),
                     pw.SizedBox(width: 6),
-                    pw.Expanded(child: _pdfSignatory('Director', details.directorName)),
+                    pw.Expanded(
+                      child: _pdfSignatory('Director', details.directorName, directorSignature),
+                    ),
                   ],
                 ),
               ],
@@ -429,9 +443,26 @@ class EIdScreen extends ConsumerWidget {
               ),
       );
 
-  pw.Widget _pdfSignatory(String label, String? name) => pw.Column(
+  /// Signature over name over rule over role -- the order a signed
+  /// document is read in.
+  ///
+  /// The signature sits in a fixed-height box whether or not there is one
+  /// to draw. Collapsing the space when a school has not uploaded a scan
+  /// would shift the name and rule up and print a visibly different card
+  /// from the school next door, and the empty box is exactly the room
+  /// somebody needs to sign by hand.
+  pw.Widget _pdfSignatory(String label, String? name, pw.MemoryImage? signature) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
+          pw.SizedBox(
+            height: 5 * PdfPageFormat.mm,
+            child: signature == null
+                ? null
+                : pw.Align(
+                    alignment: pw.Alignment.bottomLeft,
+                    child: pw.Image(signature, fit: pw.BoxFit.contain),
+                  ),
+          ),
           pw.Text(
             name ?? ' ',
             style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
@@ -715,9 +746,21 @@ class _IdCardBack extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Expanded(child: _Signatory(label: 'Principal', name: details.principalName)),
+                  Expanded(
+                    child: _Signatory(
+                      label: 'Principal',
+                      name: details.principalName,
+                      signatureUrl: details.principalSignatureUrl,
+                    ),
+                  ),
                   SizedBox(width: 3 * mm),
-                  Expanded(child: _Signatory(label: 'Director', name: details.directorName)),
+                  Expanded(
+                    child: _Signatory(
+                      label: 'Director',
+                      name: details.directorName,
+                      signatureUrl: details.directorSignatureUrl,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -731,8 +774,9 @@ class _IdCardBack extends StatelessWidget {
 class _Signatory extends StatelessWidget {
   final String label;
   final String? name;
+  final String? signatureUrl;
 
-  const _Signatory({required this.label, required this.name});
+  const _Signatory({required this.label, required this.name, this.signatureUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -742,6 +786,24 @@ class _Signatory extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Same fixed height as the print layout, so the preview does not
+        // promise a card that sits differently on paper.
+        SizedBox(
+          height: 5 * mm,
+          width: double.infinity,
+          child: signatureUrl == null
+              ? null
+              : Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Image.network(
+                    signatureUrl!,
+                    fit: BoxFit.contain,
+                    // A signature that will not load leaves the blank
+                    // line, which is still a printable card.
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+        ),
         Text(
           name ?? ' ',
           style: theme.textTheme.bodySmall

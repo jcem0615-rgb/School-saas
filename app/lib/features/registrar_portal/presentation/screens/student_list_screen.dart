@@ -280,8 +280,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           'registered, and every imported student starts enrolled with a '
           'zero balance — those three columns are ignored if your file has '
           'them. Division must be Elementary, Junior High School, Senior '
-          'High School or College. Birthday can be a date cell or written '
-          'as 2012-03-07.',
+          'High School or College. Birthday is optional: leave the cell '
+          'empty if you do not have it, or write it as 2012-03-07.',
       rows: () => students
           .map((s) => [
                 s.studentNumber,

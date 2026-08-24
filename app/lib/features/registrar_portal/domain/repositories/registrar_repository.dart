@@ -48,6 +48,16 @@ abstract class RegistrarRepository {
     DateTime? birthDate,
   });
 
+  /// Sets the student's ID photo to an already-uploaded [photoUrl].
+  ///
+  /// Uploading and recording are two steps on purpose: the upload can
+  /// succeed and the write fail, and a caller that conflated them would
+  /// report a photo saved that no record points at.
+  Future<Result<void>> setStudentPhoto({
+    required String studentId,
+    required String photoUrl,
+  });
+
   /// Creates a Student Portal login for an existing academic record and
   /// links them (see provisionUser.ts's linkedStudentId handling).
   Future<Result<ProvisionStudentAccountOutcome>> provisionStudentAccount({

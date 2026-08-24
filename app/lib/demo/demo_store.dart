@@ -163,6 +163,38 @@ class DemoStore {
       schoolYear: '${DateTime.now().year}-${DateTime.now().year + 1}',
       principalName: 'Ramon Salazar',
       directorName: 'Corazon Buenaventura',
+      // Seeded so the demo's ID cards show what a signed card looks like.
+      // Inline data URIs rather than files: demo mode never touches
+      // Storage, and a card whose signature is a broken image would
+      // demonstrate the opposite of the feature.
+      principalSignatureUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQQAAABQCAYAAAD/YAtfAAADHUlEQVR42u3dS67bMA'
+          'yF4Syigy6h69P+gXTWwa3tyLFkU+T3AwbuIM6NxcMjUn69XgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEB5fv'
+          '3+0/Y2owPUTP73xsYggAJG0JP8h58xosD6ZtA1+3dUEIwBSFIVnE5mxgDkqwouJ+8nYzDquCoqIrqxKljpfyBgss'
+          '5IXCJ6Zq1glSoEcWeV4b2icnOtFkFMCWlrBXpYoDcE++9vkRhvBpnaFNwbzM1ZZS/QA/7Xz+8lngRtGFPINbPsBm'
+          '9E8v78ji0hi8i8GDIFnJ5ZRn22d39VQi4zYAqFxHRFfEf7qhLGJZ3fh1uqgwH77O6nSsg7A4vtmobQDpL06M64du'
+          'J6+EPhEs41M488XmK7aLvQebfbp619e8pSeZk3wawnLBig3vvh905T9piEmaRmX26Rca3gnHogxsHpw8uXPasS8s'
+          '60TCFuQA7viz+7/qDf1Cpkr3AqVQXt4jUFbdJvJZik48L0Y68ZtIvf1whGElVqfTK2C6ENgWDyl9lah7gOHdkQCC'
+          'axOaoEGQLBGAMxZgjjZsfq1YEKCNMN4WwARqxBmEEc+1F7yBQWmnnunrWqiqVSdWTNKNjsc1d1QSyqA8ecqG24s1'
+          '2oLJaqs6UnOC8muieFWqV1sG7y/6X1sjWg8J4WapXWwZkVD+BdQnwRhOq8PG0igAAjCTVz0kgC5hhOhDPfy2A9of'
+          'u4JMDLRUsRnHjqm5usJ/TPiJTp+oRICzlT3u2opNQuaB3WNYbwr23PIhaiZ5Yo2mf2PLhWVBkmBvaZi1Q071GPtG'
+          'P8wEKm0PEIe5fpfhFjo4LlTCHy2RqtA0qaQpArK92wo3VAxRn5zHstoXVA0oT8tFYgMnNaByOCISV7x1uuv9l63o'
+          '05Zatq+pQu0Ucm6jvJxlhQNrlbsGR6rCqIMhaUjFmz912J/O65JuCb/Rcx1MfiIEvqJXromanzt576jEqNeUj0wQ'
+          'ke6Ni7j4d2phoI43h4Fb58kIgu9+QjCp8DZFBR3jiM+sbAGxEUNQ7aBxiHyRAAAAAAAAAAAABAOf4CtNLDEAkj7o'
+          'YAAAAASUVORK5CYII=',
+      directorSignatureUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQQAAABQCAYAAAD/YAtfAAADEklEQVR42u3dWU7sMB'
+          'CFYRbBA0tgfexfat4QgnTHjiseyt8v5elylaSG4yoP6bc3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD+8/'
+          '7x+XV2sRKwlxA8XlyEAcg8Aj8RgqNn+/fvPCoWEZt4Q0fgg2c6vP8TYRA0qkFEJ96oZLtyT6KQclBSDc4gBqOT7e'
+          'q9jp6Tl9celFSD/R1RZNhejvhzn+p7tP5/zDkoqQb7OqLIoD0cETHCqxLyigFR6OSIHk7sNbqrEnKLgRZxAUdEOC'
+          'PSuQIldwwS/wHzBr3VOdKxfwOF5/OJQXRMmzcITrpAx0a2IAQhsRiYTxgwb9BLFAgCMSAKeZwR1YYQBK0qUWg0QM'
+          'l191Jh8z0IglZ11kp4JSE42+/dZatn4OoFQSAGoQPlbuX/42S/d7fDIK2iYJXBvBUCerHfhh59XDRg95l9COatMG'
+          'v51TMY7FQkBkga5I2i4CzD2jFKDPRi5aJQcarSacd1Y5T9e84bZA4U30PI0SKwv1ahupQ8+RCGM/JaBGTth88+hV'
+          'WyocpXdOb3IwupDqICqmRfhe/sjfXXS5+wlurgzkCruQRlu+1LKjU2Vx0sE6QCtM6+l0WXnYnBSsEtYMtbtCoRZk'
+          '2twsoBv3UQl87DiCDVwU4JsKUNVU6qAzxPhq2SwEahnILAgUTBewtkai45vC8gSbwnIFm8HyBpot+NGACtopDsnY'
+          'gBsGsCEQNAiZ222gFSJNOFQ1lR16XzCBGXKEImIfg6KreDknOHi8hg6qSeJXF3qA5us53oltyjgvK25Mo8kagNQY'
+          '+AGTIaz5BgJhKxQ6J3S+4Mo+6F57QBCVOM5rcm+GzJNnl1QAwwfDRP3Q/OnHBaBbQm+y2JvpF9pxIFrQJKRgmJvk'
+          'HyaRVQHKgSvU953vCDs80+0SqgKMhYZM6ePfKHTVQHwKLzCQUbnao+D08MgEXatMKq4Odvaz8Pb1UBmL9Nq0r0Qu'
+          'F49WvWVhWAVeYUglqBR8nBJR4A1qgWIiYLXy4bszywjjC0LidaNgYAAAAAANiMbwvTB0SZP02DAAAAAElFTkSuQm'
+          'CC',
       updatedAt: _daysAgo(60),
       updatedByName: 'Grace Mendoza',
     ),

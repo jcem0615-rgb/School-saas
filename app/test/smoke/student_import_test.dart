@@ -194,8 +194,16 @@ void main() {
       expect(parse(row(birthday: 'unknown')), isA<ImportIssue>());
     });
 
-    test('is required, the same as it is on the form', () {
-      expect((parse(row(birthday: '')) as ImportIssue).message, contains('required'));
+    test('is optional, unlike on the form', () {
+      // A bulk import is fed by whatever the school's previous system
+      // held. Rejecting the roster because that system never recorded
+      // birthdays would keep it out of the app entirely.
+      final parsed = parse(row(birthday: '')) as StudentImportRow;
+      expect(parsed.birthDate, isNull);
+    });
+
+    test('but a birthday that is there still has to be a real one', () {
+      expect(parse(row(birthday: 'sometime in 2015')), isA<ImportIssue>());
     });
   });
 
@@ -237,6 +245,20 @@ void main() {
         ),
       ];
       expect(parse(row(), existing: existing), isA<StudentImportRow>());
+    });
+
+    test('two nameless-birthday rows for the same name are treated as one student', () {
+      // Nothing tells them apart, so the import stops rather than
+      // quietly enrolling a duplicate.
+      final seen = <String>{};
+      expect(parse(row(birthday: ''), seen: seen), isA<StudentImportRow>());
+      expect(parse(row(birthday: ''), seen: seen), isA<ImportIssue>());
+    });
+
+    test('a row with no birthday does not collide with a namesake who has one', () {
+      final seen = <String>{};
+      expect(parse(row(birthday: ''), seen: seen), isA<StudentImportRow>());
+      expect(parse(row(birthday: '2015-03-07'), seen: seen), isA<StudentImportRow>());
     });
 
     test('the same student twice in one file is caught the second time', () {

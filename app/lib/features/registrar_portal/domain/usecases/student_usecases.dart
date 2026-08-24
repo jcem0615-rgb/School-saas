@@ -22,6 +22,22 @@ class FetchAllStudentsUseCase {
   Future<List<StudentSummary>> call() => _repository.fetchAllStudents();
 }
 
+/// Records an already-uploaded photo against a student.
+class SetStudentPhotoUseCase {
+  final RegistrarRepository _repository;
+  const SetStudentPhotoUseCase(this._repository);
+
+  Future<Result<void>> call({required String studentId, required String photoUrl}) {
+    if (studentId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('Missing student.')));
+    }
+    if (photoUrl.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure('The upload returned no address.')));
+    }
+    return _repository.setStudentPhoto(studentId: studentId, photoUrl: photoUrl);
+  }
+}
+
 class RegisterStudentUseCase {
   final RegistrarRepository _repository;
   const RegisterStudentUseCase(this._repository);

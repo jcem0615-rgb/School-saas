@@ -209,6 +209,8 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
     String? schoolName,
     String? addressLine,
     String? principalName,
+    String? principalSignatureUrl,
+    String? directorSignatureUrl,
     String? directorName,
     String? schoolYear,
   }) async {
@@ -218,6 +220,8 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
       schoolName: schoolName,
       addressLine: addressLine,
       principalName: principalName,
+      principalSignatureUrl: principalSignatureUrl,
+      directorSignatureUrl: directorSignatureUrl,
       directorName: directorName,
       schoolYear: schoolYear,
     );

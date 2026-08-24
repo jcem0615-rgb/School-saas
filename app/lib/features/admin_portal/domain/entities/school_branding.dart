@@ -21,6 +21,14 @@ class SchoolBranding {
   final String? principalName;
   final String? directorName;
 
+  /// Scanned signatures, printed above the names on the back of every
+  /// card. Separate from the names rather than replacing them: a
+  /// signature nobody can read still needs a printed name under it, and
+  /// a school that has the names but not the scans should still get
+  /// usable cards with a blank line to sign by hand.
+  final String? principalSignatureUrl;
+  final String? directorSignatureUrl;
+
   /// The current school year, e.g. "2026-2027". Printed on every ID, which
   /// is what makes last year's card visibly expired.
   final String? schoolYear;
@@ -35,6 +43,8 @@ class SchoolBranding {
     this.addressLine,
     this.principalName,
     this.directorName,
+    this.principalSignatureUrl,
+    this.directorSignatureUrl,
     this.schoolYear,
     this.updatedAt,
     this.updatedByName,
@@ -43,4 +53,9 @@ class SchoolBranding {
   static const empty = SchoolBranding();
 
   bool get hasLogo => logoUrl != null && logoUrl!.isNotEmpty;
+
+  bool get hasPrincipalSignature =>
+      principalSignatureUrl != null && principalSignatureUrl!.isNotEmpty;
+  bool get hasDirectorSignature =>
+      directorSignatureUrl != null && directorSignatureUrl!.isNotEmpty;
 }

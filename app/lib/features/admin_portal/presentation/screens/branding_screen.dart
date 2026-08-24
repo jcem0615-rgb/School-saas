@@ -37,7 +37,17 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
     super.dispose();
   }
 
-  Future<void> _uploadLogo() async {
+  /// Picks an image, uploads it, and hands the resulting URL to [save].
+  ///
+  /// Shared by the logo and both signatures because the awkward parts are
+  /// identical -- and because the ordering matters the same way each
+  /// time: the bytes go to Storage first, and only a successful upload
+  /// gets written to the branding document. Saving the URL first would
+  /// point every printed ID at a file that does not exist.
+  Future<void> _pickAndUpload({
+    required UploadFolder folder,
+    required Future<void> Function(UploadedFile file) save,
+  }) async {
     final picked = await FilePicker.pickFiles(
       withData: true,
       type: FileType.custom,
@@ -48,7 +58,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
 
     setState(() => _uploading = true);
     final result = await ref.read(uploadRepositoryProvider).upload(
-          folder: UploadFolder.branding,
+          folder: folder,
           fileName: file!.name,
           bytes: file.bytes!,
           contentType: 'image/${file.extension}',
@@ -58,10 +68,12 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
 
     switch (result) {
       case Success<UploadedFile>(:final value):
-        await ref.read(adminActionControllerProvider.notifier).updateBranding(
-              logoUrl: value.url,
-              logoFileName: value.fileName,
-            );
+        await save(value);
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(const SnackBar(content: Text('Saved. New ID cards will use it.')));
+        }
       case Error<UploadedFile>(:final failure):
         if (mounted) {
           ScaffoldMessenger.of(context)
@@ -70,6 +82,22 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
         }
     }
   }
+
+  Future<void> _uploadLogo() => _pickAndUpload(
+        folder: UploadFolder.branding,
+        save: (file) => ref.read(adminActionControllerProvider.notifier).updateBranding(
+              logoUrl: file.url,
+              logoFileName: file.fileName,
+            ),
+      );
+
+  Future<void> _uploadSignature({required bool principal}) => _pickAndUpload(
+        folder: UploadFolder.signatures,
+        save: (file) => ref.read(adminActionControllerProvider.notifier).updateBranding(
+              principalSignatureUrl: principal ? file.url : null,
+              directorSignatureUrl: principal ? null : file.url,
+            ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -166,10 +194,34 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
                     labelText: 'Principal name'),
               ),
               const SizedBox(height: 12),
+              _SignatureField(
+                label: 'Principal signature',
+                url: branding.principalSignatureUrl,
+                busy: _uploading,
+                onUpload: () => _uploadSignature(principal: true),
+              ),
+              const SizedBox(height: 20),
               TextField(
                 controller: _directorController,
                 decoration: const InputDecoration(
                     labelText: 'Director name'),
+              ),
+              const SizedBox(height: 12),
+              _SignatureField(
+                label: 'Director signature',
+                url: branding.directorSignatureUrl,
+                busy: _uploading,
+                onUpload: () => _uploadSignature(principal: false),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'A signature uploaded here is printed above that name on '
+                'every ID card the school issues, students and employees '
+                'alike — nobody signs cards one at a time. A scan on white '
+                'paper, or a PNG with a transparent background, prints '
+                'best. Leave it empty and the card prints a blank line to '
+                'sign by hand.',
+                style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 20),
               FilledButton(
@@ -193,6 +245,74 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+/// A signature: what is on file, and the button to change it.
+class _SignatureField extends StatelessWidget {
+  final String label;
+  final String? url;
+  final bool busy;
+  final VoidCallback onUpload;
+
+  const _SignatureField({
+    required this.label,
+    required this.url,
+    required this.busy,
+    required this.onUpload,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final has = url != null && url!.isNotEmpty;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 120,
+          height: 48,
+          decoration: BoxDecoration(
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(6),
+            // White behind it whatever the app theme is: a scanned
+            // signature is black ink on paper, and in dark mode on a dark
+            // panel it is invisible.
+            color: Colors.white,
+          ),
+          padding: const EdgeInsets.all(4),
+          child: has
+              ? Image.network(
+                  url!,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      const Center(child: Icon(Icons.broken_image_outlined, size: 18)),
+                )
+              : Center(
+                  child: Text(
+                    'None',
+                    style: theme.textTheme.bodySmall?.copyWith(color: Colors.black54),
+                  ),
+                ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 4),
+              OutlinedButton.icon(
+                onPressed: busy ? null : onUpload,
+                icon: const Icon(Icons.draw_outlined, size: 18),
+                label: Text(has ? 'Replace' : 'Upload'),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

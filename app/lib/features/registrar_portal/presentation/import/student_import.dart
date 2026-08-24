@@ -85,34 +85,46 @@ class StudentImport {
       programId = match.id;
     }
 
-    // Required, for the same reason the form requires it: it is printed
-    // on the ID card, and chasing it down afterwards is what left records
-    // without one. A blank cell is one clear row error, not a silently
-    // incomplete record.
-    if (birthdayText.isEmpty) {
-      return ImportIssue(rowNumber, 'Birthday is required.');
-    }
-    final birthDate = parseBirthday(birthdayText);
-    if (birthDate == null) {
-      return ImportIssue(
-        rowNumber,
-        'Could not read the birthday "$birthdayText". Use a date cell or '
-        'write it as 2012-03-07.',
-      );
-    }
-    if (birthDate.isAfter(DateTime.now())) {
-      return ImportIssue(rowNumber, 'Birthday $birthdayText is in the future.');
+    // Optional, unlike on the form. The form asks one person for one
+    // birthday and can insist; a bulk import is usually fed by whatever
+    // the school's previous system held, and rejecting three hundred
+    // rows because that system never recorded birthdays would leave the
+    // roster out of the app entirely. A record with no birth date is
+    // still a valid enrolment (see StudentSummary.birthDate) -- the ID
+    // card just prints without that line until someone fills it in.
+    //
+    // A birthday that *is* present still has to be a real one. Silently
+    // accepting an unreadable date would be worse than either.
+    DateTime? birthDate;
+    if (birthdayText.isNotEmpty) {
+      birthDate = parseBirthday(birthdayText);
+      if (birthDate == null) {
+        return ImportIssue(
+          rowNumber,
+          'Could not read the birthday "$birthdayText". Use a date cell, '
+          'write it as 2012-03-07, or leave the cell empty.',
+        );
+      }
+      if (birthDate.isAfter(DateTime.now())) {
+        return ImportIssue(rowNumber, 'Birthday $birthdayText is in the future.');
+      }
     }
 
-    // Name plus birthday, because a school genuinely has two Juan Reyes
-    // and a shared birthday as well is the point at which a human should
-    // look. Checked against the roster and against the rest of the file.
-    final key = '${firstName.toLowerCase()}|${lastName.toLowerCase()}|${isoDate(birthDate)}';
+    // Name plus birthday, because a school genuinely does have two Juan
+    // Reyes, and a shared birthday as well is the point at which a human
+    // should look. Checked against the roster and against the rest of the
+    // file.
+    //
+    // Two rows with the same name and no birthday on either count as the
+    // same student. That is the strict reading, and the right one: an
+    // import cannot tell them apart, so it should stop and let a person
+    // decide rather than quietly enrol a duplicate.
+    final stamp = birthDate == null ? '' : isoDate(birthDate);
+    final key = '${firstName.toLowerCase()}|${lastName.toLowerCase()}|$stamp';
     if (existing.any((s) =>
         s.firstName.toLowerCase() == firstName.toLowerCase() &&
         s.lastName.toLowerCase() == lastName.toLowerCase() &&
-        s.birthDate != null &&
-        isoDate(s.birthDate!) == isoDate(birthDate))) {
+        (s.birthDate == null ? '' : isoDate(s.birthDate!)) == stamp)) {
       return ImportIssue(rowNumber, '$firstName $lastName is already enrolled.');
     }
     if (!seen.add(key)) {
@@ -196,7 +208,7 @@ class StudentImportRow {
   final String gradeLevel;
   final String section;
   final String? programId;
-  final DateTime birthDate;
+  final DateTime? birthDate;
   final List<GuardianContact> guardianContacts;
 
   const StudentImportRow({

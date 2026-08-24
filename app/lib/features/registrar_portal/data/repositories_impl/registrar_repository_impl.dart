@@ -25,6 +25,21 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
   Future<List<StudentSummary>> fetchAllStudents() => _remote.fetchAllStudents();
 
   @override
+  Future<Result<void>> setStudentPhoto({
+    required String studentId,
+    required String photoUrl,
+  }) async {
+    try {
+      await _remote.setStudentPhoto(studentId: studentId, photoUrl: photoUrl);
+      return const Success(null);
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
   Future<Result<RegisterStudentOutcome>> registerStudent({
     required String firstName,
     required String lastName,

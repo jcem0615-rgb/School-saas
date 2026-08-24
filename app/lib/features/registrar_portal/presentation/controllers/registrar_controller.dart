@@ -82,17 +82,38 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
   final UpdateStudentUseCase _updateStudent;
   final ProvisionStudentAccountUseCase _provisionStudentAccount;
   final SetStudentBalanceUseCase _setStudentBalance;
+  final SetStudentPhotoUseCase _setStudentPhoto;
 
   RegistrarActionController({
     required RegisterStudentUseCase registerStudent,
     required UpdateStudentUseCase updateStudent,
     required ProvisionStudentAccountUseCase provisionStudentAccount,
     required SetStudentBalanceUseCase setStudentBalance,
+    required SetStudentPhotoUseCase setStudentPhoto,
   })  : _registerStudent = registerStudent,
         _updateStudent = updateStudent,
         _provisionStudentAccount = provisionStudentAccount,
         _setStudentBalance = setStudentBalance,
+        _setStudentPhoto = setStudentPhoto,
         super(const AsyncData(null));
+
+  Future<bool> setStudentPhoto({
+    required String studentId,
+    required String photoUrl,
+  }) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _setStudentPhoto(studentId: studentId, photoUrl: photoUrl);
+    return switch (result) {
+      Success() => () {
+          if (mounted) state = const AsyncData(null);
+          return true;
+        }(),
+      Error(:final failure) => () {
+          if (mounted) state = AsyncError(failure.message, StackTrace.current);
+          return false;
+        }(),
+    };
+  }
 
   Future<bool> setStudentBalance({
     required String studentId,
@@ -214,5 +235,6 @@ final registrarActionControllerProvider =
     updateStudent: UpdateStudentUseCase(repo),
     provisionStudentAccount: ProvisionStudentAccountUseCase(repo),
     setStudentBalance: SetStudentBalanceUseCase(repo),
+    setStudentPhoto: SetStudentPhotoUseCase(repo),
   );
 });

@@ -15,7 +15,14 @@ enum UploadFolder {
   paymentSettings('payment-settings'),
 
   /// The school logo, shown in the app and on printed IDs.
-  branding('branding');
+  branding('branding'),
+
+  /// A student's ID photo, set by the Registrar on the student record.
+  studentPhotos('student-photos'),
+
+  /// Scanned signatures of the Principal and Director, printed above
+  /// their names on every ID card.
+  signatures('signatures');
 
   final String folder;
   const UploadFolder(this.folder);
