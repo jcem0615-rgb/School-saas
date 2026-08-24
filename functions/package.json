@@ -1,0 +1,32 @@
+{
+  "name": "school-saas-functions",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions,firestore,auth",
+    "deploy": "npm run build && firebase deploy --only functions",
+    "test": "jest --testPathIgnorePatterns=test/shared/counters",
+    "test:emulator": "firebase emulators:exec --only firestore \"jest test/shared/counters\"",
+    "lint": "eslint --ext .ts src"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.3.1",
+    "firebase-functions": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@typescript-eslint/eslint-plugin": "^7.16.0",
+    "@typescript-eslint/parser": "^7.16.0",
+    "eslint": "^8.57.0",
+    "firebase-functions-test": "^3.3.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.2",
+    "typescript": "^5.5.3"
+  }
+}

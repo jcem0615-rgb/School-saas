@@ -1,0 +1,172 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+
+import '../../../director_portal/presentation/screens/announcements_screen.dart';
+import '../../../emergency/presentation/screens/sos_screen.dart';
+import '../../../payments/presentation/screens/payment_history_screen.dart';
+import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
+import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
+import '../controllers/student_controller.dart';
+import 'coursework_feed_screen.dart';
+import 'my_grades_screen.dart';
+import 'my_subjects_screen.dart';
+import 'promissory_note_screen.dart';
+import '../../../../core/widgets/glass_tile.dart';
+
+final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
+
+class StudentDashboardScreen extends ConsumerWidget {
+  const StudentDashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recordAsync = ref.watch(myStudentRecordProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My School'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'My Activity',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
+          ),
+        ],
+      ),
+      body: recordAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Failed to load your record: $err')),
+        data: (student) {
+          if (student == null) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'No student record is linked to this account yet. Please contact your school registrar.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(student.fullName, style: Theme.of(context).textTheme.headlineSmall),
+              Text('${student.studentNumber} · ${student.classLabel}'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Balance', style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer)),
+                    Text(
+                      _currencyFormat.format(student.balance),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  GlassTile(
+                    icon: Icons.menu_book_outlined,
+                    label: 'Subjects',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => MySubjectsScreen(
+                              section: student.section,
+                              studentId: student.id,
+                            ))),
+                  ),
+                  GlassTile(
+                    icon: Icons.assignment_outlined,
+                    label: 'Assignments & Exams',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => CourseworkFeedScreen(section: student.section))),
+                  ),
+                  GlassTile(
+                    icon: Icons.grade_outlined,
+                    label: 'Grades',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => MyGradesScreen(studentId: student.id))),
+                  ),
+                  GlassTile(
+                    icon: Icons.fact_check_outlined,
+                    label: 'Attendance',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => AttendanceHistoryScreen(personId: student.id, title: 'My Attendance'),
+                      ),
+                    ),
+                  ),
+                  GlassTile(
+                    icon: Icons.payments_outlined,
+                    label: 'Payments & Balance',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        // Pass the name, not just the id: an online payment
+                        // filed from here records who the money is for, and
+                        // without it the cashier's review queue and alert
+                        // both read "This student".
+                        builder: (_) => PaymentHistoryScreen(
+                          studentId: student.id,
+                          studentName: student.fullName,
+                        ),
+                      ),
+                    ),
+                  ),
+                  GlassTile(
+                    icon: Icons.description_outlined,
+                    label: 'Promissory Note',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const PromissoryNoteScreen())),
+                  ),
+                  GlassTile(
+                    icon: Icons.emergency_share,
+                    label: 'Emergency',
+                    // The one tile here that is not navigation. A student
+                    // reaching for it is in trouble and should not have to
+                    // read six labels to find it.
+                    emphasis: true,
+                    onTap: () {
+                      final student = ref.read(myStudentRecordProvider).valueOrNull;
+                      if (student == null) return;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => SosScreen(student: student)),
+                      );
+                    },
+                  ),
+                  GlassTile(
+                    icon: Icons.campaign_outlined,
+                    label: 'Announcements',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const AnnouncementsScreen())),
+                  ),
+                  GlassTile(
+                    icon: Icons.qr_code,
+                    label: 'My QR ID',
+                    onTap: () => context.push('/qr-id'),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}

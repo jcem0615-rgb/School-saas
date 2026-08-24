@@ -1,0 +1,99 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Every permission below is here because a package in pubspec.yaml
+         needs it. Nothing is requested speculatively: on Android 6+ the
+         dangerous ones are asked for at the moment the feature is used,
+         and a permission the app never exercises is a permission a school
+         IT admin has to justify for no benefit. -->
+
+    <!-- Firestore, Storage, Cloud Functions. The Flutter tool injects this
+         into the debug and profile manifests automatically but not the
+         release one, so a release build without it silently loses the
+         network. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- connectivity_plus -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- QR attendance scanning (mobile_scanner), and photographing a
+         receipt or a profile picture (camera, image_picker). -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+
+    <!-- The emergency alert's location. Coarse is declared alongside fine
+         because Android 12+ lets the student grant only approximate
+         location, and an approximate position on an emergency alert is
+         still far better than none; the alert records the accuracy so
+         staff can see which they got. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- Announcement and emergency pushes (firebase_messaging,
+         flutter_local_notifications). Runtime-requested on Android 13+. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+
+    <!-- Picking a receipt image out of the gallery (image_picker).
+         READ_MEDIA_IMAGES is the Android 13+ form; the older storage
+         permission is capped so it is not requested on newer devices. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
+
+    <application
+        android:label="LogicClass"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <queries>
+        <!-- Required to query activities that can process text, see:
+             https://developer.android.com/training/package-visibility and
+             https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+             In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+
+        <!-- url_launcher has to be able to see these or canLaunchUrl
+             returns false on Android 11+ and the buttons look broken.
+             Dialling an emergency number and opening a student's location
+             in a map are both on that path. -->
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+    </queries>
+</manifest>

@@ -1,0 +1,183 @@
+# Builds an installable APK on GitHub's runners.
+#
+# This exists because the Android SDK cannot be installed everywhere the
+# app can be developed -- dl.google.com is unreachable from some networks,
+# and the SDK is the one part of the toolchain with no mirror. The runner
+# has it preinstalled, so the APK is built where the tools already are and
+# downloaded from the run's artifacts.
+#
+# The APK is signed with the debug key (see android/app/build.gradle.kts),
+# which is what makes it installable by sideloading. It is NOT a Play Store
+# build: replace the signing config with a real upload key before release.
+name: Installable builds
+
+on:
+  push:
+    branches: [runnable-demo-mode]
+    paths:
+      - 'app/**'
+      - '.github/workflows/installable-builds.yml'
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Java 17: android/app/build.gradle.kts compiles and targets 17, and
+      # the Kotlin jvmTarget is pinned to match.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.1
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # The suite is the reason to trust the binary this job hands back --
+      # a green APK build only proves it compiled.
+      - run: flutter test
+
+      # DEMO_MODE is the default in main.dart, but it is passed explicitly
+      # so the artifact's contents do not depend on a default changing:
+      # this build must be the self-contained one that needs no Firebase
+      # project behind it.
+      # --split-per-abi rather than one universal APK. A universal build
+      # carries native code for all three architectures and ships ~77MB to
+      # a phone that can only ever run one of them; split, the arm64 build
+      # every modern handset actually uses is roughly half that. The cost
+      # is that the download is no longer one-size-fits-all, which is why
+      # the assets below are named after the architecture.
+      - run: flutter build apk --release --split-per-abi --dart-define=DEMO_MODE=true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logicclass-demo-apk
+          path: app/build/app/outputs/flutter-apk/app-*-release.apk
+          if-no-files-found: error
+
+      # Also published as a release asset, because an Actions artifact is
+      # only reachable as a zip through the Actions UI -- awkward to get
+      # onto the phone that is meant to install it. A release asset is a
+      # direct .apk link that Android will hand straight to the installer.
+      #
+      # One rolling tag, clobbered each build, so the download link stays
+      # the same instead of moving with every push. The repository is
+      # private, so the asset is too: downloading it needs a signed-in
+      # GitHub account with access.
+      - name: Publish the APK as a release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          out=build/app/outputs/flutter-apk
+          # Named by architecture, since the reader of the release page is
+          # the person who has to pick one.
+          cp "$out/app-arm64-v8a-release.apk"   logicclass-demo-arm64.apk
+          cp "$out/app-armeabi-v7a-release.apk" logicclass-demo-arm32.apk
+          cp "$out/app-x86_64-release.apk"      logicclass-demo-x86_64.apk
+
+          notes=$(cat <<'TXT'
+          Rolling build of the demo-mode app from the runnable-demo-mode branch.
+          Debug-signed for sideloading -- not a Play Store build, and it needs
+          Android 7.0 or newer (the APK carries a v2 signature only).
+
+          Which file: **logicclass-demo-arm64.apk** for essentially any phone
+          sold in the last decade. Try logicclass-demo-arm32.apk if that one
+          refuses to install on an older handset. The x86_64 build is for
+          emulators, not phones.
+          TXT
+          )
+          gh release view demo-apk >/dev/null 2>&1 || gh release create demo-apk \
+            --target "$GITHUB_SHA" \
+            --title "LogicClass demo APK" \
+            --notes "$notes"
+          gh release edit demo-apk --notes "$notes"
+
+          gh release upload demo-apk \
+            logicclass-demo-arm64.apk \
+            logicclass-demo-arm32.apk \
+            logicclass-demo-x86_64.apk --clobber
+
+          # The universal APK the previous build published is now stale and
+          # would sit above these in the asset list, so it goes.
+          gh release delete-asset demo-apk logicclass-demo.apk --yes || true
+
+  # The same app as a desktop program, because a school office runs on
+  # computers as much as on phones. Windows binaries can only be produced
+  # on Windows, hence the separate runner rather than another step above.
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.1
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # The Firebase C++ SDK for Windows, which firebase_core pulls in and
+      # unpacks at build time, declares cmake_minimum_required below 3.5.
+      # CMake 4 removed compatibility with that and refuses to configure:
+      #
+      #   Compatibility with CMake < 3.5 has been removed from CMake.
+      #
+      # The file is downloaded during the build, so there is nothing in
+      # this repository to fix. This is the escape hatch CMake's own error
+      # message points at -- it raises the floor those old declarations
+      # are treated as, rather than turning any check off.
+      - run: flutter build windows --release --dart-define=DEMO_MODE=true
+        env:
+          CMAKE_POLICY_VERSION_MINIMUM: '3.5'
+
+      # The whole Release folder, not just the .exe: a Flutter desktop
+      # build is the executable plus its DLLs and the data/ directory, and
+      # the exe alone will not start without them.
+      #
+      # Minus the .lib and .exp files, which are what the linker consumed
+      # to produce those DLLs and are dead weight afterwards -- the
+      # Firebase ones alone were 42MB, more than the rest of the download
+      # put together.
+      - name: Package the build
+        run: |
+          $src = 'build/windows/x64/runner/Release'
+          Get-ChildItem $src -Recurse -Include *.lib,*.exp | Remove-Item -Force
+          Compress-Archive -Path "$src/*" -DestinationPath logicclass-demo-windows.zip
+        shell: pwsh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logicclass-demo-windows
+          path: app/logicclass-demo-windows.zip
+          if-no-files-found: error
+
+      - name: Publish the Windows build as a release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Runs in parallel with the APK job, so neither can assume the
+          # other created the release first.
+          gh release view demo-apk >/dev/null 2>&1 || gh release create demo-apk \
+            --target "$GITHUB_SHA" --title "LogicClass demo builds" --notes "Build in progress."
+          gh release upload demo-apk logicclass-demo-windows.zip --clobber
+        shell: bash
