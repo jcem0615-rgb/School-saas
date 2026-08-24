@@ -47,3 +47,23 @@ They are already applied to the project above. To rebuild elsewhere:
 supabase link --project-ref <ref>
 supabase db push
 ```
+
+## The CLI
+
+`supabase init` scaffolding is committed, so the CLI works against this
+repo. It is not how the migrations here were applied — those went through
+the Supabase MCP connector, which carries its own auth — but it is what
+you would use locally or from CI.
+
+The CLI needs a personal access token, which the connector's credentials
+are not:
+
+```sh
+export SUPABASE_ACCESS_TOKEN=...        # supabase.com/dashboard/account/tokens
+supabase link --project-ref gikihpfdfssccnnketbe
+supabase migration list                 # local vs remote, should agree
+supabase db push                        # apply anything new
+```
+
+`supabase db push` on the current tree is a no-op: all three migrations
+are already applied to the LogicClass project.
