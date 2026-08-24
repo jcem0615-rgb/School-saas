@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../core/location/location_probe.dart';
 import '../core/constants/education_level.dart';
 import '../core/constants/user_roles.dart';
@@ -55,6 +56,7 @@ import '../features/staff_portal/domain/entities/checklist_item.dart';
 import '../features/staff_portal/domain/entities/daily_report.dart';
 import '../features/staff_portal/domain/repositories/staff_repository.dart';
 import '../features/student_portal/domain/repositories/student_repository.dart';
+import 'demo_session.dart';
 import 'demo_store.dart';
 
 /// Fake, in-memory implementations of every domain repository, backed by
@@ -106,6 +108,9 @@ class DemoAuthRepository implements AuthRepository {
     }
 
     _store.currentUser.add(match);
+    // Not awaited: signing in must not wait on a disk write, and a failed
+    // one costs a re-login after a reload rather than anything visible.
+    unawaited(DemoSession.remember(match));
     _store.audit(
       module: 'users',
       action: 'login',
@@ -119,6 +124,10 @@ class DemoAuthRepository implements AuthRepository {
   Future<Result<void>> logout() async {
     await _latency(200);
     _store.currentUser.add(null);
+    // Awaited, unlike remembering: a sign-out that leaves the session on
+    // disk would put the next visitor straight back into the previous
+    // one's portal.
+    await DemoSession.remember(null);
     return const Success(null);
   }
 
@@ -167,7 +176,14 @@ class DemoAuthRepository implements AuthRepository {
 
   /// Demo-only: jump straight into a role without going through the login
   /// form. Backs the floating role switcher.
-  void signInAs(AppUser user) => _store.currentUser.add(user);
+  ///
+  /// Remembered like an ordinary sign-in, so a reload comes back as
+  /// whichever role you were last looking at rather than as whoever you
+  /// typed a password for.
+  void signInAs(AppUser user) {
+    _store.currentUser.add(user);
+    unawaited(DemoSession.remember(user));
+  }
 }
 
 // ---------------------------------------------------------------------------

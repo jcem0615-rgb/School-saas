@@ -88,3 +88,34 @@ Run rules tests: `firebase emulators:exec --only firestore "jest test-rules/auth
 - App Check enforcement on callables (Security module)
 - Owner's own login path UI (Owner Portal module — same `AuthRepository`,
   different landing route via `AppRoutes.homeFor`)
+
+## Surviving a reload
+
+Demo mode keeps everything in memory, so a browser refresh — or the F5
+somebody hits out of habit — used to drop a visitor back at the login
+screen mid-demo. Real mode never had this: `firebase_auth` persists its
+own session. `DemoSession` is the demo's stand-in for that, and it is the
+only thing in the app that uses `shared_preferences`.
+
+Only the **email** is stored. Never a password, and never any of the
+demo's data — the fixture is seeded fresh on every load, because
+persisting edits would mean each visitor inherited whatever the last one
+did to it. The account is looked back up in `DemoStore.demoAccounts` on
+the way in, so a stored value that no longer matches an account restores
+nobody rather than resurrecting a half-valid session.
+
+The restore is awaited in `main()` **before** `runApp`, and the store is
+seeded synchronously from it. Reading it from inside the widget tree
+would paint the login screen and then jump to the portal, which reads as
+being signed out and immediately signed back in.
+
+Remembering is deliberately not awaited (signing in must not wait on a
+disk write; a failed one costs a re-login). Forgetting *is* awaited: a
+sign-out that left the session on disk would put the next visitor
+straight into the previous one's portal. The demo role switcher is
+remembered too — otherwise a reload comes back as whoever typed a
+password rather than the role you were actually looking at.
+
+Storage being unavailable (a private window, a locked-down browser) is
+caught and ignored. A demo that cannot remember a session must still
+open.

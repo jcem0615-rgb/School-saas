@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/glass.dart';
+import 'demo/demo_session.dart';
 import 'demo/demo_overrides.dart';
 import 'demo/demo_switcher.dart';
 import 'features/payments/presentation/widgets/payment_submission_alerts.dart';
@@ -49,9 +50,18 @@ Future<void> main() async {
     await Firebase.initializeApp(options: FirebaseConfig.options);
   }
 
+  // Restored before runApp, not after: awaiting it here means the first
+  // frame already knows who is signed in. Reading it from inside the
+  // widget tree would paint the login screen and then jump to the
+  // portal, which reads as being signed out and signed straight back in.
+  //
+  // Real mode needs no equivalent -- firebase_auth restores its own
+  // session -- which is why this is inside the demo branch.
+  final restored = kDemoMode ? await DemoSession.restore() : null;
+
   runApp(
     ProviderScope(
-      overrides: kDemoMode ? demoOverrides() : const <Override>[],
+      overrides: kDemoMode ? demoOverrides(signedInAs: restored) : const <Override>[],
       child: const LogicClassApp(),
     ),
   );

@@ -23,6 +23,7 @@ import '../features/registrar_portal/presentation/controllers/registrar_controll
 import '../features/staff_portal/presentation/controllers/staff_controller.dart';
 import '../features/student_portal/presentation/controllers/student_controller.dart';
 import 'demo_location_probe.dart';
+import 'demo_session.dart';
 import 'demo_repositories.dart';
 import 'demo_store.dart';
 
@@ -60,8 +61,19 @@ void demoSignInAs(DemoAuthRepository auth, GoRouter router, AppUser user) {
 /// in demo mode is the real app, not a mock-up of it. Because nothing ever
 /// watches the datasource providers, `Firebase.initializeApp` is never
 /// called and no `firebase_options.dart` is needed.
-List<Override> demoOverrides() {
+/// [signedInAs] is a session restored from a previous run -- see
+/// [DemoSession]. Passed in rather than read here so the store is seeded
+/// synchronously: an async restore would render the login screen first
+/// and then jump, which looks like being signed out and immediately
+/// signed back in.
+List<Override> demoOverrides({AppUser? signedInAs}) {
   return [
+    if (signedInAs != null)
+      demoStoreProvider.overrideWith((ref) {
+        final store = DemoStore(signedInAs: signedInAs);
+        ref.onDispose(store.dispose);
+        return store;
+      }),
     authRepositoryProvider.overrideWith((ref) => ref.watch(demoAuthRepositoryProvider)),
 
     // The real versions of these are rebuilt whenever the signed-in user

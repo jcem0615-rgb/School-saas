@@ -112,7 +112,18 @@ class DemoStore {
   // -------------------------------------------------------------------
 
   /// Null when signed out. The router watches a stream derived from this.
-  final currentUser = BehaviorSubject<AppUser?>.seeded(null);
+  /// Seeded from [DemoStore.new]'s [signedInAs], so a reload comes back
+  /// already signed in rather than flashing the login screen first.
+  late final BehaviorSubject<AppUser?> currentUser =
+      BehaviorSubject<AppUser?>.seeded(_signedInAs);
+
+  final AppUser? _signedInAs;
+
+  /// [signedInAs] restores a session from a previous run. Everything else
+  /// about the store is seeded fresh: the demo's data is a fixture, and
+  /// persisting edits across reloads would mean every visitor inherited
+  /// whatever the last one did to it.
+  DemoStore({AppUser? signedInAs}) : _signedInAs = signedInAs;
 
   AppUser get requireUser {
     final u = currentUser.valueOrNull;
