@@ -51,14 +51,34 @@ something RLS can express, so it runs as the service role and every check
 in it is load-bearing. The provisioning matrix is copied from the Firebase
 version, including that `owner` appears in no row of it.
 
-Before `bootstrap-owner` will do anything:
+### Who may claim the owner role
+
+`bootstrap-owner` reads the permitted address from `OWNER_EMAIL` if that
+secret is set, and otherwise from `private.app_config`. It is currently
+set in the table, to the project owner's address.
+
+The table exists because edge-function secrets can only be set from the
+dashboard or by a CLI holding a personal access token — neither of which
+was available where this was built. `private.app_config` is the same
+thing as a row: outside the schemas PostgREST exposes, no grants to anon
+or authenticated, RLS on with no policies, so only the service role can
+read it. The security linter reports `rls_enabled_no_policy` at INFO
+level for it; there, that is the intent.
+
+To move it to a real secret later, set one — the env var takes
+precedence and no code changes:
 
 ```sh
 supabase secrets set OWNER_EMAIL=you@example.com --project-ref gikihpfdfssccnnketbe
 ```
 
-Unset, it refuses every caller rather than falling back to something
-permissive.
+With neither set, the function refuses every caller rather than falling
+back to something permissive.
+
+The address grants nothing on its own. Claiming the role also requires
+signing in as it, with the address verified, and only while no owner
+exists — after which `one_owner_only` refuses everyone, that address
+included.
 
 ## What does not exist yet
 

@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 /**
  * Establishes the single platform Owner, once.
@@ -11,8 +11,8 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
  *
  *   1. The caller must already be signed in. This grants a role; it does
  *      not create credentials, so it cannot be used to mint an account.
- *   2. Their *verified* email must equal OWNER_EMAIL, read from this
- *      function's own environment. Nothing the client sends is trusted.
+ *   2. Their *verified* email must equal the configured owner address,
+ *      read server-side. Nothing the client sends is trusted.
  *   3. No owner may exist yet.
  *
  * The third check is not really this function's -- `one_owner_only`, a
@@ -28,16 +28,31 @@ const json = (body: unknown, status = 200) =>
     headers: { "Content-Type": "application/json" },
   });
 
+/**
+ * The address permitted to claim the owner role.
+ *
+ * The OWNER_EMAIL secret wins when it is set, so the value can be moved
+ * to a real edge-function secret later without touching this code. The
+ * fallback is private.app_config, which is reachable only by the service
+ * role: no grants to anon or authenticated, RLS with no policies, and a
+ * schema PostgREST does not expose.
+ */
+async function configuredOwnerEmail(admin: SupabaseClient): Promise<string> {
+  const fromEnv = (Deno.env.get("OWNER_EMAIL") ?? "").trim().toLowerCase();
+  if (fromEnv) return fromEnv;
+
+  const { data, error } = await admin
+    .schema("private")
+    .from("app_config")
+    .select("value")
+    .eq("key", "owner_email")
+    .maybeSingle();
+  if (error || !data?.value) return "";
+  return String(data.value).trim().toLowerCase();
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Use POST." }, 405);
-
-  const configured = (Deno.env.get("OWNER_EMAIL") ?? "").trim().toLowerCase();
-  if (!configured) {
-    // Refusing is the safe failure. An unset OWNER_EMAIL with a
-    // permissive fallback would make this an open door to the highest
-    // privilege in the system.
-    return json({ error: "OWNER_EMAIL is not configured for this deployment." }, 500);
-  }
 
   const jwt = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
   if (!jwt) return json({ error: "Sign in first, then run this once." }, 401);
@@ -47,6 +62,14 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { persistSession: false } },
   );
+
+  const configured = await configuredOwnerEmail(admin);
+  if (!configured) {
+    // Refusing is the safe failure. No configured address with a
+    // permissive fallback would make this an open door to the highest
+    // privilege in the system.
+    return json({ error: "No owner email is configured for this deployment." }, 500);
+  }
 
   const { data: caller, error: authError } = await admin.auth.getUser(jwt);
   if (authError || !caller?.user) {
