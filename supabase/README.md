@@ -27,13 +27,46 @@ enforced by the database here instead:
   expressed this by leaving `schoolId` off the owner's custom claims,
   which nothing enforced.
 
+## Edge functions
+
+Three are deployed, the three whose Firebase counterparts operate on
+exactly the tables that exist:
+
+| Function | Firebase original | Notes |
+| --- | --- | --- |
+| `bootstrap-owner` | `bootstrapOwner` | Needs the `OWNER_EMAIL` secret |
+| `create-school` | `createSchool` | Delegates to the `create_school` RPC |
+| `provision-user` | `provisionUser` | Service role; mints Auth accounts |
+
+All three have `verify_jwt` on.
+
+`create-school` deliberately does almost nothing itself. A school is two
+rows and half a school is unusable, so the inserts belong in a Postgres
+function, whose body is a transaction. It calls that RPC with the
+*caller's* JWT rather than the service role, so RLS still decides — the
+function holds no privilege to lose.
+
+`provision-user` is the opposite: minting an Auth account is not
+something RLS can express, so it runs as the service role and every check
+in it is load-bearing. The provisioning matrix is copied from the Firebase
+version, including that `owner` appears in no row of it.
+
+Before `bootstrap-owner` will do anything:
+
+```sh
+supabase secrets set OWNER_EMAIL=you@example.com --project-ref gikihpfdfssccnnketbe
+```
+
+Unset, it refuses every caller rather than falling back to something
+permissive.
+
 ## What does not exist yet
 
 Everything else. Students, attendance, coursework, grades, payments,
 announcements, guidance records, the audit log — about twenty collections
-— plus the callables (`provisionUser`, `createSchool`, `markAttendance`,
-the billing jobs) as Edge Functions, and a Dart data layer built on
-`supabase_flutter` instead of `cloud_firestore`.
+— plus the remaining callables (`markAttendance`, the payment functions,
+the billing jobs) and a Dart data layer built on `supabase_flutter`
+instead of `cloud_firestore`.
 
 That is the bulk of the work. Moving this app off Firebase is a rewrite of
 its data layer, not a deployment, and this directory is the foundation it
