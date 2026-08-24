@@ -15,7 +15,16 @@ class ProvisionStudentAccountOutcome {
 }
 
 abstract class RegistrarRepository {
-  Stream<List<StudentSummary>> watchStudents();
+  /// [limit] null means the whole roster; a number means one page of it,
+  /// surname order. [educationLevel] narrows the query itself rather than
+  /// the page it returns -- see the datasource for why that distinction
+  /// matters.
+  Stream<List<StudentSummary>> watchStudents({int? limit, EducationLevel? educationLevel});
+
+  /// The whole roster, once, for callers that must not miss anyone --
+  /// export today. Deliberately separate from [watchStudents] so that
+  /// reading everything is always a decision someone made.
+  Future<List<StudentSummary>> fetchAllStudents();
 
   Future<Result<RegisterStudentOutcome>> registerStudent({
     required String firstName,

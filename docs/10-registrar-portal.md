@@ -89,3 +89,45 @@ and reuses `payments`/`attendance` via cross-links from Student Detail.
 - **Parent account linking UI** — the `linkedStudentIds` validation exists
   in `provisionUser.ts` now, but the Registrar-facing "create a Parent
   account and link these children" screen is built alongside Parent Portal.
+
+## The student list is paged
+
+The list used to read the whole `students` collection on open. That is
+fine for the demo's nine records and indefensible for a school with
+three thousand: the same three thousand reads every time anybody opens
+the screen, on the largest collection in the tenant, from the screen the
+registrar's office leaves open all day.
+
+It now asks for twenty at a time, with **Load more** under the last row.
+
+Two details in that are load-bearing:
+
+**The division chips filter the query, not the page.** The `where` goes
+to Firestore alongside `isDeleted` — the composite index for
+`educationLevel + isDeleted + lastName` already existed. Filtering the
+page after it arrived would quietly shrink it: ask for twenty, get the
+four Senior High students who happened to fall inside those twenty.
+
+**Search leaves paging behind on purpose.** Firestore cannot match a
+substring, so `cruz` can only be found by looking at every record.
+Typing switches the screen to the unbounded query and filters it here,
+exactly as it did before. Browsing is paged; searching is a deliberate
+full read, and it happens when someone asks for it rather than every
+time the screen opens.
+
+The alternative — a `startAfter` cursor — is the textbook answer and the
+wrong one here. The list is live: a student registered at the next desk
+appears without a refresh. A cursor chain means one stream per page,
+each with its own lifetime, all needing to stay in sync. One widening
+`limit` stays one stream. It costs re-reading page one when you ask for
+page two; at twenty a page that is a far better trade than the three
+thousand it replaced.
+
+Export is deliberately *not* paged. `fetchAllStudents()` is a separate
+one-shot read of the whole roster, because a CSV that silently stopped
+at the twenty rows on screen is the exact failure paging invites — and
+the kind only noticed after the file has gone to the division office.
+
+Demo mode overrides the page size down to four (`studentPageSizeProvider`).
+Nine seeded students would never reach a page of twenty, and paging that
+never triggers is paging nobody can check.

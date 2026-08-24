@@ -9,7 +9,17 @@ class WatchStudentsUseCase {
   final RegistrarRepository _repository;
   const WatchStudentsUseCase(this._repository);
 
-  Stream<List<StudentSummary>> call() => _repository.watchStudents();
+  Stream<List<StudentSummary>> call({int? limit, EducationLevel? educationLevel}) =>
+      _repository.watchStudents(limit: limit, educationLevel: educationLevel);
+}
+
+/// The whole roster in one read, for export. Kept apart from
+/// [WatchStudentsUseCase] so the expensive call has a name of its own.
+class FetchAllStudentsUseCase {
+  final RegistrarRepository _repository;
+  const FetchAllStudentsUseCase(this._repository);
+
+  Future<List<StudentSummary>> call() => _repository.fetchAllStudents();
 }
 
 class RegisterStudentUseCase {

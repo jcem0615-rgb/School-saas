@@ -85,6 +85,10 @@ List<Override> demoOverrides() {
       ref.watch(authStateProvider);
       return DemoRegistrarRepository(ref.watch(demoStoreProvider));
     }),
+    // Four, not twenty. The demo school has nine students, and a page
+    // size they never reach would leave Load more permanently hidden --
+    // paging you cannot see is paging nobody can check.
+    studentPageSizeProvider.overrideWith((ref) => 4),
     facultyRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoFacultyRepository(ref.watch(demoStoreProvider));

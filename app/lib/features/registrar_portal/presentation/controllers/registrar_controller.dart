@@ -27,8 +27,48 @@ final registrarRepositoryProvider = Provider<RegistrarRepository>((ref) {
   return RegistrarRepositoryImpl(ref.watch(registrarRemoteDataSourceProvider));
 });
 
+/// The unbounded roster. Still the right provider for the screens that
+/// need every student at once -- a faculty submission sheet, a section
+/// picker -- and the wrong one for the student list, which is why that
+/// screen now uses [pagedStudentsStreamProvider] instead.
 final studentsStreamProvider = StreamProvider.autoDispose<List<StudentSummary>>((ref) {
   return WatchStudentsUseCase(ref.watch(registrarRepositoryProvider))();
+});
+
+/// How many students one page of the student list holds.
+///
+/// A provider rather than a constant so demo mode can override it down to
+/// something the nine seeded students actually exceed. Paging that never
+/// triggers is paging you cannot check works.
+final studentPageSizeProvider = Provider<int>((ref) => 20);
+
+/// Which division the student list is filtered to, lifted out of the
+/// screen's own state because the query -- not the widget -- is what has
+/// to know: the filter has to reach Firestore's `where`, or a page of
+/// twenty arrives and four of them are Senior High.
+final studentDivisionFilterProvider = StateProvider.autoDispose<EducationLevel?>((ref) => null);
+
+/// How many students the list has asked for so far. Load more raises it by
+/// one page; changing the division resets it.
+final studentPageLimitProvider = StateProvider.autoDispose<int>((ref) {
+  return ref.watch(studentPageSizeProvider);
+});
+
+/// One page of the roster.
+///
+/// A growing `limit` rather than a `startAfter` cursor, deliberately. The
+/// list is live -- a student registered on another device appears without
+/// a refresh -- and a cursor chain gives you one stream per page, each
+/// with its own lifetime, which is a lot of machinery to keep three pages
+/// of a roster in sync. One widening query stays one stream. The cost is
+/// that page three re-reads pages one and two; at twenty a page that is a
+/// trade worth making against the alternative of reading all three
+/// thousand every time the screen opens.
+final pagedStudentsStreamProvider = StreamProvider.autoDispose<List<StudentSummary>>((ref) {
+  return WatchStudentsUseCase(ref.watch(registrarRepositoryProvider))(
+    limit: ref.watch(studentPageLimitProvider),
+    educationLevel: ref.watch(studentDivisionFilterProvider),
+  );
 });
 
 class RegistrarActionController extends StateNotifier<AsyncValue<void>> {

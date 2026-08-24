@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/constants/firestore_paths.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../models/student_summary_model.dart';
@@ -25,13 +26,48 @@ class RegistrarRemoteDataSource {
         _functions = functions,
         _actingUser = actingUser;
 
-  Stream<List<StudentSummaryModel>> watchStudents() {
-    return _firestore
+  /// The roster, oldest-surname first.
+  ///
+  /// [limit] caps how many documents the query returns. A school with
+  /// three thousand students otherwise costs three thousand reads every
+  /// time someone opens the list, which is the single largest line on the
+  /// Firestore bill and the reason the list screen asks for a page at a
+  /// time. Left null the query is unbounded, which is what the screens
+  /// that genuinely need the whole roster -- the faculty submission
+  /// sheet, the export -- still ask for.
+  ///
+  /// [educationLevel] is applied server-side rather than by filtering the
+  /// page after it arrives. Filtering afterwards would silently shrink the
+  /// page: ask for twenty and get the four Senior High students that
+  /// happened to fall inside those twenty.
+  Stream<List<StudentSummaryModel>> watchStudents({int? limit, EducationLevel? educationLevel}) {
+    Query<Map<String, dynamic>> query = _firestore
+        .collection(FirestorePaths.students(_actingUser.schoolId))
+        .where('isDeleted', isEqualTo: false);
+    if (educationLevel != null) {
+      query = query.where('educationLevel', isEqualTo: educationLevel.value);
+    }
+    query = query.orderBy('lastName');
+    if (limit != null) query = query.limit(limit);
+    return query
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => StudentSummaryModel.fromFirestore(d.id, d.data())).toList());
+  }
+
+  /// One unbounded read of the whole roster, on demand.
+  ///
+  /// Export needs every student, but it is a button someone presses rather
+  /// than something the screen does on open, so it pays for the full read
+  /// only when asked. A one-shot `get()` and not a stream: the CSV is a
+  /// snapshot of a moment, and a listener left open would keep charging
+  /// for a list nobody is looking at any more.
+  Future<List<StudentSummaryModel>> fetchAllStudents() async {
+    final snap = await _firestore
         .collection(FirestorePaths.students(_actingUser.schoolId))
         .where('isDeleted', isEqualTo: false)
         .orderBy('lastName')
-        .snapshots()
-        .map((snap) => snap.docs.map((d) => StudentSummaryModel.fromFirestore(d.id, d.data())).toList());
+        .get();
+    return snap.docs.map((d) => StudentSummaryModel.fromFirestore(d.id, d.data())).toList();
   }
 
   Future<Map<String, dynamic>> registerStudent({

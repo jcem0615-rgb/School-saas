@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
-import 'package:logicclass/features/director_portal/presentation/controllers/director_controller.dart';
 import 'package:logicclass/features/qr_attendance/domain/entities/attendance_record.dart';
 import 'package:logicclass/features/registrar_portal/domain/entities/student_summary.dart';
 

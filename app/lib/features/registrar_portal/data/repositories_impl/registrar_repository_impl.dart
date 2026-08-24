@@ -18,7 +18,11 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
       };
 
   @override
-  Stream<List<StudentSummary>> watchStudents() => _remote.watchStudents();
+  Stream<List<StudentSummary>> watchStudents({int? limit, EducationLevel? educationLevel}) =>
+      _remote.watchStudents(limit: limit, educationLevel: educationLevel);
+
+  @override
+  Future<List<StudentSummary>> fetchAllStudents() => _remote.fetchAllStudents();
 
   @override
   Future<Result<RegisterStudentOutcome>> registerStudent({

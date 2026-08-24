@@ -8,6 +8,7 @@ import '../../../admin_portal/presentation/controllers/admin_controller.dart' sh
 import '../../../../core/data_transfer/export_import_sheet.dart';
 import '../../../../core/widgets/combo_field.dart';
 import '../../domain/entities/student_summary.dart';
+import '../../domain/usecases/student_usecases.dart';
 import '../controllers/registrar_controller.dart';
 import 'student_detail_screen.dart';
 import '../../../../core/widgets/field_tile.dart';
@@ -21,20 +22,49 @@ class StudentListScreen extends ConsumerStatefulWidget {
 
 class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   String _query = '';
-  EducationLevel? _divisionFilter;
+  bool _exporting = false;
+
+  /// Load more widens the query rather than appending a page, so the list
+  /// stays one live stream. See [pagedStudentsStreamProvider].
+  void _loadMore() {
+    final pageSize = ref.read(studentPageSizeProvider);
+    ref.read(studentPageLimitProvider.notifier).update((n) => n + pageSize);
+  }
+
+  /// Changing the division changes the query, so the page count starts
+  /// over. Without this, switching to Senior High after loading sixty
+  /// Elementary records would ask Firestore for sixty Senior High ones.
+  void _setDivision(EducationLevel? level) {
+    ref.read(studentDivisionFilterProvider.notifier).state = level;
+    ref.read(studentPageLimitProvider.notifier).state = ref.read(studentPageSizeProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final studentsAsync = ref.watch(studentsStreamProvider);
+    final divisionFilter = ref.watch(studentDivisionFilterProvider);
+    final limit = ref.watch(studentPageLimitProvider);
+
+    // Typing switches the screen off the paged query and onto the whole
+    // roster. Firestore cannot match a substring, so "cruz" can only be
+    // found by looking at every record -- and a search that quietly only
+    // covered the page you had already scrolled to would be worse than no
+    // search at all. Browsing is paged; searching is a deliberate,
+    // occasional full read.
+    final searching = _query.isNotEmpty;
+    final studentsAsync =
+        searching ? ref.watch(studentsStreamProvider) : ref.watch(pagedStudentsStreamProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Student Records'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.import_export),
+            icon: _exporting
+                ? const SizedBox(
+                    width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.import_export),
             tooltip: 'Export / Import',
-            onPressed: _showTransfer,
+            onPressed: _exporting ? null : _showTransfer,
           ),
         ],
       ),
@@ -64,16 +94,16 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 children: [
                   ChoiceChip(
                     label: const Text('All Divisions'),
-                    selected: _divisionFilter == null,
-                    onSelected: (_) => setState(() => _divisionFilter = null),
+                    selected: divisionFilter == null,
+                    onSelected: (_) => _setDivision(null),
                   ),
                   const SizedBox(width: 8),
                   ...EducationLevel.values.map((level) => Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
                           label: Text(level.displayLabel),
-                          selected: _divisionFilter == level,
-                          onSelected: (_) => setState(() => _divisionFilter = level),
+                          selected: divisionFilter == level,
+                          onSelected: (_) => _setDivision(level),
                         ),
                       )),
                 ],
@@ -86,21 +116,44 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, _) => Center(child: Text('Failed to load students: $err')),
               data: (students) {
-                final filtered = students.where((s) {
-                  final matchesQuery = _query.isEmpty ||
-                      s.fullName.toLowerCase().contains(_query) ||
-                      s.studentNumber.toLowerCase().contains(_query);
-                  final matchesDivision = _divisionFilter == null || s.educationLevel == _divisionFilter;
-                  return matchesQuery && matchesDivision;
-                }).toList();
+                // While browsing, both filters are already in the query --
+                // re-applying them here would be a no-op. While searching,
+                // the stream is the unbounded roster and neither has been
+                // applied yet.
+                final filtered = !searching
+                    ? students
+                    : students.where((s) {
+                        final matchesQuery = s.fullName.toLowerCase().contains(_query) ||
+                            s.studentNumber.toLowerCase().contains(_query);
+                        final matchesDivision =
+                            divisionFilter == null || s.educationLevel == divisionFilter;
+                        return matchesQuery && matchesDivision;
+                      }).toList();
                 if (filtered.isEmpty) {
                   return const Center(child: Text('No students found.'));
                 }
+                // A full page came back, so there is probably another one.
+                // "Probably" is as good as it gets without a second count
+                // query, and offering a Load more that turns out to add
+                // nothing is cheaper than hiding one that would have.
+                final hasMore = !searching && students.length >= limit;
                 return ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filtered.length,
+                  // The extra row is the footer: the count, and Load more
+                  // when there is more. Inside the list rather than under
+                  // it so it scrolls with the records instead of pinning a
+                  // bar across the bottom of a phone screen.
+                  itemCount: filtered.length + 1,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
+                    if (index == filtered.length) {
+                      return _ListFooter(
+                        count: filtered.length,
+                        searching: searching,
+                        hasMore: hasMore,
+                        onLoadMore: _loadMore,
+                      );
+                    }
                     final s = filtered[index];
                     return Card(
                       elevation: 0,
@@ -143,8 +196,28 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   /// and `balance`. A CSV import that appeared to create students would
   /// either bypass those rules or silently drop the fields, so the honest
   /// option is export-only with the reason stated in the sheet.
-  void _showTransfer() {
-    final students = ref.read(studentsStreamProvider).valueOrNull ?? const <StudentSummary>[];
+  ///
+  /// The export reads every student explicitly rather than exporting
+  /// whatever the paged list happens to be holding. A CSV that silently
+  /// stopped at the twenty rows on screen is the exact failure paging
+  /// invites, and it is the kind that is only noticed once the file has
+  /// already been sent to the division office.
+  Future<void> _showTransfer() async {
+    setState(() => _exporting = true);
+    final List<StudentSummary> students;
+    try {
+      students = await FetchAllStudentsUseCase(ref.read(registrarRepositoryProvider))();
+    } catch (err) {
+      if (mounted) {
+        setState(() => _exporting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load the full roster to export: $err')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _exporting = false);
     showExportImportSheet(
       context: context,
       label: 'Students',
@@ -245,7 +318,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 Consumer(
                   builder: (context, ref, _) {
                     final existing =
-                        ref.watch(studentsStreamProvider).valueOrNull ?? const <StudentSummary>[];
+                        ref.watch(pagedStudentsStreamProvider).valueOrNull ?? const <StudentSummary>[];
                     // Only offer levels from the same division: a college
                     // year level is not a useful suggestion for a Grade 4.
                     final sameDivision =
@@ -396,6 +469,51 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The row under the last student: what you are looking at, and how to
+/// see more of it.
+class _ListFooter extends StatelessWidget {
+  final int count;
+  final bool searching;
+  final bool hasMore;
+  final VoidCallback onLoadMore;
+
+  const _ListFooter({
+    required this.count,
+    required this.searching,
+    required this.hasMore,
+    required this.onLoadMore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = searching
+        ? '$count matching ${count == 1 ? "student" : "students"}'
+        : hasMore
+            ? 'Showing $count students'
+            : 'Showing all $count ${count == 1 ? "student" : "students"}';
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 88),
+      child: Column(
+        children: [
+          if (hasMore)
+            OutlinedButton.icon(
+              onPressed: onLoadMore,
+              icon: const Icon(Icons.expand_more),
+              label: const Text('Load more'),
+            ),
+          if (hasMore) const SizedBox(height: 8),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ],
       ),
     );
   }

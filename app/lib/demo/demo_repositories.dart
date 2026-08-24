@@ -1074,8 +1074,22 @@ class DemoRegistrarRepository implements RegistrarRepository {
   DemoRegistrarRepository(this._store);
 
   @override
-  Stream<List<StudentSummary>> watchStudents() => _store.students.stream
-      .map((all) => [...all]..sort((a, b) => a.lastName.compareTo(b.lastName)));
+  Stream<List<StudentSummary>> watchStudents({int? limit, EducationLevel? educationLevel}) =>
+      _store.students.stream.map((all) {
+        final rows = all
+            .where((s) => educationLevel == null || s.educationLevel == educationLevel)
+            .toList()
+          ..sort((a, b) => a.lastName.compareTo(b.lastName));
+        // The truncation is the point: the demo has to page the same way
+        // the real thing does, or the Load more button is decoration.
+        return limit == null || rows.length <= limit ? rows : rows.sublist(0, limit);
+      });
+
+  @override
+  Future<List<StudentSummary>> fetchAllStudents() async {
+    await _latency(300);
+    return [..._store.students.value]..sort((a, b) => a.lastName.compareTo(b.lastName));
+  }
 
   @override
   Future<Result<RegisterStudentOutcome>> registerStudent({
