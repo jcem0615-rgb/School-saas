@@ -44,6 +44,29 @@ jobs:
           channel: stable
           cache: true
 
+      # Gradle's own caches, which are the difference between a build
+      # that finishes and one that does not.
+      #
+      # The logs of three killed builds all show the same five minutes
+      # between "flutter pub get" finishing and Gradle actually starting:
+      # that is the Gradle distribution and every plugin's dependencies
+      # being downloaded from scratch, every time. Restoring them turns
+      # five minutes of network into seconds of disk, which is the
+      # largest single saving available here -- larger than the one
+      # gained by dropping two architectures.
+      #
+      # Keyed on the files that decide what gets resolved, with a loose
+      # restore-key so a pubspec change reuses most of the previous cache
+      # rather than starting from nothing.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('app/pubspec.lock', 'app/android/**/*.gradle*', 'app/android/**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
       - run: flutter pub get
 
       # The suite is the reason to trust the binary this job hands back --
@@ -72,7 +95,27 @@ jobs:
       # emulators -- and an arm64-only APK does not explain itself on a
       # 32-bit device, it simply reports the package as incompatible, so
       # that is worth knowing before blaming the download.
+      # The memory settings are the other half of the fix, and probably
+      # the important half.
+      #
+      # app/android/gradle.properties asks for -Xmx8G with a 4G
+      # metaspace. On a developer machine that is fine. On a 16GB runner,
+      # once the Gradle daemon, the Kotlin daemon and javac each take
+      # their share, it is close enough to the ceiling that the kernel
+      # starts killing things -- and a host that OOMs is exactly what
+      # produces "The runner has received a shutdown signal" with no
+      # error of its own, which is what three builds in a row died with.
+      #
+      # Overridden here rather than in gradle.properties so a local build
+      # keeps the headroom it was given. --no-daemon on top, because a
+      # daemon that outlives the build is memory held for nothing in a
+      # container that gets thrown away.
       - run: flutter build apk --release --target-platform android-arm64 --dart-define=DEMO_MODE=true
+        env:
+          GRADLE_OPTS: >-
+            -Dorg.gradle.jvmargs=-Xmx4g
+            -Dorg.gradle.daemon=false
+            -Dkotlin.daemon.jvmargs=-Xmx2g
 
       - uses: actions/upload-artifact@v4
         with:
