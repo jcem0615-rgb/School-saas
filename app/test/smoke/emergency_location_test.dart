@@ -34,6 +34,10 @@ class _NeverAnsweringProbe implements LocationProbe {
   }
 }
 
+/// See emergency_test.dart -- the demo ships with one resolved alert, so
+/// these count from there rather than from zero.
+final _seeded = DemoStore().emergencyAlerts.value.length;
+
 void main() {
   ProviderContainer containerWith(LocationProbe probe) {
     final container = ProviderContainer(overrides: [
@@ -79,7 +83,8 @@ void main() {
     await raise(tester, container);
 
     final alerts = container.read(demoStoreProvider).emergencyAlerts.value;
-    expect(alerts, hasLength(1), reason: 'the alert is the point; the fix is a bonus');
+    expect(alerts, hasLength(_seeded + 1),
+        reason: 'the alert is the point; the fix is a bonus');
     expect(alerts.first.hasLocation, isFalse);
     expect(alerts.first.locationFailure, LocationFailure.permissionDenied);
   });
@@ -98,14 +103,15 @@ void main() {
 
     // Nothing yet: the probe is still hanging.
     await tester.pump(const Duration(seconds: 1));
-    expect(container.read(demoStoreProvider).emergencyAlerts.value, isEmpty);
+    expect(container.read(demoStoreProvider).emergencyAlerts.value, hasLength(_seeded),
+        reason: 'nothing new was raised -- only what the demo ships with');
 
     // Past the controller's own deadline, the alert goes anyway.
     await tester.pump(EmergencyActionController.locationTimeout);
     await tester.pump(const Duration(seconds: 1));
 
     final alerts = container.read(demoStoreProvider).emergencyAlerts.value;
-    expect(alerts, hasLength(1));
+    expect(alerts, hasLength(_seeded + 1));
     expect(alerts.first.locationFailure, LocationFailure.timeout);
   });
 
@@ -158,6 +164,18 @@ void main() {
     // Not a blank space: staff need to know nobody has a position, rather
     // than assume one is still coming.
     expect(find.text('The student did not share their location.'), findsOneWidget);
-    expect(find.text('Open in Maps'), findsNothing);
+
+    // Scoped to this alert's own card. The demo also ships a resolved
+    // alert that *does* carry coordinates, further down the same screen,
+    // and a page-wide finder would be asserting about that one instead.
+    // The freshly raised alert is unresolved, so it sits first, under
+    // "Needs attention".
+    expect(
+      find.descendant(
+        of: find.byType(Card).first,
+        matching: find.text('Open in Maps'),
+      ),
+      findsNothing,
+    );
   });
 }

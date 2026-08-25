@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
+import '../../../emergency/presentation/controllers/emergency_controller.dart';
+import '../../../emergency/presentation/screens/parent_alerts_screen.dart';
+import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../controllers/parent_controller.dart';
 import 'child_detail_screen.dart';
 
@@ -12,6 +15,7 @@ class ParentDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final childrenAsync = ref.watch(myChildrenProvider);
+    final activeAlerts = ref.watch(childrenActiveAlertsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -29,9 +33,31 @@ class ParentDashboardScreen extends ConsumerWidget {
             onPressed: () => Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const AnnouncementsScreen())),
           ),
+          IconButton(
+            icon: const Icon(Icons.emergency_share_outlined),
+            tooltip: 'Emergency Alerts',
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const ParentAlertsScreen())),
+          ),
         ],
       ),
-      body: childrenAsync.when(
+      body: Column(
+        children: [
+          // An unresolved alert is not something to put behind an icon.
+          // The push may never have arrived -- permission declined, phone
+          // in a bag, notifications never configured -- so a parent who
+          // opens the app for any other reason has to be told without
+          // having to go looking.
+          if (activeAlerts.isNotEmpty)
+            _ActiveAlertBanner(count: activeAlerts.length, name: activeAlerts.first.studentName),
+          Expanded(child: _children(context, ref, childrenAsync)),
+        ],
+      ),
+    );
+  }
+
+  Widget _children(BuildContext context, WidgetRef ref, AsyncValue<List<StudentSummary>> childrenAsync) {
+    return childrenAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Failed to load children: $err')),
         data: (children) {
@@ -73,6 +99,54 @@ class ParentDashboardScreen extends ConsumerWidget {
             },
           );
         },
+    );
+  }
+}
+
+/// The one thing on this screen that cannot wait for a tap.
+class _ActiveAlertBanner extends StatelessWidget {
+  final int count;
+  final String name;
+
+  const _ActiveAlertBanner({required this.count, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.error,
+      child: InkWell(
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const ParentAlertsScreen())),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+          child: Row(
+            children: [
+              Icon(Icons.emergency_share, color: theme.colorScheme.onError),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      count == 1
+                          ? '$name pressed the emergency button'
+                          : '$count emergency alerts',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(color: theme.colorScheme.onError),
+                    ),
+                    Text(
+                      'Tap for where they are and who is responding',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onError),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: theme.colorScheme.onError),
+            ],
+          ),
+        ),
       ),
     );
   }

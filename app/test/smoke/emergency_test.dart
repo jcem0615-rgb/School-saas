@@ -10,6 +10,11 @@ import 'package:logicclass/features/emergency/presentation/controllers/emergency
 /// The emergency features are the ones most likely to be used exactly
 /// once, under stress, by somebody who has never used them before. That
 /// is a reason for more care than usual, not less.
+/// How many alerts the demo ships with. Counted rather than hard-coded so
+/// adding another to the fixture does not silently rewrite what these
+/// tests are asserting.
+final _seeded = DemoStore().emergencyAlerts.value.length;
+
 void main() {
   Future<ProviderContainer> signedInAs(UserRole role) async {
     final container = ProviderContainer(overrides: demoOverrides());
@@ -100,8 +105,10 @@ void main() {
           );
 
       expect(ok, isTrue);
-      expect(store.emergencyAlerts.value, hasLength(1));
-      final alert = store.emergencyAlerts.value.single;
+      // The demo seeds one resolved alert from last week, so a freshly
+      // raised one is the newest rather than the only one.
+      expect(store.emergencyAlerts.value, hasLength(_seeded + 1));
+      final alert = store.emergencyAlerts.value.first;
       expect(alert.studentName, 'Miguel Torres');
       expect(alert.isActive, isTrue);
       expect(alert.isAcknowledged, isFalse);
@@ -118,18 +125,18 @@ void main() {
           );
 
       final store = container.read(demoStoreProvider);
-      final id = store.emergencyAlerts.value.single.id;
+      final id = store.emergencyAlerts.value.first.id;
       final notifier = container.read(emergencyActionControllerProvider.notifier);
 
       // Acknowledging is separate from resolving: "I have seen this and I
       // am coming" is what the student needs first.
       expect(await notifier.acknowledgeAlert(id), isTrue);
-      var alert = store.emergencyAlerts.value.single;
+      var alert = store.emergencyAlerts.value.first;
       expect(alert.isAcknowledged, isTrue);
       expect(alert.isActive, isTrue, reason: 'acknowledged is not the same as over');
 
       expect(await notifier.resolveAlert(alertId: id, note: 'Taken to the clinic.'), isTrue);
-      alert = store.emergencyAlerts.value.single;
+      alert = store.emergencyAlerts.value.first;
       expect(alert.isResolved, isTrue);
       expect(alert.isActive, isFalse);
       expect(alert.resolutionNote, 'Taken to the clinic.');
@@ -150,7 +157,7 @@ void main() {
           );
 
       expect(ok, isTrue);
-      expect(container.read(demoStoreProvider).emergencyAlerts.value.single.message, isNull);
+      expect(container.read(demoStoreProvider).emergencyAlerts.value.first.message, isNull);
     });
   });
 

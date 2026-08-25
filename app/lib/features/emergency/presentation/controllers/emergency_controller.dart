@@ -10,6 +10,9 @@ import '../../../auth/presentation/controllers/auth_controller.dart'
     show authStateProvider, firestoreProvider;
 import '../../data/datasources/emergency_remote_datasource.dart';
 import '../../data/repositories_impl/emergency_repository_impl.dart';
+import '../../../parent_portal/presentation/controllers/parent_controller.dart'
+    show myChildrenProvider;
+import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/emergency_alert.dart';
 import '../../domain/entities/emergency_contact.dart';
 import '../../domain/repositories/emergency_repository.dart';
@@ -32,6 +35,31 @@ final emergencyContactsProvider = StreamProvider.autoDispose<List<EmergencyConta
 
 final emergencyAlertsProvider = StreamProvider.autoDispose<List<EmergencyAlert>>((ref) {
   return ref.watch(emergencyRepositoryProvider).watchAlerts();
+});
+
+/// Every alert raised by the children linked to the signed-in parent,
+/// newest first.
+///
+/// Fanned out per child rather than queried in one go, because that is
+/// the shape firestore.rules allows: a parent may read an alert whose
+/// studentId is in their own linkedStudentIds, and a collection query
+/// cannot express that -- rules reject queries, they do not filter them.
+/// Two children is two small streams, which is the right trade against a
+/// denormalised copy that could go stale in the one moment it matters.
+final childrenEmergencyAlertsProvider = Provider.autoDispose<List<EmergencyAlert>>((ref) {
+  final children = ref.watch(myChildrenProvider).valueOrNull ?? const <StudentSummary>[];
+  final all = <EmergencyAlert>[];
+  for (final child in children) {
+    all.addAll(ref.watch(myEmergencyAlertsProvider(child.id)).valueOrNull ?? const []);
+  }
+  all.sort((a, b) => b.raisedAt.compareTo(a.raisedAt));
+  return all;
+});
+
+/// The unresolved ones. Drives the dashboard banner, which is the whole
+/// point: a parent must not have to go looking for this.
+final childrenActiveAlertsProvider = Provider.autoDispose<List<EmergencyAlert>>((ref) {
+  return ref.watch(childrenEmergencyAlertsProvider).where((a) => a.isActive).toList();
 });
 
 final myEmergencyAlertsProvider =

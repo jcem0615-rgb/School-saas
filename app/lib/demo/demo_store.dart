@@ -149,7 +149,8 @@ class DemoStore {
   /// submissions already own that word in this store.
   late final emergencyContacts =
       BehaviorSubject<List<EmergencyContact>>.seeded(_seedEmergencyContacts());
-  late final emergencyAlerts = BehaviorSubject<List<EmergencyAlert>>.seeded(const []);
+  late final emergencyAlerts =
+      BehaviorSubject<List<EmergencyAlert>>.seeded(_seedEmergencyAlerts());
   late final answerKeys = BehaviorSubject<List<AnswerKey>>.seeded(_seedAnswerKeys());
   late final courseworkSubmissions =
       BehaviorSubject<List<CourseworkSubmission>>.seeded(_seedCourseworkSubmissions());
@@ -1141,6 +1142,33 @@ class DemoStore {
           remarks: 'Needs to review factoring.',
           submittedByName: 'Maria Santos',
           submittedAt: _daysAgo(1),
+        ),
+      ];
+
+  /// One alert, already dealt with.
+  ///
+  /// Resolved rather than active, deliberately. A demo that always opens
+  /// with a child mid-emergency is alarming and stops being informative
+  /// after the first look. This gives the parent's screen a history to
+  /// show; the live state is produced by pressing the button as the
+  /// student and switching roles, which is the flow worth watching
+  /// anyway.
+  List<EmergencyAlert> _seedEmergencyAlerts() => [
+        EmergencyAlert(
+          id: 'alert_001',
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+          section: 'Grade 10 - Rizal',
+          userId: 'u_student',
+          message: 'Sprained my ankle at the covered court, cannot walk.',
+          raisedAt: _atHour(6, 14, 22),
+          latitude: 13.9411,
+          longitude: 121.1631,
+          locationAccuracyMeters: 12,
+          acknowledgedByName: 'Maria Santos',
+          acknowledgedAt: _atHour(6, 14, 24),
+          resolvedAt: _atHour(6, 14, 51),
+          resolutionNote: 'Brought to the clinic, ice applied. Mother called and collected him.',
         ),
       ];
 
