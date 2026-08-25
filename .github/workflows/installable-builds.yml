@@ -58,7 +58,15 @@ jobs:
       # Keyed on the files that decide what gets resolved, with a loose
       # restore-key so a pubspec change reuses most of the previous cache
       # rather than starting from nothing.
-      - uses: actions/cache@v4
+      # restore and save as separate steps, rather than the combined
+      # action, because the combined one saves in a post-step that a
+      # cancelled job never reaches. Three builds in a row were killed
+      # mid-Gradle, so the cache could never populate from them -- the
+      # thing meant to stop the build being slow could only be written by
+      # a build that was not slow. `always()` covers cancellation, which
+      # is what a killed runner produces.
+      - uses: actions/cache/restore@v4
+        id: gradle-cache
         with:
           path: |
             ~/.gradle/caches
@@ -110,17 +118,35 @@ jobs:
       # keeps the headroom it was given. --no-daemon on top, because a
       # daemon that outlives the build is memory held for nothing in a
       # container that gets thrown away.
-      - run: flutter build apk --release --target-platform android-arm64 --dart-define=DEMO_MODE=true
+      # --split-per-abi as well as --target-platform, which is not
+      # redundant: with the target alone the APK came out at 40MB, and
+      # with both it is about 31MB for the same single architecture --
+      # splitting strips per-ABI resources that a single-target build
+      # still carries. Nine megabytes matters to a school on a phone
+      # connection.
+      - run: flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=DEMO_MODE=true
         env:
           GRADLE_OPTS: >-
             -Dorg.gradle.jvmargs=-Xmx4g
             -Dorg.gradle.daemon=false
             -Dkotlin.daemon.jvmargs=-Xmx2g
 
+      # Saved even if the build above was killed, which is the whole
+      # point of splitting restore from save. Skipped when the restore
+      # was an exact hit, since re-saving an identical cache only earns
+      # a warning.
+      - uses: actions/cache/save@v4
+        if: always() && steps.gradle-cache.outputs.cache-primary-key != steps.gradle-cache.outputs.cache-matched-key
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
+
       - uses: actions/upload-artifact@v4
         with:
           name: logicclass-demo-apk
-          path: app/build/app/outputs/flutter-apk/app-release.apk
+          path: app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
           if-no-files-found: error
 
       # Also published as a release asset, because an Actions artifact is
@@ -140,7 +166,7 @@ jobs:
           # Still named for the architecture: the release page has to say
           # which phones this will install on, and "app-release.apk" says
           # nothing.
-          cp "$out/app-release.apk" logicclass-demo-arm64.apk
+          cp "$out/app-arm64-v8a-release.apk" logicclass-demo-arm64.apk
 
           notes=$(cat <<'TXT'
           Rolling build of the demo-mode app from the runnable-demo-mode branch.
