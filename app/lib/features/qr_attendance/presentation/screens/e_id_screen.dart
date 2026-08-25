@@ -9,6 +9,7 @@ import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/constants/user_roles.dart';
+import '../../../../core/storage/pdf_image.dart';
 import '../../../admin_portal/domain/entities/school_branding.dart';
 import '../../../admin_portal/presentation/controllers/admin_controller.dart';
 import '../../../auth/domain/entities/app_user.dart';
@@ -241,14 +242,14 @@ class EIdScreen extends ConsumerWidget {
 
     // Fetched one at a time and each guarded: a logo or photo that fails
     // to load must degrade to its placeholder, never abort the print.
-    final logo = branding.hasLogo ? await _pdfImage(branding.logoUrl!) : null;
-    final photo = details.photoUrl == null ? null : await _pdfImage(details.photoUrl!);
+    final logo = branding.hasLogo ? await pdfImage(branding.logoUrl!) : null;
+    final photo = details.photoUrl == null ? null : await pdfImage(details.photoUrl!);
     final principalSignature = details.principalSignatureUrl == null
         ? null
-        : await _pdfImage(details.principalSignatureUrl!);
+        : await pdfImage(details.principalSignatureUrl!);
     final directorSignature = details.directorSignatureUrl == null
         ? null
-        : await _pdfImage(details.directorSignatureUrl!);
+        : await pdfImage(details.directorSignatureUrl!);
 
     final pageFormat = PdfPageFormat(
       _cardWidthMm * PdfPageFormat.mm,
@@ -413,14 +414,6 @@ class EIdScreen extends ConsumerWidget {
     );
 
     return doc.save();
-  }
-
-  Future<pw.MemoryImage?> _pdfImage(String url) async {
-    try {
-      return await networkImage(url) as pw.MemoryImage;
-    } catch (_) {
-      return null;
-    }
   }
 
   pw.Widget _pdfPhoto(pw.MemoryImage? photo, String initials) => pw.Container(
