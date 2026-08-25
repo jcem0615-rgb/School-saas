@@ -85,3 +85,29 @@ when they open it, not eventual consistency from a scheduled job.
 - Director-side Reports/Analytics exports (Reports module)
 - Director's own audit trail search UI (Audit Trail module — data already
   flowing in via the generic trigger)
+
+## Importing expenses
+
+Recorded By exports but does not import. It names who entered the
+spending, the datasource stamps it from the signed-in user, and a column
+that let a file claim otherwise would put someone else's name against
+money they never recorded. An imported expense is therefore recorded
+under whoever uploaded the file, which is the honest reading — they are
+the one putting it in the ledger.
+
+Categories are matched against the catalogue rather than taken as typed.
+A free category column looks harmless until "Utilties" becomes its own
+line in the expense report, splitting a figure the Director is reading as
+a total.
+
+A row whose date, category, description and amount all match one already
+in the ledger is refused. That is what a file imported twice looks like,
+and doubling a month of spending is both easy to do and hard to notice
+afterwards. Two genuinely identical expenses on one day do happen; saying
+which is which in the description is the way through, and is worth more
+in the ledger than a bare duplicate anyway.
+
+Amounts are read the way a spreadsheet writes them — "₱1,250.00",
+"1 250", "(250.00)" — because refusing those sends someone back to retype
+a column that was never wrong. Zero and negative amounts are refused: a
+refund is its own record, not a negative expense.

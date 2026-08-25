@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/data_transfer/export_import_sheet.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/entities/expense.dart';
+import '../import/expense_import.dart';
 import '../controllers/director_controller.dart';
 import '../../../../core/widgets/field_tile.dart';
 
@@ -117,15 +118,29 @@ class ExpensesScreen extends ConsumerWidget {
     );
   }
 
-  /// Export only: expenses carry a recordedByName the audit trail relies
-  /// on, and a bulk import would attribute someone else's spending to
-  /// whoever uploaded the file.
+  /// Export, and import.
+  ///
+  /// Recorded By exports but does not import: it names who entered the
+  /// spending and the server stamps it from the signed-in user, so a
+  /// column that let a file claim otherwise would put someone else's
+  /// name against money they never recorded. Importing therefore records
+  /// the spending under whoever uploaded the file, which is the honest
+  /// reading -- they are the one putting it in the ledger.
   void _showTransfer(BuildContext context, WidgetRef ref) {
     final expenses = ref.read(expensesStreamProvider).valueOrNull ?? const <Expense>[];
+    // Per file, not per row: a workbook pasted in twice is one mistake,
+    // and it has to be caught across the whole file to be caught at all.
+    final seen = <String>{};
     showExportImportSheet(
       context: context,
       label: 'Expenses',
       headers: const ['Date', 'Category', 'Description', 'Amount', 'Recorded By'],
+      importHeaders: const ['Date', 'Category', 'Description', 'Amount'],
+      importNote:
+          'Every imported expense is recorded under your name — Recorded By '
+          'is exported for the record but ignored on the way back in. '
+          'Category must be one of: ${_categories.join(', ')}. Dates can be '
+          'a date cell or written as 2026-03-07.',
       rows: () => expenses
           .map((e) => [
                 _dateFormat.format(e.date),
@@ -135,6 +150,30 @@ class ExpensesScreen extends ConsumerWidget {
                 e.recordedByName,
               ])
           .toList(),
+      parseRow: (row, rowNumber) => ExpenseImport.parseRow(
+        row: row,
+        rowNumber: rowNumber,
+        categories: _categories,
+        existing: expenses,
+        seen: seen,
+      ),
+      onImport: (records) async {
+        final controller = ref.read(directorActionControllerProvider.notifier);
+        // Counted as they land rather than assumed from the row count:
+        // the difference between "9 of 40 imported, something is wrong"
+        // and a Director trusting a total that was never written.
+        var imported = 0;
+        for (final r in records.cast<ExpenseImportRow>()) {
+          final ok = await controller.createExpense(
+            category: r.category,
+            description: r.description,
+            amount: r.amount,
+            date: r.date,
+          );
+          if (ok) imported++;
+        }
+        return imported;
+      },
     );
   }
 
