@@ -7,6 +7,8 @@ import '../../../auth/presentation/controllers/auth_controller.dart'
     show authStateProvider, firestoreProvider, firebaseFunctionsProvider;
 import '../../data/datasources/registrar_remote_datasource.dart';
 import '../../data/repositories_impl/registrar_repository_impl.dart';
+import '../../../faculty_portal/domain/entities/grade.dart';
+import '../../domain/entities/document_release.dart';
 import '../../domain/entities/student_summary.dart';
 import '../../domain/repositories/registrar_repository.dart';
 import '../../domain/usecases/student_usecases.dart';
@@ -71,6 +73,18 @@ final pagedStudentsStreamProvider = StreamProvider.autoDispose<List<StudentSumma
   );
 });
 
+/// Every mark one student has, for building their transcript.
+final studentGradesStreamProvider =
+    StreamProvider.autoDispose.family<List<Grade>, String>((ref, studentId) {
+  return WatchStudentGradesUseCase(ref.watch(registrarRepositoryProvider))(studentId);
+});
+
+/// What has already been handed out for one student, newest first.
+final documentReleasesStreamProvider =
+    StreamProvider.autoDispose.family<List<DocumentRelease>, String>((ref, studentId) {
+  return WatchDocumentReleasesUseCase(ref.watch(registrarRepositoryProvider))(studentId);
+});
+
 class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
   // `mounted` guards below: these action controllers are autoDispose, and
   // the repositories they depend on rebuild whenever authStateProvider
@@ -83,6 +97,7 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
   final ProvisionStudentAccountUseCase _provisionStudentAccount;
   final SetStudentBalanceUseCase _setStudentBalance;
   final SetStudentPhotoUseCase _setStudentPhoto;
+  final RecordDocumentReleaseUseCase _recordDocumentRelease;
 
   RegistrarActionController({
     required RegisterStudentUseCase registerStudent,
@@ -90,12 +105,47 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     required ProvisionStudentAccountUseCase provisionStudentAccount,
     required SetStudentBalanceUseCase setStudentBalance,
     required SetStudentPhotoUseCase setStudentPhoto,
+    required RecordDocumentReleaseUseCase recordDocumentRelease,
   })  : _registerStudent = registerStudent,
         _updateStudent = updateStudent,
         _provisionStudentAccount = provisionStudentAccount,
         _setStudentBalance = setStudentBalance,
         _setStudentPhoto = setStudentPhoto,
+        _recordDocumentRelease = recordDocumentRelease,
         super(const AsyncData(null));
+
+  Future<bool> recordDocumentRelease({
+    required String studentId,
+    required String studentName,
+    required SchoolDocument document,
+    required int copies,
+    required String purpose,
+    required String releasedToName,
+    String? releasedToRelation,
+    String? remarks,
+  }) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _recordDocumentRelease(
+      studentId: studentId,
+      studentName: studentName,
+      document: document,
+      copies: copies,
+      purpose: purpose,
+      releasedToName: releasedToName,
+      releasedToRelation: releasedToRelation,
+      remarks: remarks,
+    );
+    return switch (result) {
+      Success() => () {
+          if (mounted) state = const AsyncData(null);
+          return true;
+        }(),
+      Error(:final failure) => () {
+          if (mounted) state = AsyncError(failure.message, StackTrace.current);
+          return false;
+        }(),
+    };
+  }
 
   Future<bool> setStudentPhoto({
     required String studentId,
@@ -236,5 +286,6 @@ final registrarActionControllerProvider =
     provisionStudentAccount: ProvisionStudentAccountUseCase(repo),
     setStudentBalance: SetStudentBalanceUseCase(repo),
     setStudentPhoto: SetStudentPhotoUseCase(repo),
+    recordDocumentRelease: RecordDocumentReleaseUseCase(repo),
   );
 });

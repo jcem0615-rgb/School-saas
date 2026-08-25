@@ -1,5 +1,7 @@
 import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/result.dart';
+import '../../../faculty_portal/domain/entities/grade.dart';
+import '../entities/document_release.dart';
 import '../entities/student_summary.dart';
 
 class RegisterStudentOutcome {
@@ -65,6 +67,27 @@ abstract class RegistrarRepository {
     required String firstName,
     required String lastName,
     required String email,
+  });
+
+  /// Every mark this student has, for building a transcript. Unbounded
+  /// on purpose -- see the datasource.
+  Stream<List<Grade>> watchStudentGrades(String studentId);
+
+  /// What has already been handed out for this student, newest first.
+  Stream<List<DocumentRelease>> watchDocumentReleases(String studentId);
+
+  /// Logs that a document left the office. Write-only by design: the
+  /// rules refuse every update and delete, so this is the one and only
+  /// thing that can happen to a release record.
+  Future<Result<void>> recordDocumentRelease({
+    required String studentId,
+    required String studentName,
+    required SchoolDocument document,
+    required int copies,
+    required String purpose,
+    required String releasedToName,
+    String? releasedToRelation,
+    String? remarks,
   });
 
   /// Sets the student's assessed balance. Server-side only -- see the

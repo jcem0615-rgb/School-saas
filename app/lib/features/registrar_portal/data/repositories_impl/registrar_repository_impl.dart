@@ -2,6 +2,8 @@ import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
+import '../../../faculty_portal/domain/entities/grade.dart';
+import '../../domain/entities/document_release.dart';
 import '../../domain/entities/student_summary.dart';
 import '../../domain/repositories/registrar_repository.dart';
 import '../datasources/registrar_remote_datasource.dart';
@@ -23,6 +25,44 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
 
   @override
   Future<List<StudentSummary>> fetchAllStudents() => _remote.fetchAllStudents();
+
+  @override
+  Stream<List<Grade>> watchStudentGrades(String studentId) =>
+      _remote.watchStudentGrades(studentId);
+
+  @override
+  Stream<List<DocumentRelease>> watchDocumentReleases(String studentId) =>
+      _remote.watchDocumentReleases(studentId);
+
+  @override
+  Future<Result<void>> recordDocumentRelease({
+    required String studentId,
+    required String studentName,
+    required SchoolDocument document,
+    required int copies,
+    required String purpose,
+    required String releasedToName,
+    String? releasedToRelation,
+    String? remarks,
+  }) async {
+    try {
+      await _remote.recordDocumentRelease(
+        studentId: studentId,
+        studentName: studentName,
+        document: document,
+        copies: copies,
+        purpose: purpose,
+        releasedToName: releasedToName,
+        releasedToRelation: releasedToRelation,
+        remarks: remarks,
+      );
+      return const Success(null);
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
 
   @override
   Future<Result<void>> setStudentPhoto({

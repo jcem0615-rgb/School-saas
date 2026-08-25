@@ -4,6 +4,9 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../../../core/constants/education_level.dart';
 import '../../../../core/constants/firestore_paths.dart';
 import '../../../../core/errors/app_exceptions.dart';
+import '../../../faculty_portal/data/models/grade_model.dart';
+import '../../domain/entities/document_release.dart';
+import '../models/document_release_model.dart';
 import '../models/student_summary_model.dart';
 
 class ActingRegistrar {
@@ -68,6 +71,80 @@ class RegistrarRemoteDataSource {
         .orderBy('lastName')
         .get();
     return snap.docs.map((d) => StudentSummaryModel.fromFirestore(d.id, d.data())).toList();
+  }
+
+  /// Every mark this student has been given, newest first.
+  ///
+  /// The transcript is built from these, so it reads them all rather
+  /// than a page: a TOR missing Grade 8 because it fell past a limit is
+  /// worse than no TOR at all, and it is printed rarely enough that the
+  /// full read costs nothing anyone will notice.
+  ///
+  /// Reads the faculty portal's collection because that is where a mark
+  /// is written; firestore.rules already lets a Registrar read any grade
+  /// belonging to a student in their scope.
+  Stream<List<GradeModel>> watchStudentGrades(String studentId) {
+    return _firestore
+        .collection(FirestorePaths.grades(_actingUser.schoolId))
+        .where('studentId', isEqualTo: studentId)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('submittedAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => GradeModel.fromFirestore(d.id, d.data())).toList());
+  }
+
+  /// What has already been handed out for this student, newest first.
+  Stream<List<DocumentReleaseModel>> watchDocumentReleases(String studentId) {
+    return _firestore
+        .collection(FirestorePaths.documentReleases(_actingUser.schoolId))
+        .where('studentId', isEqualTo: studentId)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('releasedAt', descending: true)
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => DocumentReleaseModel.fromFirestore(d.id, d.data())).toList());
+  }
+
+  /// Writes the release log entry.
+  ///
+  /// An ordinary create rather than a callable: nothing here is a figure
+  /// the server owns, and firestore.rules pins `releasedBy` to the
+  /// caller and refuses every update and delete, which is the whole of
+  /// what has to be enforced about a log like this.
+  ///
+  /// `releasedAt` comes from the server clock. A device with the wrong
+  /// date would otherwise file a release under a day it did not happen,
+  /// and this is precisely the field somebody will later be asked about.
+  Future<void> recordDocumentRelease({
+    required String studentId,
+    required String studentName,
+    required SchoolDocument document,
+    required int copies,
+    required String purpose,
+    required String releasedToName,
+    String? releasedToRelation,
+    String? remarks,
+  }) async {
+    final ref =
+        _firestore.collection(FirestorePaths.documentReleases(_actingUser.schoolId)).doc();
+    await ref.set({
+      'id': ref.id,
+      'studentId': studentId,
+      'studentName': studentName,
+      'document': document.value,
+      'copies': copies,
+      'purpose': purpose,
+      'releasedToName': releasedToName,
+      'releasedToRelation': releasedToRelation,
+      'releasedByName': _actingUser.name,
+      'releasedBy': _actingUser.uid,
+      'releasedAt': FieldValue.serverTimestamp(),
+      'remarks': remarks,
+      'schoolId': _actingUser.schoolId,
+      'createdBy': _actingUser.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+      'isDeleted': false,
+    });
   }
 
   Future<Map<String, dynamic>> registerStudent({

@@ -33,6 +33,7 @@ import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
 import '../features/payments/domain/entities/payment_submission.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
+import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/staff_portal/domain/entities/checklist_item.dart';
 import '../features/staff_portal/domain/entities/daily_report.dart';
@@ -155,6 +156,8 @@ class DemoStore {
   late final courseworkSubmissions =
       BehaviorSubject<List<CourseworkSubmission>>.seeded(_seedCourseworkSubmissions());
   late final grades = BehaviorSubject<List<Grade>>.seeded(_seedGrades());
+  late final documentReleases =
+      BehaviorSubject<List<DocumentRelease>>.seeded(_seedDocumentReleases());
   late final announcements = BehaviorSubject<List<Announcement>>.seeded(_seedAnnouncements());
   late final meetings = BehaviorSubject<List<Meeting>>.seeded(_seedMeetings());
   late final approvals = BehaviorSubject<List<ApprovalRequest>>.seeded(_seedApprovals());
@@ -294,7 +297,7 @@ class DemoStore {
       courseworkSubmissions, answerKeys, emergencyContacts, emergencyAlerts,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog,
-      paymentSubmissions, paymentSettings, branding,
+      paymentSubmissions, paymentSettings, branding, documentReleases,
     ]) {
       s.close();
     }
@@ -1073,6 +1076,25 @@ class DemoStore {
           totalPoints: 60,
           published: true,
           createdAt: _daysAgo(9),
+        ),
+      ];
+
+  /// One release, from long enough ago to read as history rather than
+  /// as something that just happened. The live state comes from
+  /// releasing a document yourself -- a demo that opens on a busy
+  /// history teaches nothing about how an entry gets there.
+  List<DocumentRelease> _seedDocumentReleases() => [
+        DocumentRelease(
+          id: 'rel_001',
+          studentId: 'stu_003',
+          studentName: 'Andrea Villanueva',
+          document: SchoolDocument.form137,
+          copies: 1,
+          purpose: 'Transfer to Santa Rosa National High School',
+          releasedToName: 'Lourdes Villanueva',
+          releasedToRelation: 'Mother',
+          releasedByName: 'Rosario Aguilar',
+          releasedAt: _daysAgo(23),
         ),
       ];
 

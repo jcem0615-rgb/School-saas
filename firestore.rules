@@ -583,6 +583,44 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ---- documentReleases ----
+      // The log of TORs and Form 137s handed over the counter.
+      //
+      // Append-only, and that is the whole point of it. A release record
+      // exists to answer "when did this student's records leave the
+      // office, and to whom" -- a question a school is genuinely asked,
+      // sometimes years later and sometimes by a division office. A log
+      // that could be edited or deleted afterwards answers nothing, so
+      // there is no update rule and no delete rule for anyone, the
+      // Director included.
+      //
+      // Readable by the student and their parents as well as the office.
+      // It is a record of what the school did with their documents, and
+      // a family that cannot see it has to phone up to ask.
+      match /documentReleases/{releaseId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin'])
+                        || (hasRole(schoolId, ['principal', 'registrar'])
+                            && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        || get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.studentId)).data.userId == request.auth.uid
+                        || (claims().role == 'parent'
+                            && resource.data.studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+        // Pinned to the caller: a log entry naming somebody else as the
+        // person who released the document would be worse than no log.
+        allow create: if schoolIsAccessible(schoolId)
+                        && request.resource.data.releasedBy == request.auth.uid
+                        && (
+                          hasRole(schoolId, ['director', 'admin'])
+                          || (hasRole(schoolId, ['registrar'])
+                              && scopeAllowsStudentById(schoolId, request.resource.data.studentId))
+                        );
+        allow update, delete: if false;
+      }
+
       // ---- checklistItems (Staff Portal) ----
       match /checklistItems/{itemId} {
         allow read: if schoolIsAccessible(schoolId)

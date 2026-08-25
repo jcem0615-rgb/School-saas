@@ -244,3 +244,58 @@ making.
 The preview is a 3:4 rectangle because that is the shape the card prints.
 A round preview of a square crop is a promise the printed card does not
 keep.
+
+## Records & Forms: the TOR, Form 137, and the release log
+
+A registrar's office is asked, sometimes years later, when a student's
+records left the building and who took them. That question only has an
+answer if logging the release is not a separate thing somebody has to
+remember afterwards — so on the Records & Forms screen the button that
+prints the document is the button that writes the log.
+
+The order is: log, then print. A print dialog that is cancelled leaves a
+logged release the registrar can see and annotate; a log written only
+after a successful print leaves no trace at all when the write is what
+fails, and a document that left with no record of it is the exact failure
+this exists to prevent. Reprinting from the history logs nothing — it
+reproduces a copy already accounted for (a jammed printer, a blank page).
+A second handover is a second release and goes through the form again.
+
+`documentReleases` is append-only in `firestore.rules`: no update rule and
+no delete rule, for anyone, the Director included. A release log that can
+be tidied up is not evidence of anything. `releasedBy` is pinned to the
+caller, because an entry naming someone else as the releaser would be
+worse than no entry. Students and their linked parents can read their own
+releases: it is a record of what the school did with their documents, and
+a family that cannot see it has to phone up to ask.
+
+Both documents are built from the marks in `grades` — the faculty
+portal's collection, which the Registrar can already read for students in
+their scope, so there is no second source of truth for a grade. The
+scholastic record is grouped by term, ordered by when each term's marks
+were first encoded rather than alphabetically ("First Semester" does not
+sort after "Second Semester"). The general average is the mean of the
+subject *ratings*, not of the raw scores: averaging raw scores would
+weight a 100-point exam five times heavier than a 20-point quiz.
+
+Two things the printed sheet says out loud. It names its own source —
+the marks encoded as at the date of issue, so a quarter the teachers have
+not finished will simply not appear — because the registrar signing it
+otherwise has no way to tell. And it says it is not a government form:
+where a division office requires its own template, these are the figures
+to copy onto it. The screen says the same before printing, showing how
+many marks are on file and warning when no principal's signature is
+uploaded.
+
+Punctuation on the page is ASCII. The PDF is drawn with the built-in
+Helvetica, which has no glyph for an em dash or a peso sign and drops
+them silently rather than failing — a dash would just be missing from the
+sheet, and nobody would find out until a parent was holding it. Accented
+Latin letters do work, which is what matters here: a name with an enye
+prints correctly.
+
+## Testing (Records & Forms)
+
+| Layer | File | Covers |
+|---|---|---|
+| Store | `document_release_test.dart` | the write lands, blank purpose/recipient and implausible copies refused, history is per student and newest-first, the PDF renders for a student with marks and for one without, control-number format |

@@ -50,6 +50,7 @@ import '../features/profile/domain/repositories/profile_repository.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/qr_attendance/domain/entities/qr_scan_result.dart';
 import '../features/qr_attendance/domain/repositories/qr_attendance_repository.dart';
+import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/registrar_portal/domain/repositories/registrar_repository.dart';
 import '../features/staff_portal/domain/entities/checklist_item.dart';
@@ -1132,6 +1133,58 @@ class DemoRegistrarRepository implements RegistrarRepository {
   Future<List<StudentSummary>> fetchAllStudents() async {
     await _latency(300);
     return [..._store.students.value]..sort((a, b) => a.lastName.compareTo(b.lastName));
+  }
+
+  @override
+  Stream<List<Grade>> watchStudentGrades(String studentId) => _store.grades.stream.map(
+        (all) => all.where((g) => g.studentId == studentId).toList()
+          ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt)),
+      );
+
+  @override
+  Stream<List<DocumentRelease>> watchDocumentReleases(String studentId) =>
+      _store.documentReleases.stream.map(
+        (all) => all.where((r) => r.studentId == studentId).toList()
+          ..sort((a, b) => b.releasedAt.compareTo(a.releasedAt)),
+      );
+
+  @override
+  Future<Result<void>> recordDocumentRelease({
+    required String studentId,
+    required String studentName,
+    required SchoolDocument document,
+    required int copies,
+    required String purpose,
+    required String releasedToName,
+    String? releasedToRelation,
+    String? remarks,
+  }) async {
+    await _latency(400);
+    _store.prepend(
+      _store.documentReleases,
+      DocumentRelease(
+        id: _store.nextId('rel'),
+        studentId: studentId,
+        studentName: studentName,
+        document: document,
+        copies: copies,
+        purpose: purpose,
+        releasedToName: releasedToName,
+        releasedToRelation: releasedToRelation,
+        releasedByName: _store.requireUser.fullName,
+        releasedAt: DateTime.now(),
+        remarks: remarks,
+      ),
+    );
+    _store.audit(
+      module: 'students',
+      action: 'release_document',
+      targetCollection: 'documentReleases',
+      targetId: studentId,
+      newValue: {'document': document.value, 'copies': copies},
+      remarks: 'Released to $releasedToName — $purpose',
+    );
+    return const Success(null);
   }
 
   @override

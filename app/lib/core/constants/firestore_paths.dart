@@ -109,6 +109,12 @@ class FirestorePaths {
 
   static String documents(String schoolId) => '${school(schoolId)}/documents';
 
+  /// The log of TORs and Form 137s handed over the counter. Separate
+  /// from `documents`, which holds files the school stores; this holds
+  /// the record of a physical release.
+  static String documentReleases(String schoolId) =>
+      '${school(schoolId)}/documentReleases';
+
   static String notificationItems(String schoolId, String userId) =>
       '${school(schoolId)}/notifications/$userId/items';
 

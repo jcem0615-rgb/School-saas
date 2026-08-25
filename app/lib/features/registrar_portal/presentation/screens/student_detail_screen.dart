@@ -13,6 +13,7 @@ import '../../../payments/presentation/screens/record_payment_screen.dart';
 import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
 import '../../domain/entities/student_summary.dart';
 import '../controllers/registrar_controller.dart';
+import 'document_release_screen.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
 
@@ -332,6 +333,13 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                   MaterialPageRoute(
                     builder: (_) => PaymentHistoryScreen(studentId: s.id, studentName: s.fullName),
                   ),
+                ),
+              ),
+              _ActionChip(
+                icon: Icons.description_outlined,
+                label: 'Records & Forms',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => DocumentReleaseScreen(student: s)),
                 ),
               ),
               _ActionChip(
