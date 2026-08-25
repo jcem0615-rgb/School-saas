@@ -1,5 +1,6 @@
 import '../../../../core/constants/education_level.dart';
 import '../../../../core/data_transfer/csv.dart' show ImportIssue;
+import '../../../../core/data_transfer/sheet_values.dart';
 import '../../../admin_portal/domain/entities/program.dart';
 import '../../domain/entities/student_summary.dart';
 
@@ -169,34 +170,13 @@ class StudentImport {
     };
   }
 
-  /// ISO first, because that is what a date cell and the export both
-  /// produce. Slashed dates are read day-first only when the first number
-  /// cannot be a month -- 25/12/2012 is unambiguous, 03/07/2012 is not,
-  /// and guessing at the ambiguous one would silently file a student
-  /// under the wrong birthday. Month-first matches both the template and
-  /// the Philippine convention.
-  static DateTime? parseBirthday(String text) {
-    final iso = DateTime.tryParse(text);
-    if (iso != null) return DateTime(iso.year, iso.month, iso.day);
+  /// Delegates to [SheetValues.parseDate]: the expense and grade
+  /// importers read dates out of the same spreadsheets, and three copies
+  /// of this would eventually disagree about 03/07/2012. Kept as a named
+  /// method here because "birthday" is what the caller is reading.
+  static DateTime? parseBirthday(String text) => SheetValues.parseDate(text);
 
-    final parts = text.split(RegExp(r'[/\-.]')).where((p) => p.isNotEmpty).toList();
-    if (parts.length != 3) return null;
-    final a = int.tryParse(parts[0]);
-    final b = int.tryParse(parts[1]);
-    final year = int.tryParse(parts[2]);
-    if (a == null || b == null || year == null || year < 1900) return null;
-
-    final (month, day) = a > 12 ? (b, a) : (a, b);
-    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-    final parsed = DateTime(year, month, day);
-    // Rejects 31 February, which DateTime would happily roll into March.
-    return parsed.month == month && parsed.day == day ? parsed : null;
-  }
-
-  static String isoDate(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-'
-      '${d.month.toString().padLeft(2, '0')}-'
-      '${d.day.toString().padLeft(2, '0')}';
+  static String isoDate(DateTime d) => SheetValues.isoDate(d);
 }
 
 /// One validated spreadsheet row, ready for `registerStudent`.
