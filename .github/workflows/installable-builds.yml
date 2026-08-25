@@ -124,7 +124,15 @@ jobs:
       # splitting strips per-ABI resources that a single-target build
       # still carries. Nine megabytes matters to a school on a phone
       # connection.
-      - run: flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=DEMO_MODE=true
+      #
+      # --split-debug-info moves the Dart symbol tables out of the APK
+      # into files beside it. They exist only to turn an obfuscated
+      # stack trace back into line numbers, which nothing in this
+      # pipeline does -- there is no crash reporter consuming them --
+      # so in the APK they are a few hundred kilobytes of dead weight
+      # on every download. Standard practice for a release build, and
+      # it is what takes this one under 30MB.
+      - run: flutter build apk --release --split-per-abi --target-platform android-arm64 --split-debug-info=build/debug-info --dart-define=DEMO_MODE=true
         env:
           GRADLE_OPTS: >-
             -Dorg.gradle.jvmargs=-Xmx4g
