@@ -35,6 +35,15 @@ class ExportImportSheet<T> extends StatefulWidget {
   /// about what will happen -- typically which fields the server assigns.
   final String? importNote;
 
+  /// Replaces the standing "import is not available here" line when the
+  /// reason is something the user can act on.
+  ///
+  /// The default explains a permanent decision, which is right for a
+  /// list that will never be importable. It is actively misleading for
+  /// one that is importable as soon as a class is chosen -- it tells
+  /// somebody to stop trying when they are one tap away.
+  final String? importUnavailableNote;
+
   /// Current records as rows, in the same order as [headers].
   final List<List<String>> Function() rows;
 
@@ -53,6 +62,7 @@ class ExportImportSheet<T> extends StatefulWidget {
     required this.rows,
     this.importHeaders,
     this.importNote,
+    this.importUnavailableNote,
     this.parseRow,
     this.onImport,
   });
@@ -236,9 +246,15 @@ class _ExportImportSheetState<T> extends State<ExportImportSheet<T>> {
               label: const Text('Export as CSV instead'),
             ),
             Text(
+              // Said generically because this sheet now serves five
+              // different lists. The promise is the same for all of
+              // them and it is the reason .xlsx is the default: every
+              // cell is written as text, so nothing is reinterpreted on
+              // the way out.
               'The Excel file (.xlsx) opens in Microsoft Excel, WPS Office '
-              'and Google Sheets, and keeps student numbers and phone '
-              'numbers exactly as they are.',
+              'and Google Sheets, and keeps every cell exactly as it reads '
+              'here — a number that starts with a zero stays that way, and '
+              'nothing is turned into a date.',
               style: theme.textTheme.bodySmall,
             ),
             if (_importSupported) ...[
@@ -322,9 +338,10 @@ class _ExportImportSheetState<T> extends State<ExportImportSheet<T>> {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(
-                  'Import is not available for ${widget.label.toLowerCase()} — '
-                  'these records are created through their own screens so the '
-                  'checks that apply there are not bypassed.',
+                  widget.importUnavailableNote ??
+                      'Import is not available for ${widget.label.toLowerCase()} — '
+                          'these records are created through their own screens '
+                          'so the checks that apply there are not bypassed.',
                   style: theme.textTheme.bodySmall,
                 ),
               ),
@@ -344,6 +361,7 @@ Future<void> showExportImportSheet({
   required List<List<String>> Function() rows,
   List<String>? importHeaders,
   String? importNote,
+  String? importUnavailableNote,
   Object? Function(List<String> row, int rowNumber)? parseRow,
   Future<int> Function(List<Object> records)? onImport,
 }) {
@@ -359,6 +377,7 @@ Future<void> showExportImportSheet({
         rows: rows,
         importHeaders: importHeaders,
         importNote: importNote,
+        importUnavailableNote: importUnavailableNote,
         parseRow: parseRow,
         onImport: onImport,
       ),

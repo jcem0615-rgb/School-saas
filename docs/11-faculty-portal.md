@@ -145,3 +145,39 @@ A teacher's own posts sort to the top of their list and carry the edit
 controls; everything else is read-only. An Edit button on the school's
 payroll notice would only ever produce a permission error at the end of a
 filled-in form.
+
+## Importing marks
+
+Import was refused on this screen once, on the grounds that it would have
+to resolve student names to ids and re-run the per-student scope check
+`firestore.rules` applies. The first half was true and is exactly what the
+importer now does — against the section roster the screen already loads,
+so a name that is not in the class is refused rather than guessed at. The
+second half was wrong: every row goes through the same `submitGrade` the
+dialog uses, so the rules check runs per write exactly as it always did.
+
+Subject and section are not columns. The teacher has already chosen them,
+and a file that could name a different section would be a way of posting
+marks to a class the roster check was never run against. Nothing can be
+imported before a class is chosen, and the sheet says so rather than
+showing the standing "import is not available here" line — that line
+explains a permanent decision, and here it would tell somebody to stop
+trying when they are one tap away.
+
+What it refuses, and why each one matters:
+
+- **A name two students in the class share.** Posting somebody else's
+  mark onto a permanent record is the worst thing this feature could do,
+  so an ambiguous name stops and asks for the student number.
+- **A score above the max score.** Almost always the two columns filled
+  in the wrong order, and it would enter the general average as a mark
+  over 100%.
+- **A term the student already has a mark for.** `submitGrade` writes a
+  new document every time, so a re-run would leave two marks for one term
+  and no way to tell which the teacher meant.
+
+A blank Max Score means a mark out of 100 — the same default the submit
+dialog offers, and the first column anyone preparing the file deletes.
+Names match full name, "Surname, First", and the form carrying a middle
+name, with whitespace collapsed, because a class list copied out of
+another system routinely carries a double space.

@@ -8,6 +8,7 @@ import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/coursework_item.dart';
 import '../../domain/entities/grade.dart';
 import '../controllers/faculty_controller.dart';
+import '../import/grade_import.dart';
 
 final _dateFormat = DateFormat.yMMMd();
 
@@ -32,9 +33,6 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final gradesAsync =
-        _activeQuery != null ? ref.watch(gradesStreamProvider(_activeQuery!)) : null;
-
     ref.listen(facultyActionControllerProvider, (previous, next) {
       if (next case AsyncError(:final error)) {
         ScaffoldMessenger.of(context)
@@ -190,19 +188,52 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
     );
   }
 
-  /// Export only. A grade import would need to resolve student names to
-  /// ids and re-run the scope check firestore.rules applies per student,
-  /// so posting marks stays on the roster screen where the teacher is
-  /// looking at the actual student they are grading.
+  /// Export, and import for the class currently on screen.
+  ///
+  /// Subject and section are not columns in the import: the teacher has
+  /// already chosen them here, and a file that could name a different
+  /// section would be a way of posting marks to a class the roster check
+  /// was never run against. That is also why nothing can be imported
+  /// before a class is chosen -- there is no roster to resolve names
+  /// against, so every row would be unattributable.
   void _showTransfer(BuildContext context, WidgetRef ref) {
     final query = _activeQuery;
     final grades = query == null
         ? const <Grade>[]
         : (ref.read(gradesStreamProvider(query)).valueOrNull ?? const <Grade>[]);
+    final roster = query == null
+        ? const <StudentSummary>[]
+        : (ref.read(sectionRosterProvider(query.section)).valueOrNull ??
+            const <StudentSummary>[]);
+    // Per file: the same student twice for one term has to be caught
+    // across the whole file to be caught at all.
+    final seen = <String>{};
+
+    // A class has to be chosen, and its roster has to have arrived. With
+    // an empty roster every name would be reported as "not in this
+    // section", which reads as the file being wrong when the truth is
+    // that the class was never loaded.
+    final canImport = query != null && roster.isNotEmpty;
+
     showExportImportSheet(
       context: context,
       label: 'Grades',
       headers: const ['Student', 'Subject', 'Section', 'Term', 'Score', 'Max Score', 'Remarks'],
+      importHeaders: const ['Student', 'Term', 'Score', 'Max Score', 'Remarks'],
+      importNote: !canImport
+          ? null
+          : 'Marks are posted to ${query.subject} · ${query.section} — the '
+              'class chosen above — so the file does not carry Subject or '
+              'Section. Name students as they appear on the class list, or '
+              'by student number. Leave Max Score blank for a mark out '
+              'of 100.',
+      importUnavailableNote: query == null
+          ? 'Choose a subject and section above first. Marks are posted to '
+              'the class on screen, and students are matched against that '
+              'class list.'
+          : 'The class list for ${query.section} has not loaded yet. Marks '
+              'are matched against it, so importing without it would '
+              'attribute every row to nobody.',
       rows: () => grades
           .map((g) => [
                 g.studentName,
@@ -214,6 +245,38 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
                 g.remarks ?? '',
               ])
           .toList(),
+      parseRow: !canImport
+          ? null
+          : (row, rowNumber) => GradeImport.parseRow(
+                row: row,
+                rowNumber: rowNumber,
+                roster: roster,
+                existing: grades,
+                seen: seen,
+              ),
+      onImport: !canImport
+          ? null
+          : (records) async {
+              final controller = ref.read(facultyActionControllerProvider.notifier);
+              // Counted as they land rather than assumed from the row
+              // count: a teacher told "36 imported" when nine were
+              // written has no reason to look again.
+              var imported = 0;
+              for (final r in records.cast<GradeImportRow>()) {
+                final ok = await controller.submitGrade(
+                  studentId: r.studentId,
+                  studentName: r.studentName,
+                  subject: query.subject,
+                  section: query.section,
+                  term: r.term,
+                  score: r.score,
+                  maxScore: r.maxScore,
+                  remarks: r.remarks,
+                );
+                if (ok) imported++;
+              }
+              return imported;
+            },
     );
   }
 
