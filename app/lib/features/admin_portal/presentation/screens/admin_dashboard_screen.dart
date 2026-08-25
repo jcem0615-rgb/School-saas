@@ -1,4 +1,5 @@
 import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
+import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -70,6 +71,20 @@ class AdminDashboardScreen extends StatelessWidget {
                   label: 'Emergency Alerts',
                   onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const EmergencyAlertsScreen())),
+                ),
+                // The numbers themselves, not the alerts raised against
+                // them. Editing them was always allowed here -- both
+                // firestore.rules and the screen's own editor list this
+                // role -- but the only way in was through Profile, which
+                // is where somebody looks for their own settings, not for
+                // a list the whole school depends on. A number that is
+                // wrong because nobody could find the screen to fix it is
+                // the same as no number at all.
+                GlassTile(
+                  icon: Icons.local_phone_outlined,
+                  label: 'Emergency Numbers',
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const EmergencyContactsScreen())),
                 ),
                 GlassTile(
                   icon: Icons.campaign_outlined,

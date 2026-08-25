@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../../../owner_portal/presentation/widgets/revenue_card.dart';
 import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
@@ -127,6 +128,16 @@ class DirectorDashboardScreen extends ConsumerWidget {
                   // anywhere in the portal lands here via the audit
                   // trigger, which is what makes those actions reversible
                   // in practice -- you can see what changed and who did it.
+                  // Editing the school's emergency numbers was always
+                  // permitted for this role, but reachable only through
+                  // Profile -- where somebody looks for their own
+                  // settings, not for a list the whole school depends on.
+                  GlassTile(
+                    icon: Icons.local_phone_outlined,
+                    label: 'Emergency Numbers',
+                    onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const EmergencyContactsScreen())),
+                  ),
                   GlassTile(
                     icon: Icons.history,
                     label: 'Audit Trail',

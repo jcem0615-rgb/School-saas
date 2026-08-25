@@ -127,3 +127,24 @@ future card. There is a test pinning that.
 The preview panel behind a signature is white whatever the app theme is:
 a scanned signature is black ink on paper, and on a dark panel in dark
 mode it is invisible.
+
+## Emergency numbers
+
+The PNP, the fire station, the clinic, the national hotline — the numbers
+a school prints on a poster by the door. Admin, Director and Principal
+can add, edit, delete and reorder them; `firestore.rules` names exactly
+those three roles, and the screen's own editor list matches, so no button
+is offered that the rules would then refuse.
+
+Editing was always permitted for those roles. What was missing was a way
+to *find* it: the screen was reachable only from Profile, which is where
+somebody looks for their own settings, not for a list the whole school
+depends on. It now has a tile on all three of those dashboards. A number
+that is wrong because nobody could find the screen to fix it is the same
+as no number at all.
+
+It stays one screen for everybody rather than an admin-only copy, so the
+list a student sees during a fire cannot drift from the list an admin
+maintains. Reading is unscoped for the same reason — a number a student
+cannot reach is not a safety feature — and nothing in the collection is
+personal data.
