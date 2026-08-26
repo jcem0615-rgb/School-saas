@@ -34,6 +34,52 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script>
+    // Evicts the service worker this site used to register.
+    //
+    // The build no longer registers one (--pwa-strategy=none in
+    // scripts/vercel-build.sh), but that only spares new visitors.
+    // Anyone who loaded an earlier build still carries a registered
+    // worker, and it keeps serving that build's cached asset list ahead
+    // of the network -- so once one entry no longer matches,
+    // main.dart.js never runs and the page is white with nothing in the
+    // console a visitor would think to look at. A hard reload fixes it;
+    // nobody knows to try one. This does it for them, once.
+    //
+    // Scoped to Flutter's own worker by script URL. firebase-messaging-sw.js
+    // is registered by the messaging SDK for web push and has to survive.
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
+      var evicted = false;
+      try { evicted = sessionStorage.getItem('flutter-sw-evicted') === '1'; } catch (e) {}
+      if (evicted) return;
+
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        var ours = regs.filter(function (r) {
+          var w = r.active || r.installing || r.waiting;
+          return w && w.scriptURL.indexOf('flutter_service_worker.js') !== -1;
+        });
+        if (!ours.length) return;
+
+        return Promise.all(ours.map(function (r) { return r.unregister(); }))
+          .then(function () {
+            if (!window.caches || !caches.keys) return;
+            return caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+            });
+          })
+          .then(function () {
+            // The page in front of the visitor was itself served from
+            // that cache, so it has to come again from the network.
+            try { sessionStorage.setItem('flutter-sw-evicted', '1'); } catch (e) {}
+            location.reload();
+          });
+      }).catch(function () {
+        // A blocked or unavailable service worker API is not a reason to
+        // stop the app loading.
+      });
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

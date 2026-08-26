@@ -55,5 +55,19 @@ fi
 # and does not: it reaches the Dart side, while flutter.js decides from
 # `useLocalCanvasKit` in the generated build config, which only this flag
 # sets.
+# --pwa-strategy=none stops Flutter generating and registering
+# flutter_service_worker.js.
+#
+# That service worker caches the whole app and serves it ahead of the
+# network, which is the classic way a redeploying site goes blank: a
+# visitor who loaded an earlier build keeps being served its asset list,
+# and once one entry no longer matches, main.dart.js never runs and the
+# page is white with nothing in the console a user would think to look
+# at. A hard reload fixes it; nobody knows to try one.
+#
+# Flutter's own generated bootstrap already says this worker is
+# deprecated and will be removed. Offline caching is worth little to a
+# site whose whole point is being opened once from a link, and it is
+# worth a great deal less than a page that reliably loads.
 echo "Building web (DEMO_MODE=$DEMO_MODE)"
-flutter build web --release --no-web-resources-cdn "${DEFINES[@]}"
+flutter build web --release --no-web-resources-cdn --pwa-strategy=none "${DEFINES[@]}"

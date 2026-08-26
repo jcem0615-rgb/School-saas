@@ -115,3 +115,40 @@ account and every record in that school is scoped to it, and Firestore
 document ids cannot be renamed.
 
 Then provision its Director, who staffs the rest.
+
+## The web deploy, and the two ways it goes blank
+
+A Flutter web page is one async script tag. If that script does not run,
+the result is a white page with nothing on it and nothing in the console
+a visitor would think to look at — no error, no partial render, no clue.
+Two things in a Vercel deploy can cause that, and both are guarded now.
+
+**The rewrite.** `vercel.json` used to send every path to `/index.html`.
+That is meant to be filesystem-first, and normally is — but if
+`outputDirectory` ever fails to resolve, a catch-all serves index.html
+for `main.dart.js` too. The browser gets HTML where it expected
+JavaScript, nothing runs, and the page is blank. The rewrite now excludes
+anything containing a dot, so only extensionless route paths fall back.
+
+**The service worker.** Flutter's `flutter_service_worker.js` cached the
+whole app and served it ahead of the network. A visitor who loaded an
+earlier build keeps being served that build's asset list, and once one
+entry no longer matches, the app never boots. A hard reload fixes it;
+nobody knows to try one. The build passes `--pwa-strategy=none` so no new
+visitor gets one, and `web/index.html` carries a kill switch that
+unregisters any worker a previous deploy left behind, clears its caches
+and reloads once. Flutter's own generated bootstrap already calls this
+worker deprecated. Offline caching is worth little to a site opened once
+from a link, and worth a great deal less than a page that loads.
+
+The kill switch is scoped to Flutter's worker by script URL:
+`firebase-messaging-sw.js` is registered by the messaging SDK for web
+push and has to survive. It is guarded by a `sessionStorage` flag so it
+runs once, and every call is wrapped — a blocked service worker API is
+not a reason to stop the app loading.
+
+Verified in Chromium against a build from `scripts/vercel-build.sh`: a
+clean visitor renders the login with no worker registered; a visitor
+carrying a planted worker has it evicted, reloads once, and renders. The
+document-load count holds steady over 25 seconds, so the eviction cannot
+loop.

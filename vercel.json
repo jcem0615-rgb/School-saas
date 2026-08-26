@@ -4,9 +4,10 @@
   "installCommand": "bash scripts/vercel-install.sh",
   "buildCommand": "bash scripts/vercel-build.sh",
   "outputDirectory": "app/build/web",
+  "_comment_rewrites": "Only extensionless paths fall back to index.html. A catch-all is meant to be filesystem-first, but if outputDirectory ever fails to resolve, a catch-all serves index.html for main.dart.js too -- the browser gets HTML where it expected JavaScript, nothing runs, and the page stays blank with no error a user would see. Excluding anything with a dot makes that impossible rather than merely unlikely.",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
     }
   ]
