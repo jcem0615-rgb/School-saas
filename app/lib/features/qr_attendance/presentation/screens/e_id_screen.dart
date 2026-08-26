@@ -10,6 +10,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/constants/user_roles.dart';
 import '../../../../core/storage/pdf_image.dart';
+import '../../../../core/storage/uploaded_image.dart';
 import '../../../admin_portal/domain/entities/school_branding.dart';
 import '../../../admin_portal/presentation/controllers/admin_controller.dart';
 import '../../../auth/domain/entities/app_user.dart';
@@ -26,24 +27,34 @@ import '../../../student_portal/presentation/controllers/student_controller.dart
 const _cardWidthMm = 85.6;
 const _cardHeightMm = 54.0;
 
-/// Photo and QR sizes, in mm, shared by the print and screen layouts so
-/// the preview matches what comes out of the printer.
+/// The card's own geometry, in millimetres, shared by the print and
+/// screen layouts so the preview matches what comes out of the printer.
 ///
-/// These are the two things a card is checked with -- a guard compares
-/// the face, a scanner reads the code -- so they get the space, and
-/// everything else fits around them. The photo is a 3:4 rectangle, the
-/// shape of an actual ID photo, rather than a circle: same height, more
-/// of the face.
-/// Sized to fill the body of the card. They sit on their own row, photo
-/// left and QR right, with the name spanning the full width beneath --
-/// squeezing all three onto one row left the name in a ~22mm column,
-/// wrapping "Miguel Torres" onto two lines to make room for a QR that
-/// was still too small.
-const _photoHeightMm = 27.0;
-const _photoWidthMm = _photoHeightMm * 3 / 4;
-const _qrSizeMm = 27.0;
+/// The proportions are a real credential's rather than a poster's: a
+/// coloured header band that names the issuer, a body row of photo,
+/// details and code, and a footer strip carrying the number the card is
+/// looked up by. The three bands plus their gaps fill the 54mm height
+/// with about 1mm to spare, so nothing falls through to a Spacer and
+/// leaves a band of dead white above the footer.
+const _marginMm = 3.0;
+const _headerHeightMm = 8.0;
+const _bodyHeightMm = 31.0;
+const _footerHeightMm = 11.0;
+const _gapMm = 1.5;
 
-final _dateFormat = DateFormat.yMMMd();
+/// The photo is a 3:4 rectangle, the shape of an actual ID photo, and it
+/// fills the body row. A guard compares a face to a card at arm's
+/// length; anything smaller is decoration.
+const _photoHeightMm = _bodyHeightMm;
+const _photoWidthMm = _photoHeightMm * 3 / 4;
+
+/// Sized to be read by a phone camera at the distance someone actually
+/// holds a card. Smaller than the old layout's because it no longer has
+/// to carry the card on its own.
+const _qrSizeMm = 20.0;
+
+final _longDateFormat = DateFormat('d MMMM y');
+
 
 /// Everything printed on one person's card, gathered in one place.
 ///
@@ -76,15 +87,25 @@ class _IdDetails {
     return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
   }
 
-  /// The one line under the name on the front: what this person is to the
-  /// school. For a student that is their year and section, which is what
-  /// anyone checking the card actually wants; for everyone else, the role.
-  String get frontSubtitle => user.role.displayName;
+  /// The name split the way every credential prints it.
+  ///
+  /// The registrar's record is the authority: it carries the middle name,
+  /// and school paperwork files people by surname. Staff have no such
+  /// record, so their account name is split at the last space -- good
+  /// enough for a card, and better than printing an empty SURNAME line.
+  String get surname => (student?.lastName ?? user.lastName).trim();
+  String get givenName => (student?.firstName ?? user.firstName).trim();
+  String? get middleName => _clean(student?.middleName);
 
-  /// The class, said once. `classLabel` collapses "Grade 10" and
-  /// "Grade 10 - Rizal" into one, which on a card 85.6mm wide is the
-  /// difference between fitting on the line and being ellipsised.
-  String? get frontDetail => student?.classLabel;
+  /// What this person is to the school, on the header band.
+  String get credentialTitle =>
+      isStudent ? 'STUDENT IDENTIFICATION CARD' : '${user.role.displayName.toUpperCase()} IDENTIFICATION CARD';
+
+  /// The number the card is looked up by, printed large in the footer.
+  /// A student number for a student; for staff the account email is the
+  /// only stable handle, and it is not a number, so the footer carries
+  /// their role instead and the email moves to the back.
+  String? get cardNumber => student?.studentNumber;
 
   String? get schoolYear => _clean(branding.schoolYear);
   String? get principalName => _clean(branding.principalName);
@@ -93,8 +114,9 @@ class _IdDetails {
   String? get principalSignatureUrl => _clean(branding.principalSignatureUrl);
   String? get directorSignatureUrl => _clean(branding.directorSignatureUrl);
 
-  String? get birthDate =>
-      student?.birthDate == null ? null : _dateFormat.format(student!.birthDate!);
+  String? get birthDate => student?.birthDate == null
+      ? null
+      : _longDateFormat.format(student!.birthDate!);
 
   /// The first guardian on the record. Registration collects one, and a
   /// card has room for one -- the rest stay in the student's full record.
@@ -106,23 +128,49 @@ class _IdDetails {
     return [
       guardian.name,
       if (relationship != null) '($relationship)',
-      if (phone != null) '· $phone',
+      if (phone != null) '- $phone',
     ].join(' ');
   }
 
-  /// The rows printed on the back, in order.
+  /// The labelled stack beside the photo.
   ///
-  /// Nothing here repeats the front. The name, role, year, section and
-  /// school year are all on the face of the card; printing them again on
-  /// the back cost the space that the photo and QR now use, and gave a
-  /// reader nothing they could not already see.
+  /// Labels above values, in that order and in that many rows, because
+  /// that is how an identity document is read: the reader is looking for
+  /// one field, and a labelled stack lets them find it without parsing a
+  /// sentence. Surname first for the same reason the TOR prints it that
+  /// way -- it is what the school's own paperwork sorts by.
+  ///
+  /// Capped at five rows: six does not fit in 26mm at a size anyone can
+  /// read, and a field nobody can read is worse than an absent one.
+  List<(String, String)> get frontFields {
+    final rows = <(String, String)>[
+      ('SURNAME', surname.toUpperCase()),
+      ('GIVEN NAME', givenName.toUpperCase()),
+      if (middleName != null) ('MIDDLE NAME', middleName!.toUpperCase()),
+    ];
+    if (isStudent) {
+      final classLabel = student!.classLabel.trim();
+      if (classLabel.isNotEmpty) rows.add(('GRADE & SECTION', classLabel));
+      if (birthDate != null) rows.add(('DATE OF BIRTH', birthDate!));
+    } else {
+      rows.add(('POSITION', user.role.displayName));
+      rows.add(('EMAIL', user.email));
+    }
+    return rows.take(5).toList();
+  }
+
+  /// The rows printed on the back.
+  ///
+  /// Nothing here repeats the front. Everything the front carries is on
+  /// the front; printing it twice costs the space the emergency contact
+  /// and the return-if-found notice need, and tells a reader nothing.
   List<(String, String)> get backRows => [
         if (isStudent) ...[
-          ('Student No.', student!.studentNumber),
-          if (birthDate != null) ('Birthday', birthDate!),
-          if (emergencyContact != null) ('Emergency Contact', emergencyContact!),
+          if (emergencyContact != null) ('EMERGENCY CONTACT', emergencyContact!),
+          if (student!.programName != null) ('PROGRAM', student!.programName!),
         ] else
-          ('Email', user.email),
+          ('EMAIL', user.email),
+        if (branding.addressLine != null) ('SCHOOL ADDRESS', branding.addressLine!),
       ];
 
   static String? _clean(String? value) =>
@@ -222,178 +270,278 @@ class EIdScreen extends ConsumerWidget {
   }
 
   Future<void> _print(_IdDetails details) async {
-    await Printing.layoutPdf(onLayout: (format) => _buildPdf(details));
+    await Printing.layoutPdf(onLayout: (format) => _buildIdCardPdf(details));
   }
+}
 
-  /// Builds the card as a two-page PDF at exactly card size: page 1 is the
-  /// front, page 2 the back.
+/// Renders one person's printed ID card, for callers outside the screen.
+///
+/// The layout is worth testing on its own -- it is the artefact a school
+/// actually hands out, and a card that renders blank or throws on a
+/// missing signature is not something a widget test of the preview would
+/// catch. Takes the same three sources the screen does.
+@visibleForTesting
+Future<Uint8List> buildIdCardPdf({
+  required AppUser user,
+  required SchoolBranding branding,
+  StudentSummary? student,
+}) =>
+    _buildIdCardPdf(_IdDetails(user: user, branding: branding, student: student));
+
+/// Builds the card as a two-page PDF at exactly card size: page 1 is the
+/// front, page 2 the back.
+///
+/// Two sides rather than one crowded face -- a CR80 card is 85.6mm wide,
+/// and a photo, a QR and the record details on one side would print at a
+/// size nobody can read. Duplex or two cuts both work.
+///
+/// The QR is regenerated here rather than screenshotting the widget, so
+/// it prints as crisp vectors at any scale -- a rasterised QR at 54mm is
+/// unreliable to scan.
+Future<Uint8List> _buildIdCardPdf(_IdDetails details) async {
+  final doc = pw.Document();
+  final user = details.user;
+  final branding = details.branding;
+
+  // Fetched one at a time and each guarded: a logo or photo that fails
+  // to load must degrade to its placeholder, never abort the print.
+  final logo = branding.hasLogo ? await pdfImage(branding.logoUrl!) : null;
+  final photo = details.photoUrl == null ? null : await pdfImage(details.photoUrl!);
+  final principalSignature = details.principalSignatureUrl == null
+      ? null
+      : await pdfImage(details.principalSignatureUrl!);
+  final directorSignature = details.directorSignatureUrl == null
+      ? null
+      : await pdfImage(details.directorSignatureUrl!);
+
+  // No page margin: the header band is full-bleed, the way a real
+  // card's is. The margin is applied inside, per band.
+  final pageFormat = PdfPageFormat(
+    _cardWidthMm * PdfPageFormat.mm,
+    _cardHeightMm * PdfPageFormat.mm,
+  );
+
+  const mm = PdfPageFormat.mm;
+  final brandColor = PdfColor.fromInt(0xFF3D4A7A);
+
+  /// The school's own logo, filling the card behind everything.
   ///
-  /// Two sides rather than one crowded face -- a CR80 card is 85.6mm wide,
-  /// and a photo, a QR and the record details on one side would print at a
-  /// size nobody can read. Duplex or two cuts both work.
-  ///
-  /// The QR is regenerated here rather than screenshotting the widget, so
-  /// it prints as crisp vectors at any scale -- a rasterised QR at 54mm is
-  /// unreliable to scan.
-  Future<Uint8List> _buildPdf(_IdDetails details) async {
-    final doc = pw.Document();
-    final user = details.user;
-    final branding = details.branding;
-
-    // Fetched one at a time and each guarded: a logo or photo that fails
-    // to load must degrade to its placeholder, never abort the print.
-    final logo = branding.hasLogo ? await pdfImage(branding.logoUrl!) : null;
-    final photo = details.photoUrl == null ? null : await pdfImage(details.photoUrl!);
-    final principalSignature = details.principalSignatureUrl == null
-        ? null
-        : await pdfImage(details.principalSignatureUrl!);
-    final directorSignature = details.directorSignatureUrl == null
-        ? null
-        : await pdfImage(details.directorSignatureUrl!);
-
-    final pageFormat = PdfPageFormat(
-      _cardWidthMm * PdfPageFormat.mm,
-      _cardHeightMm * PdfPageFormat.mm,
-      marginAll: 3 * PdfPageFormat.mm,
-    );
-
-    pw.Widget watermark() => logo == null
-        ? pw.SizedBox()
-        : pw.Positioned.fill(
-            child: pw.Center(
-              // Visible enough to identify the school, faint enough not to
-              // fight the text over it.
-              child: pw.Opacity(
-                opacity: 0.08,
-                child: pw.Image(logo, height: 38 * PdfPageFormat.mm),
-              ),
+  /// This is what makes a card look issued rather than printed: the
+  /// mark of the body that issued it, large and faint, under the data.
+  /// Faint enough that the text over it stays the highest-contrast
+  /// thing on the card -- a watermark that competes with the name is a
+  /// card a guard has to squint at.
+  pw.Widget watermark() => logo == null
+      ? pw.SizedBox()
+      : pw.Positioned.fill(
+          child: pw.Center(
+            child: pw.Opacity(
+              opacity: 0.06,
+              child: pw.Image(logo, height: 46 * mm),
             ),
-          );
+          ),
+        );
 
-    pw.Widget header() => pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
+  pw.Widget label(String text) => pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 3.2,
+          color: PdfColors.grey600,
+          letterSpacing: 0.4,
+          fontWeight: pw.FontWeight.bold,
+        ),
+        maxLines: 1,
+      );
+
+  pw.Widget value(String text, {double size = 6}) => pw.Text(
+        text,
+        style: pw.TextStyle(fontSize: size, fontWeight: pw.FontWeight.bold),
+        maxLines: 1,
+      );
+
+  /// The issuer band. A card says who issued it before it says
+  /// anything about the holder.
+  pw.Widget header() => pw.Container(
+        height: _headerHeightMm * mm,
+        width: double.infinity,
+        color: brandColor,
+        padding: pw.EdgeInsets.symmetric(horizontal: _marginMm * mm, vertical: 1.2 * mm),
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
             if (logo != null) ...[
-              pw.Image(logo, height: 7 * PdfPageFormat.mm),
-              pw.SizedBox(width: 3),
+              pw.Image(logo, height: 5.4 * mm),
+              pw.SizedBox(width: 1.8 * mm),
             ],
             pw.Expanded(
               child: pw.Column(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    branding.schoolName ?? 'School ID',
-                    style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold),
+                    (branding.schoolName ?? 'School').toUpperCase(),
+                    style: pw.TextStyle(
+                      fontSize: 6.5,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white,
+                    ),
                     maxLines: 1,
                   ),
-                  if (branding.addressLine != null)
-                    pw.Text(
-                      branding.addressLine!,
-                      style: const pw.TextStyle(fontSize: 4.5),
-                      maxLines: 1,
+                  pw.Text(
+                    details.credentialTitle,
+                    style: pw.TextStyle(
+                      fontSize: 3.4,
+                      color: PdfColors.white,
+                      letterSpacing: 0.5,
                     ),
+                    maxLines: 1,
+                  ),
                 ],
               ),
             ),
             if (details.schoolYear != null)
-              pw.Text('SY ${details.schoolYear}', style: const pw.TextStyle(fontSize: 5)),
+              pw.Text(
+                'S.Y. ${details.schoolYear}',
+                style: pw.TextStyle(fontSize: 4.5, color: PdfColors.white),
+              ),
           ],
-        );
+        ),
+      );
 
-    // ---- front ----
-    doc.addPage(
-      pw.Page(
-        pageFormat: pageFormat,
-        build: (context) => pw.Stack(
-          children: [
-            watermark(),
-            pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                header(),
-                pw.Divider(height: 5),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+  // ---- front ----
+  doc.addPage(
+    pw.Page(
+      pageFormat: pageFormat,
+      build: (context) => pw.Stack(
+        children: [
+          watermark(),
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              header(),
+              pw.SizedBox(height: _gapMm * mm),
+              pw.Container(
+                height: _bodyHeightMm * mm,
+                padding: pw.EdgeInsets.symmetric(horizontal: _marginMm * mm),
+                child: pw.Row(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     _pdfPhoto(photo, details.initials),
+                    pw.SizedBox(width: 2.5 * mm),
+                    // The labelled stack. Spread rather than packed:
+                    // the rows fill the photo's height, so the card
+                    // reads as laid out rather than as text that ran
+                    // out.
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          for (final field in details.frontFields)
+                            pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                label(field.$1),
+                                value(field.$2, size: 5.5),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                    pw.SizedBox(width: 2 * mm),
                     pw.BarcodeWidget(
                       barcode: pw.Barcode.qrCode(),
                       data: user.qrCode,
-                      width: _qrSizeMm * PdfPageFormat.mm,
-                      height: _qrSizeMm * PdfPageFormat.mm,
+                      width: _qrSizeMm * mm,
+                      height: _qrSizeMm * mm,
                       drawText: false,
                     ),
                   ],
                 ),
-                pw.Expanded(
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    mainAxisAlignment: pw.MainAxisAlignment.end,
-                    children: [
-                      pw.Text(
-                        details.fullName,
-                        style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
-                        maxLines: 1,
-                      ),
-                      pw.Text(
-                        details.frontDetail == null
-                            ? details.frontSubtitle
-                            : '${details.frontSubtitle} · ${details.frontDetail}',
-                        style: const pw.TextStyle(fontSize: 6.5),
-                        maxLines: 1,
-                      ),
-                    ],
-                  ),
+              ),
+              pw.Spacer(),
+              // The footer carries the number the office looks the card
+              // up by, at the size a number on a credential is printed:
+              // large, spaced, and the last thing on the card.
+              pw.Container(
+                height: _footerHeightMm * mm,
+                width: double.infinity,
+                padding: pw.EdgeInsets.fromLTRB(
+                    _marginMm * mm, 1.2 * mm, _marginMm * mm, 1.2 * mm),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(top: pw.BorderSide(color: brandColor, width: 0.8)),
                 ),
-              ],
-            ),
-          ],
-        ),
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        mainAxisSize: pw.MainAxisSize.min,
+                        children: [
+                          label(details.cardNumber == null ? 'ROLE' : 'STUDENT NUMBER'),
+                          pw.Text(
+                            details.cardNumber ?? user.role.displayName.toUpperCase(),
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              letterSpacing: 1.2,
+                              color: brandColor,
+                            ),
+                            maxLines: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                    pw.Text(
+                      'Valid only with the school seal',
+                      style: const pw.TextStyle(fontSize: 3.2, color: PdfColors.grey600),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
-    );
+    ),
+  );
 
-    // ---- back ----
-    doc.addPage(
-      pw.Page(
-        pageFormat: pageFormat,
-        build: (context) => pw.Stack(
-          children: [
-            watermark(),
-            pw.Column(
+  // ---- back ----
+  doc.addPage(
+    pw.Page(
+      pageFormat: pageFormat,
+      build: (context) => pw.Stack(
+        children: [
+          watermark(),
+          pw.Padding(
+            padding: pw.EdgeInsets.all(_marginMm * mm),
+            child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Expanded(
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: details.backRows
-                        .map(
-                          (row) => pw.Padding(
-                            padding: const pw.EdgeInsets.only(bottom: 2.5),
-                            child: pw.Row(
-                              crossAxisAlignment: pw.CrossAxisAlignment.start,
-                              children: [
-                                pw.SizedBox(
-                                  width: 24 * PdfPageFormat.mm,
-                                  child: pw.Text(row.$1, style: const pw.TextStyle(fontSize: 6)),
-                                ),
-                                pw.Expanded(
-                                  child: pw.Text(
-                                    row.$2,
-                                    style:
-                                        pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                        .toList(),
+                for (final row in details.backRows)
+                  pw.Padding(
+                    padding: pw.EdgeInsets.only(bottom: 1.4 * mm),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [label(row.$1), value(row.$2, size: 5.5)],
+                    ),
                   ),
+                pw.Spacer(),
+                // The line that makes a lost card come back, and the
+                // one that makes a borrowed one worthless.
+                pw.Text(
+                  'This card is the property of '
+                  '${branding.schoolName ?? 'the school'} and is '
+                  'non-transferable. If found, please return it to the '
+                  'school office.',
+                  style: const pw.TextStyle(fontSize: 3.6, color: PdfColors.grey700),
+                  maxLines: 3,
                 ),
-                // Signature lines print whether or not a name is on file,
-                // so a card issued before an Admin fills these in can still
-                // be signed by hand.
+                pw.SizedBox(height: 1.5 * mm),
+                // Signature lines print whether or not a name is on
+                // file, so a card issued before an Admin fills these in
+                // can still be signed by hand.
                 pw.Row(
                   children: [
                     pw.Expanded(
@@ -402,21 +550,24 @@ class EIdScreen extends ConsumerWidget {
                     ),
                     pw.SizedBox(width: 6),
                     pw.Expanded(
-                      child: _pdfSignatory('Director', details.directorName, directorSignature),
+                      child:
+                          _pdfSignatory('Director', details.directorName, directorSignature),
                     ),
                   ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
+    ),
+  );
 
-    return doc.save();
-  }
+  return doc.save();
+}
 
-  pw.Widget _pdfPhoto(pw.MemoryImage? photo, String initials) => pw.Container(
+
+pw.Widget _pdfPhoto(pw.MemoryImage? photo, String initials) => pw.Container(
         width: _photoWidthMm * PdfPageFormat.mm,
         height: _photoHeightMm * PdfPageFormat.mm,
         decoration: pw.BoxDecoration(
@@ -444,7 +595,7 @@ class EIdScreen extends ConsumerWidget {
   /// would shift the name and rule up and print a visibly different card
   /// from the school next door, and the empty box is exactly the room
   /// somebody needs to sign by hand.
-  pw.Widget _pdfSignatory(String label, String? name, pw.MemoryImage? signature) => pw.Column(
+pw.Widget _pdfSignatory(String label, String? name, pw.MemoryImage? signature) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.SizedBox(
@@ -465,10 +616,15 @@ class EIdScreen extends ConsumerWidget {
           pw.Text(label, style: const pw.TextStyle(fontSize: 5)),
         ],
       );
-}
 
-/// Shared chrome for both on-screen card faces, so the preview keeps the
-/// same proportions and logo watermark as what the printer produces.
+/// The card as it appears on screen, at the same proportions, the same
+/// bands and the same logo watermark as what the printer produces.
+///
+/// The preview is not decoration: it is what a student looks at on their
+/// phone instead of carrying the printed card, so it has to be the same
+/// card. Every size below is in card-millimetres for that reason -- the
+/// layout is written once, in the units the printer uses, and the screen
+/// scales it.
 class _CardShell extends StatelessWidget {
   final SchoolBranding branding;
   final Widget child;
@@ -491,34 +647,39 @@ class _CardShell extends StatelessWidget {
         aspectRatio: _cardWidthMm / _cardHeightMm,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Everything inside is sized in card-millimetres so the
-            // preview scales with the card instead of drifting from the
-            // print at different widths.
             final pxPerMm = constraints.maxWidth / _cardWidthMm;
             return Container(
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(3 * pxPerMm),
                 border: Border.all(color: theme.colorScheme.outlineVariant),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.10),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               clipBehavior: Clip.antiAlias,
               child: Stack(
                 children: [
+                  // The school's own mark, filling the card behind
+                  // everything. Faint enough that the name over it stays
+                  // the highest-contrast thing on the card.
                   if (branding.hasLogo)
                     Positioned.fill(
-                      child: Opacity(
-                        opacity: 0.07,
-                        child: Image.network(
-                          branding.logoUrl!,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      child: Center(
+                        child: Opacity(
+                          opacity: 0.06,
+                          child: UploadedImage(
+                            url: branding.logoUrl!,
+                            height: 46 * pxPerMm,
+                          ),
                         ),
                       ),
                     ),
-                  Padding(
-                    padding: EdgeInsets.all(3 * pxPerMm),
-                    child: _CardScale(pxPerMm: pxPerMm, child: child),
-                  ),
+                  _CardScale(pxPerMm: pxPerMm, child: child),
                 ],
               ),
             );
@@ -529,8 +690,9 @@ class _CardShell extends StatelessWidget {
   }
 }
 
-/// Hands the card-millimetre scale down to the faces, so they can size the
-/// photo and QR to the same physical dimensions the PDF uses.
+/// Hands the card-millimetre scale down to the faces, so they can size
+/// the photo, the QR and every band to the physical dimensions the PDF
+/// uses.
 class _CardScale extends InheritedWidget {
   final double pxPerMm;
 
@@ -541,6 +703,121 @@ class _CardScale extends InheritedWidget {
 
   @override
   bool updateShouldNotify(_CardScale oldWidget) => oldWidget.pxPerMm != pxPerMm;
+}
+
+/// The brand colour the header band and the card number are printed in.
+/// Fixed rather than themed: a card is a physical object, and it does not
+/// change colour because the person holding the phone prefers dark mode.
+const _cardBrand = Color(0xFF3D4A7A);
+
+/// A field label: small, spaced, grey, above its value. The pairing is
+/// what makes a credential scannable by eye -- a reader looking for one
+/// field finds it without reading the others.
+class _FieldLabel extends StatelessWidget {
+  final String text;
+  const _FieldLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final mm = _CardScale.of(context);
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 1.15 * mm,
+        letterSpacing: 0.15 * mm,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey.shade600,
+        height: 1.2,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+class _FieldValue extends StatelessWidget {
+  final String text;
+  final double sizeMm;
+  const _FieldValue(this.text, {this.sizeMm = 1.95});
+
+  @override
+  Widget build(BuildContext context) {
+    final mm = _CardScale.of(context);
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: sizeMm * mm,
+        fontWeight: FontWeight.bold,
+        color: Colors.black87,
+        height: 1.15,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+/// The issuer band. A card says who issued it before it says anything
+/// about the holder.
+class _CardHeader extends StatelessWidget {
+  final _IdDetails details;
+  const _CardHeader({required this.details});
+
+  @override
+  Widget build(BuildContext context) {
+    final mm = _CardScale.of(context);
+    final branding = details.branding;
+
+    return Container(
+      height: _headerHeightMm * mm,
+      width: double.infinity,
+      color: _cardBrand,
+      padding: EdgeInsets.symmetric(horizontal: _marginMm * mm, vertical: 1.2 * mm),
+      child: Row(
+        children: [
+          if (branding.hasLogo) ...[
+            UploadedImage(url: branding.logoUrl!, height: 5.4 * mm),
+            SizedBox(width: 1.8 * mm),
+          ],
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  (branding.schoolName ?? 'School').toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 2.3 * mm,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1.1,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  details.credentialTitle,
+                  style: TextStyle(
+                    fontSize: 1.2 * mm,
+                    letterSpacing: 0.18 * mm,
+                    color: Colors.white70,
+                    height: 1.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (details.schoolYear != null)
+            Text(
+              'S.Y. ${details.schoolYear}',
+              style: TextStyle(fontSize: 1.6 * mm, color: Colors.white),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 /// On-screen preview of the printed front.
@@ -555,88 +832,85 @@ class _IdCardFront extends StatelessWidget {
       branding: details.branding,
       child: Builder(
         builder: (context) {
-          final theme = Theme.of(context);
-          final branding = details.branding;
           final mm = _CardScale.of(context);
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (branding.hasLogo)
-                    Padding(
-                      padding: EdgeInsets.only(right: 1.5 * mm),
-                      child: Image.network(
-                        branding.logoUrl!,
-                        height: 7 * mm,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                      ),
-                    ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          branding.schoolName ?? 'School ID',
-                          style: theme.textTheme.labelMedium,
-                          overflow: TextOverflow.ellipsis,
+              _CardHeader(details: details),
+              SizedBox(height: _gapMm * mm),
+              SizedBox(
+                height: _bodyHeightMm * mm,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: _marginMm * mm),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _PhotoBox(details: details),
+                      SizedBox(width: 2.5 * mm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            for (final field in details.frontFields)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _FieldLabel(field.$1),
+                                  _FieldValue(field.$2),
+                                ],
+                              ),
+                          ],
                         ),
-                        if (branding.addressLine != null)
+                      ),
+                      SizedBox(width: 2 * mm),
+                      QrImageView(
+                        data: details.user.qrCode,
+                        size: _qrSizeMm * mm,
+                        padding: EdgeInsets.zero,
+                        backgroundColor: Colors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                height: _footerHeightMm * mm,
+                width: double.infinity,
+                padding: EdgeInsets.fromLTRB(_marginMm * mm, 1.2 * mm, _marginMm * mm, 1.2 * mm),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: _cardBrand, width: 1)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _FieldLabel(
+                              details.cardNumber == null ? 'ROLE' : 'STUDENT NUMBER'),
                           Text(
-                            branding.addressLine!,
-                            style: theme.textTheme.bodySmall?.copyWith(fontSize: 1.6 * mm),
+                            details.cardNumber ?? details.user.role.displayName.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 3.5 * mm,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.4 * mm,
+                              color: _cardBrand,
+                              height: 1.1,
+                            ),
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                      ],
-                    ),
-                  ),
-                  if (details.schoolYear != null)
-                    Text(
-                      'SY ${details.schoolYear}',
-                      style: theme.textTheme.bodySmall?.copyWith(fontSize: 1.8 * mm),
-                    ),
-                ],
-              ),
-              Divider(height: 2 * mm),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _PhotoBox(details: details),
-                  QrImageView(
-                    data: details.user.qrCode,
-                    size: _qrSizeMm * mm,
-                    padding: EdgeInsets.zero,
-                    backgroundColor: Colors.white,
-                  ),
-                ],
-              ),
-              // Full width, under both: the name is the longest thing on
-              // the card and the only one that has to stay on one line.
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      details.fullName,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontSize: 4 * mm,
-                        fontWeight: FontWeight.bold,
-                        height: 1.1,
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      details.frontDetail == null
-                          ? details.frontSubtitle
-                          : '${details.frontSubtitle} · ${details.frontDetail}',
-                      style: theme.textTheme.bodySmall?.copyWith(fontSize: 2.4 * mm),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      'Valid only with the school seal',
+                      style: TextStyle(fontSize: 1.15 * mm, color: Colors.grey.shade600),
                     ),
                   ],
                 ),
@@ -662,36 +936,39 @@ class _PhotoBox extends StatelessWidget {
     final mm = _CardScale.of(context);
     final url = details.photoUrl;
 
+    final initials = Text(
+      details.initials,
+      style: theme.textTheme.titleLarge?.copyWith(
+        fontSize: 6 * mm,
+        color: Colors.grey.shade500,
+      ),
+    );
+
     return Container(
       width: _photoWidthMm * mm,
       height: _photoHeightMm * mm,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(0.7 * mm),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(0.6 * mm),
+        border: Border.all(color: _cardBrand.withValues(alpha: 0.45), width: 0.4 * mm),
       ),
       clipBehavior: Clip.antiAlias,
       alignment: Alignment.center,
       child: url == null
-          ? Text(
-              details.initials,
-              style: theme.textTheme.titleLarge?.copyWith(fontSize: 6 * mm),
-            )
-          : Image.network(
-              url,
+          ? initials
+          : UploadedImage(
+              url: url,
               fit: BoxFit.cover,
               width: _photoWidthMm * mm,
               height: _photoHeightMm * mm,
-              errorBuilder: (_, __, ___) => Text(
-                details.initials,
-                style: theme.textTheme.titleLarge?.copyWith(fontSize: 6 * mm),
-              ),
+              fallback: initials,
             ),
     );
   }
 }
 
-/// On-screen preview of the printed back: the details and the signatories.
+/// On-screen preview of the printed back: the details, the return notice
+/// and the signatories.
 class _IdCardBack extends StatelessWidget {
   final _IdDetails details;
 
@@ -703,60 +980,53 @@ class _IdCardBack extends StatelessWidget {
       branding: details.branding,
       child: Builder(
         builder: (context) {
-          final theme = Theme.of(context);
           final mm = _CardScale.of(context);
-          final labelStyle = theme.textTheme.bodySmall?.copyWith(fontSize: 2.3 * mm);
-          final valueStyle = theme.textTheme.bodySmall?.copyWith(
-            fontSize: 2.3 * mm,
-            fontWeight: FontWeight.bold,
-          );
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: details.backRows
-                      .map(
-                        (row) => Padding(
-                          padding: EdgeInsets.only(bottom: mm),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(width: 24 * mm, child: Text(row.$1, style: labelStyle)),
-                              Expanded(
-                                child:
-                                    Text(row.$2, style: valueStyle, overflow: TextOverflow.ellipsis),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
+          return Padding(
+            padding: EdgeInsets.all(_marginMm * mm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final row in details.backRows)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 1.4 * mm),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [_FieldLabel(row.$1), _FieldValue(row.$2)],
+                    ),
+                  ),
+                const Spacer(),
+                Text(
+                  'This card is the property of '
+                  '${details.branding.schoolName ?? 'the school'} and is '
+                  'non-transferable. If found, please return it to the '
+                  'school office.',
+                  style: TextStyle(fontSize: 1.3 * mm, color: Colors.grey.shade700, height: 1.25),
+                  maxLines: 3,
                 ),
-              ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: _Signatory(
-                      label: 'Principal',
-                      name: details.principalName,
-                      signatureUrl: details.principalSignatureUrl,
+                SizedBox(height: 1.5 * mm),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: _Signatory(
+                        label: 'Principal',
+                        name: details.principalName,
+                        signatureUrl: details.principalSignatureUrl,
+                      ),
                     ),
-                  ),
-                  SizedBox(width: 3 * mm),
-                  Expanded(
-                    child: _Signatory(
-                      label: 'Director',
-                      name: details.directorName,
-                      signatureUrl: details.directorSignatureUrl,
+                    SizedBox(width: 3 * mm),
+                    Expanded(
+                      child: _Signatory(
+                        label: 'Director',
+                        name: details.directorName,
+                        signatureUrl: details.directorSignatureUrl,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -773,14 +1043,15 @@ class _Signatory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final mm = _CardScale.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Same fixed height as the print layout, so the preview does not
-        // promise a card that sits differently on paper.
+        // promise a card that sits differently on paper, and so a school
+        // with one signature on file and not the other still gets two
+        // columns that line up.
         SizedBox(
           height: 5 * mm,
           width: double.infinity,
@@ -788,23 +1059,13 @@ class _Signatory extends StatelessWidget {
               ? null
               : Align(
                   alignment: Alignment.bottomLeft,
-                  child: Image.network(
-                    signatureUrl!,
-                    fit: BoxFit.contain,
-                    // A signature that will not load leaves the blank
-                    // line, which is still a printable card.
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
+                  child: UploadedImage(url: signatureUrl!, fit: BoxFit.contain),
                 ),
         ),
-        Text(
-          name ?? ' ',
-          style: theme.textTheme.bodySmall
-              ?.copyWith(fontSize: 2.3 * mm, fontWeight: FontWeight.bold),
-          overflow: TextOverflow.ellipsis,
-        ),
-        Divider(height: mm),
-        Text(label, style: theme.textTheme.bodySmall?.copyWith(fontSize: 2 * mm)),
+        Container(height: 0.25 * mm, color: Colors.grey.shade700),
+        SizedBox(height: 0.5 * mm),
+        _FieldValue(name ?? ' ', sizeMm: 1.7),
+        _FieldLabel(label.toUpperCase()),
       ],
     );
   }

@@ -94,3 +94,59 @@ happened to use.
   (the field `attendanceCutoffTime` on the tenant `schools/{schoolId}` doc
   already exists and is read by `markAttendance.ts`; only the settings
   screen to edit it is deferred)
+
+## The ID card
+
+The card is laid out as a credential rather than as a poster: a coloured
+header band naming the issuer, a body row of photo, labelled fields and
+QR, and a footer strip carrying the student number. Those three bands and
+their gaps fill the 54mm height, so nothing falls through to a spacer and
+leaves a band of dead white.
+
+The name is printed in labelled parts — SURNAME, GIVEN NAME, MIDDLE NAME
+— rather than as one run of text. A reader looking for a surname finds it
+without parsing a sentence, and a long name no longer decides whether the
+line fits. Surname first, for the same reason the TOR prints it that way:
+it is what the school's own paperwork sorts by.
+
+The school's uploaded logo is the card's background, at 6% opacity behind
+everything. That is most of what makes a card look issued rather than
+printed — the mark of the body that issued it, under the data. Faint
+enough that the name over it stays the highest-contrast thing on the
+card; a watermark that competes with the name is a card a guard has to
+squint at.
+
+Both faces are written once, in millimetres, and the screen scales them.
+The preview is not decoration: it is what a student holds up instead of
+the printed card, so it has to be the same card. Geometry lives in
+consts (`_headerHeightMm` and friends) that the print and screen layouts
+both read, rather than each carrying its own guesses.
+
+`buildIdCardPdf` is exposed for tests. The PDF is a separate widget tree
+from the preview and it is the artefact the school actually hands out; a
+card that comes out blank, or throws because a signature is missing, is
+not something a test of the preview would catch.
+
+This is a school ID. It is deliberately not modelled on any government
+credential — no republic seal, no agency wording, no national-ID layout —
+because a school card that could be mistaken for a state-issued one is a
+liability rather than a feature.
+
+## Uploaded images off the web
+
+`Image.network` handles a `data:` URI on the web, where it becomes an
+`<img src>` and the browser decodes it, and fails on Android, iOS and
+Windows, where it goes through an HTTP client. Demo mode produces exactly
+those URIs, because `DemoUploadRepository` never touches a bucket — so an
+uploaded logo or signature that looked right in the browser was simply
+absent in the APK and the desktop build, silently, since the error
+builder swallows it.
+
+`UploadedImage` (screen) and `pdfImage` (print) decode the URI themselves
+and fall back to the network for everything else. Every uploaded image in
+the app goes through one of the two.
+
+The demo school now ships a seal on file, drawn by
+`tool/generate_demo_seal.py` and seeded as a data URI — the same shape an
+upload takes. A demo with no logo demonstrates the absence of the
+feature. Uploading one under School Branding still replaces it.

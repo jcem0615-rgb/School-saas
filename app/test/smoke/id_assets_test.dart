@@ -141,8 +141,8 @@ void main() {
       expect(tester.takeException(), isNull);
       // Both signatory lines are on the card, whether or not the images
       // resolve in a test binding.
-      expect(find.text('Principal'), findsWidgets);
-      expect(find.text('Director'), findsWidgets);
+      expect(find.text('PRINCIPAL'), findsWidgets);
+      expect(find.text('DIRECTOR'), findsWidgets);
       expect(find.text('Ramon Salazar'), findsWidgets);
     });
   });
