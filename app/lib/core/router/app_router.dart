@@ -23,6 +23,7 @@ import '../../features/qr_attendance/presentation/screens/attendance_history_scr
 import '../../features/qr_attendance/presentation/screens/e_id_screen.dart';
 import '../../features/qr_attendance/presentation/screens/qr_scanner_screen.dart';
 import '../../features/registrar_portal/presentation/screens/registrar_dashboard_screen.dart';
+import '../../features/reports/presentation/screens/reports_screen.dart';
 import '../../features/staff_portal/presentation/screens/staff_dashboard_screen.dart';
 import '../../features/student_portal/presentation/screens/student_dashboard_screen.dart';
 import '../constants/user_roles.dart';
@@ -38,6 +39,7 @@ class AppRoutes {
   static const myAttendance = '/my-attendance';
   static const myActivity = '/my-activity';
   static const auditTrail = '/audit-trail';
+  static const reports = '/reports';
   static const profile = '/profile';
   static const recordPayment = '/payments/record';
   static const paymentHistory = '/payments/history';
@@ -106,9 +108,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return AppRoutes.homeFor(user.role);
       }
 
-      // Tenant-wide audit trail is a Director/Admin surface. Every other
-      // role still has /my-activity, which is scoped to their own uid.
-      if (state.matchedLocation == AppRoutes.auditTrail &&
+      // Two Director/Admin surfaces. Reports is on this list for a
+      // rules reason rather than a product one: those are the only roles
+      // with an unconditional read on students, payments, grades and
+      // attendance, and a school-wide list query from any other account
+      // is refused per document. Every other role still has
+      // /my-activity, which is scoped to their own uid.
+      if ((state.matchedLocation == AppRoutes.auditTrail ||
+              state.matchedLocation == AppRoutes.reports) &&
           user.role != UserRole.director &&
           user.role != UserRole.admin) {
         return AppRoutes.homeFor(user.role);
@@ -137,6 +144,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // than rendering a screen whose queries would be denied.
       GoRoute(path: AppRoutes.auditTrail, builder: (context, state) => const AuditTrailScreen()),
       GoRoute(path: AppRoutes.profile, builder: (context, state) => const ProfileScreen()),
+      GoRoute(path: AppRoutes.reports, builder: (context, state) => const ReportsScreen()),
       GoRoute(
         path: AppRoutes.myAttendance,
         builder: (context, state) {

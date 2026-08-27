@@ -34,6 +34,9 @@ import '../features/faculty_portal/domain/repositories/faculty_repository.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
 import '../features/guidance_portal/domain/entities/summons.dart';
 import '../features/guidance_portal/domain/repositories/guidance_repository.dart';
+import '../features/reports/domain/entities/report_kind.dart';
+import '../features/reports/domain/entities/report_period.dart';
+import '../features/reports/domain/repositories/reports_repository.dart';
 // See the note in demo_store.dart: unqualified PaymentMethod is the
 // student-payments enum; the platform-billing one is `billing.PaymentMethod`.
 import '../features/owner_portal/domain/entities/invoice.dart' hide PaymentMethod;
@@ -3050,4 +3053,46 @@ EmergencyAlert _copyAlert(
     resolvedAt: resolvedAt ?? a.resolvedAt,
     resolutionNote: resolutionNote ?? a.resolutionNote,
   );
+}
+
+
+// ---------------------------------------------------------------------------
+// Reports
+// ---------------------------------------------------------------------------
+
+/// The in-memory twin of the reports read.
+///
+/// It filters by date the same way the Firestore queries do rather than
+/// handing every seeded row to the builders. That is the point of having
+/// it: if a builder were quietly relying on being given the whole
+/// collection, demo mode would keep working while the real app returned
+/// a differently-shaped answer, and nothing would say so.
+class DemoReportsRepository implements ReportsRepository {
+  final DemoStore _store;
+  DemoReportsRepository(this._store);
+
+  @override
+  Future<Result<ReportData>> fetch({
+    required ReportKind kind,
+    required ReportPeriod period,
+  }) async {
+    return Success(ReportData(
+      students: kind.needsStudents ? _store.students.value : const [],
+      payments: kind.needsPayments
+          ? _store.payments.value.where((p) => period.contains(p.createdAt)).toList()
+          : const [],
+      assessments: kind.needsAssessments
+          ? _store.assessments.value.where((a) => period.contains(a.assessedAt)).toList()
+          : const [],
+      attendance: kind.needsAttendance
+          ? _store.attendance.value.where((record) {
+              final day = DateTime.tryParse(record.date);
+              return day != null && period.contains(day);
+            }).toList()
+          : const [],
+      grades: kind.needsGrades
+          ? _store.grades.value.where((g) => period.contains(g.submittedAt)).toList()
+          : const [],
+    ));
+  }
 }

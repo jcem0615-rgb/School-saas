@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../../../owner_portal/presentation/widgets/revenue_card.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
+import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../controllers/director_controller.dart';
@@ -118,6 +119,12 @@ class DirectorDashboardScreen extends ConsumerWidget {
                     label: 'Approvals',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const ApprovalsScreen())),
+                  ),
+                  GlassTile(
+                    icon: Icons.insights_outlined,
+                    label: 'Reports',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const ReportsScreen())),
                   ),
                   // Next to Expenses on purpose: one is what the school
                   // spends, the other is what it charges, and a Director

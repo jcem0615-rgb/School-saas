@@ -20,6 +20,7 @@ import '../features/payments/presentation/controllers/payment_controller.dart';
 import '../features/profile/presentation/controllers/profile_controller.dart';
 import '../features/qr_attendance/presentation/controllers/qr_attendance_controller.dart';
 import '../features/registrar_portal/presentation/controllers/registrar_controller.dart';
+import '../features/reports/presentation/controllers/reports_controller.dart';
 import '../features/staff_portal/presentation/controllers/staff_controller.dart';
 import '../features/student_portal/presentation/controllers/student_controller.dart';
 import 'demo_location_probe.dart';
@@ -126,6 +127,10 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
     parentRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoParentRepository(ref.watch(demoStoreProvider));
+    }),
+    reportsRepositoryProvider.overrideWith((ref) {
+      ref.watch(authStateProvider);
+      return DemoReportsRepository(ref.watch(demoStoreProvider));
     }),
     paymentRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);

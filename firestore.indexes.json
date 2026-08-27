@@ -219,6 +219,30 @@
         {"fieldPath": "isDeleted", "order": "ASCENDING"},
         {"fieldPath": "scheduledDate", "order": "DESCENDING"}
       ]
+    },
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "assessedAt", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "grades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "submittedAt", "order": "ASCENDING"}
+      ]
     }
   ],
   "fieldOverrides": []
