@@ -8,6 +8,7 @@ import '../../../../core/errors/result.dart';
 import '../../../../core/storage/upload_providers.dart';
 import '../../../../core/storage/upload_repository.dart';
 import '../../../../core/widgets/combo_field.dart';
+import '../../../payments/presentation/screens/assess_fees_screen.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
 import '../../../payments/presentation/screens/record_payment_screen.dart';
 import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
@@ -186,9 +187,10 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Assessed total for ${s.fullName}. Payments adjust this '
-              'automatically -- set it here only when fees are assessed or '
-              'an assessment is corrected.',
+              'Overwrites the balance for ${s.fullName} outright. Assess Fees '
+              'is usually what you want -- it adds an itemised charge the '
+              'family can read. Use this only to correct a figure that has '
+              'no assessment behind it.',
               style: Theme.of(dialogContext).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -317,6 +319,20 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
             spacing: 12,
             runSpacing: 12,
             children: [
+              _ActionChip(
+                icon: Icons.request_quote_outlined,
+                label: 'Assess Fees',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => AssessFeesScreen(
+                      studentId: s.id,
+                      studentName: s.fullName,
+                      educationLevel: s.educationLevel,
+                      gradeLevel: s.gradeLevel,
+                    ),
+                  ),
+                ),
+              ),
               _ActionChip(
                 icon: Icons.payments_outlined,
                 label: 'Record Payment',

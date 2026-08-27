@@ -53,6 +53,12 @@ class FirestorePaths {
   /// Single document: logo and school name for the app and printed IDs.
   static String brandingDoc(String schoolId) => '${school(schoolId)}/settings/branding';
 
+  /// The school's published fee schedules, and the record of each
+  /// occasion one was charged to a student.
+  static String feeStructures(String schoolId) => '${school(schoolId)}/feeStructures';
+
+  static String assessments(String schoolId) => '${school(schoolId)}/assessments';
+
   static String programs(String schoolId) => '${school(schoolId)}/programs';
 
   static String inventory(String schoolId) => '${school(schoolId)}/inventory';

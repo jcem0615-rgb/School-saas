@@ -1,4 +1,7 @@
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/result.dart';
+import '../entities/assessment.dart';
+import '../entities/fee_structure.dart';
 import '../entities/payment.dart';
 import '../entities/payment_settings.dart';
 import '../entities/payment_submission.dart';
@@ -14,8 +17,61 @@ class RecordPaymentOutcome {
   });
 }
 
+class AssessmentOutcome {
+  final String assessmentId;
+  final double total;
+  final double newBalance;
+  const AssessmentOutcome({
+    required this.assessmentId,
+    required this.total,
+    required this.newBalance,
+  });
+}
+
 abstract class PaymentRepository {
   Stream<List<Payment>> watchPaymentsForStudent(String studentId);
+
+  // -------------------------------------------------------------------
+  // Fee assessment: what a student owes, and what it is for
+  // -------------------------------------------------------------------
+  //
+  // A balance used to be a number with nothing behind it -- payments
+  // reduced it and a registrar typed the opening figure by hand. These
+  // are what let a family ask what they are being charged for and get an
+  // answer.
+
+  /// The school's published fee schedules, active and retired.
+  Stream<List<FeeStructure>> watchFeeStructures();
+
+  /// Publishes or edits a schedule. Director/Admin only in
+  /// firestore.rules -- a registrar assesses fees but does not decide
+  /// what they are.
+  Future<Result<void>> saveFeeStructure({
+    String? structureId,
+    required String name,
+    required EducationLevel educationLevel,
+    String? gradeLevel,
+    required String schoolYear,
+    required List<FeeItem> items,
+    required bool isActive,
+  });
+
+  /// What one student has been charged, newest first.
+  Stream<List<Assessment>> watchAssessments(String studentId);
+
+  /// Charges fees and raises the balance in one server-side transaction.
+  Future<Result<AssessmentOutcome>> assessStudentFees({
+    required String studentId,
+    required String schoolYear,
+    required List<FeeItem> items,
+    String? sourceStructureId,
+    String? sourceStructureName,
+    String? remarks,
+  });
+
+  /// Reverses an assessment. Voiding rather than deleting -- see
+  /// voidAssessment.ts for why the record has to survive.
+  Future<Result<void>> voidAssessment({required String assessmentId, required String reason});
 
   /// Live balance for a student -- reads the denormalized `balance` field
   /// on the student's record, which recordPayment/recordRefund keep in

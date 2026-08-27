@@ -3,6 +3,9 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../../core/constants/firestore_paths.dart';
 import '../../../../core/errors/app_exceptions.dart';
+import '../../../../core/constants/education_level.dart';
+import '../../domain/entities/fee_structure.dart';
+import '../models/fee_models.dart';
 import '../models/payment_model.dart';
 import '../models/payment_settings_model.dart';
 import '../models/payment_submission_model.dart';
@@ -31,6 +34,114 @@ class PaymentRemoteDataSource {
         _functions = functions,
         _schoolId = schoolId,
         _actingUser = actingUser;
+
+  // -------------------------------------------------------------------
+  // Fee assessment
+  // -------------------------------------------------------------------
+
+  /// The school's published fee schedules.
+  ///
+  /// Every one of them, including retired ones: the assessment screen
+  /// only offers active schedules, but a list screen has to show what is
+  /// retired so somebody can bring it back, and the volume is a handful
+  /// of documents per year rather than a collection worth paging.
+  Stream<List<FeeStructureModel>> watchFeeStructures() {
+    return _firestore
+        .collection(FirestorePaths.feeStructures(_schoolId))
+        .orderBy('name')
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => FeeStructureModel.fromFirestore(d.id, d.data())).toList());
+  }
+
+  Future<void> saveFeeStructure({
+    String? structureId,
+    required String name,
+    required EducationLevel educationLevel,
+    String? gradeLevel,
+    required String schoolYear,
+    required List<FeeItem> items,
+    required bool isActive,
+  }) async {
+    final data = FeeStructureModel.toFirestore(
+      name: name,
+      educationLevel: educationLevel,
+      gradeLevel: gradeLevel,
+      schoolYear: schoolYear,
+      items: items,
+      isActive: isActive,
+    );
+    final ref = structureId == null
+        ? _firestore.collection(FirestorePaths.feeStructures(_schoolId)).doc()
+        : _firestore.collection(FirestorePaths.feeStructures(_schoolId)).doc(structureId);
+
+    await ref.set({
+      ...data,
+      'id': ref.id,
+      'schoolId': _schoolId,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedBy': _actingUser.uid,
+      'updatedByName': _actingUser.name,
+      if (structureId == null) 'createdAt': FieldValue.serverTimestamp(),
+      if (structureId == null) 'createdBy': _actingUser.uid,
+    }, SetOptions(merge: structureId != null));
+  }
+
+  /// What this student has been charged, newest first.
+  Stream<List<AssessmentModel>> watchAssessments(String studentId) {
+    return _firestore
+        .collection(FirestorePaths.assessments(_schoolId))
+        .where('studentId', isEqualTo: studentId)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('assessedAt', descending: true)
+        .limit(200)
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => AssessmentModel.fromFirestore(d.id, d.data())).toList());
+  }
+
+  /// Charges fees and moves the balance, in one server-side transaction.
+  ///
+  /// A callable rather than a write: `balance` is server-owned, and the
+  /// itemised record and the figure have to move together or the list
+  /// stops adding up to the number.
+  Future<Map<String, dynamic>> assessStudentFees({
+    required String studentId,
+    required String schoolYear,
+    required List<FeeItem> items,
+    String? sourceStructureId,
+    String? sourceStructureName,
+    String? remarks,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('assessStudentFees');
+      final response = await callable.call({
+        'schoolId': _schoolId,
+        'studentId': studentId,
+        'schoolYear': schoolYear,
+        'items': items.map((i) => i.toMap()).toList(),
+        'sourceStructureId': sourceStructureId,
+        'sourceStructureName': sourceStructureName,
+        'remarks': remarks,
+      });
+      return Map<String, dynamic>.from(response.data as Map);
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Failed to assess fees.');
+    }
+  }
+
+  Future<void> voidAssessment({required String assessmentId, required String reason}) async {
+    try {
+      final callable = _functions.httpsCallable('voidAssessment');
+      await callable.call({
+        'schoolId': _schoolId,
+        'assessmentId': assessmentId,
+        'reason': reason,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Failed to void the assessment.');
+    }
+  }
 
   Stream<List<PaymentModel>> watchPaymentsForStudent(String studentId) {
     return _firestore

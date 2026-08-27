@@ -1,6 +1,9 @@
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
+import '../../domain/entities/assessment.dart';
+import '../../domain/entities/fee_structure.dart';
 import '../../domain/entities/payment.dart';
 import '../../domain/entities/payment_settings.dart';
 import '../../domain/entities/payment_submission.dart';
@@ -17,6 +20,86 @@ class PaymentRepositoryImpl implements PaymentRepository {
 
   @override
   Stream<double> watchStudentBalance(String studentId) => _remote.watchStudentBalance(studentId);
+
+  @override
+  Stream<List<FeeStructure>> watchFeeStructures() => _remote.watchFeeStructures();
+
+  @override
+  Future<Result<void>> saveFeeStructure({
+    String? structureId,
+    required String name,
+    required EducationLevel educationLevel,
+    String? gradeLevel,
+    required String schoolYear,
+    required List<FeeItem> items,
+    required bool isActive,
+  }) async {
+    try {
+      await _remote.saveFeeStructure(
+        structureId: structureId,
+        name: name,
+        educationLevel: educationLevel,
+        gradeLevel: gradeLevel,
+        schoolYear: schoolYear,
+        items: items,
+        isActive: isActive,
+      );
+      return const Success(null);
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Stream<List<Assessment>> watchAssessments(String studentId) =>
+      _remote.watchAssessments(studentId);
+
+  @override
+  Future<Result<AssessmentOutcome>> assessStudentFees({
+    required String studentId,
+    required String schoolYear,
+    required List<FeeItem> items,
+    String? sourceStructureId,
+    String? sourceStructureName,
+    String? remarks,
+  }) async {
+    try {
+      final data = await _remote.assessStudentFees(
+        studentId: studentId,
+        schoolYear: schoolYear,
+        items: items,
+        sourceStructureId: sourceStructureId,
+        sourceStructureName: sourceStructureName,
+        remarks: remarks,
+      );
+      return Success(AssessmentOutcome(
+        assessmentId: data['assessmentId'] as String,
+        total: (data['total'] as num).toDouble(),
+        newBalance: (data['balance'] as num).toDouble(),
+      ));
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Result<void>> voidAssessment({
+    required String assessmentId,
+    required String reason,
+  }) async {
+    try {
+      await _remote.voidAssessment(assessmentId: assessmentId, reason: reason);
+      return const Success(null);
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
 
   @override
   Future<Result<RecordPaymentOutcome>> recordPayment({

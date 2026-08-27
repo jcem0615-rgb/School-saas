@@ -36,6 +36,8 @@ export {markAttendance} from "./callable/attendance/markAttendance";
 // ---------------------------------------------------------------------------
 export {recordPayment} from "./callable/payments/recordPayment";
 export {recordRefund} from "./callable/payments/recordRefund";
+export {assessStudentFees} from "./callable/payments/assessStudentFees";
+export {voidAssessment} from "./callable/payments/voidAssessment";
 export {decidePaymentSubmission} from "./callable/payments/decidePaymentSubmission";
 
 // ---------------------------------------------------------------------------

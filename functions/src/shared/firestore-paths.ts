@@ -38,6 +38,15 @@ export const FirestorePaths = {
   // from `payments`, which only ever holds money the school has confirmed.
   paymentSubmissions: (schoolId: string) => `schools/${schoolId}/paymentSubmissions`,
 
+  // The school's published fee schedules, and the record of each
+  // occasion one was charged to a student. Two collections, because a
+  // schedule is a template the school edits between years and an
+  // assessment is a thing that happened to a family.
+  feeStructures: (schoolId: string) => `schools/${schoolId}/feeStructures`,
+  feeStructureDoc: (schoolId: string, id: string) => `schools/${schoolId}/feeStructures/${id}`,
+  assessments: (schoolId: string) => `schools/${schoolId}/assessments`,
+  assessmentDoc: (schoolId: string, id: string) => `schools/${schoolId}/assessments/${id}`,
+
   programs: (schoolId: string) => `schools/${schoolId}/programs`,
   programDoc: (schoolId: string, programId: string) => `schools/${schoolId}/programs/${programId}`,
 

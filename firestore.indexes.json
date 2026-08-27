@@ -158,6 +158,34 @@
       ]
     },
     {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "studentId", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "assessedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "assessments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "studentId", "order": "ASCENDING"},
+        {"fieldPath": "sourceStructureId", "order": "ASCENDING"},
+        {"fieldPath": "schoolYear", "order": "ASCENDING"},
+        {"fieldPath": "voidedAt", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "feeStructures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isActive", "order": "ASCENDING"},
+        {"fieldPath": "educationLevel", "order": "ASCENDING"},
+        {"fieldPath": "name", "order": "ASCENDING"}
+      ]
+    },
+    {
       "collectionGroup": "documentReleases",
       "queryScope": "COLLECTION",
       "fields": [

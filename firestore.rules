@@ -810,6 +810,48 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // ---- feeStructures (the school's published fee schedules) ----
+      // Readable tenant-wide, like programs: a fee schedule is
+      // institutional configuration a family is entitled to see, and the
+      // student portal shows it beside what they were actually charged.
+      // Only Director/Admin publish it -- a registrar assesses fees but
+      // does not decide what they are.
+      match /feeStructures/{structureId} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow create, update: if hasRole(schoolId, ['director', 'admin'])
+                                && schoolIsAccessible(schoolId);
+        // Retired by setting isActive, never removed: every assessment
+        // that cites a schedule has to stay readable.
+        allow delete: if false;
+      }
+
+      // ---- assessments (what a student was actually charged) ----
+      //
+      // Append-only from the client's point of view, and in fact not even
+      // that: every write goes through assessStudentFees or
+      // voidAssessment, because each one moves `balance` in the same
+      // transaction and `balance` is server-owned. A client that could
+      // write here directly could charge a family money without the
+      // balance following, or move the balance without a record of why.
+      //
+      // Readable by the family, which is the entire point of the
+      // collection: before it existed, a balance was a number with
+      // nothing behind it.
+      match /assessments/{assessmentId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin'])
+                        || (hasRole(schoolId, ['principal', 'registrar'])
+                            && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        || get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.studentId)).data.userId == request.auth.uid
+                        || (claims().role == 'parent'
+                            && resource.data.studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+        allow write: if false;
+      }
+
       // ---- programs (Senior High strands + College degree programs) ----
       // Readable tenant-wide (needed by Registrar during Student
       // Registration and by Student Portal to display a student's

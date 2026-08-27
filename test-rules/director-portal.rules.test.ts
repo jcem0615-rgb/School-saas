@@ -44,14 +44,30 @@ function contextAs(role: string, uid = `${role}_1`) {
 }
 
 describe("announcements", () => {
-  test("faculty cannot create an announcement", async () => {
+  // Faculty gained this when teachers were given a way to address their
+  // own classes. The audience field is targeting, not access control, so
+  // what the rule actually has to hold is authorship -- which is what
+  // these two check.
+  test("faculty can post as themselves", async () => {
     await seedActiveSubscription();
     const faculty = contextAs("faculty");
-    await assertFails(
+    await assertSucceeds(
       setDoc(doc(faculty.firestore(), `schools/${SCHOOL}/announcements/ann_1`), {
         title: "Test",
         body: "Body",
         createdBy: "faculty_1",
+      })
+    );
+  });
+
+  test("faculty cannot post under someone else's name", async () => {
+    await seedActiveSubscription();
+    const faculty = contextAs("faculty");
+    await assertFails(
+      setDoc(doc(faculty.firestore(), `schools/${SCHOOL}/announcements/ann_2`), {
+        title: "Test",
+        body: "Body",
+        createdBy: "director_1",
       })
     );
   });

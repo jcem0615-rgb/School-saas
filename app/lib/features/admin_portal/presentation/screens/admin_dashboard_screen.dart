@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
+import '../../../payments/presentation/screens/fee_structures_screen.dart';
 import 'branding_screen.dart';
 import 'employee_list_screen.dart';
 import 'programs_screen.dart';
@@ -85,6 +86,16 @@ class AdminDashboardScreen extends StatelessWidget {
                   label: 'Emergency Numbers',
                   onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const EmergencyContactsScreen())),
+                ),
+                // What the school charges, published once a year. It
+                // belongs with the other things Admin decides for the
+                // whole tenant rather than on the cashier's screen,
+                // where it would read as a per-student action.
+                GlassTile(
+                  icon: Icons.request_quote_outlined,
+                  label: 'Fee Schedules',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const FeeStructuresScreen())),
                 ),
                 GlassTile(
                   icon: Icons.campaign_outlined,

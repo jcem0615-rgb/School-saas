@@ -42,6 +42,8 @@ import '../features/owner_portal/domain/entities/revenue_summary.dart';
 import '../features/owner_portal/domain/entities/school_summary.dart';
 import '../features/owner_portal/domain/repositories/owner_repository.dart';
 import '../features/parent_portal/domain/repositories/parent_repository.dart';
+import '../features/payments/domain/entities/assessment.dart';
+import '../features/payments/domain/entities/fee_structure.dart';
 import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
 import '../features/payments/domain/entities/payment_submission.dart';
@@ -74,6 +76,11 @@ import 'demo_store.dart';
 /// Small artificial delay on writes so loading spinners and disabled
 /// buttons actually get a chance to render -- with a synchronous fake,
 /// every async state transition would be invisible.
+/// Money is stored to the centavo. Without this a few assessments and a
+/// payment leave a balance like 23999.999999999996, which is a real
+/// difference on a printed statement.
+double _round2(double value) => (value * 100).round() / 100;
+
 Future<void> _latency([int ms = 350]) => Future<void>.delayed(Duration(milliseconds: ms));
 
 // ---------------------------------------------------------------------------
@@ -1824,6 +1831,176 @@ class DemoPaymentRepository implements PaymentRepository {
   @override
   Stream<double> watchStudentBalance(String studentId) => _store.students.stream
       .map((all) => all.where((s) => s.id == studentId).firstOrNull?.balance ?? 0);
+
+  // -------------------------------------------------------------------
+  // Fee assessment
+  // -------------------------------------------------------------------
+
+  @override
+  Stream<List<FeeStructure>> watchFeeStructures() => _store.feeStructures.stream
+      .map((all) => [...all]..sort((a, b) => a.name.compareTo(b.name)));
+
+  @override
+  Future<Result<void>> saveFeeStructure({
+    String? structureId,
+    required String name,
+    required EducationLevel educationLevel,
+    String? gradeLevel,
+    required String schoolYear,
+    required List<FeeItem> items,
+    required bool isActive,
+  }) async {
+    await _latency(400);
+    final saved = FeeStructure(
+      id: structureId ?? _store.nextId('fee'),
+      name: name,
+      educationLevel: educationLevel,
+      gradeLevel: gradeLevel?.trim().isEmpty ?? true ? null : gradeLevel!.trim(),
+      schoolYear: schoolYear,
+      items: items,
+      isActive: isActive,
+      updatedAt: DateTime.now(),
+      updatedByName: _store.requireUser.fullName,
+    );
+    if (structureId == null) {
+      _store.prepend(_store.feeStructures, saved);
+    } else {
+      _store.update<FeeStructure>(
+          _store.feeStructures, (f) => f.id == structureId, (_) => saved);
+    }
+    _store.audit(
+      module: 'payments',
+      action: structureId == null ? 'create_fee_structure' : 'update_fee_structure',
+      targetCollection: 'feeStructures',
+      targetId: saved.id,
+      newValue: {'name': name, 'total': saved.total},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Stream<List<Assessment>> watchAssessments(String studentId) => _store.assessments.stream.map(
+        (all) => all.where((a) => a.studentId == studentId).toList()
+          ..sort((a, b) => b.assessedAt.compareTo(a.assessedAt)),
+      );
+
+  @override
+  Future<Result<AssessmentOutcome>> assessStudentFees({
+    required String studentId,
+    required String schoolYear,
+    required List<FeeItem> items,
+    String? sourceStructureId,
+    String? sourceStructureName,
+    String? remarks,
+  }) async {
+    await _latency(700);
+    final student = _store.students.value.where((s) => s.id == studentId).firstOrNull;
+    if (student == null) return const Error(ValidationFailure('Student record not found.'));
+
+    // Mirrors the duplicate check in assessStudentFees.ts. Charging the
+    // same schedule twice for one year is two clicks away, and it
+    // silently doubles what a family owes.
+    if (sourceStructureId != null &&
+        _store.assessments.value.any((a) =>
+            a.studentId == studentId &&
+            a.sourceStructureId == sourceStructureId &&
+            a.schoolYear == schoolYear &&
+            !a.isVoided)) {
+      return Error(ValidationFailure(
+        'This student has already been assessed under that schedule for '
+        '$schoolYear. Void the existing assessment first if it needs to change.',
+      ));
+    }
+
+    final total = items.fold<double>(0, (sum, i) => sum + i.amount);
+    final id = _store.nextId('asmt');
+    _store.prepend(
+      _store.assessments,
+      Assessment(
+        id: id,
+        studentId: studentId,
+        studentName: student.fullName,
+        schoolYear: schoolYear,
+        sourceStructureId: sourceStructureId,
+        sourceStructureName: sourceStructureName,
+        items: items,
+        assessedByName: _store.requireUser.fullName,
+        assessedAt: DateTime.now(),
+        remarks: remarks,
+      ),
+    );
+
+    // The balance and the record move together, the way the server
+    // transaction makes them.
+    final newBalance = _round2(student.balance + total);
+    _store.update<StudentSummary>(
+      _store.students,
+      (s) => s.id == studentId,
+      (s) => _copyStudent(s, balance: newBalance),
+    );
+    _store.audit(
+      module: 'payments',
+      action: 'assess_fees',
+      targetCollection: 'assessments',
+      targetId: id,
+      newValue: {'total': total, 'balance': newBalance},
+      remarks: sourceStructureName ?? 'Ad-hoc assessment',
+    );
+    return Success(AssessmentOutcome(assessmentId: id, total: total, newBalance: newBalance));
+  }
+
+  @override
+  Future<Result<void>> voidAssessment({
+    required String assessmentId,
+    required String reason,
+  }) async {
+    await _latency(500);
+    final assessment =
+        _store.assessments.value.where((a) => a.id == assessmentId).firstOrNull;
+    if (assessment == null) return const Error(ValidationFailure('Assessment not found.'));
+    if (assessment.isVoided) {
+      return const Error(ValidationFailure('That assessment has already been voided.'));
+    }
+
+    _store.update<Assessment>(
+      _store.assessments,
+      (a) => a.id == assessmentId,
+      (a) => Assessment(
+        id: a.id,
+        studentId: a.studentId,
+        studentName: a.studentName,
+        schoolYear: a.schoolYear,
+        sourceStructureId: a.sourceStructureId,
+        sourceStructureName: a.sourceStructureName,
+        items: a.items,
+        assessedByName: a.assessedByName,
+        assessedAt: a.assessedAt,
+        remarks: a.remarks,
+        voidedAt: DateTime.now(),
+        voidedByName: _store.requireUser.fullName,
+        voidReason: reason,
+      ),
+    );
+
+    final student =
+        _store.students.value.where((s) => s.id == assessment.studentId).firstOrNull;
+    if (student != null) {
+      _store.update<StudentSummary>(
+        _store.students,
+        (s) => s.id == assessment.studentId,
+        (s) => _copyStudent(s, balance: _round2(s.balance - assessment.total)),
+      );
+    }
+    _store.audit(
+      module: 'payments',
+      action: 'void_assessment',
+      targetCollection: 'assessments',
+      targetId: assessmentId,
+      newValue: {'reversed': assessment.total},
+      remarks: reason,
+    );
+    return const Success(null);
+  }
 
   @override
   Future<Result<RecordPaymentOutcome>> recordPayment({

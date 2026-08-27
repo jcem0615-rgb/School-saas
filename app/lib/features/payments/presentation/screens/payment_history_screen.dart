@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../domain/entities/payment.dart';
 import '../controllers/payment_controller.dart';
+import '../widgets/balance_breakdown.dart';
 import '../widgets/payment_method_chip.dart';
 import 'online_payment_screen.dart';
 import 'receipt_screen.dart';
@@ -44,6 +45,7 @@ class PaymentHistoryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final paymentsAsync = ref.watch(paymentsForStudentStreamProvider(studentId));
     final balanceAsync = ref.watch(studentBalanceStreamProvider(studentId));
+    final assessmentsAsync = ref.watch(assessmentsForStudentProvider(studentId));
 
     ref.listen(paymentActionControllerProvider, (previous, next) {
       if (next case AsyncError(:final error)) {
@@ -113,18 +115,37 @@ class PaymentHistoryScreen extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, _) => Center(child: Text('Failed to load payments: $err')),
               data: (payments) {
-                if (payments.isEmpty) {
-                  return const Center(child: Text('No payment history yet.'));
-                }
-                return ListView.separated(
+                // The breakdown sits above the history rather than on a
+                // screen of its own: "why do we owe this" and "what have
+                // we paid" are one question asked in two halves, and a
+                // family that has to navigate between them is left doing
+                // the arithmetic themselves.
+                return ListView(
                   padding: const EdgeInsets.all(16),
-                  itemCount: payments.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) => _PaymentTile(
-                    payment: payments[index],
-                    studentId: studentId,
-                    allowRefunds: allowRefunds,
-                  ),
+                  children: [
+                    BalanceBreakdown(
+                      balance: balanceAsync.valueOrNull ?? 0,
+                      assessments: assessmentsAsync.valueOrNull ?? const [],
+                      payments: payments,
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Payment history', style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    if (payments.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(child: Text('No payment history yet.')),
+                      ),
+                    for (final payment in payments)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _PaymentTile(
+                          payment: payment,
+                          studentId: studentId,
+                          allowRefunds: allowRefunds,
+                        ),
+                      ),
+                  ],
                 );
               },
             ),

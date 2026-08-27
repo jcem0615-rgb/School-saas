@@ -60,11 +60,96 @@ transaction is a real safeguard, not a formality, and is exactly the kind
 of thing a school's bookkeeper or auditor will ask about when evaluating
 whether to trust this system with their money.
 
+## Fee assessment: what the balance is actually for
+
+A balance used to be one number. Payments reduced it and a registrar typed
+the opening figure into `setStudentBalance` by hand, so a family asking
+"why do we owe ₱17,000?" got the figure back and nothing else. Two
+collections close that gap.
+
+**`feeStructures`** is what the school charges — "Grade 10, SY 2026-2027:
+tuition ₱15,000, books ₱2,000". A template, published once a year by
+Director/Admin. A registrar assesses fees but does not decide what they
+are, which is why the rule lists only those two roles for writes.
+
+**`assessments`** is what one student was actually charged. The items are
+**copied in**, not referenced: a fee structure is a template the school
+edits between years, an assessment is a thing that happened to a family,
+and it must read the same in five years as it did the day it was made. A
+school that raises tuition in January must not silently reprice every
+family who enrolled in June.
+
+### Why both writes are callables
+
+`assessStudentFees` and `voidAssessment` move the itemised record and
+`balance` **in one transaction**, for the same reason `recordPayment`
+does: `balance` is server-owned and `firestore.rules` refuses every
+client write to `assessments`. A client that could write there directly
+could charge a family money with no balance behind it, or move a balance
+with no record of why.
+
+### Voiding, never deleting
+
+A reversal leaves both the charge and the reversal on the record, marked
+with who voided it and why (the reason is required, refused blank). The
+balance moved when the assessment was made; a record that could simply
+disappear would leave a figure nobody could account for and an itemised
+list that no longer adds up to it. `voidAssessment` re-reads `voidedAt`
+**inside** the transaction, so two cashiers voiding at once cannot reverse
+one charge twice.
+
+### The duplicate guard
+
+Charging the same schedule to the same student twice for the same year is
+the mistake this feature makes easy: two clicks and a family silently owes
+double. `assessStudentFees` refuses a second assessment matching
+`studentId + sourceStructureId + schoolYear` with `voidedAt == null`. The
+check runs *before* the transaction — it is a question about other
+documents, and a transactional read would have to lock the whole
+collection to answer it. That is also why the write stores `voidedAt:
+null` explicitly rather than omitting the field: Firestore cannot match a
+document that does not carry the field being queried.
+
+### What families see
+
+`BalanceBreakdown` sits above the payment history on the same screen the
+student, the parent and the registrar all reach: total assessed, less
+payments received, balance. Charged minus paid, itemised.
+
+It states the arithmetic **even when it does not come out**. A school
+partway through adopting this has students whose balance was set the old
+way with no assessment behind it; showing only the assessments there would
+imply the list is the whole story and understate what is owed. The
+unexplained remainder is named instead — which also tells the office
+exactly which records still need an assessment raising.
+
+The "less payments received" line sums **every** payment row as it stands.
+A refund is its own row with a negative amount and the payment it reverses
+keeps its positive one (marked `refunded`), so the pair cancels out on its
+own. Filtering either out produces a phantom remainder against a balance
+that is perfectly correct.
+
+### Screens
+
+| Screen | Role | What it does |
+|---|---|---|
+| `FeeStructuresScreen` | Director / Admin | Publish and retire fee schedules |
+| `AssessFeesScreen` | Registrar / Director / Admin | Charge a schedule to one student, with history and void |
+| `BalanceBreakdown` | everyone on `PaymentHistoryScreen` | Why the balance is what it is |
+
+The copied items stay editable on the assessment screen. Real enrolments
+have exceptions — a scholar whose tuition is waived, a transferee who
+joins after the field trip — and the alternative is the office abandoning
+the schedule and typing everything by hand for the one student in ten who
+differs.
+
 ## Firestore collections touched
 
 ```
-schools/{schoolId}/payments/{id}   -- see Module 3 schema; amount is negative for refund rows
-schools/{schoolId}/students/{id}   -- balance field only, read-only from client this module
+schools/{schoolId}/payments/{id}        -- see Module 3 schema; amount is negative for refund rows
+schools/{schoolId}/students/{id}        -- balance field only, read-only from client
+schools/{schoolId}/feeStructures/{id}   -- published fee schedules; Director/Admin write, tenant-readable, never deleted
+schools/{schoolId}/assessments/{id}     -- what a student was charged; no client writes at all
 ```
 
 Note: full Student Registration (creating/editing `students` records) is
@@ -81,6 +166,10 @@ remains until Registrar Portal defines the real create/update rules.
 | Functions | `balanceMath.test.ts` | payment/refund arithmetic, receipt number formatting |
 | Functions | `getNextSequence.test.ts` | atomic counter (no duplicates under concurrency, per-school isolation) — **requires the Firestore emulator** |
 | Rules | `payments.rules.test.ts` | self/staff/linked-parent access, refund role gate, and the catch-all regression |
+| Domain | `fee_usecases_test.dart` | schedule/assessment validation, `appliesTo` matching, voided totals |
+| Widget | `balance_breakdown_test.dart` | the arithmetic, including refunds and unexplained remainders |
+| Demo | `fee_assessment_test.dart` | assess/void round-trip, double-void and duplicate-schedule guards |
+| Rules | `fee-assessment.rules.test.ts` | no client writes to `assessments`, family reads, Director/Admin-only schedules |
 
 ## Known gap flagged for QA
 
@@ -100,8 +189,6 @@ a narrower, less-traveled path than ordinary list queries.
   a clean seam (`PaymentMethod.online` already exists in the schema); wiring
   an actual gateway webhook is out of scope for this build per your
   earlier direction.
-- Student Registration / fee assessment (what *increases* a student's
-  balance in the first place) — Registrar Portal module.
 - Payment/refund reporting and PDF/Excel export — Reports & Documents modules.
 - Statement of Account view for Parents — reuses `PaymentHistoryScreen`
   directly; wired up when the Parent Portal module is built.

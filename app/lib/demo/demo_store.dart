@@ -29,6 +29,8 @@ import '../features/owner_portal/domain/entities/invoice.dart' hide PaymentMetho
 import '../features/owner_portal/domain/entities/invoice.dart' as billing;
 import '../features/owner_portal/domain/entities/revenue_summary.dart';
 import '../features/owner_portal/domain/entities/school_summary.dart';
+import '../features/payments/domain/entities/assessment.dart';
+import '../features/payments/domain/entities/fee_structure.dart';
 import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
 import '../features/payments/domain/entities/payment_submission.dart';
@@ -144,6 +146,9 @@ class DemoStore {
   late final assignments = BehaviorSubject<List<TeacherAssignment>>.seeded(_seedAssignments());
   late final programs = BehaviorSubject<List<Program>>.seeded(_seedPrograms());
   late final payments = BehaviorSubject<List<Payment>>.seeded(_seedPayments());
+  late final feeStructures =
+      BehaviorSubject<List<FeeStructure>>.seeded(_seedFeeStructures());
+  late final assessments = BehaviorSubject<List<Assessment>>.seeded(_seedAssessments());
   late final attendance = BehaviorSubject<List<AttendanceRecord>>.seeded(_seedAttendance());
   late final coursework = BehaviorSubject<List<CourseworkItem>>.seeded(_seedCoursework());
   /// Named for the collection, not shortened to `submissions` -- payment
@@ -385,6 +390,7 @@ class DemoStore {
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog,
       paymentSubmissions, paymentSettings, branding, documentReleases,
+      feeStructures, assessments,
     ]) {
       s.close();
     }
@@ -906,6 +912,96 @@ class DemoStore {
         Program(id: 'prog_002', name: 'BS Accountancy', code: 'BSA', department: 'Business Administration'),
         Program(id: 'prog_003', name: 'BS Education', code: 'BSED', department: 'Teacher Education'),
       ];
+
+
+  /// Two published schedules, one per division that has a student
+  /// demonstrating it. Enough to show what assessing from a schedule
+  /// looks like without turning the picker into a wall.
+  ///
+  /// The totals are chosen so the seeded assessments reconcile exactly
+  /// with the seeded balances and payments. A demo where the itemised
+  /// list does not add up to the figure above it would be demonstrating
+  /// the bug this feature exists to fix.
+  List<FeeStructure> _seedFeeStructures() {
+    final year = DateTime.now().year;
+    final sy = '$year-${year + 1}';
+    return [
+      // Assessed to Miguel Torres (stu_001): 17,000 charged, 8,500 paid
+      // across two receipts, 8,500 outstanding.
+      FeeStructure(
+        id: 'fee_0001',
+        name: 'Junior High School - $sy',
+        educationLevel: EducationLevel.highSchool,
+        schoolYear: sy,
+        items: const [
+          FeeItem(label: 'Tuition Fee', amount: 12000, category: FeeCategory.tuition),
+          FeeItem(label: 'Miscellaneous Fee', amount: 3500, category: FeeCategory.miscellaneous),
+          FeeItem(label: 'Laboratory Fee', amount: 1200, category: FeeCategory.miscellaneous),
+          FeeItem(label: 'Student Handbook', amount: 300, category: FeeCategory.other),
+        ],
+        updatedAt: _daysAgo(45),
+        updatedByName: 'Grace Mendoza',
+      ),
+      // Assessed to Trisha Mercado (stu_009): 12,500 charged, nothing
+      // paid yet, 12,500 outstanding.
+      FeeStructure(
+        id: 'fee_0002',
+        name: 'Senior High School - $sy',
+        educationLevel: EducationLevel.seniorHigh,
+        schoolYear: sy,
+        items: const [
+          FeeItem(label: 'Tuition Fee', amount: 9000, category: FeeCategory.tuition),
+          FeeItem(label: 'Miscellaneous Fee', amount: 2500, category: FeeCategory.miscellaneous),
+          FeeItem(label: 'Immersion Fee', amount: 1000, category: FeeCategory.other),
+        ],
+        updatedAt: _daysAgo(45),
+        updatedByName: 'Grace Mendoza',
+      ),
+    ];
+  }
+
+  /// One assessment each for the two students whose balances they
+  /// explain. The rest of the roster keeps a balance with no assessment
+  /// behind it, which is not an oversight: it is what a school looks
+  /// like partway through adopting this, and the breakdown screen has to
+  /// say so rather than implying the list is the whole story.
+  List<Assessment> _seedAssessments() {
+    final year = DateTime.now().year;
+    final sy = '$year-${year + 1}';
+    return [
+      Assessment(
+        id: 'asmt_0001',
+        studentId: 'stu_001',
+        studentName: 'Miguel Torres',
+        schoolYear: sy,
+        sourceStructureId: 'fee_0001',
+        sourceStructureName: 'Junior High School - $sy',
+        items: const [
+          FeeItem(label: 'Tuition Fee', amount: 12000, category: FeeCategory.tuition),
+          FeeItem(label: 'Miscellaneous Fee', amount: 3500, category: FeeCategory.miscellaneous),
+          FeeItem(label: 'Laboratory Fee', amount: 1200, category: FeeCategory.miscellaneous),
+          FeeItem(label: 'Student Handbook', amount: 300, category: FeeCategory.other),
+        ],
+        assessedByName: 'Joel Bautista',
+        assessedAt: _daysAgo(40),
+      ),
+      Assessment(
+        id: 'asmt_0002',
+        studentId: 'stu_009',
+        studentName: 'Trisha Mercado',
+        schoolYear: sy,
+        sourceStructureId: 'fee_0002',
+        sourceStructureName: 'Senior High School - $sy',
+        items: const [
+          FeeItem(label: 'Tuition Fee', amount: 9000, category: FeeCategory.tuition),
+          FeeItem(label: 'Miscellaneous Fee', amount: 2500, category: FeeCategory.miscellaneous),
+          FeeItem(label: 'Immersion Fee', amount: 1000, category: FeeCategory.other),
+        ],
+        assessedByName: 'Joel Bautista',
+        assessedAt: _daysAgo(38),
+      ),
+    ];
+  }
 
   List<Payment> _seedPayments() => [
         Payment(
