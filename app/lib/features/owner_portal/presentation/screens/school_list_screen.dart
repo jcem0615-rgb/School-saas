@@ -120,7 +120,11 @@ class _SchoolListScreenState extends ConsumerState<SchoolListScreen> {
                           child: school.logoUrl == null ? const Icon(Icons.school_outlined) : null,
                         ),
                         title: Text(school.name),
-                        subtitle: Text('${school.activeStudentCount} active students'),
+                        subtitle: Text(
+                          '${school.activeStudentCount} active students'
+                          '\n${school.coverageLabel}',
+                        ),
+                        isThreeLine: true,
                         trailing: SchoolStatusBadge(status: school.status),
                         onTap: () => context.push('/owner/schools/${school.id}'),
                       ),

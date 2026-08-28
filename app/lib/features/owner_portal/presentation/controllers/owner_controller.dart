@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/result.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart' show firestoreProvider, firebaseFunctionsProvider;
@@ -50,6 +51,7 @@ class CreateSchoolController extends AutoDisposeAsyncNotifier<String?> {
   Future<String?> create({
     required String name,
     required double billingRatePerStudent,
+    required Set<EducationLevel> educationLevels,
     String? schoolId,
     String? addressLine,
     String? contactEmail,
@@ -59,6 +61,7 @@ class CreateSchoolController extends AutoDisposeAsyncNotifier<String?> {
     final result = await ref.read(ownerRepositoryProvider).createSchool(
           name: name,
           billingRatePerStudent: billingRatePerStudent,
+          educationLevels: educationLevels,
           schoolId: schoolId,
           addressLine: addressLine,
           contactEmail: contactEmail,

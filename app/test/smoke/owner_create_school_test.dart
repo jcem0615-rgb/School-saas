@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:logicclass/core/constants/education_level.dart';
 import 'package:logicclass/core/errors/result.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
@@ -28,6 +29,11 @@ void main() {
     final result = await repo.createSchool(
       name: 'Sacred Heart Academy',
       billingRatePerStudent: 65,
+      educationLevels: const {
+        EducationLevel.elementary,
+        EducationLevel.highSchool,
+        EducationLevel.seniorHigh,
+      },
     );
 
     expect(result, isA<Success<String>>());
@@ -44,13 +50,23 @@ void main() {
     expect(created.status, SchoolSubscriptionStatus.active);
     expect(created.activeStudentCount, 0);
     expect(created.currentCycleAccrued, 0);
+    // What the Owner picked, said back the way they would say it.
+    expect(created.coverageLabel, 'Elementary to Senior High School');
   });
 
   test('the same id twice is refused, not silently merged', () async {
     final repo = container.read(ownerRepositoryProvider);
-    await repo.createSchool(name: 'Twice Over', billingRatePerStudent: 10);
-    final second =
-        await repo.createSchool(name: 'Twice Over', billingRatePerStudent: 10);
+    const levels = {EducationLevel.college};
+    await repo.createSchool(
+      name: 'Twice Over',
+      billingRatePerStudent: 10,
+      educationLevels: levels,
+    );
+    final second = await repo.createSchool(
+      name: 'Twice Over',
+      billingRatePerStudent: 10,
+      educationLevels: levels,
+    );
 
     // Overwriting would hand a second school every record belonging to
     // the first.
@@ -70,8 +86,106 @@ void main() {
         await container.read(ownerRepositoryProvider).createSchool(
               name: '!!! ???',
               billingRatePerStudent: 10,
+              educationLevels: const {EducationLevel.elementary},
             );
     expect(result, isA<Error<String>>());
+  });
+
+  test('a school with no levels picked is refused', () async {
+    // Which divisions a school runs is not a detail to be filled in
+    // later: it decides what its own registration form can offer. The
+    // callable refuses an empty list too, so the demo refusing it here
+    // is the same answer, one round trip earlier.
+    final result = await container.read(ownerRepositoryProvider).createSchool(
+          name: 'Levels Missing Academy',
+          billingRatePerStudent: 10,
+          educationLevels: const {},
+        );
+    expect(result, isA<Error<String>>());
+    expect(
+      container.read(demoStoreProvider).schools.value
+          .any((s) => s.id == 'levels-missing-academy'),
+      isFalse,
+    );
+  });
+
+  group('the coverage phrase', () {
+    test('one division is named on its own', () {
+      expect(educationCoverageLabel(const {EducationLevel.college}), 'College');
+      expect(
+        educationCoverageLabel(const {EducationLevel.highSchool}),
+        'Junior High School',
+      );
+    });
+
+    test('a run of divisions reads as a range', () {
+      expect(
+        educationCoverageLabel(const {
+          EducationLevel.elementary,
+          EducationLevel.highSchool,
+        }),
+        'Elementary to Junior High School',
+      );
+      expect(
+        educationCoverageLabel(const {
+          EducationLevel.elementary,
+          EducationLevel.highSchool,
+          EducationLevel.seniorHigh,
+          EducationLevel.college,
+        }),
+        'Elementary to College',
+      );
+      // Tap order must not show: the phrase is built from the division
+      // order, not the order they went into the set.
+      expect(
+        educationCoverageLabel({
+          EducationLevel.seniorHigh,
+          EducationLevel.highSchool,
+        }),
+        'Junior High to Senior High School',
+      );
+    });
+
+    test('a gap is listed out rather than bridged', () {
+      // The reason this is a set and not a fixed list of combinations.
+      // Calling this "Elementary to College" would claim a high school
+      // the school does not run.
+      expect(
+        educationCoverageLabel(const {
+          EducationLevel.elementary,
+          EducationLevel.college,
+        }),
+        'Elementary and College',
+      );
+      expect(
+        educationCoverageLabel(const {
+          EducationLevel.elementary,
+          EducationLevel.seniorHigh,
+          EducationLevel.college,
+        }),
+        'Elementary, Senior High School and College',
+      );
+    });
+
+    test('nothing picked says so rather than inventing a range', () {
+      expect(educationCoverageLabel(const {}), 'Not specified');
+    });
+  });
+
+  group('reading levels back from a stored document', () {
+    test('a missing field is empty, not a guess', () {
+      // Every school created before this was recorded. Guessing here
+      // would put a Senior High tab in front of a school that has none.
+      expect(parseEducationLevels(null), isEmpty);
+      expect(parseEducationLevels('elementary'), isEmpty);
+    });
+
+    test('an unrecognised division is skipped, not thrown on', () {
+      expect(
+        parseEducationLevels(['elementary', 'kindergarten', 7]),
+        {EducationLevel.elementary},
+      );
+    });
   });
 
   test('slugify matches what the callable would produce', () {

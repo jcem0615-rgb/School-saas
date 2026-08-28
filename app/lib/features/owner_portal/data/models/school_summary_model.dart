@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../../core/constants/education_level.dart';
 import '../../domain/entities/school_summary.dart';
 
 class SchoolSummaryModel extends SchoolSummary {
@@ -12,6 +13,7 @@ class SchoolSummaryModel extends SchoolSummary {
     super.logoUrl,
     super.gracePeriodStartedAt,
     super.suspendedAt,
+    super.educationLevels,
   });
 
   /// Built by joining `platform_schools/{id}` (name/logo) with
@@ -34,6 +36,7 @@ class SchoolSummaryModel extends SchoolSummary {
       gracePeriodStartedAt:
           (subscriptionData['gracePeriodStartedAt'] as Timestamp?)?.toDate(),
       suspendedAt: (subscriptionData['suspendedAt'] as Timestamp?)?.toDate(),
+      educationLevels: parseEducationLevels(schoolData['educationLevels']),
     );
   }
 }

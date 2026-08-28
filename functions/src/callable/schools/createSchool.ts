@@ -3,6 +3,7 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import {requireCallerClaims} from "../../shared/auth/claims";
 import {writeOwnerAuditLog} from "../../shared/audit/writeOwnerAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
+import {EDUCATION_LEVELS} from "../../shared/education/educationLevel";
 
 interface CreateSchoolData {
   name: string;
@@ -17,6 +18,17 @@ interface CreateSchoolData {
   contactPhone?: string;
   /** PHP per active student per billing cycle. */
   billingRatePerStudent: number;
+  /**
+   * Which of the four divisions this school runs, e.g.
+   * ["elementary", "high_school", "senior_high"] for a school that goes
+   * from Grade 1 through Grade 12.
+   *
+   * A set rather than one of a fixed list of combinations ("elementary
+   * to senior high", "high school only", ...) because the fixed list is
+   * never finished -- a school that runs Elementary and College but no
+   * high school at all exists, and a combination enum has no row for it.
+   */
+  educationLevels: string[];
 }
 
 /** Lowercase, digits and single hyphens: safe in a Firestore path. */
@@ -70,6 +82,32 @@ export const createSchool = onCall(
       throw new HttpsError("invalid-argument", "Billing rate must be zero or more.");
     }
 
+    // Ordered lowest division first and de-duplicated, so the stored
+    // array reads the way the label built from it does rather than in
+    // whatever order the Owner tapped the chips.
+    const raw = request.data?.educationLevels;
+    if (raw !== undefined && !Array.isArray(raw)) {
+      // Anything non-iterable here would throw inside the Set
+      // constructor and surface as an "internal" error, which says
+      // nothing about the thing that is actually wrong.
+      throw new HttpsError("invalid-argument", "educationLevels must be a list.");
+    }
+    const requested = new Set(raw ?? []);
+    const educationLevels = EDUCATION_LEVELS.filter((l) => requested.has(l));
+    if (educationLevels.length === 0) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Say which levels the school offers: elementary, high_school, senior_high, college."
+      );
+    }
+    if (educationLevels.length !== requested.size) {
+      // Refused rather than quietly dropped: a division this build does
+      // not recognise means the caller and the server disagree about
+      // what a school can be, and silently storing the subset would make
+      // that disagreement invisible until enrolment.
+      throw new HttpsError("invalid-argument", "Unrecognised education level.");
+    }
+
     const schoolId = (request.data.schoolId ?? slugify(name)).trim();
     if (!SCHOOL_ID_PATTERN.test(schoolId)) {
       throw new HttpsError(
@@ -104,6 +142,7 @@ export const createSchool = onCall(
         addressLine: addressLine?.trim() || null,
         contactEmail: contactEmail?.trim().toLowerCase() || null,
         contactPhone: contactPhone?.trim() || null,
+        educationLevels,
         billingRatePerStudent,
         createdAt: now,
         createdByUid: actorUid,
@@ -133,6 +172,10 @@ export const createSchool = onCall(
         addressLine: addressLine?.trim() || null,
         contactEmail: contactEmail?.trim().toLowerCase() || null,
         contactPhone: contactPhone?.trim() || null,
+        // The tenant side needs it as much as the platform side does:
+        // this is what the school's own registration and reporting
+        // screens read to know which divisions exist here.
+        educationLevels,
         logoUrl: null,
         createdAt: now,
       });
@@ -144,7 +187,7 @@ export const createSchool = onCall(
       action: "school.created",
       targetType: "school",
       targetId: schoolId,
-      details: {name: name.trim(), billingRatePerStudent},
+      details: {name: name.trim(), billingRatePerStudent, educationLevels},
     });
 
     return {schoolId};

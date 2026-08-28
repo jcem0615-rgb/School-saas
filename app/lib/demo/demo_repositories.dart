@@ -231,6 +231,7 @@ class DemoOwnerRepository implements OwnerRepository {
   Future<Result<String>> createSchool({
     required String name,
     required double billingRatePerStudent,
+    required Set<EducationLevel> educationLevels,
     String? schoolId,
     String? addressLine,
     String? contactEmail,
@@ -249,6 +250,14 @@ class DemoOwnerRepository implements OwnerRepository {
     if (_store.schools.value.any((s) => s.id == id)) {
       return Error(ValidationFailure('A school with the id "$id" already exists.'));
     }
+    if (educationLevels.isEmpty) {
+      // The callable refuses this too. Which divisions a school runs is
+      // not a detail to be filled in later: it decides what the
+      // registration form offers on the day after this one.
+      return const Error(
+        ValidationFailure('Pick at least one level the school offers.'),
+      );
+    }
 
     _store.prepend(
       _store.schools,
@@ -260,6 +269,7 @@ class DemoOwnerRepository implements OwnerRepository {
         status: SchoolSubscriptionStatus.active,
         activeStudentCount: 0,
         currentCycleAccrued: 0,
+        educationLevels: educationLevels,
       ),
     );
     return Success(id);
@@ -278,6 +288,9 @@ class DemoOwnerRepository implements OwnerRepository {
         status: SchoolSubscriptionStatus.suspended,
         activeStudentCount: s.activeStudentCount,
         currentCycleAccrued: s.currentCycleAccrued,
+        // Carried forward, not defaulted: pausing a school does not
+        // change which divisions it runs.
+        educationLevels: s.educationLevels,
         suspendedAt: DateTime.now(),
       ),
     );
@@ -304,6 +317,9 @@ class DemoOwnerRepository implements OwnerRepository {
         status: SchoolSubscriptionStatus.active,
         activeStudentCount: s.activeStudentCount,
         currentCycleAccrued: s.currentCycleAccrued,
+        // Carried forward, not defaulted: pausing a school does not
+        // change which divisions it runs.
+        educationLevels: s.educationLevels,
       ),
     );
     _store.audit(

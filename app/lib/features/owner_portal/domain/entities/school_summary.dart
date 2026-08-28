@@ -1,3 +1,5 @@
+import '../../../../core/constants/education_level.dart';
+
 /// Status of a school's subscription, as seen from the Owner Portal.
 /// Mirrors `platform_subscriptions.currentStatus` in Firestore.
 enum SchoolSubscriptionStatus {
@@ -32,6 +34,12 @@ class SchoolSummary {
   final DateTime? gracePeriodStartedAt;
   final DateTime? suspendedAt;
 
+  /// Which of the four divisions this school runs. Empty for a school
+  /// created before this was recorded -- read as "not specified" rather
+  /// than guessed at, since guessing here would put a Senior High tab in
+  /// front of a school that has no Senior High.
+  final Set<EducationLevel> educationLevels;
+
   const SchoolSummary({
     required this.id,
     required this.name,
@@ -41,5 +49,10 @@ class SchoolSummary {
     this.logoUrl,
     this.gracePeriodStartedAt,
     this.suspendedAt,
+    this.educationLevels = const <EducationLevel>{},
   });
+
+  /// "Elementary to Senior High School", "College", "Elementary and
+  /// College" -- the phrase the Owner would use on the phone.
+  String get coverageLabel => educationCoverageLabel(educationLevels);
 }

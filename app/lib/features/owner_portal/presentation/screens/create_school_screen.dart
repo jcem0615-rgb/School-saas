@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/theme/glass.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../demo/demo_store.dart' show DemoStore;
@@ -26,6 +27,12 @@ class _CreateSchoolScreenState extends ConsumerState<CreateSchoolScreen> {
   final _email = TextEditingController();
   final _phone = TextEditingController();
   final _rate = TextEditingController(text: '50');
+
+  /// Which divisions the school runs. Empty until the Owner says, and the
+  /// form will not submit while it is: this is not a detail to be filled
+  /// in later, it decides what the school's own registration form offers
+  /// on the day after this one.
+  final Set<EducationLevel> _levels = <EducationLevel>{};
 
   /// True once the Owner types an id themselves, after which the name
   /// stops driving it -- otherwise their edit would be overwritten on the
@@ -61,6 +68,7 @@ class _CreateSchoolScreenState extends ConsumerState<CreateSchoolScreen> {
     final id = await ref.read(createSchoolControllerProvider.notifier).create(
           name: _name.text.trim(),
           billingRatePerStudent: double.parse(_rate.text.trim()),
+          educationLevels: _levels,
           schoolId: _schoolId.text.trim(),
           addressLine: _address.text.trim(),
           contactEmail: _email.text.trim(),
@@ -128,6 +136,17 @@ class _CreateSchoolScreenState extends ConsumerState<CreateSchoolScreen> {
                       }
                       return null;
                     },
+                  ),
+                  const SizedBox(height: 16),
+                  _LevelsField(
+                    selected: _levels,
+                    onToggle: (level, on) => setState(() {
+                      if (on) {
+                        _levels.add(level);
+                      } else {
+                        _levels.remove(level);
+                      }
+                    }),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -202,6 +221,85 @@ class _CreateSchoolScreenState extends ConsumerState<CreateSchoolScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The four divisions, as chips, with the phrase they add up to
+/// underneath.
+///
+/// A [FormField] rather than a bare [Wrap] so an empty selection is
+/// refused by the same `validate()` call as an empty name, and shows its
+/// error in the same place -- rather than the Owner pressing Create and
+/// being told by the server, one round trip later.
+class _LevelsField extends StatelessWidget {
+  final Set<EducationLevel> selected;
+  final void Function(EducationLevel level, bool on) onToggle;
+
+  const _LevelsField({required this.selected, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return FormField<Set<EducationLevel>>(
+      initialValue: selected,
+      // Without this the "pick at least one" error stays on screen after
+      // the Owner picks one, until they press Create again -- the field
+      // telling them off for something they have just fixed.
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      validator: (v) =>
+          (v == null || v.isEmpty) ? 'Pick at least one level.' : null,
+      builder: (field) {
+        // The chips write to the parent's set, not to the field's own
+        // value, so the field is told about the change explicitly --
+        // otherwise it validates against the selection as it was when
+        // this widget was built.
+        void toggle(EducationLevel level, bool on) {
+          onToggle(level, on);
+          field.didChange(selected);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Levels offered', style: theme.textTheme.labelLarge),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final level in EducationLevel.values)
+                  FilterChip(
+                    label: Text(level.displayLabel),
+                    selected: selected.contains(level),
+                    onSelected: (on) => toggle(level, on),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              selected.isEmpty
+                  ? 'Elementary, Junior High, Senior High, College -- any '
+                      'combination. Pick every one this school runs.'
+                  : educationCoverageLabel(selected),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: selected.isEmpty
+                    ? theme.colorScheme.onSurfaceVariant
+                    : theme.colorScheme.primary,
+                fontWeight: selected.isEmpty ? null : FontWeight.w600,
+              ),
+            ),
+            if (field.hasError) ...[
+              const SizedBox(height: 6),
+              Text(
+                field.errorText!,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.error),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }

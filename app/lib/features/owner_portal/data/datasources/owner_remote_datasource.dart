@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:rxdart/rxdart.dart';
 
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/constants/firestore_paths.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../models/invoice_model.dart';
@@ -79,6 +80,7 @@ class OwnerRemoteDataSource {
   Future<String> createSchool({
     required String name,
     required double billingRatePerStudent,
+    required Set<EducationLevel> educationLevels,
     String? schoolId,
     String? addressLine,
     String? contactEmail,
@@ -88,6 +90,12 @@ class OwnerRemoteDataSource {
       final result = await _functions.httpsCallable('createSchool').call({
         'name': name,
         'billingRatePerStudent': billingRatePerStudent,
+        // Ordered lowest division first so the stored array reads the way
+        // the label does, rather than in whatever order they were tapped.
+        'educationLevels': EducationLevel.values
+            .where(educationLevels.contains)
+            .map((l) => l.value)
+            .toList(),
         if (schoolId != null && schoolId.isNotEmpty) 'schoolId': schoolId,
         if (addressLine != null && addressLine.isNotEmpty) 'addressLine': addressLine,
         if (contactEmail != null && contactEmail.isNotEmpty) 'contactEmail': contactEmail,

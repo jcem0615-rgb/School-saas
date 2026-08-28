@@ -1,3 +1,4 @@
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/result.dart';
 import '../entities/invoice.dart';
 import '../entities/revenue_summary.dart';
@@ -16,6 +17,10 @@ abstract class OwnerRepository {
   Future<Result<String>> createSchool({
     required String name,
     required double billingRatePerStudent,
+    // Which divisions the school runs. Required, and required to be
+    // non-empty: a school with no divisions on record shows a
+    // registration form that cannot say what a student is enrolling into.
+    required Set<EducationLevel> educationLevels,
     String? schoolId,
     String? addressLine,
     String? contactEmail,

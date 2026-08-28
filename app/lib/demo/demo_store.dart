@@ -554,6 +554,14 @@ class DemoStore {
           status: SchoolSubscriptionStatus.active,
           activeStudentCount: 842,
           currentCycleAccrued: 842 * 3 * 12,
+          // The demo tenant runs all four, which is why every division
+          // filter in the app has something in it.
+          educationLevels: const {
+            EducationLevel.elementary,
+            EducationLevel.highSchool,
+            EducationLevel.seniorHigh,
+            EducationLevel.college,
+          },
         ),
         SchoolSummary(
           id: 'school_sanmateo',
@@ -561,6 +569,10 @@ class DemoStore {
           status: SchoolSubscriptionStatus.gracePeriod,
           activeStudentCount: 1310,
           currentCycleAccrued: 1310 * 3 * 12,
+          educationLevels: const {
+            EducationLevel.seniorHigh,
+            EducationLevel.college,
+          },
           gracePeriodStartedAt: _daysAgo(4),
         ),
         SchoolSummary(
@@ -569,6 +581,7 @@ class DemoStore {
           status: SchoolSubscriptionStatus.suspended,
           activeStudentCount: 210,
           currentCycleAccrued: 0,
+          educationLevels: const {EducationLevel.elementary},
           suspendedAt: _daysAgo(11),
         ),
         SchoolSummary(
@@ -577,6 +590,11 @@ class DemoStore {
           status: SchoolSubscriptionStatus.active,
           activeStudentCount: 655,
           currentCycleAccrued: 655 * 3 * 12,
+          educationLevels: const {
+            EducationLevel.elementary,
+            EducationLevel.highSchool,
+            EducationLevel.seniorHigh,
+          },
         ),
       ];
 

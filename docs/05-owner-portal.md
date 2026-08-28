@@ -55,6 +55,44 @@ SaaS: an Owner might pause a school for a contract dispute unrelated to
 payment status — that pause must not evaporate the moment someone pays an
 old invoice.
 
+## What levels the school runs
+
+Every school the Owner takes on says which of the four divisions it
+actually runs, on the Add School form, as chips: Elementary, Junior High
+School, Senior High School, College. At least one is required — the form
+refuses to submit without one, and `createSchool` refuses the call.
+
+Stored as the **set** rather than as one of a fixed list of combinations
+("elementary to senior high", "high school only", ...) because the fixed
+list is never finished. A school running Elementary and College but no
+high school at all exists, and a combination enum has no row for it. The
+set has every combination there is, and `educationCoverageLabel` turns it
+back into the phrase a person would say:
+
+| Picked | Reads as |
+|---|---|
+| Elementary | Elementary |
+| Elementary, Junior High | Elementary to Junior High School |
+| Elementary, Junior High, Senior High | Elementary to Senior High School |
+| all four | Elementary to College |
+| Elementary, College | Elementary and College |
+
+A contiguous run becomes a range; anything with a gap is listed out,
+because calling the last row "Elementary to College" would claim a high
+school that school does not run.
+
+The array is written to **both** `platform_schools/{id}` (the Owner's
+copy, shown on the school list and detail screens) and `schools/{id}`
+(the tenant's own copy, which is what the school's registration and
+reporting screens read to know which divisions exist there). Both are
+written in the same transaction that creates the school, ordered lowest
+division first so the stored array reads the way the label does rather
+than in whatever order the chips were tapped.
+
+A school created before this was recorded reads back as an empty set and
+says "Not specified" — guessing would put a Senior High tab in front of a
+school that has no Senior High.
+
 ## Security Model additions this module
 
 - `platform_revenue_summary/current`: read-only even for the Owner from

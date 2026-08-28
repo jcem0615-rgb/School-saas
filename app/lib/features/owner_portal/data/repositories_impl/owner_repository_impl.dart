@@ -1,3 +1,4 @@
+import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
@@ -24,6 +25,7 @@ class OwnerRepositoryImpl implements OwnerRepository {
   Future<Result<String>> createSchool({
     required String name,
     required double billingRatePerStudent,
+    required Set<EducationLevel> educationLevels,
     String? schoolId,
     String? addressLine,
     String? contactEmail,
@@ -33,6 +35,7 @@ class OwnerRepositoryImpl implements OwnerRepository {
       final id = await _remote.createSchool(
         name: name,
         billingRatePerStudent: billingRatePerStudent,
+        educationLevels: educationLevels,
         schoolId: schoolId,
         addressLine: addressLine,
         contactEmail: contactEmail,

@@ -59,6 +59,14 @@ class SchoolDetailScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text('${school.activeStudentCount} active students · ${_currencyFormat.format(school.currentCycleAccrued)} accrued this cycle'),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.school_outlined, size: 16),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(school.coverageLabel)),
+                ],
+              ),
               const SizedBox(height: 24),
               _buildActionButton(context, ref, school, actionState.isLoading),
               const SizedBox(height: 32),
