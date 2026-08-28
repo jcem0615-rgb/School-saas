@@ -87,5 +87,8 @@ abstract class AdminRepository {
     String? directorSignatureUrl,
     String? directorName,
     String? schoolYear,
+    String? dpoName,
+    String? dpoEmail,
+    String? dpoPhone,
   });
 }

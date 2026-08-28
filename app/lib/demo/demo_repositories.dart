@@ -39,6 +39,8 @@ import '../features/reports/domain/entities/report_period.dart';
 import '../features/reports/domain/repositories/reports_repository.dart';
 import '../features/schedules/domain/entities/schedule_block.dart';
 import '../features/schedules/domain/repositories/schedule_repository.dart';
+import '../features/data_protection/domain/entities/data_request.dart';
+import '../features/data_protection/domain/repositories/data_protection_repository.dart';
 // See the note in demo_store.dart: unqualified PaymentMethod is the
 // student-payments enum; the platform-billing one is `billing.PaymentMethod`.
 import '../features/owner_portal/domain/entities/invoice.dart' hide PaymentMethod;
@@ -120,7 +122,7 @@ class DemoAuthRepository implements AuthRepository {
       ));
     }
 
-    _store.currentUser.add(match);
+    _store.currentUser.add(_store.withAcknowledgement(match));
     // Not awaited: signing in must not wait on a disk write, and a failed
     // one costs a re-login after a reload rather than anything visible.
     unawaited(DemoSession.remember(match));
@@ -194,7 +196,11 @@ class DemoAuthRepository implements AuthRepository {
   /// whichever role you were last looking at rather than as whoever you
   /// typed a password for.
   void signInAs(AppUser user) {
-    _store.currentUser.add(user);
+    // Carry back whether this account already read the privacy notice
+    // this run. The demo accounts are const, so without this the gate
+    // would reappear every time somebody switched roles and back --
+    // demonstrating the gate rather than the app behind it.
+    _store.currentUser.add(_store.withAcknowledgement(user));
     unawaited(DemoSession.remember(user));
   }
 }
@@ -1064,6 +1070,9 @@ class DemoAdminRepository implements AdminRepository {
     String? directorSignatureUrl,
     String? directorName,
     String? schoolYear,
+    String? dpoName,
+    String? dpoEmail,
+    String? dpoPhone,
   }) async {
     await _latency();
     final current = _store.branding.value;
@@ -1079,6 +1088,9 @@ class DemoAdminRepository implements AdminRepository {
       directorSignatureUrl: directorSignatureUrl ?? current.directorSignatureUrl,
       directorName: directorName ?? current.directorName,
       schoolYear: schoolYear ?? current.schoolYear,
+      dpoName: dpoName ?? current.dpoName,
+      dpoEmail: dpoEmail ?? current.dpoEmail,
+      dpoPhone: dpoPhone ?? current.dpoPhone,
       updatedAt: DateTime.now(),
       updatedByName: _store.requireUser.fullName,
     ));
@@ -3177,6 +3189,103 @@ class DemoScheduleRepository implements ScheduleRepository {
     _store.scheduleBlocks.add(
       _store.scheduleBlocks.value.where((b) => b.id != blockId).toList(),
     );
+    return const Success(null);
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Data protection
+// ---------------------------------------------------------------------------
+
+/// The in-memory twin of the data-request collection and the privacy
+/// acknowledgement.
+///
+/// The acknowledgement writes back onto the signed-in user, which is
+/// what makes the demo behave like the real thing: the router's gate
+/// watches auth state, so the person is let through only once the record
+/// actually changed rather than because a screen popped itself.
+class DemoDataProtectionRepository implements DataProtectionRepository {
+  final DemoStore _store;
+  DemoDataProtectionRepository(this._store);
+
+  @override
+  Stream<List<DataRequest>> watchRequests() => _store.dataRequests.stream.map(
+        (all) => [...all]..sort((a, b) => b.requestedAt.compareTo(a.requestedAt)),
+      );
+
+  @override
+  Stream<List<DataRequest>> watchMyRequests(String uid) => _store.dataRequests.stream.map(
+        (all) => all.where((r) => r.requestedByUid == uid).toList()
+          ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt)),
+      );
+
+  @override
+  Future<Result<String>> raiseRequest({
+    required DataRequestKind kind,
+    required String details,
+    String? studentId,
+    String? studentName,
+  }) async {
+    await _latency();
+    final user = _store.requireUser;
+    final id = 'dsr_${DateTime.now().microsecondsSinceEpoch}';
+    _store.dataRequests.add([
+      DataRequest(
+        id: id,
+        requestedByUid: user.uid,
+        requestedByName: user.fullName,
+        kind: kind,
+        details: details,
+        requestedAt: DateTime.now(),
+        studentId: studentId,
+        studentName: studentName,
+      ),
+      ..._store.dataRequests.value,
+    ]);
+    return Success(id);
+  }
+
+  @override
+  Future<Result<void>> closeRequest({
+    required String requestId,
+    required DataRequestStatus status,
+    required String outcome,
+  }) async {
+    await _latency();
+    final user = _store.requireUser;
+    _store.dataRequests.add([
+      for (final request in _store.dataRequests.value)
+        if (request.id == requestId)
+          DataRequest(
+            id: request.id,
+            requestedByUid: request.requestedByUid,
+            requestedByName: request.requestedByName,
+            kind: request.kind,
+            details: request.details,
+            requestedAt: request.requestedAt,
+            studentId: request.studentId,
+            studentName: request.studentName,
+            status: status,
+            handledByName: user.fullName,
+            handledAt: DateTime.now(),
+            outcome: outcome,
+          )
+        else
+          request,
+    ]);
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> acknowledgePrivacyNotice(int version) async {
+    await _latency();
+    final user = _store.currentUser.value;
+    if (user == null) return const Error(AuthFailure('no-user', 'Nobody is signed in.'));
+    _store.currentUser.add(user.copyWith(privacyNoticeVersion: version));
+    // Remembered per account for the life of the process, so switching
+    // roles and coming back does not ask the same person twice.
+    _store.acknowledgedPrivacy.add({..._store.acknowledgedPrivacy.value, user.uid});
     return const Success(null);
   }
 }

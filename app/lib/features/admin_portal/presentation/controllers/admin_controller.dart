@@ -213,6 +213,9 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
     String? directorSignatureUrl,
     String? directorName,
     String? schoolYear,
+    String? dpoName,
+    String? dpoEmail,
+    String? dpoPhone,
   }) async {
     final result = await _updateBranding(
       logoUrl: logoUrl,
@@ -224,6 +227,9 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
       directorSignatureUrl: directorSignatureUrl,
       directorName: directorName,
       schoolYear: schoolYear,
+      dpoName: dpoName,
+      dpoEmail: dpoEmail,
+      dpoPhone: dpoPhone,
     );
     return result.isSuccess;
   }

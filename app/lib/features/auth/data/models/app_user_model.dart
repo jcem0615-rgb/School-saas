@@ -20,6 +20,7 @@ class AppUserModel extends AppUser {
     required super.qrCode,
     super.photoUrl,
     super.linkedStudentIds,
+    super.privacyNoticeVersion,
   });
 
   /// Builds the model from a Firestore `users/{userId}` document combined
@@ -46,6 +47,7 @@ class AppUserModel extends AppUser {
       mustChangePassword: mustChangePasswordFromClaims,
       qrCode: data['qrCode'] as String? ?? '',
       linkedStudentIds: (data['linkedStudentIds'] as List<dynamic>?)?.cast<String>(),
+      privacyNoticeVersion: (data['privacyNoticeVersion'] as num?)?.toInt(),
     );
   }
 }

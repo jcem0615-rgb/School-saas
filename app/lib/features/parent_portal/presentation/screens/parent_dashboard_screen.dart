@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
@@ -21,6 +22,15 @@ class ParentDashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('My Children'),
         actions: [
+          // Profile was routed but nothing navigated to it, so the one
+          // screen every role shares -- and the only way into the
+          // privacy notice and data requests -- could not be opened at
+          // all. A route with no door is a screen that does not exist.
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Profile',
+            onPressed: () => context.push('/profile'),
+          ),
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: 'My Activity',

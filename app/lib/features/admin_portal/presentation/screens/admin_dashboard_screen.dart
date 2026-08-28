@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
+import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../../schedules/presentation/screens/schedule_screen.dart';
 import 'branding_screen.dart';
@@ -32,6 +33,15 @@ class AdminDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
         actions: [
+          // Profile was routed but nothing navigated to it, so the one
+          // screen every role shares -- and the only way into the
+          // privacy notice and data requests -- could not be opened at
+          // all. A route with no door is a screen that does not exist.
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Profile',
+            onPressed: () => context.push('/profile'),
+          ),
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: 'My Activity',
@@ -40,7 +50,12 @@ class AdminDashboardScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Padding(
+      // Scrollable, not a bare Column. A dashboard is a grid of tiles
+      // that grows every time a module lands, and a Column that has run
+      // out of room does not scroll -- it overflows, which on a phone is
+      // a black-and-yellow stripe across the bottom row of a school's
+      // main screen.
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,6 +109,12 @@ class AdminDashboardScreen extends StatelessWidget {
                   label: 'Class Schedule',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const ScheduleScreen())),
+                ),
+                GlassTile(
+                  icon: Icons.privacy_tip_outlined,
+                  label: 'Data Requests',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const DataRequestsScreen())),
                 ),
                 GlassTile(
                   icon: Icons.insights_outlined,

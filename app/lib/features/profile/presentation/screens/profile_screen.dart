@@ -153,6 +153,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/qr-id'),
           ),
+          // On Profile because Profile is the one screen all ten portals
+          // share. A right that can only be exercised by finding the
+          // right office at the right hour is a right on paper.
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Privacy and my information'),
+            subtitle: const Text('What the school holds, and how to ask about it'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/privacy'),
+          ),
           ListTile(
             leading: const Icon(Icons.history),
             title: const Text('My Activity History'),

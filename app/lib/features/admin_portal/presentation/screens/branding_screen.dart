@@ -24,6 +24,9 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
   final _principalController = TextEditingController();
   final _directorController = TextEditingController();
   final _schoolYearController = TextEditingController();
+  final _dpoNameController = TextEditingController();
+  final _dpoEmailController = TextEditingController();
+  final _dpoPhoneController = TextEditingController();
   bool _loadedOnce = false;
   bool _uploading = false;
 
@@ -34,6 +37,9 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
     _principalController.dispose();
     _directorController.dispose();
     _schoolYearController.dispose();
+    _dpoNameController.dispose();
+    _dpoEmailController.dispose();
+    _dpoPhoneController.dispose();
     super.dispose();
   }
 
@@ -118,6 +124,9 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
             _principalController.text = branding.principalName ?? '';
             _directorController.text = branding.directorName ?? '';
             _schoolYearController.text = branding.schoolYear ?? '';
+            _dpoNameController.text = branding.dpoName ?? '';
+            _dpoEmailController.text = branding.dpoEmail ?? '';
+            _dpoPhoneController.text = branding.dpoPhone ?? '';
             _loadedOnce = true;
           }
 
@@ -223,6 +232,37 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
                 'sign by hand.',
                 style: theme.textTheme.bodySmall,
               ),
+              const Divider(height: 40),
+              Text('Data Protection Officer', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 4),
+              // Printed on the privacy notice every family can open from
+              // their own profile. Left blank, that notice says the
+              // school has not named one -- which is the prompt that
+              // gets one named, and the first thing a regulator asks for.
+              Text(
+                'The person a family contacts about their information. These '
+                'details appear on the privacy notice in the app. Leave them '
+                'blank and the notice tells families to ask the office '
+                'instead.',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _dpoNameController,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _dpoEmailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _dpoPhoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Phone'),
+              ),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () async {
@@ -232,6 +272,9 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
                         principalName: _principalController.text,
                         directorName: _directorController.text,
                         schoolYear: _schoolYearController.text,
+                        dpoName: _dpoNameController.text,
+                        dpoEmail: _dpoEmailController.text,
+                        dpoPhone: _dpoPhoneController.text,
                       );
                   if (ok && context.mounted) {
                     ScaffoldMessenger.of(context)

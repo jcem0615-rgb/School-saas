@@ -21,8 +21,13 @@ Future<ProviderContainer> pumpAs(WidgetTester tester, UserRole role) async {
 
   final c = ProviderContainer(overrides: demoOverrides());
   addTearDown(c.dispose);
-  c.read(demoAuthRepositoryProvider).signInAs(
-      DemoStore.demoAccounts.firstWhere((a) => a.role == role));
+  final account = DemoStore.demoAccounts.firstWhere((a) => a.role == role);
+  // The privacy notice stands in front of every portal on a fresh
+  // session, which is the point of it and is exercised in
+  // data_protection_test. Stepping past it keeps this test about
+  // whether dashboard tiles go anywhere.
+  c.read(demoStoreProvider).acknowledgedPrivacy.add({account.uid});
+  c.read(demoAuthRepositoryProvider).signInAs(account);
 
   await tester.pumpWidget(
       UncontrolledProviderScope(container: c, child: const app.LogicClassApp()));

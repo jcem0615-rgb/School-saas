@@ -9,6 +9,10 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/admin_portal/presentation/screens/admin_dashboard_screen.dart';
 import '../../features/audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../features/audit_trail/presentation/screens/my_activity_screen.dart';
+import '../../features/data_protection/presentation/controllers/data_protection_controller.dart'
+    show needsPrivacyAcknowledgementProvider;
+import '../../features/data_protection/presentation/screens/acknowledge_privacy_screen.dart';
+import '../../features/data_protection/presentation/screens/privacy_notice_screen.dart';
 import '../../features/director_portal/presentation/screens/director_dashboard_screen.dart';
 import '../../features/faculty_portal/presentation/screens/faculty_dashboard_screen.dart';
 import '../../features/guidance_portal/presentation/screens/guidance_dashboard_screen.dart';
@@ -40,6 +44,8 @@ class AppRoutes {
   static const myActivity = '/my-activity';
   static const auditTrail = '/audit-trail';
   static const reports = '/reports';
+  static const privacy = '/privacy';
+  static const acknowledgePrivacy = '/privacy/acknowledge';
   static const profile = '/profile';
   static const recordPayment = '/payments/record';
   static const paymentHistory = '/payments/history';
@@ -102,9 +108,25 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             : AppRoutes.forcePasswordChange;
       }
 
+      // Signed in, password OK, but has not been shown the current
+      // privacy notice. Gated in the same place as the password change
+      // and for the same reason: a notice somebody could navigate past
+      // is one the school cannot say was given.
+      //
+      // Owner is exempt. They are the platform operator rather than
+      // somebody whose personal data the school processes, and there is
+      // no school branding to name a Data Protection Officer from.
+      if (user.role != UserRole.owner && ref.read(needsPrivacyAcknowledgementProvider)) {
+        return state.matchedLocation == AppRoutes.acknowledgePrivacy
+            ? null
+            : AppRoutes.acknowledgePrivacy;
+      }
+
       // Signed in, password OK, but sitting on an auth screen -- send them
       // to their portal home.
-      if (loggingIn || state.matchedLocation == AppRoutes.forcePasswordChange) {
+      if (loggingIn ||
+          state.matchedLocation == AppRoutes.forcePasswordChange ||
+          state.matchedLocation == AppRoutes.acknowledgePrivacy) {
         return AppRoutes.homeFor(user.role);
       }
 
@@ -145,6 +167,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.auditTrail, builder: (context, state) => const AuditTrailScreen()),
       GoRoute(path: AppRoutes.profile, builder: (context, state) => const ProfileScreen()),
       GoRoute(path: AppRoutes.reports, builder: (context, state) => const ReportsScreen()),
+      GoRoute(path: AppRoutes.privacy, builder: (context, state) => const PrivacyNoticeScreen()),
+      GoRoute(
+        path: AppRoutes.acknowledgePrivacy,
+        builder: (context, state) => const AcknowledgePrivacyScreen(),
+      ),
       GoRoute(
         path: AppRoutes.myAttendance,
         builder: (context, state) {

@@ -83,6 +83,11 @@ void main() {
           DemoStore.demoAccounts.firstWhere((a) => a.email == 'registrar@demo.ph');
       final container = ProviderContainer(overrides: demoOverrides(signedInAs: registrar));
       addTearDown(container.dispose);
+      // This test is about the restored session not flashing the login
+      // screen. The privacy gate is a separate redirect with its own
+      // test in demo_app_boot_test.
+      container.read(demoStoreProvider).acknowledgedPrivacy.add({registrar.uid});
+      container.read(demoAuthRepositoryProvider).signInAs(registrar);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(

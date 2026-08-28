@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../../../owner_portal/presentation/widgets/revenue_card.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
+import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../../schedules/presentation/screens/schedule_screen.dart';
 import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
@@ -31,7 +33,16 @@ class DirectorDashboardScreen extends ConsumerWidget {
     final summaryAsync = ref.watch(dashboardSummaryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Director Dashboard')),
+      appBar: AppBar(
+        title: const Text('Director Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Profile',
+            onPressed: () => context.push('/profile'),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(dashboardSummaryProvider),
         child: SingleChildScrollView(
@@ -126,6 +137,12 @@ class DirectorDashboardScreen extends ConsumerWidget {
                     label: 'Class Schedule',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const ScheduleScreen())),
+                  ),
+                  GlassTile(
+                    icon: Icons.privacy_tip_outlined,
+                    label: 'Data Requests',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const DataRequestsScreen())),
                   ),
                   GlassTile(
                     icon: Icons.insights_outlined,

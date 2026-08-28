@@ -81,6 +81,12 @@ class FirestorePaths {
   /// one room.
   static String scheduleBlocks(String schoolId) => '${school(schoolId)}/scheduleBlocks';
 
+  /// What a person asked the school to do with their own information,
+  /// and what the school did about it. Append-and-answer: the request
+  /// itself never changes, and nothing is ever deleted -- a school asked
+  /// how it handles these has to be able to show the refusals too.
+  static String dataRequests(String schoolId) => '${school(schoolId)}/dataRequests';
+
   static String courseworkItems(String schoolId) => '${school(schoolId)}/courseworkItems';
 
   /// What students hand in against a courseworkItem. A sibling

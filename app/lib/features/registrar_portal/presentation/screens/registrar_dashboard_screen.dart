@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 
 import '../../../payments/presentation/screens/payment_review_screen.dart';
 import '../../../payments/presentation/screens/payment_settings_screen.dart';
@@ -22,6 +24,15 @@ class RegistrarDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Registrar Dashboard'),
         actions: [
+          // Profile was routed but nothing navigated to it, so the one
+          // screen every role shares -- and the only way into the
+          // privacy notice and data requests -- could not be opened at
+          // all. A route with no door is a screen that does not exist.
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Profile',
+            onPressed: () => context.push('/profile'),
+          ),
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: 'My Activity',
@@ -30,7 +41,12 @@ class RegistrarDashboardScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Padding(
+      // Scrollable, not a bare Column. A dashboard is a grid of tiles
+      // that grows every time a module lands, and a Column that has run
+      // out of room does not scroll -- it overflows, which on a phone is
+      // a black-and-yellow stripe across the bottom row of a school's
+      // main screen.
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,6 +62,15 @@ class RegistrarDashboardScreen extends StatelessWidget {
                   label: 'Student Records',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const StudentListScreen())),
+                ),
+                // The registrar is the office a family actually walks up
+                // to, so the queue belongs on their dashboard as much as
+                // on the Director's.
+                GlassTile(
+                  icon: Icons.privacy_tip_outlined,
+                  label: 'Data Requests',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const DataRequestsScreen())),
                 ),
                 GlassTile(
                   icon: Icons.fact_check_outlined,

@@ -19,6 +19,15 @@ class AppUser {
   final String qrCode;
   final List<String>? linkedStudentIds; // populated for parent role only
 
+  /// The privacy notice version this person has read, or null if they
+  /// have not seen one.
+  ///
+  /// A version rather than a flag, so that changing what the notice says
+  /// asks everybody again. A flag would mean the eight hundred people
+  /// who agreed to the old wording are recorded as having agreed to the
+  /// new one, which is exactly the record a regulator would object to.
+  final int? privacyNoticeVersion;
+
   const AppUser({
     required this.uid,
     required this.schoolId,
@@ -31,6 +40,7 @@ class AppUser {
     required this.qrCode,
     this.photoUrl,
     this.linkedStudentIds,
+    this.privacyNoticeVersion,
   });
 
   String get fullName => '$firstName $lastName';
@@ -48,6 +58,7 @@ class AppUser {
     bool? mustChangePassword,
     String? qrCode,
     List<String>? linkedStudentIds,
+    int? privacyNoticeVersion,
   }) {
     return AppUser(
       uid: uid,
@@ -61,6 +72,7 @@ class AppUser {
       mustChangePassword: mustChangePassword ?? this.mustChangePassword,
       qrCode: qrCode ?? this.qrCode,
       linkedStudentIds: linkedStudentIds ?? this.linkedStudentIds,
+      privacyNoticeVersion: privacyNoticeVersion ?? this.privacyNoticeVersion,
     );
   }
 

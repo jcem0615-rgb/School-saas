@@ -262,6 +262,22 @@
         {"fieldPath": "dayOfWeek", "order": "ASCENDING"},
         {"fieldPath": "isDeleted", "order": "ASCENDING"}
       ]
+    },
+    {
+      "collectionGroup": "dataRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "requestedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "dataRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "requestedByUid", "order": "ASCENDING"},
+        {"fieldPath": "requestedAt", "order": "DESCENDING"}
+      ]
     }
   ],
   "fieldOverrides": []

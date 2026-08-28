@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logicclass/core/constants/user_roles.dart';
 import 'package:logicclass/core/router/app_router.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
@@ -43,6 +44,13 @@ void main() {
 
     final router = container.read(goRouterProvider);
 
+    // The privacy notice stands in front of every portal on a fresh
+    // session; it gets its own assertion below. Marking these accounts
+    // as having read it keeps this test about whether each portal opens.
+    container.read(demoStoreProvider).acknowledgedPrivacy.add(
+          {for (final account in DemoStore.demoAccounts) account.uid},
+        );
+
     for (final account in DemoStore.demoAccounts) {
       final label = account.role.displayName;
       demoSignInAs(
@@ -60,6 +68,51 @@ void main() {
       );
       expect(find.byType(Scaffold), findsWidgets, reason: '$label rendered nothing');
     }
+  });
+
+  testWidgets('a fresh sign-in is held at the privacy notice until it is read',
+      (tester) async {
+    final container = ProviderContainer(overrides: demoOverrides());
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const LogicClassApp()),
+    );
+    await tester.pumpAndSettle();
+
+    final student = DemoStore.demoAccounts.firstWhere((a) => a.role == UserRole.student);
+    demoSignInAs(
+      container.read(demoAuthRepositoryProvider),
+      container.read(goRouterProvider),
+      student,
+    );
+    await tester.pumpAndSettle();
+
+    final router = container.read(goRouterProvider);
+    expect(
+      router.routerDelegate.currentConfiguration.uri.path,
+      AppRoutes.acknowledgePrivacy,
+      reason: 'a notice somebody can navigate past is one the school cannot '
+          'say was given',
+    );
+    expect(find.text('I have read this'), findsOneWidget);
+
+    // The button stays dead until the notice has been scrolled through,
+    // which is the point of it -- so the test has to read the page the
+    // way a person would.
+    for (var i = 0; i < 6; i++) {
+      await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.text('I have read this'));
+    await tester.pumpAndSettle();
+
+    expect(
+      router.routerDelegate.currentConfiguration.uri.path,
+      AppRoutes.homeFor(UserRole.student),
+      reason: 'acknowledging should let them through to their portal',
+    );
   });
 
   testWidgets('shared sub-routes open without throwing', (tester) async {

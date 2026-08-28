@@ -33,6 +33,16 @@ class SchoolBranding {
   /// is what makes last year's card visibly expired.
   final String? schoolYear;
 
+  /// The person a family takes a complaint about their information to.
+  ///
+  /// Named here rather than left to a paper policy because a Data
+  /// Protection Officer nobody can find is the same as not having one --
+  /// the privacy notice in the app prints these details, and says
+  /// plainly when they are unset.
+  final String? dpoName;
+  final String? dpoEmail;
+  final String? dpoPhone;
+
   final DateTime? updatedAt;
   final String? updatedByName;
 
@@ -46,6 +56,9 @@ class SchoolBranding {
     this.principalSignatureUrl,
     this.directorSignatureUrl,
     this.schoolYear,
+    this.dpoName,
+    this.dpoEmail,
+    this.dpoPhone,
     this.updatedAt,
     this.updatedByName,
   });
@@ -58,4 +71,6 @@ class SchoolBranding {
       principalSignatureUrl != null && principalSignatureUrl!.isNotEmpty;
   bool get hasDirectorSignature =>
       directorSignatureUrl != null && directorSignatureUrl!.isNotEmpty;
+
+  bool get hasDataProtectionOfficer => dpoName != null && dpoName!.trim().isNotEmpty;
 }

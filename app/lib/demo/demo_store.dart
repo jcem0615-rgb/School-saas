@@ -38,6 +38,8 @@ import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/schedules/domain/entities/schedule_block.dart';
+import '../features/data_protection/domain/entities/data_request.dart';
+import '../features/data_protection/domain/entities/privacy_notice.dart';
 import '../features/staff_portal/domain/entities/checklist_item.dart';
 import '../features/staff_portal/domain/entities/daily_report.dart';
 
@@ -153,6 +155,16 @@ class DemoStore {
   late final attendance = BehaviorSubject<List<AttendanceRecord>>.seeded(_seedAttendance());
   late final scheduleBlocks =
       BehaviorSubject<List<ScheduleBlock>>.seeded(_seedScheduleBlocks());
+  late final dataRequests =
+      BehaviorSubject<List<DataRequest>>.seeded(_seedDataRequests());
+
+  /// Who has already read the privacy notice this run.
+  ///
+  /// Held beside the accounts rather than on them because the demo
+  /// accounts are const: switching to Registrar and back must not ask
+  /// the same person twice, but a fresh process should still show the
+  /// gate once, which is the thing worth demonstrating.
+  late final acknowledgedPrivacy = BehaviorSubject<Set<String>>.seeded(<String>{});
   late final coursework = BehaviorSubject<List<CourseworkItem>>.seeded(_seedCoursework());
   /// Named for the collection, not shortened to `submissions` -- payment
   /// submissions already own that word in this store.
@@ -274,6 +286,13 @@ class DemoStore {
       schoolYear: '${DateTime.now().year}-${DateTime.now().year + 1}',
       principalName: 'Ramon Salazar',
       directorName: 'Corazon Buenaventura',
+      // A named officer, because that is what a school evaluating this
+      // should be looking at. Clear the field in Branding and the
+      // privacy notice says plainly that none has been named -- which is
+      // the state a real school starts in.
+      dpoName: 'Atty. Imelda Ferrer',
+      dpoEmail: 'dpo@stnicholas.demo.ph',
+      dpoPhone: '(044) 791 2201',
       // Seeded so the demo's ID cards show what a signed card looks like.
       // Inline data URIs rather than files: demo mode never touches
       // Storage, and a card whose signature is a broken image would
@@ -313,6 +332,12 @@ class DemoStore {
 
   /// Prepends [item] to a collection and republishes it. Insert-at-front
   /// matches how every list screen in this app sorts (newest first).
+  /// [user] with the privacy acknowledgement they already gave this run.
+  AppUser withAcknowledgement(AppUser user) =>
+      acknowledgedPrivacy.value.contains(user.uid)
+          ? user.copyWith(privacyNoticeVersion: PrivacyNotice.version)
+          : user;
+
   void prepend<T>(BehaviorSubject<List<T>> subject, T item) {
     subject.add([item, ...subject.value]);
   }
@@ -393,7 +418,8 @@ class DemoStore {
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog,
       paymentSubmissions, paymentSettings, branding, documentReleases,
-      feeStructures, assessments, scheduleBlocks,
+      feeStructures, assessments, scheduleBlocks, dataRequests,
+      acknowledgedPrivacy,
     ]) {
       s.close();
     }
@@ -957,6 +983,41 @@ class DemoStore {
         ),
     ];
   }
+
+  /// Two requests, one answered and one still waiting.
+  ///
+  /// The answered one is a refusal, because that is the case a school
+  /// evaluating this actually wants to see handled: a family asks for a
+  /// record to be deleted, the school cannot agree, and the system has
+  /// somewhere to put the reason rather than pushing the office into
+  /// silence.
+  List<DataRequest> _seedDataRequests() => [
+        DataRequest(
+          id: 'dsr_001',
+          requestedByUid: 'u_parent',
+          requestedByName: 'Rosalinda Torres',
+          kind: DataRequestKind.access,
+          details: 'A copy of everything on file for my son Miguel, for a '
+              'transfer application.',
+          requestedAt: now.subtract(const Duration(days: 3)),
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+        ),
+        DataRequest(
+          id: 'dsr_002',
+          requestedByUid: 'u_student',
+          requestedByName: 'Miguel Torres',
+          kind: DataRequestKind.erasure,
+          details: 'Please delete my Grade 9 records.',
+          requestedAt: now.subtract(const Duration(days: 20)),
+          status: DataRequestStatus.refused,
+          handledByName: 'Joel Bautista',
+          handledAt: now.subtract(const Duration(days: 18)),
+          outcome: 'Academic records are ones the school is required to keep, '
+              'and a transcript issued later has to show them. Your contact '
+              'details and photograph can be changed or removed on request.',
+        ),
+      ];
 
   List<Program> _seedPrograms() => const [
         // Senior High: the DepEd tracks and strands as they are actually
