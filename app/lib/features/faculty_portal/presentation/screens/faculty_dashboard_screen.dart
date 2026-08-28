@@ -1,6 +1,10 @@
 import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
+import '../../../schedules/presentation/screens/my_timetable_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider;
 
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import 'coursework_list_screen.dart';
@@ -43,6 +47,27 @@ class FacultyDashboardScreen extends StatelessWidget {
               spacing: 12,
               runSpacing: 12,
               children: [
+                // The one tile here that needs to know who is signed in:
+                // a teacher's timetable is their own uid's, and this
+                // dashboard is otherwise stateless.
+                Consumer(
+                  builder: (context, ref, _) => GlassTile(
+                    icon: Icons.calendar_view_week_outlined,
+                    label: 'My Schedule',
+                    onTap: () {
+                      final uid = ref.read(authStateProvider).valueOrNull?.uid;
+                      if (uid == null) return;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => MyTimetableScreen(
+                            title: 'My Schedule',
+                            teacherId: uid,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
                 GlassTile(
                   icon: Icons.menu_book_outlined,
                   label: 'Coursework',

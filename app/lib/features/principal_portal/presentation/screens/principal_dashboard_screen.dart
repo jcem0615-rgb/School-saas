@@ -1,4 +1,5 @@
 import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
+import '../../../schedules/presentation/screens/schedule_screen.dart';
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -56,6 +57,15 @@ class PrincipalDashboardScreen extends StatelessWidget {
                   label: 'Student Records',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const StudentListScreen())),
+                ),
+                // Next to Teacher Assignment: one says who teaches what,
+                // the other says when. A principal covering an absent
+                // teacher needs both open.
+                GlassTile(
+                  icon: Icons.calendar_view_week_outlined,
+                  label: 'Class Schedule',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const ScheduleScreen())),
                 ),
                 GlassTile(
                   icon: Icons.assignment_ind_outlined,

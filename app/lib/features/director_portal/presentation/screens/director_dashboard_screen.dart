@@ -6,6 +6,7 @@ import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../../../owner_portal/presentation/widgets/revenue_card.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
+import '../../../schedules/presentation/screens/schedule_screen.dart';
 import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../controllers/director_controller.dart';
@@ -119,6 +120,12 @@ class DirectorDashboardScreen extends ConsumerWidget {
                     label: 'Approvals',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const ApprovalsScreen())),
+                  ),
+                  GlassTile(
+                    icon: Icons.calendar_view_week_outlined,
+                    label: 'Class Schedule',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const ScheduleScreen())),
                   ),
                   GlassTile(
                     icon: Icons.insights_outlined,

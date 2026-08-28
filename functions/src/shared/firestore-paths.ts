@@ -51,6 +51,10 @@ export const FirestorePaths = {
   programDoc: (schoolId: string, programId: string) => `schools/${schoolId}/programs/${programId}`,
 
   teacherAssignments: (schoolId: string) => `schools/${schoolId}/teacherAssignments`,
+
+  scheduleBlocks: (schoolId: string) => `schools/${schoolId}/scheduleBlocks`,
+  scheduleBlockDoc: (schoolId: string, blockId: string) =>
+    `schools/${schoolId}/scheduleBlocks/${blockId}`,
   emergencyAlerts: (schoolId: string) => `schools/${schoolId}/emergencyAlerts`,
 
   courseworkSubmissions: (schoolId: string) => `schools/${schoolId}/courseworkSubmissions`,

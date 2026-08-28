@@ -7,6 +7,7 @@ import '../../../director_portal/presentation/screens/announcements_screen.dart'
 import '../../../emergency/presentation/screens/sos_screen.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
 import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
+import '../../../schedules/presentation/screens/my_timetable_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../controllers/student_controller.dart';
 import 'coursework_feed_screen.dart';
@@ -91,6 +92,18 @@ class StudentDashboardScreen extends ConsumerWidget {
                               section: student.section,
                               studentId: student.id,
                             ))),
+                  ),
+                  GlassTile(
+                    icon: Icons.calendar_view_week_outlined,
+                    label: 'My Timetable',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => MyTimetableScreen(
+                          title: 'My Timetable',
+                          section: student.section,
+                        ),
+                      ),
+                    ),
                   ),
                   GlassTile(
                     icon: Icons.assignment_outlined,

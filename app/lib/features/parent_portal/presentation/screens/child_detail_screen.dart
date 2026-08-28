@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
 import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
+import '../../../schedules/presentation/screens/my_timetable_screen.dart';
 import '../../../student_portal/presentation/screens/my_grades_screen.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
@@ -89,6 +90,18 @@ class ChildDetailScreen extends StatelessWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => AttendanceHistoryScreen(personId: child.id, title: '${child.fullName} - Attendance'),
+                  ),
+                ),
+              ),
+              _ActionChip(
+                icon: Icons.calendar_view_week_outlined,
+                label: 'Timetable',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MyTimetableScreen(
+                      title: '${child.fullName} - Timetable',
+                      section: child.section,
+                    ),
                   ),
                 ),
               ),

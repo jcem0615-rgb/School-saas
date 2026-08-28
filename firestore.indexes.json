@@ -243,6 +243,25 @@
         {"fieldPath": "isDeleted", "order": "ASCENDING"},
         {"fieldPath": "submittedAt", "order": "ASCENDING"}
       ]
+    },
+    {
+      "collectionGroup": "scheduleBlocks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "schoolYear", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"},
+        {"fieldPath": "dayOfWeek", "order": "ASCENDING"},
+        {"fieldPath": "startMinute", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "scheduleBlocks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "schoolYear", "order": "ASCENDING"},
+        {"fieldPath": "dayOfWeek", "order": "ASCENDING"},
+        {"fieldPath": "isDeleted", "order": "ASCENDING"}
+      ]
     }
   ],
   "fieldOverrides": []

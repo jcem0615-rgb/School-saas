@@ -75,6 +75,12 @@ class FirestorePaths {
 
   static String teacherAssignments(String schoolId) => '${school(schoolId)}/teacherAssignments';
 
+  /// The weekly timetable. Written only by saveScheduleBlock and
+  /// deleteScheduleBlock -- clash detection is the whole feature, and a
+  /// client that could write here directly could book two classes into
+  /// one room.
+  static String scheduleBlocks(String schoolId) => '${school(schoolId)}/scheduleBlocks';
+
   static String courseworkItems(String schoolId) => '${school(schoolId)}/courseworkItems';
 
   /// What students hand in against a courseworkItem. A sibling

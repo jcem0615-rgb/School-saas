@@ -38,6 +38,11 @@ export {recordPayment} from "./callable/payments/recordPayment";
 export {recordRefund} from "./callable/payments/recordRefund";
 export {assessStudentFees} from "./callable/payments/assessStudentFees";
 export {voidAssessment} from "./callable/payments/voidAssessment";
+
+// Timetable. Clash detection is the feature, so both writes are
+// callables and firestore.rules refuses every client write.
+export {saveScheduleBlock} from "./callable/schedule/saveScheduleBlock";
+export {deleteScheduleBlock} from "./callable/schedule/deleteScheduleBlock";
 export {decidePaymentSubmission} from "./callable/payments/decidePaymentSubmission";
 
 // ---------------------------------------------------------------------------

@@ -37,6 +37,8 @@ import '../features/guidance_portal/domain/repositories/guidance_repository.dart
 import '../features/reports/domain/entities/report_kind.dart';
 import '../features/reports/domain/entities/report_period.dart';
 import '../features/reports/domain/repositories/reports_repository.dart';
+import '../features/schedules/domain/entities/schedule_block.dart';
+import '../features/schedules/domain/repositories/schedule_repository.dart';
 // See the note in demo_store.dart: unqualified PaymentMethod is the
 // student-payments enum; the platform-billing one is `billing.PaymentMethod`.
 import '../features/owner_portal/domain/entities/invoice.dart' hide PaymentMethod;
@@ -3094,5 +3096,87 @@ class DemoReportsRepository implements ReportsRepository {
           ? _store.grades.value.where((g) => period.contains(g.submittedAt)).toList()
           : const [],
     ));
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Timetable
+// ---------------------------------------------------------------------------
+
+/// The in-memory twin of the schedule callables.
+///
+/// It runs the same clash check the server runs, rather than accepting
+/// whatever the screen sends. The check is the feature, and a demo that
+/// cheerfully books two classes into one room would be demonstrating
+/// something the real app refuses.
+class DemoScheduleRepository implements ScheduleRepository {
+  final DemoStore _store;
+  DemoScheduleRepository(this._store);
+
+  @override
+  Stream<List<ScheduleBlock>> watchSchedule(String schoolYear) =>
+      _store.scheduleBlocks.stream.map(
+        (all) => all.where((b) => b.schoolYear == schoolYear).toList()
+          ..sort((a, b) {
+            final byDay = a.dayOfWeek.compareTo(b.dayOfWeek);
+            return byDay != 0 ? byDay : a.startMinute.compareTo(b.startMinute);
+          }),
+      );
+
+  @override
+  Future<Result<String>> saveScheduleBlock({
+    String? blockId,
+    required String subject,
+    required String section,
+    required String teacherId,
+    required String teacherName,
+    String? room,
+    required int dayOfWeek,
+    required int startMinute,
+    required int endMinute,
+    required String schoolYear,
+    String? term,
+  }) async {
+    final id = blockId ?? 'sched_${DateTime.now().microsecondsSinceEpoch}';
+    final candidate = ScheduleBlock(
+      id: id,
+      subject: subject.trim(),
+      section: section.trim(),
+      teacherId: teacherId,
+      teacherName: teacherName,
+      room: room?.trim().isEmpty ?? true ? null : room!.trim(),
+      dayOfWeek: dayOfWeek,
+      startMinute: startMinute,
+      endMinute: endMinute,
+      schoolYear: schoolYear,
+      term: term,
+    );
+
+    final conflicts = findConflicts(
+      candidate,
+      _store.scheduleBlocks.value.where((b) => b.id != id),
+    );
+    if (conflicts.isNotEmpty) {
+      return Error(ServerFailure(conflicts.map((c) => c.message).join(' ')));
+    }
+
+    final all = [..._store.scheduleBlocks.value];
+    final index = all.indexWhere((b) => b.id == id);
+    if (index >= 0) {
+      all[index] = candidate;
+    } else {
+      all.add(candidate);
+    }
+    _store.scheduleBlocks.add(all);
+    return Success(id);
+  }
+
+  @override
+  Future<Result<void>> deleteScheduleBlock(String blockId) async {
+    _store.scheduleBlocks.add(
+      _store.scheduleBlocks.value.where((b) => b.id != blockId).toList(),
+    );
+    return const Success(null);
   }
 }

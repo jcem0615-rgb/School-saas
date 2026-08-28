@@ -7,6 +7,7 @@ import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
+import '../../../schedules/presentation/screens/schedule_screen.dart';
 import 'branding_screen.dart';
 import 'employee_list_screen.dart';
 import 'programs_screen.dart';
@@ -87,6 +88,12 @@ class AdminDashboardScreen extends StatelessWidget {
                   label: 'Emergency Numbers',
                   onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const EmergencyContactsScreen())),
+                ),
+                GlassTile(
+                  icon: Icons.calendar_view_week_outlined,
+                  label: 'Class Schedule',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const ScheduleScreen())),
                 ),
                 GlassTile(
                   icon: Icons.insights_outlined,

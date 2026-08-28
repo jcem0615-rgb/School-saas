@@ -37,6 +37,7 @@ import '../features/payments/domain/entities/payment_submission.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
+import '../features/schedules/domain/entities/schedule_block.dart';
 import '../features/staff_portal/domain/entities/checklist_item.dart';
 import '../features/staff_portal/domain/entities/daily_report.dart';
 
@@ -150,6 +151,8 @@ class DemoStore {
       BehaviorSubject<List<FeeStructure>>.seeded(_seedFeeStructures());
   late final assessments = BehaviorSubject<List<Assessment>>.seeded(_seedAssessments());
   late final attendance = BehaviorSubject<List<AttendanceRecord>>.seeded(_seedAttendance());
+  late final scheduleBlocks =
+      BehaviorSubject<List<ScheduleBlock>>.seeded(_seedScheduleBlocks());
   late final coursework = BehaviorSubject<List<CourseworkItem>>.seeded(_seedCoursework());
   /// Named for the collection, not shortened to `submissions` -- payment
   /// submissions already own that word in this store.
@@ -390,7 +393,7 @@ class DemoStore {
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog,
       paymentSubmissions, paymentSettings, branding, documentReleases,
-      feeStructures, assessments,
+      feeStructures, assessments, scheduleBlocks,
     ]) {
       s.close();
     }
@@ -850,6 +853,108 @@ class DemoStore {
         section: 'BSCS 3-A',
         schoolYear: sy,
       ),
+    ];
+  }
+
+  /// A week that hangs together.
+  ///
+  /// Built from the same sections, subjects and teachers the rest of the
+  /// demo uses, so a student's timetable names the teacher who set their
+  /// coursework and a room clash demonstration has real rooms in it. The
+  /// two teachers never collide -- a demo that opens on a broken
+  /// timetable reads as a bug rather than as a feature.
+  List<ScheduleBlock> _seedScheduleBlocks() {
+    final sy = '${now.year}-${now.year + 1}';
+    var counter = 0;
+    ScheduleBlock block({
+      required String subject,
+      required String section,
+      required String teacherId,
+      required String teacherName,
+      required String room,
+      required int day,
+      required int start,
+      required int end,
+    }) {
+      counter++;
+      return ScheduleBlock(
+        id: 'sched_${counter.toString().padLeft(3, '0')}',
+        subject: subject,
+        section: section,
+        teacherId: teacherId,
+        teacherName: teacherName,
+        room: room,
+        dayOfWeek: day,
+        startMinute: start,
+        endMinute: end,
+        schoolYear: sy,
+      );
+    }
+
+    const maria = 'u_faculty';
+    const dennis = 'u_faculty_2';
+    const rizal = 'Grade 10 - Rizal';
+    const bscs = 'BSCS 3-A';
+
+    return [
+      // Grade 10 - Rizal, Monday to Friday mornings.
+      for (var day = 1; day <= 5; day++)
+        block(
+          subject: 'Mathematics',
+          section: rizal,
+          teacherId: maria,
+          teacherName: 'Maria Santos',
+          room: 'Room 201',
+          day: day,
+          start: 7 * 60 + 30,
+          end: 8 * 60 + 30,
+        ),
+      for (final day in [1, 3, 5])
+        block(
+          subject: 'Science',
+          section: rizal,
+          teacherId: maria,
+          teacherName: 'Maria Santos',
+          room: 'Science Lab',
+          day: day,
+          start: 8 * 60 + 40,
+          end: 9 * 60 + 40,
+        ),
+      for (final day in [2, 4])
+        block(
+          subject: 'English',
+          section: rizal,
+          teacherId: maria,
+          teacherName: 'Maria Santos',
+          room: 'Room 201',
+          day: day,
+          start: 8 * 60 + 40,
+          end: 9 * 60 + 40,
+        ),
+      // BSCS 3-A meets in the afternoon, so Dennis and Maria never
+      // contend for a room and the seeded week is clash-free.
+      for (final day in [1, 3])
+        block(
+          subject: 'Data Structures',
+          section: bscs,
+          teacherId: dennis,
+          teacherName: 'Dennis Pascual',
+          room: 'Computer Lab',
+          day: day,
+          start: 13 * 60,
+          end: 14 * 60 + 30,
+        ),
+      for (final day in [2, 4])
+        block(
+          subject: 'Algorithms',
+          section: bscs,
+          teacherId: dennis,
+          teacherName: 'Dennis Pascual',
+          room: 'Computer Lab',
+          day: day,
+          start: 13 * 60,
+          end: 14 * 60 + 30,
+        ),
     ];
   }
 

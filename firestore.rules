@@ -385,6 +385,24 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ---- scheduleBlocks (the weekly timetable) ----
+      //
+      // Readable by the whole tenant, and deliberately so: a timetable
+      // is posted on the classroom wall. A student needs their own
+      // week, a parent needs to know when their child is in school, and
+      // a teacher covering a class needs somebody else's slot. Scoping
+      // it per division would buy nothing and would stop a student
+      // seeing the room their next class is in.
+      //
+      // No client writes at all. Clash detection -- one teacher, one
+      // section, one room, one slot -- is the entire feature, and a
+      // guarantee that lives only in the UI is not a guarantee. Both
+      // writes go through saveScheduleBlock and deleteScheduleBlock.
+      match /scheduleBlocks/{blockId} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow write: if false;
+      }
+
       // ---- courseworkItems (Lesson Plans, Lessons, Assignments, Projects, Exams, Quizzes) ----
       match /courseworkItems/{itemId} {
         // Published items are visible to the whole tenant (students/
