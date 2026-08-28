@@ -29,6 +29,7 @@ import '../../features/qr_attendance/presentation/screens/qr_scanner_screen.dart
 import '../../features/registrar_portal/presentation/screens/registrar_dashboard_screen.dart';
 import '../../features/reports/presentation/screens/reports_screen.dart';
 import '../../features/staff_portal/presentation/screens/staff_dashboard_screen.dart';
+import '../../features/system_check/presentation/screens/system_check_screen.dart';
 import '../../features/student_portal/presentation/screens/student_dashboard_screen.dart';
 import '../constants/user_roles.dart';
 
@@ -45,6 +46,7 @@ class AppRoutes {
   static const auditTrail = '/audit-trail';
   static const reports = '/reports';
   static const privacy = '/privacy';
+  static const systemCheck = '/system-check';
   static const acknowledgePrivacy = '/privacy/acknowledge';
   static const profile = '/profile';
   static const recordPayment = '/payments/record';
@@ -137,7 +139,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // is refused per document. Every other role still has
       // /my-activity, which is scoped to their own uid.
       if ((state.matchedLocation == AppRoutes.auditTrail ||
-              state.matchedLocation == AppRoutes.reports) &&
+              state.matchedLocation == AppRoutes.reports ||
+              state.matchedLocation == AppRoutes.systemCheck) &&
           user.role != UserRole.director &&
           user.role != UserRole.admin) {
         return AppRoutes.homeFor(user.role);
@@ -168,6 +171,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.profile, builder: (context, state) => const ProfileScreen()),
       GoRoute(path: AppRoutes.reports, builder: (context, state) => const ReportsScreen()),
       GoRoute(path: AppRoutes.privacy, builder: (context, state) => const PrivacyNoticeScreen()),
+      GoRoute(
+        path: AppRoutes.systemCheck,
+        builder: (context, state) => const SystemCheckScreen(),
+      ),
       GoRoute(
         path: AppRoutes.acknowledgePrivacy,
         builder: (context, state) => const AcknowledgePrivacyScreen(),

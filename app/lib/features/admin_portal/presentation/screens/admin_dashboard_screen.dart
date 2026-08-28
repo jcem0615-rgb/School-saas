@@ -8,6 +8,7 @@ import '../../../director_portal/presentation/screens/announcements_screen.dart'
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
 import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
+import '../../../system_check/presentation/screens/system_check_screen.dart';
 import '../../../schedules/presentation/screens/schedule_screen.dart';
 import 'branding_screen.dart';
 import 'employee_list_screen.dart';
@@ -109,6 +110,14 @@ class AdminDashboardScreen extends StatelessWidget {
                   label: 'Class Schedule',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const ScheduleScreen())),
+                ),
+                // Run before a school is let in, and again after any
+                // deploy that touches rules, functions or indexes.
+                GlassTile(
+                  icon: Icons.checklist_rtl_outlined,
+                  label: 'System Check',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const SystemCheckScreen())),
                 ),
                 GlassTile(
                   icon: Icons.privacy_tip_outlined,

@@ -8,6 +8,7 @@ import '../../../owner_portal/presentation/widgets/revenue_card.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
 import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
+import '../../../system_check/presentation/screens/system_check_screen.dart';
 import '../../../schedules/presentation/screens/schedule_screen.dart';
 import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
@@ -137,6 +138,12 @@ class DirectorDashboardScreen extends ConsumerWidget {
                     label: 'Class Schedule',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const ScheduleScreen())),
+                  ),
+                  GlassTile(
+                    icon: Icons.checklist_rtl_outlined,
+                    label: 'System Check',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const SystemCheckScreen())),
                   ),
                   GlassTile(
                     icon: Icons.privacy_tip_outlined,

@@ -41,6 +41,8 @@ import '../features/schedules/domain/entities/schedule_block.dart';
 import '../features/schedules/domain/repositories/schedule_repository.dart';
 import '../features/data_protection/domain/entities/data_request.dart';
 import '../features/data_protection/domain/repositories/data_protection_repository.dart';
+import '../features/system_check/domain/entities/system_check.dart';
+import '../features/system_check/domain/repositories/system_check_repository.dart';
 // See the note in demo_store.dart: unqualified PaymentMethod is the
 // student-payments enum; the platform-billing one is `billing.PaymentMethod`.
 import '../features/owner_portal/domain/entities/invoice.dart' hide PaymentMethod;
@@ -3287,5 +3289,28 @@ class DemoDataProtectionRepository implements DataProtectionRepository {
     // roles and coming back does not ask the same person twice.
     _store.acknowledgedPrivacy.add({..._store.acknowledgedPrivacy.value, user.uid});
     return const Success(null);
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// System check
+// ---------------------------------------------------------------------------
+
+/// Reports that nothing was checked.
+///
+/// The one demo repository that deliberately does not simulate its real
+/// counterpart. Every other fake exists so the demo behaves like the
+/// app; this one exists so it does not. A preflight that goes green
+/// against an in-memory store is a green light that means nothing, shown
+/// to the one person who most needs it to mean something -- so demo mode
+/// says so and checks nothing at all.
+class DemoSystemCheckRepository implements SystemCheckRepository {
+  DemoSystemCheckRepository();
+
+  @override
+  Future<SystemCheckReport> run() async {
+    await _latency(400);
+    return SystemCheckReport(checks: const [], ranAt: DateTime.now(), demoMode: true);
   }
 }
