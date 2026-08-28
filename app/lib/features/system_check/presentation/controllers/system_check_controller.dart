@@ -46,5 +46,16 @@ class SystemCheckController extends StateNotifier<AsyncValue<SystemCheckReport?>
 final systemCheckControllerProvider =
     StateNotifierProvider.autoDispose<SystemCheckController, AsyncValue<SystemCheckReport?>>(
         (ref) {
-  return SystemCheckController(ref.watch(systemCheckRepositoryProvider));
+  // read, not watch, and that distinction is the whole difference
+  // between this screen working and this screen doing nothing.
+  //
+  // The claims check calls getIdTokenResult(force: true) on purpose --
+  // stale claims are one of the faults it exists to find. That refresh
+  // makes authStateProvider emit, which rebuilds the repository, which
+  // with a watch here would dispose this controller and construct a new
+  // one in AsyncData(null). The report would be discarded a moment
+  // after it was produced, and the screen would sit back at "Run the
+  // checks" as though nothing had happened -- which is exactly what it
+  // did the first time it was run against a real deployment.
+  return SystemCheckController(ref.read(systemCheckRepositoryProvider));
 });

@@ -1,4 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,6 +37,28 @@ import 'firebase_config.dart';
 /// configured: the two modes coexist.
 const kDemoMode = bool.fromEnvironment('DEMO_MODE', defaultValue: true);
 
+/// Points every SDK at a locally running Firebase Emulator Suite.
+///
+/// Only meaningful with DEMO_MODE=false: demo mode never starts Firebase
+/// at all. This is what makes the real repositories -- and the System
+/// Check that probes them -- runnable without a cloud project, against
+/// the actual rules engine and the actual Functions runtime rather than
+/// a stand-in for them.
+///
+///     flutter build web --dart-define=DEMO_MODE=false \
+///       --dart-define=USE_FIREBASE_EMULATORS=true \
+///       --dart-define=FIREBASE_PROJECT_ID=demo-logicclass ...
+///
+/// Deliberately opt-in and off by default. A build that silently talked
+/// to localhost instead of the school's project would be the worst kind
+/// of configuration bug: everything would appear to work, against
+/// nothing.
+const kUseFirebaseEmulators = bool.fromEnvironment('USE_FIREBASE_EMULATORS');
+
+/// Where the suite is listening. The ports are the ones in firebase.json.
+const kEmulatorHost =
+    String.fromEnvironment('FIREBASE_EMULATOR_HOST', defaultValue: '127.0.0.1');
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -48,6 +74,7 @@ Future<void> main() async {
       );
     }
     await Firebase.initializeApp(options: FirebaseConfig.options);
+    if (kUseFirebaseEmulators) await _connectEmulators();
   }
 
   // Restored before runApp, not after: awaiting it here means the first
@@ -65,6 +92,21 @@ Future<void> main() async {
       child: const LogicClassApp(),
     ),
   );
+}
+
+/// Redirects each SDK to the emulator suite.
+///
+/// Called after initializeApp and before anything reads a repository,
+/// because every one of these throws once its SDK has issued a request.
+Future<void> _connectEmulators() async {
+  FirebaseFirestore.instance.useFirestoreEmulator(kEmulatorHost, 8080);
+  await FirebaseAuth.instance.useAuthEmulator(kEmulatorHost, 9099);
+  await FirebaseStorage.instance.useStorageEmulator(kEmulatorHost, 9199);
+  // Same region the callables deploy to, so the instance this reaches is
+  // the one firebaseFunctionsProvider hands out.
+  FirebaseFunctions.instanceFor(region: 'asia-southeast1')
+      .useFunctionsEmulator(kEmulatorHost, 5001);
+  debugPrint('Firebase SDKs pointed at the emulator suite on $kEmulatorHost.');
 }
 
 class LogicClassApp extends ConsumerWidget {

@@ -47,8 +47,10 @@ Safe by construction rather than by cleanup:
 - **The rules probe** attempts a write the rules must refuse. It only
   writes anything in the case where it is about to report a failure.
 - **The index probes** are reads.
-- **The storage probe** is the one real write: a few bytes to a
-  dedicated `preflight/` path, removed immediately.
+- **The storage probe** is the one real write: a one-pixel PNG to a
+  dedicated `preflight/` path, removed immediately. A PNG rather than a
+  text file because `storage.rules` accepts only images and PDFs — see
+  below.
 
 Nothing runs on open, either. Twelve function calls and a Storage write
 are something a person asks for, not something a screen does to a live
@@ -58,9 +60,13 @@ deployment because it was navigated to.
 
 For the callable probe, being *refused* is success: it means the function
 is deployed, in the right region, and got far enough to validate its
-input. `not-found` means it is not there. `unauthenticated` and
-`permission-denied` also count as deployed — whether this account may
-call it is a different question from whether it exists.
+input. `unauthenticated` and `permission-denied` also count as deployed
+— whether this account may call it is a different question from whether
+it exists.
+
+Not answering at all is the failure, and it arrives under several codes:
+`not-found`, `internal`, `unavailable`, `deadline-exceeded`, `cancelled`.
+A refused connection and a wrong region both land in that set.
 
 ## Demo mode reports that nothing was checked
 
@@ -73,6 +79,66 @@ preflight — it is a green light that means nothing, shown to the one
 person who most needs it to mean something. So demo mode checks nothing,
 returns no results, and says so.
 
+## Running it against the emulator suite
+
+`--dart-define=USE_FIREBASE_EMULATORS=true` (with `DEMO_MODE=false`)
+points every SDK at a locally running Firebase Emulator Suite. Opt-in and
+off by default: a build that silently talked to localhost instead of the
+school's project would be the worst kind of configuration bug, since
+everything would appear to work, against nothing.
+
+```sh
+firebase emulators:start --only auth,firestore,storage
+flutter build web --release \
+  --dart-define=DEMO_MODE=false \
+  --dart-define=USE_FIREBASE_EMULATORS=true \
+  --dart-define=FIREBASE_PROJECT_ID=demo-logicclass \
+  --dart-define=FIREBASE_API_KEY=any-non-empty-value \
+  --dart-define=FIREBASE_APP_ID=1:1:web:local \
+  --dart-define=FIREBASE_MESSAGING_SENDER_ID=1 \
+  --dart-define=FIREBASE_STORAGE_BUCKET=demo-logicclass.appspot.com \
+  --dart-define=FIREBASE_AUTH_DOMAIN=localhost
+```
+
+This is the real rules engine, real Firestore, real Auth with real custom
+claims and real Storage — not a stand-in for them. What it cannot prove
+is composite indexes (the emulator serves any query without one, so that
+check passes vacuously), region routing, and real project configuration.
+
+## What the first real run found
+
+Two defects, both of which only a real run could surface, and both in the
+checks themselves rather than in the thing being checked:
+
+- **An unreachable Functions backend was reported as a warning.** Only
+  `not-found` was treated as missing, but a refused connection, a wrong
+  region and a dead deployment all arrive as `internal` or `unavailable`.
+  A school with no functions deployed would have been told "worth a
+  look" instead of "not ready". Those codes are failures now.
+- **The storage probe uploaded a text file.** `storage.rules` accepts
+  only `image/*` and `application/pdf`, so the probe was refused by rules
+  that were working perfectly — reporting a correct deployment as broken
+  and telling somebody to redeploy the rules that had just done their
+  job. It uploads a one-pixel PNG now.
+
+A third defect was found in the screen rather than the probes: the claims
+check calls `getIdTokenResult(force: true)` on purpose, that refresh makes
+`authStateProvider` emit, and the controller was `ref.watch`ing its
+repository — so it was disposed and rebuilt in `AsyncData(null)` a moment
+after producing the report. The screen sat back at "Run the checks" as
+though nothing had happened. It `ref.read`s now.
+
+## Verified, both directions
+
+| Scenario | Result |
+|---|---|
+| Correct deployment | 6 of 7 green; Functions correctly red, since that emulator was not running |
+| Test-mode rules | **Security rules deployed** goes red: "A write that the rules must refuse was accepted" |
+| Cleanup | The rules probe deleted the document it wrote; nothing left behind |
+
+The rules check is the one that matters, and it catches the thing it
+exists to catch.
+
 ## Testing
 
 | Layer | File | Covers |
@@ -82,13 +148,13 @@ returns no results, and says so.
 
 The real probes are not unit-tested, and cannot honestly be: what they
 test is a deployment, and a fake deployment would be testing the fake.
-They are verified by running them against a real Firebase project —
-which is exactly the thing this module exists to make possible.
+They are verified by running them, as described above.
 
 ## Deferred
 
 - **A one-shot CLI version**, so the preflight can run in a deploy
   pipeline rather than from a screen.
-- **Emulator awareness.** Pointed at the emulator suite the checks behave
-  sensibly but report on the emulator, and nothing says so.
+- **Emulator awareness in the report.** The checks run correctly against
+  the suite, but the report does not say it was an emulator it checked.
+  The Auth emulator's own red banner is currently the only clue.
 - **Re-checking after a fix** without re-running everything.
