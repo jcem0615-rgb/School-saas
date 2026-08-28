@@ -1,0 +1,19 @@
+{
+  "name": "logicclass-marketing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Builds the LogicClass demo deck and feature guide.",
+  "scripts": {
+    "deck": "node deck.js",
+    "guide": "node guide.js",
+    "build": "node deck.js && node guide.js"
+  },
+  "dependencies": {
+    "docx": "^9.7.1",
+    "pptxgenjs": "^4.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-icons": "^5.7.0",
+    "sharp": "^0.35.4"
+  }
+}
