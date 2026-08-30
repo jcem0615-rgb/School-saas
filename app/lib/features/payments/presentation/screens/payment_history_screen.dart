@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../domain/entities/payment.dart';
 import '../controllers/payment_controller.dart';
 import '../widgets/balance_breakdown.dart';
+import '../widgets/payment_plan_card.dart';
 import '../widgets/payment_method_chip.dart';
 import 'online_payment_screen.dart';
 import 'receipt_screen.dart';
@@ -125,6 +126,16 @@ class PaymentHistoryScreen extends ConsumerWidget {
                   children: [
                     BalanceBreakdown(
                       balance: balanceAsync.valueOrNull ?? 0,
+                      assessments: assessmentsAsync.valueOrNull ?? const [],
+                      payments: payments,
+                    ),
+                    const SizedBox(height: 16),
+                    // Above the history for the same reason the breakdown
+                    // is: "what do we owe" and "when is it due" are one
+                    // question. It renders nothing when the school has
+                    // published no plan, so a school billing in a lump
+                    // sum sees no empty card asking to be filled in.
+                    PaymentPlanCard(
                       assessments: assessmentsAsync.valueOrNull ?? const [],
                       payments: payments,
                     ),

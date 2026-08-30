@@ -3,6 +3,7 @@ import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/result.dart';
 import '../entities/assessment.dart';
 import '../entities/fee_structure.dart';
+import '../entities/installment.dart';
 import '../entities/payment.dart';
 import '../entities/payment_settings.dart';
 import '../entities/payment_submission.dart';
@@ -54,6 +55,7 @@ abstract class PaymentRepository {
     String? gradeLevel,
     required String schoolYear,
     required List<FeeItem> items,
+    List<Installment> installments = const [],
     required bool isActive,
   });
 
@@ -65,6 +67,7 @@ abstract class PaymentRepository {
     required String studentId,
     required String schoolYear,
     required List<FeeItem> items,
+    List<Installment> installments,
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,

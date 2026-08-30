@@ -13,6 +13,7 @@ import '../../domain/entities/payment_submission.dart';
 import '../../../../core/constants/education_level.dart';
 import '../../domain/entities/assessment.dart';
 import '../../domain/entities/fee_structure.dart';
+import '../../domain/entities/installment.dart';
 import '../../domain/repositories/payment_repository.dart';
 import '../../domain/usecases/fee_usecases.dart';
 import '../../domain/usecases/record_payment_usecase.dart';
@@ -130,6 +131,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
     String? gradeLevel,
     required String schoolYear,
     required List<FeeItem> items,
+    List<Installment> installments = const [],
     bool isActive = true,
   }) async {
     if (mounted) state = const AsyncLoading();
@@ -140,6 +142,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
       gradeLevel: gradeLevel,
       schoolYear: schoolYear,
       items: items,
+      installments: installments,
       isActive: isActive,
     );
     return _boolFrom(result);
@@ -151,6 +154,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
     required String studentId,
     required String schoolYear,
     required List<FeeItem> items,
+    List<Installment> installments = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -160,6 +164,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
       studentId: studentId,
       schoolYear: schoolYear,
       items: items,
+      installments: installments,
       sourceStructureId: sourceStructureId,
       sourceStructureName: sourceStructureName,
       remarks: remarks,

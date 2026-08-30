@@ -56,6 +56,7 @@ import '../features/owner_portal/domain/repositories/owner_repository.dart';
 import '../features/parent_portal/domain/repositories/parent_repository.dart';
 import '../features/payments/domain/entities/assessment.dart';
 import '../features/payments/domain/entities/fee_structure.dart';
+import '../features/payments/domain/entities/installment.dart';
 import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
 import '../features/payments/domain/entities/payment_submission.dart';
@@ -1903,6 +1904,7 @@ class DemoPaymentRepository implements PaymentRepository {
     String? gradeLevel,
     required String schoolYear,
     required List<FeeItem> items,
+    List<Installment> installments = const [],
     required bool isActive,
   }) async {
     await _latency(400);
@@ -1913,6 +1915,7 @@ class DemoPaymentRepository implements PaymentRepository {
       gradeLevel: gradeLevel?.trim().isEmpty ?? true ? null : gradeLevel!.trim(),
       schoolYear: schoolYear,
       items: items,
+      installments: installments,
       isActive: isActive,
       updatedAt: DateTime.now(),
       updatedByName: _store.requireUser.fullName,
@@ -1944,6 +1947,7 @@ class DemoPaymentRepository implements PaymentRepository {
     required String studentId,
     required String schoolYear,
     required List<FeeItem> items,
+    List<Installment> installments = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -1979,6 +1983,7 @@ class DemoPaymentRepository implements PaymentRepository {
         sourceStructureId: sourceStructureId,
         sourceStructureName: sourceStructureName,
         items: items,
+        installments: installments,
         assessedByName: _store.requireUser.fullName,
         assessedAt: DateTime.now(),
         remarks: remarks,

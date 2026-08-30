@@ -4,6 +4,7 @@ import {requireCallerClaims, requireRole, requireSameSchool} from "../../shared/
 import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
 import {applyAssessment} from "../../shared/payments/balanceMath";
+import {InstallmentData, validateInstallments} from "../../shared/payments/billingSchedule";
 
 interface FeeItemData {
   label: string;
@@ -16,6 +17,12 @@ interface AssessStudentFeesData {
   studentId: string;
   schoolYear: string;
   items: FeeItemData[];
+  /**
+   * When the money is expected. Absent or empty means the whole amount
+   * falls due now, which is what an ad-hoc charge means and what every
+   * assessment written before this field existed meant.
+   */
+  installments?: InstallmentData[];
   /** The structure these came from, or absent for an ad-hoc charge. */
   sourceStructureId?: string;
   sourceStructureName?: string;
@@ -59,6 +66,7 @@ export const assessStudentFees = onCall(
       studentId,
       schoolYear,
       items,
+      installments,
       sourceStructureId,
       sourceStructureName,
       remarks,
@@ -105,6 +113,11 @@ export const assessStudentFees = onCall(
       throw new HttpsError("invalid-argument", "The assessment total is out of range.");
     }
 
+    // After the total is final, because the plan is checked against it:
+    // a schedule that does not add up to the charge is the one way this
+    // feature can lie to a family.
+    const cleanInstallments = validateInstallments(installments, total);
+
     const db = admin.firestore();
     const studentRef = db.doc(FirestorePaths.studentDoc(schoolId, studentId));
     const assessmentRef = db.collection(FirestorePaths.assessments(schoolId)).doc();
@@ -150,6 +163,7 @@ export const assessStudentFees = onCall(
         sourceStructureId: sourceStructureId ?? null,
         sourceStructureName: sourceStructureName ?? null,
         items: cleanItems,
+        installments: cleanInstallments,
         total,
         assessedBy: request.auth!.uid,
         assessedByName: (request.auth!.token.name as string) ?? "Unknown",
@@ -195,6 +209,7 @@ export const assessStudentFees = onCall(
     return {
       assessmentId: assessmentRef.id,
       total,
+      installments: cleanInstallments.length,
       previousBalance: result.previousBalance,
       balance: result.newBalance,
     };

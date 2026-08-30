@@ -7,6 +7,7 @@ import 'attendance_report.dart';
 import 'collections_report.dart';
 import 'enrollment_report.dart';
 import 'grade_distribution_report.dart';
+import 'overdue_report.dart';
 
 /// Fetches what a report needs and hands back the finished table.
 ///
@@ -30,6 +31,11 @@ class BuildReportUseCase {
             ReportKind.enrollment => EnrollmentReport.build(value.students),
             ReportKind.collections => CollectionsReport.build(
                 period: period,
+                students: value.students,
+                payments: value.payments,
+                assessments: value.assessments,
+              ),
+            ReportKind.overdue => OverdueReport.build(
                 students: value.students,
                 payments: value.payments,
                 assessments: value.assessments,

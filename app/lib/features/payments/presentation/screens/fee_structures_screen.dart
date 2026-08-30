@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/education_level.dart';
 import '../../../admin_portal/presentation/controllers/admin_controller.dart' show brandingProvider;
+import '../../domain/entities/installment.dart';
 import '../../domain/entities/fee_structure.dart';
 import '../controllers/payment_controller.dart';
 import '../widgets/fee_item_editor.dart';
+import '../widgets/installment_editor.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
 
@@ -110,12 +112,14 @@ class _FeeStructureEditorScreenState extends ConsumerState<FeeStructureEditorScr
   late EducationLevel _level;
   late bool _isActive;
   late final List<FeeItemDraft> _items;
+  late final List<InstallmentDraft> _installments;
 
   /// Rows the user removed. Their controllers are still attached to a
   /// TextField for the rest of the frame, and disposing one before the
   /// row unmounts throws "used after being disposed" -- so they wait
   /// here until this screen itself goes away.
   final List<FeeItemDraft> _discarded = [];
+  final List<InstallmentDraft> _discardedInstallments = [];
   bool _yearSeeded = false;
 
   @override
@@ -138,6 +142,13 @@ class _FeeStructureEditorScreenState extends ConsumerState<FeeStructureEditorScr
       // that exists only because it was easier to build.
       if (s == null) FeeItemDraft.blank(),
     ];
+    // No blank row for a new schedule, unlike the fee list above. A plan
+    // is optional and most schedules will not have one; opening with an
+    // empty row would read as a field that has to be filled in.
+    _installments = [
+      for (final line in s?.installments ?? const <Installment>[])
+        InstallmentDraft.from(line),
+    ];
   }
 
   @override
@@ -147,6 +158,9 @@ class _FeeStructureEditorScreenState extends ConsumerState<FeeStructureEditorScr
     _yearController.dispose();
     for (final item in [..._items, ..._discarded]) {
       item.dispose();
+    }
+    for (final line in [..._installments, ..._discardedInstallments]) {
+      line.dispose();
     }
     super.dispose();
   }
@@ -171,6 +185,40 @@ class _FeeStructureEditorScreenState extends ConsumerState<FeeStructureEditorScr
   }
 
 
+  /// A new row falls due a month after the last one, or today if it is
+  /// the first. Guessing the interval saves the common case -- monthly
+  /// billing -- four taps of a date picker per row, and the guess is
+  /// visible and one tap to change.
+  void _addInstallment() {
+    final last = _installments.isEmpty ? null : _installments.last.dueDate;
+    final next = last == null
+        ? DateTime.now()
+        : DateTime(last.year, last.month + 1, last.day);
+    setState(() => _installments.add(InstallmentDraft.blank(
+          dueDate: next,
+          label: DateFormat('MMMM').format(next),
+        )));
+  }
+
+  /// Divides the fees across the rows that exist, giving the remainder to
+  /// the first one.
+  ///
+  /// The remainder goes to the first rather than the last deliberately: a
+  /// plan of 10,000 over three should read 3,333.34 / 3,333.33 / 3,333.33,
+  /// so a family who pays the odd centavo pays it at the start rather
+  /// than discovering it on the final instalment.
+  void _splitEvenly() {
+    if (_installments.isEmpty) return;
+    final each = ((_total / _installments.length) * 100).floor() / 100;
+    final remainder = ((_total - each * _installments.length) * 100).round() / 100;
+    setState(() {
+      for (var i = 0; i < _installments.length; i++) {
+        final amount = i == 0 ? each + remainder : each;
+        _installments[i].amountController.text = amount.toStringAsFixed(2);
+      }
+    });
+  }
+
   Future<void> _save() async {
     final ok = await ref.read(paymentActionControllerProvider.notifier).saveFeeStructure(
           structureId: widget.structure?.id,
@@ -182,6 +230,7 @@ class _FeeStructureEditorScreenState extends ConsumerState<FeeStructureEditorScr
           // finish; the use case refuses a zero amount by name, which is
           // a more useful message than silently dropping the row.
           items: [for (final draft in _items) draft.toItem()],
+          installments: [for (final draft in _installments) draft.toInstallment()],
           isActive: _isActive,
         );
     if (!mounted) return;
@@ -292,6 +341,16 @@ class _FeeStructureEditorScreenState extends ConsumerState<FeeStructureEditorScr
             onPressed: () => setState(() => _items.add(FeeItemDraft.blank())),
             icon: const Icon(Icons.add),
             label: const Text('Add fee'),
+          ),
+          const Divider(height: 32),
+          InstallmentEditor(
+            drafts: _installments,
+            feesTotal: _total,
+            onAdd: _addInstallment,
+            onRemove: (i) =>
+                setState(() => _discardedInstallments.add(_installments.removeAt(i))),
+            onDateChanged: (i, date) => setState(() => _installments[i].dueDate = date),
+            onSplitEvenly: _splitEvenly,
           ),
           const SizedBox(height: 24),
           FilledButton(

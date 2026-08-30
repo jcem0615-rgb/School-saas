@@ -1,4 +1,5 @@
 import '../../../../core/constants/education_level.dart';
+import 'installment.dart';
 
 /// What a fee is for.
 ///
@@ -78,6 +79,18 @@ class FeeStructure {
 
   final List<FeeItem> items;
 
+  /// When the school expects the money, as published for this year.
+  ///
+  /// Absolute dates rather than "30 days after enrolment", because that
+  /// is how a private school actually publishes a plan: one letter, one
+  /// set of dates, the same for everybody on the schedule. A structure
+  /// already belongs to a single school year, so "5 Oct 2026" is a fact
+  /// about it and not a template that needs resolving per family.
+  ///
+  /// Empty means the whole amount is due when it is charged, which is
+  /// what every schedule written before this field existed meant.
+  final List<Installment> installments;
+
   /// Whether this is offered when assessing. Retiring a schedule rather
   /// than deleting it keeps every assessment that cites it readable.
   final bool isActive;
@@ -94,8 +107,23 @@ class FeeStructure {
     required this.updatedAt,
     required this.updatedByName,
     this.gradeLevel,
+    this.installments = const [],
     this.isActive = true,
   });
+
+  BillingSchedule get schedule => BillingSchedule(installments);
+
+  /// Whether the plan adds up to what the schedule actually charges.
+  ///
+  /// A plan that does not is worse than no plan: it tells a family they
+  /// have finished paying when they have not, or chases them for money
+  /// they were never charged. The editor refuses to save one, the
+  /// callable refuses to charge one, and this is the single definition
+  /// both use.
+  bool get scheduleBalances {
+    if (installments.isEmpty) return true;
+    return (schedule.total - total).abs() < 0.01;
+  }
 
   double get total => items.fold(0, (sum, item) => sum + item.amount);
 

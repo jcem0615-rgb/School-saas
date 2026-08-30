@@ -248,6 +248,94 @@ bank account with no number rather than offering it) and
 closing accounts without disturbing the QR, and a family's transfer
 recording its destination and crediting nothing until approved).
 
+## Billing in instalments
+
+A private school does not charge once. It charges on enrolment and then
+monthly or per quarter, each with a date, and the question its
+administrator asks every morning is *who is behind* -- which a balance
+cannot answer. A family on a four-payment plan who has paid the first
+two is 22,000 short and perfectly current, and chasing them is how a
+school loses a family it was never at risk of losing.
+
+### The plan is a plan, not a second ledger
+
+`FeeStructure` and `Assessment` each carry a list of `Installment`
+(`{label, dueDate, amount}`), copied from the schedule to the assessment
+the same way the fee items are and for the same reason: a school that
+moves next year's due dates must not move the dates a family already
+agreed to.
+
+The tempting alternative -- a document per instalment with its own
+`paid` field -- was rejected. Every payment would have to allocate
+itself across several documents in one transaction, every refund
+un-allocate, a voided assessment unwind the lot, and any of those
+failing halfway would leave a family's plan disagreeing with their
+balance. The ledger already exists and is already correct.
+
+So nothing about who has paid what is stored. It is derived:
+
+    overdue = (what the plan says was due by today) - (everything paid)
+
+That is a pure function of two numbers and a date. It cannot drift from
+the balance because it is computed from it, and it handles refunds,
+voids and back-dated payments without any code that knows about them.
+`BillingSchedule` in `installment.dart` is the whole of it;
+`billingSchedule.ts` is the server's twin, used to validate.
+
+### Money is not earmarked
+
+Payments settle the earliest unpaid instalment first, and "overdue"
+compares running totals rather than matching payments to lines. This is
+the difference between a system that works and one that generates
+angry phone calls: a family who paid 15,000 in June against a plan whose
+first two instalments total 15,000 is **not** overdue in August, even
+though the August instalment has no payment "against" it.
+
+Paying ahead never produces a negative overdue figure either. A report
+showing "-10,000 overdue" reads as a credit the school owes.
+
+### The plan must add up to the charge
+
+Enforced in three places -- the editor, the use case, and
+`validateInstallments` server-side -- because a plan that does not match
+either tells a family they have finished paying when they have not, or
+chases them for money nobody charged them. A centavo of tolerance,
+because thirds do not divide; more than that and the plan has drifted.
+
+An empty plan is legal and means the whole amount fell due when it was
+charged. That is the honest reading of an ad-hoc charge (a replacement
+ID is not paid off over four months) and it is what every assessment
+written before this feature means.
+
+### Where it shows up
+
+| Who | Where |
+|---|---|
+| A family | `PaymentPlanCard` on Payment History -- every instalment, what is paid, what is overdue and by how many days |
+| A bursar | The same card, so the two cannot disagree about what was owed when |
+| Whoever publishes fees | `InstallmentEditor` on the fee schedule, with a live "plan totals X -- matches the fees" check and a Split evenly helper |
+| The office | **Overdue Accounts** in Reports: every family behind, banded 1-30 / 31-60 / 61-90 / over 90 days, sorted by how late rather than how much |
+
+Sorted by age, not amount, deliberately: a small debt six months old is
+a different conversation from a large one due last week, and it is the
+old one that stops being collectable.
+
+### What it cannot see
+
+Students with no payment plan never appear in the Overdue report, and
+the report says so in its own note. Their fees fell due when they were
+charged, so they are either paid or simply outstanding -- there is no
+schedule to be behind on. A collections list that looked complete and
+was not would be trusted, and should not be.
+
+Charges with no plan *are* counted when a student has one elsewhere:
+`Assessment.combinedSchedule` gives them a single line falling due the
+day they were made. Leaving them out would quietly excuse a November
+make-up-exam fee from ever being late. The family-facing card asks the
+narrower question -- did the school actually publish a plan -- so a
+school billing in one lump is never shown a card containing an invented
+row.
+
 ## Firestore collections touched
 
 ```
@@ -275,6 +363,9 @@ remains until Registrar Portal defines the real create/update rules.
 | Widget | `balance_breakdown_test.dart` | the arithmetic, including refunds and unexplained remainders |
 | Demo | `fee_assessment_test.dart` | assess/void round-trip, double-void and duplicate-schedule guards |
 | Rules | `fee-assessment.rules.test.ts` | no client writes to `assessments`, family reads, Director/Admin-only schedules |
+| Domain | `billing_schedule_test.dart` | due-by arithmetic, oldest-first settlement, paying ahead, thirds that do not divide, combining plans across assessments |
+| Functions | `billingSchedule.test.ts` | plan-must-match-charge, malformed plans, the centavo tolerance |
+| Widget | `payment_plan_test.dart` | what the family is told, and the Overdue report's rows and caveat |
 
 ## Known gap flagged for QA
 
@@ -289,6 +380,15 @@ should be explicitly verified against the Firestore emulator during QA
 a narrower, less-traveled path than ordinary list queries.
 
 ## Deferred to later modules
+
+- **Reminders.** The plan knows what is due and the notification inbox
+  exists; nothing yet sends "your October payment is due on Friday".
+  A scheduled function reading `amountDueBy` is the shape of it.
+- **Per-family arrangements.** A plan comes from the schedule. A family
+  who negotiates their own dates has a promissory note, which is a
+  separate record and does not move the plan.
+- **Late fees.** Nothing charges interest or a penalty on an overdue
+  instalment. That is a policy decision per school, not arithmetic.
 
 - Online payment gateway integration (e.g. PayMongo) — architecture leaves
   a clean seam (`PaymentMethod.online` already exists in the schema); wiring

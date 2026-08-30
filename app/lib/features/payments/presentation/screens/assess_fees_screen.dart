@@ -6,6 +6,7 @@ import '../../../../core/constants/education_level.dart';
 import '../../../admin_portal/presentation/controllers/admin_controller.dart' show brandingProvider;
 import '../../domain/entities/assessment.dart';
 import '../../domain/entities/fee_structure.dart';
+import '../../domain/entities/installment.dart';
 import '../controllers/payment_controller.dart';
 import '../widgets/fee_item_editor.dart';
 
@@ -105,6 +106,26 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
     });
   }
 
+  /// The plan this charge will carry, which is the schedule's own plan
+  /// only while the fees still add up to it.
+  ///
+  /// A registrar who waives 2,000 off a line has made the published plan
+  /// wrong -- its instalments now total more than the family is being
+  /// charged -- and the server refuses that outright. Silently rescaling
+  /// the instalments would be worse than refusing: it would move dates
+  /// and amounts a family was given in writing, without anybody deciding
+  /// to. So an edited charge falls due immediately and the screen says
+  /// so, which is at least a fact somebody can act on.
+  List<Installment> get _plan {
+    final published = _source?.installments ?? const <Installment>[];
+    if (published.isEmpty) return const [];
+    final planned = published.fold<double>(0, (sum, i) => sum + i.amount);
+    return (planned - _total).abs() < 0.01 ? published : const [];
+  }
+
+  bool get _planWasDropped =>
+      (_source?.installments.isNotEmpty ?? false) && _plan.isEmpty;
+
   /// The live object for whichever schedule is loaded, or null.
   FeeStructure? _selectedFrom(List<FeeStructure> applicable) {
     for (final structure in applicable) {
@@ -142,6 +163,7 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
           studentId: widget.studentId,
           schoolYear: _yearController.text,
           items: [for (final draft in _items) draft.toItem()],
+          installments: _plan,
           sourceStructureId: _source?.id,
           sourceStructureName: _source?.name,
           remarks: _remarksController.text,
@@ -353,6 +375,10 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
             label: const Text('Add fee'),
           ),
           const SizedBox(height: 12),
+          if (_source?.installments.isNotEmpty ?? false) _PlanNotice(
+            plan: _plan,
+            dropped: _planWasDropped,
+          ),
           TextField(
             controller: _remarksController,
             decoration: const InputDecoration(
@@ -478,6 +504,64 @@ class _AssessmentCard extends StatelessWidget {
                   style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+/// What the family will be told about when to pay.
+///
+/// Shown only when the chosen schedule publishes a plan, so a school
+/// billing in one lump never sees it.
+class _PlanNotice extends StatelessWidget {
+  final List<Installment> plan;
+  final bool dropped;
+
+  const _PlanNotice({required this.plan, required this.dropped});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dueFormat = DateFormat('d MMM');
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: dropped
+              ? theme.colorScheme.errorContainer
+              : theme.colorScheme.surfaceContainerHighest,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              dropped ? 'No payment plan will be attached' : 'Payment plan',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: dropped ? theme.colorScheme.onErrorContainer : null,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              dropped
+                  ? 'The fees above no longer add up to the schedule\'s plan, so '
+                      'the whole amount will fall due immediately. Put the fees '
+                      'back to match the schedule, or edit the plan on the '
+                      'schedule itself.'
+                  : plan
+                      .map((i) => '\${i.label} \${dueFormat.format(i.dueDate)} '
+                          '\${_currencyFormat.format(i.amount)}')
+                      .join(' · '),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: dropped ? theme.colorScheme.onErrorContainer : null,
+              ),
+            ),
           ],
         ),
       ),

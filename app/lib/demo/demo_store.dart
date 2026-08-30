@@ -41,6 +41,7 @@ import '../features/owner_portal/domain/entities/school_summary.dart';
 import '../features/payments/domain/entities/assessment.dart';
 import '../features/payments/domain/entities/bank_account.dart';
 import '../features/payments/domain/entities/fee_structure.dart';
+import '../features/payments/domain/entities/installment.dart';
 import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
 import '../features/payments/domain/entities/payment_submission.dart';
@@ -1219,6 +1220,20 @@ class DemoStore {
   /// with the seeded balances and payments. A demo where the itemised
   /// list does not add up to the figure above it would be demonstrating
   /// the bug this feature exists to fix.
+  /// A four-payment plan on the Junior High schedule, dated relative to
+  /// today so the demo is never stuck showing a year that has passed.
+  ///
+  /// Deliberately arranged so the demo has a family who is behind: the
+  /// first two instalments (10,200) fell due weeks ago and only 8,500 has
+  /// arrived, which is what makes the plan card and the Overdue Accounts
+  /// report show something worth looking at rather than a row of ticks.
+  List<Installment> _juniorHighPlan() => [
+        Installment(label: 'Upon enrolment', dueDate: _daysAgo(40), amount: 6000),
+        Installment(label: 'August', dueDate: _daysAgo(10), amount: 4200),
+        Installment(label: 'October', dueDate: _daysAhead(20), amount: 3400),
+        Installment(label: 'December', dueDate: _daysAhead(80), amount: 3400),
+      ];
+
   List<FeeStructure> _seedFeeStructures() {
     final year = DateTime.now().year;
     final sy = '$year-${year + 1}';
@@ -1236,6 +1251,7 @@ class DemoStore {
           FeeItem(label: 'Laboratory Fee', amount: 1200, category: FeeCategory.miscellaneous),
           FeeItem(label: 'Student Handbook', amount: 300, category: FeeCategory.other),
         ],
+        installments: _juniorHighPlan(),
         updatedAt: _daysAgo(45),
         updatedByName: 'Grace Mendoza',
       ),
@@ -1279,6 +1295,7 @@ class DemoStore {
           FeeItem(label: 'Laboratory Fee', amount: 1200, category: FeeCategory.miscellaneous),
           FeeItem(label: 'Student Handbook', amount: 300, category: FeeCategory.other),
         ],
+        installments: _juniorHighPlan(),
         assessedByName: 'Joel Bautista',
         assessedAt: _daysAgo(40),
       ),

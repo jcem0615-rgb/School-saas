@@ -5,6 +5,7 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../../domain/entities/assessment.dart';
 import '../../domain/entities/fee_structure.dart';
+import '../../domain/entities/installment.dart';
 import '../../domain/entities/payment.dart';
 import '../../domain/entities/payment_settings.dart';
 import '../../domain/entities/payment_submission.dart';
@@ -33,6 +34,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
     String? gradeLevel,
     required String schoolYear,
     required List<FeeItem> items,
+    List<Installment> installments = const [],
     required bool isActive,
   }) async {
     try {
@@ -43,6 +45,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
         gradeLevel: gradeLevel,
         schoolYear: schoolYear,
         items: items,
+        installments: installments,
         isActive: isActive,
       );
       return const Success(null);
@@ -62,6 +65,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
     required String studentId,
     required String schoolYear,
     required List<FeeItem> items,
+    List<Installment> installments = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -71,6 +75,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
         studentId: studentId,
         schoolYear: schoolYear,
         items: items,
+        installments: installments,
         sourceStructureId: sourceStructureId,
         sourceStructureName: sourceStructureName,
         remarks: remarks,

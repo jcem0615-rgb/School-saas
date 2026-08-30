@@ -17,6 +17,18 @@ enum ReportKind {
     needsPayments: true,
     needsAssessments: true,
   ),
+  overdue(
+    'Overdue Accounts',
+    'Who is behind on their payment plan, and by how many days.',
+    needsStudents: true,
+    needsPayments: true,
+    needsAssessments: true,
+    // A snapshot of today, like the enrollment roll. "Who was overdue in
+    // March" is a different question, and it needs a history of
+    // instalments and payments this system does not keep -- offering a
+    // date range beside it would promise one.
+    usesPeriod: false,
+  ),
   attendance(
     'Attendance Rate by Section',
     'Present, late and absent by section, with the rate.',

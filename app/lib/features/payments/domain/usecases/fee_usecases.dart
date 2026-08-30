@@ -3,6 +3,7 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../entities/assessment.dart';
 import '../entities/fee_structure.dart';
+import '../entities/installment.dart';
 import '../repositories/payment_repository.dart';
 
 /// The school's published fee schedules.
@@ -31,6 +32,7 @@ class SaveFeeStructureUseCase {
     String? gradeLevel,
     required String schoolYear,
     required List<FeeItem> items,
+    List<Installment> installments = const [],
     bool isActive = true,
   }) {
     if (name.trim().isEmpty) {
@@ -67,6 +69,12 @@ class SaveFeeStructureUseCase {
       );
     }
 
+    final planProblem = checkInstallments(
+      installments,
+      items.fold<double>(0, (sum, i) => sum + i.amount),
+    );
+    if (planProblem != null) return Future.value(Error(planProblem));
+
     return _repository.saveFeeStructure(
       structureId: structureId,
       name: name.trim(),
@@ -74,9 +82,52 @@ class SaveFeeStructureUseCase {
       gradeLevel: gradeLevel,
       schoolYear: schoolYear.trim(),
       items: items,
+      installments: installments,
       isActive: isActive,
     );
   }
+}
+
+/// Checks a payment plan before it is saved or charged.
+///
+/// Returns the complaint, or null when the plan is sound. Shared by both
+/// use cases below because a plan is wrong in the same ways whether it is
+/// being published on a schedule or charged to a family, and two copies
+/// of these rules would drift.
+///
+/// The server checks all of it again. This exists so a bursar finds out
+/// with the line named, before the round trip.
+ValidationFailure? checkInstallments(List<Installment> installments, double total) {
+  if (installments.isEmpty) return null;
+
+  for (final line in installments) {
+    if (line.label.trim().isEmpty) {
+      return const ValidationFailure('Every instalment needs a name -- '
+          '"Upon enrolment", "October", whatever the letter home calls it.');
+    }
+    if (line.amount <= 0) {
+      return ValidationFailure('"\${line.label}" must be more than zero. '
+          'Remove the line instead.');
+    }
+  }
+
+  final labels = installments.map((i) => i.label.trim().toLowerCase()).toList();
+  if (labels.toSet().length != labels.length) {
+    return const ValidationFailure('Two instalments have the same name. '
+        'A family cannot tell which payment they are being asked for.');
+  }
+
+  // The one that matters. A plan that does not add up to the charge
+  // either tells a family they have finished paying when they have not,
+  // or chases them for money nobody charged them.
+  final planned = installments.fold<double>(0, (sum, i) => sum + i.amount);
+  if ((planned - total).abs() > 0.01) {
+    return ValidationFailure(
+      'The payment plan adds up to \${planned.toStringAsFixed(2)} but the '
+      'fees come to \${total.toStringAsFixed(2)}. They have to match.',
+    );
+  }
+  return null;
 }
 
 /// What one student has been charged.
@@ -100,6 +151,7 @@ class AssessStudentFeesUseCase {
     required String studentId,
     required String schoolYear,
     required List<FeeItem> items,
+    List<Installment> installments = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -126,10 +178,17 @@ class AssessStudentFeesUseCase {
       }
     }
 
+    final planProblem = checkInstallments(
+      installments,
+      items.fold<double>(0, (sum, i) => sum + i.amount),
+    );
+    if (planProblem != null) return Future.value(Error(planProblem));
+
     return _repository.assessStudentFees(
       studentId: studentId.trim(),
       schoolYear: schoolYear.trim(),
       items: items,
+      installments: installments,
       sourceStructureId: sourceStructureId,
       sourceStructureName: sourceStructureName,
       remarks: remarks?.trim().isEmpty ?? true ? null : remarks!.trim(),

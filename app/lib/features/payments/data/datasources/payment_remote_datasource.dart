@@ -5,6 +5,7 @@ import '../../../../core/constants/firestore_paths.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../../../../core/constants/education_level.dart';
 import '../../domain/entities/fee_structure.dart';
+import '../../domain/entities/installment.dart';
 import '../models/fee_models.dart';
 import '../models/payment_model.dart';
 import '../models/payment_settings_model.dart';
@@ -61,6 +62,7 @@ class PaymentRemoteDataSource {
     String? gradeLevel,
     required String schoolYear,
     required List<FeeItem> items,
+    required List<Installment> installments,
     required bool isActive,
   }) async {
     final data = FeeStructureModel.toFirestore(
@@ -69,6 +71,7 @@ class PaymentRemoteDataSource {
       gradeLevel: gradeLevel,
       schoolYear: schoolYear,
       items: items,
+      installments: installments,
       isActive: isActive,
     );
     final ref = structureId == null
@@ -109,6 +112,7 @@ class PaymentRemoteDataSource {
     required String studentId,
     required String schoolYear,
     required List<FeeItem> items,
+    List<Installment> installments = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -120,6 +124,7 @@ class PaymentRemoteDataSource {
         'studentId': studentId,
         'schoolYear': schoolYear,
         'items': items.map((i) => i.toMap()).toList(),
+        'installments': installments.map((i) => i.toMap()).toList(),
         'sourceStructureId': sourceStructureId,
         'sourceStructureName': sourceStructureName,
         'remarks': remarks,
