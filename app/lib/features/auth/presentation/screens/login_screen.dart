@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/validators.dart';
+import '../../data/remembered_email.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/auth_text_field.dart';
 import 'forgot_password_screen.dart';
@@ -24,6 +25,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  /// Ticked by default once an email has been remembered, so somebody
+  /// coming back does not have to re-tick it every time to stay
+  /// remembered -- and unticking it forgets, which is the only way to
+  /// take a shared computer back off the list.
+  bool _remember = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreRememberedEmail();
+  }
+
+  Future<void> _restoreRememberedEmail() async {
+    final email = await RememberedEmail.read();
+    if (!mounted || email == null) return;
+    setState(() {
+      _emailController.text = email;
+      _remember = true;
+    });
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -34,6 +56,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
+
+    // Written before the attempt rather than after it. Sign-in success
+    // redirects immediately -- the router reacts to authStateProvider --
+    // so anything queued behind the await runs on a screen that is on its
+    // way out. Unticking and then failing to sign in still forgets, which
+    // is the right way round for the shared-computer case.
+    await RememberedEmail.write(_remember ? _emailController.text : null);
+
     await ref.read(authControllerProvider.notifier).login(
           email: _emailController.text,
           password: _passwordController.text,
@@ -109,18 +139,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           (v == null || v.isEmpty) ? 'Password is required.' : null,
                       onSubmitted: (_) => _submit(),
                     ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: isLoading
-                            ? null
-                            : () => Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: isLoading
+                                ? null
+                                : () => setState(() => _remember = !_remember),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: _remember,
+                                  onChanged: isLoading
+                                      ? null
+                                      : (v) => setState(() => _remember = v ?? false),
+                                  visualDensity: VisualDensity.compact,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
-                        child: const Text('Forgot password?'),
-                      ),
+                                Flexible(
+                                  child: Text(
+                                    'Remember me',
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: isLoading
+                              ? null
+                              : () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                                  ),
+                          child: const Text('Forgot password?'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
+                    Text(
+                      // Said plainly, because "remember me" on a school's
+                      // front-desk computer is otherwise read as "keep my
+                      // password here".
+                      'Fills in your email next time. Your password is never stored.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
                     FilledButton(
                       onPressed: isLoading ? null : _submit,
                       style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),

@@ -66,6 +66,34 @@ exactly which role can create which other roles.
 - See `test-rules/auth.rules.test.ts` for the rules-unit-tests that assert
   the above against the Firestore emulator.
 
+## Remember me
+
+Ticked, sign-in stores the **email** and nothing else, so somebody coming
+back types a password instead of a password and a long school address.
+The box comes back ticked and the field filled in; unticking it forgets,
+which is the only way to take a shared computer back off the list.
+
+No password is stored, on any platform, under any setting. A school's
+front desk is a shared machine and a remembered password there is
+everybody's password -- there is no version of this feature worth that.
+The screen says so in a line under the box, because "remember me" is
+otherwise read as exactly that promise. A test asserts it by walking
+every key in preferences, not just the one this feature owns.
+
+Staying signed in *between sessions* is separate and was already there:
+firebase_auth persists its own session in real mode, and `DemoSession`
+does the same for the demo.
+
+The email is written before the sign-in attempt rather than after it. A
+successful sign-in redirects immediately -- the router reacts to
+`authStateProvider` -- so work queued behind that await runs on a screen
+already on its way out. It also means unticking and then failing to sign
+in still forgets, which is the right way round for the shared-computer
+case.
+
+The password field's show/hide toggle lives in `AuthTextField` and is on
+every password field in the app, not only this one.
+
 ## Testing
 
 | Layer | File | Covers |
