@@ -51,9 +51,14 @@ service cloud.firestore {
       // something about themselves. What matters is that they cannot
       // assert it about anybody else, which the uid check above already
       // guarantees.
+      // termsVersion/-AcceptedAt for the same reason as the two above it:
+      // accepting an agreement is a person asserting something about
+      // themselves, and the uid check already guarantees they cannot
+      // assert it about anybody else.
       return affected.hasOnly([
         'phone', 'photoUrl', 'privacySettings', 'updatedAt', 'updatedBy',
         'privacyNoticeVersion', 'privacyNoticeAcknowledgedAt',
+        'termsVersion', 'termsAcceptedAt',
       ]);
     }
 

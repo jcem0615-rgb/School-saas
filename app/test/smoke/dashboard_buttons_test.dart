@@ -27,6 +27,7 @@ Future<ProviderContainer> pumpAs(WidgetTester tester, UserRole role) async {
   // data_protection_test. Stepping past it keeps this test about
   // whether dashboard tiles go anywhere.
   c.read(demoStoreProvider).acknowledgedPrivacy.add({account.uid});
+  c.read(demoStoreProvider).acceptedTerms.add({account.uid});
   c.read(demoAuthRepositoryProvider).signInAs(account);
 
   await tester.pumpWidget(

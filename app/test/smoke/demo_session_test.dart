@@ -84,9 +84,10 @@ void main() {
       final container = ProviderContainer(overrides: demoOverrides(signedInAs: registrar));
       addTearDown(container.dispose);
       // This test is about the restored session not flashing the login
-      // screen. The privacy gate is a separate redirect with its own
-      // test in demo_app_boot_test.
+      // screen. The privacy notice and the terms are separate redirects
+      // with their own tests in demo_app_boot_test.
       container.read(demoStoreProvider).acknowledgedPrivacy.add({registrar.uid});
+      container.read(demoStoreProvider).acceptedTerms.add({registrar.uid});
       container.read(demoAuthRepositoryProvider).signInAs(registrar);
 
       await tester.pumpWidget(

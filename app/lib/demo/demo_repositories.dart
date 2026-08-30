@@ -67,6 +67,7 @@ import '../features/registrar_portal/domain/repositories/registrar_repository.da
 import '../features/staff_portal/domain/entities/checklist_item.dart';
 import '../features/school_totals/domain/entities/school_totals.dart';
 import '../features/school_totals/domain/repositories/school_totals_repository.dart';
+import '../features/terms/domain/repositories/terms_repository.dart';
 import '../features/staff_portal/domain/entities/daily_report.dart';
 import '../features/staff_portal/domain/repositories/staff_repository.dart';
 import '../features/student_portal/domain/repositories/student_repository.dart';
@@ -3339,6 +3340,28 @@ class DemoDataProtectionRepository implements DataProtectionRepository {
 /// against an in-memory store is a green light that means nothing, shown
 /// to the one person who most needs it to mean something -- so demo mode
 /// says so and checks nothing at all.
+// ---------------------------------------------------------------------------
+// Terms of use
+// ---------------------------------------------------------------------------
+
+class DemoTermsRepository implements TermsRepository {
+  final DemoStore _store;
+  DemoTermsRepository(this._store);
+
+  @override
+  Future<Result<void>> acceptTerms(int version) async {
+    await _latency();
+    final user = _store.currentUser.value;
+    if (user == null) return const Error(AuthFailure('no-user', 'Nobody is signed in.'));
+    _store.currentUser.add(user.copyWith(termsVersion: version));
+    // Remembered per account for the life of the process, the same way
+    // the privacy acknowledgement is, so switching roles and coming back
+    // does not put the page in front of the same person twice.
+    _store.acceptedTerms.add({..._store.acceptedTerms.value, user.uid});
+    return const Success(null);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // School totals
 // ---------------------------------------------------------------------------

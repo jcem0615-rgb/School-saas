@@ -28,6 +28,12 @@ class AppUser {
   /// new one, which is exactly the record a regulator would object to.
   final int? privacyNoticeVersion;
 
+  /// The version of the terms of use this account has accepted, or null
+  /// for one that never has. Same shape as [privacyNoticeVersion] and for
+  /// the same reason: raising the version puts the page back in front of
+  /// everybody, which is the only way a school can say what was agreed.
+  final int? termsVersion;
+
   const AppUser({
     required this.uid,
     required this.schoolId,
@@ -41,6 +47,7 @@ class AppUser {
     this.photoUrl,
     this.linkedStudentIds,
     this.privacyNoticeVersion,
+    this.termsVersion,
   });
 
   String get fullName => '$firstName $lastName';
@@ -59,6 +66,7 @@ class AppUser {
     String? qrCode,
     List<String>? linkedStudentIds,
     int? privacyNoticeVersion,
+    int? termsVersion,
   }) {
     return AppUser(
       uid: uid,
@@ -73,6 +81,7 @@ class AppUser {
       qrCode: qrCode ?? this.qrCode,
       linkedStudentIds: linkedStudentIds ?? this.linkedStudentIds,
       privacyNoticeVersion: privacyNoticeVersion ?? this.privacyNoticeVersion,
+      termsVersion: termsVersion ?? this.termsVersion,
     );
   }
 

@@ -40,6 +40,7 @@ import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/schedules/domain/entities/schedule_block.dart';
 import '../features/data_protection/domain/entities/data_request.dart';
 import '../features/data_protection/domain/entities/privacy_notice.dart';
+import '../features/terms/domain/entities/terms_of_service.dart';
 import '../features/staff_portal/domain/entities/checklist_item.dart';
 import '../features/staff_portal/domain/entities/daily_report.dart';
 
@@ -165,6 +166,10 @@ class DemoStore {
   /// the same person twice, but a fresh process should still show the
   /// gate once, which is the thing worth demonstrating.
   late final acknowledgedPrivacy = BehaviorSubject<Set<String>>.seeded(<String>{});
+
+  /// Who has already accepted the terms this run. Held for the same
+  /// reason and in the same way as [acknowledgedPrivacy].
+  late final acceptedTerms = BehaviorSubject<Set<String>>.seeded(<String>{});
   late final coursework = BehaviorSubject<List<CourseworkItem>>.seeded(_seedCoursework());
   /// Named for the collection, not shortened to `submissions` -- payment
   /// submissions already own that word in this store.
@@ -332,11 +337,18 @@ class DemoStore {
 
   /// Prepends [item] to a collection and republishes it. Insert-at-front
   /// matches how every list screen in this app sorts (newest first).
-  /// [user] with the privacy acknowledgement they already gave this run.
-  AppUser withAcknowledgement(AppUser user) =>
-      acknowledgedPrivacy.value.contains(user.uid)
-          ? user.copyWith(privacyNoticeVersion: PrivacyNotice.version)
-          : user;
+  /// [user] with whatever they already agreed to this run -- the privacy
+  /// acknowledgement, the terms, or both.
+  AppUser withAcknowledgement(AppUser user) {
+    var out = user;
+    if (acknowledgedPrivacy.value.contains(user.uid)) {
+      out = out.copyWith(privacyNoticeVersion: PrivacyNotice.version);
+    }
+    if (acceptedTerms.value.contains(user.uid)) {
+      out = out.copyWith(termsVersion: TermsOfService.version);
+    }
+    return out;
+  }
 
   void prepend<T>(BehaviorSubject<List<T>> subject, T item) {
     subject.add([item, ...subject.value]);
@@ -419,7 +431,7 @@ class DemoStore {
       dailyReports, guidanceRecords, summonses, auditLog,
       paymentSubmissions, paymentSettings, branding, documentReleases,
       feeStructures, assessments, scheduleBlocks, dataRequests,
-      acknowledgedPrivacy,
+      acknowledgedPrivacy, acceptedTerms,
     ]) {
       s.close();
     }

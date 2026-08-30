@@ -26,6 +26,7 @@ import '../features/data_protection/presentation/controllers/data_protection_con
 import '../features/system_check/presentation/controllers/system_check_controller.dart';
 import '../features/school_totals/presentation/controllers/school_totals_controller.dart';
 import '../features/staff_portal/presentation/controllers/staff_controller.dart';
+import '../features/terms/presentation/controllers/terms_controller.dart';
 import '../features/student_portal/presentation/controllers/student_controller.dart';
 import 'demo_location_probe.dart';
 import 'demo_session.dart';
@@ -136,6 +137,8 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
     systemCheckRepositoryProvider.overrideWith((ref) => DemoSystemCheckRepository()),
     schoolTotalsRepositoryProvider
         .overrideWith((ref) => DemoSchoolTotalsRepository(ref.watch(demoStoreProvider))),
+    termsRepositoryProvider
+        .overrideWith((ref) => DemoTermsRepository(ref.watch(demoStoreProvider))),
     dataProtectionRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoDataProtectionRepository(ref.watch(demoStoreProvider));

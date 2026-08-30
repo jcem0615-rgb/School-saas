@@ -21,6 +21,7 @@ Future<ProviderContainer> _pump(WidgetTester tester, UserRole role) async {
   addTearDown(c.dispose);
   final account = DemoStore.demoAccounts.firstWhere((a) => a.role == role);
   c.read(demoStoreProvider).acknowledgedPrivacy.add({account.uid});
+  c.read(demoStoreProvider).acceptedTerms.add({account.uid});
   c.read(demoAuthRepositoryProvider).signInAs(account);
 
   await tester.pumpWidget(UncontrolledProviderScope(

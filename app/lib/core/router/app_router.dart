@@ -12,6 +12,8 @@ import '../../features/audit_trail/presentation/screens/my_activity_screen.dart'
 import '../../features/data_protection/presentation/controllers/data_protection_controller.dart'
     show needsPrivacyAcknowledgementProvider;
 import '../../features/data_protection/presentation/screens/acknowledge_privacy_screen.dart';
+import '../../features/terms/presentation/controllers/terms_controller.dart';
+import '../../features/terms/presentation/screens/accept_terms_screen.dart';
 import '../../features/data_protection/presentation/screens/privacy_notice_screen.dart';
 import '../../features/director_portal/presentation/screens/director_dashboard_screen.dart';
 import '../../features/faculty_portal/presentation/screens/faculty_dashboard_screen.dart';
@@ -48,6 +50,7 @@ class AppRoutes {
   static const privacy = '/privacy';
   static const systemCheck = '/system-check';
   static const acknowledgePrivacy = '/privacy/acknowledge';
+  static const acceptTerms = '/terms/accept';
   static const profile = '/profile';
   static const recordPayment = '/payments/record';
   static const paymentHistory = '/payments/history';
@@ -124,11 +127,27 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             : AppRoutes.acknowledgePrivacy;
       }
 
+      // Then the terms, in that order. The notice explains what is held
+      // about them; the terms ask them to agree to something. Being told
+      // before being asked is the only sequence that makes sense, and it
+      // is also the one where the terms can point at the notice as
+      // already read.
+      //
+      // Owner is exempt for the same reason: these are terms a school
+      // issues to its people, and the platform operator is not one of
+      // them.
+      if (user.role != UserRole.owner && ref.read(needsTermsAcceptanceProvider)) {
+        return state.matchedLocation == AppRoutes.acceptTerms
+            ? null
+            : AppRoutes.acceptTerms;
+      }
+
       // Signed in, password OK, but sitting on an auth screen -- send them
       // to their portal home.
       if (loggingIn ||
           state.matchedLocation == AppRoutes.forcePasswordChange ||
-          state.matchedLocation == AppRoutes.acknowledgePrivacy) {
+          state.matchedLocation == AppRoutes.acknowledgePrivacy ||
+          state.matchedLocation == AppRoutes.acceptTerms) {
         return AppRoutes.homeFor(user.role);
       }
 
@@ -178,6 +197,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.acknowledgePrivacy,
         builder: (context, state) => const AcknowledgePrivacyScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.acceptTerms,
+        builder: (context, state) => const AcceptTermsScreen(),
       ),
       GoRoute(
         path: AppRoutes.myAttendance,

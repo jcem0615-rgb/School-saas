@@ -239,4 +239,35 @@ describe("acknowledging the privacy notice", () => {
       })
     );
   });
+
+  // Accepting the terms is the same shape of self-assertion, and gets
+  // the same three guarantees.
+  test("a person can record that they accepted the terms", async () => {
+    const student = contextAs("student", "student_1");
+    await assertSucceeds(
+      updateDoc(doc(student.firestore(), `schools/${SCHOOL}/users/student_1`), {
+        termsVersion: 1,
+        termsAcceptedAt: new Date(),
+      })
+    );
+  });
+
+  test("nobody can accept the terms on somebody else's behalf", async () => {
+    const other = contextAs("student", "student_other");
+    await assertFails(
+      updateDoc(doc(other.firestore(), `schools/${SCHOOL}/users/student_1`), {
+        termsVersion: 1,
+      })
+    );
+  });
+
+  test("accepting cannot be smuggled in beside a status change", async () => {
+    const student = contextAs("student", "student_1");
+    await assertFails(
+      updateDoc(doc(student.firestore(), `schools/${SCHOOL}/users/student_1`), {
+        termsVersion: 1,
+        status: "active",
+      })
+    );
+  });
 });

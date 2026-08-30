@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logicclass/features/terms/domain/entities/terms_of_service.dart';
 import 'package:logicclass/core/constants/user_roles.dart';
 import 'package:logicclass/core/router/app_router.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
@@ -44,12 +45,13 @@ void main() {
 
     final router = container.read(goRouterProvider);
 
-    // The privacy notice stands in front of every portal on a fresh
-    // session; it gets its own assertion below. Marking these accounts
-    // as having read it keeps this test about whether each portal opens.
-    container.read(demoStoreProvider).acknowledgedPrivacy.add(
-          {for (final account in DemoStore.demoAccounts) account.uid},
-        );
+    // The privacy notice and the terms both stand in front of every
+    // portal on a fresh session; each gets its own assertion below.
+    // Marking these accounts as past both keeps this test about whether
+    // each portal opens.
+    final uids = {for (final account in DemoStore.demoAccounts) account.uid};
+    container.read(demoStoreProvider).acknowledgedPrivacy.add(uids);
+    container.read(demoStoreProvider).acceptedTerms.add(uids);
 
     for (final account in DemoStore.demoAccounts) {
       final label = account.role.displayName;
@@ -108,10 +110,69 @@ void main() {
     await tester.tap(find.text('I have read this'));
     await tester.pumpAndSettle();
 
+    // Not the portal yet: the terms are the next gate, in that order. A
+    // person is told what is held about them before being asked to agree
+    // to anything.
+    expect(
+      router.routerDelegate.currentConfiguration.uri.path,
+      AppRoutes.acceptTerms,
+      reason: 'acknowledging the notice should hand them to the terms',
+    );
+  });
+
+  testWidgets('and then held at the terms until they accept', (tester) async {
+    final container = ProviderContainer(overrides: demoOverrides());
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const LogicClassApp()),
+    );
+    await tester.pumpAndSettle();
+
+    final student = DemoStore.demoAccounts.firstWhere((a) => a.role == UserRole.student);
+    // Past the notice, so this test is about the terms alone.
+    container.read(demoStoreProvider).acknowledgedPrivacy.add({student.uid});
+    demoSignInAs(
+      container.read(demoAuthRepositoryProvider),
+      container.read(goRouterProvider),
+      student,
+    );
+    await tester.pumpAndSettle();
+
+    final router = container.read(goRouterProvider);
+    expect(router.routerDelegate.currentConfiguration.uri.path, AppRoutes.acceptTerms);
+
+    // Unlike the notice, this one offers a way out -- an agreement
+    // nobody can decline is not an agreement.
+    expect(find.text('I do not accept - sign out'), findsOneWidget);
+
+    final accept = find.text('I accept these terms');
+    expect(
+      tester.widget<FilledButton>(find.ancestor(
+        of: accept,
+        matching: find.byType(FilledButton),
+      )).onPressed,
+      isNull,
+      reason: 'live before the text has moved is a button people press '
+          'without looking',
+    );
+
+    for (var i = 0; i < 6; i++) {
+      await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(accept);
+    await tester.pumpAndSettle();
+
     expect(
       router.routerDelegate.currentConfiguration.uri.path,
       AppRoutes.homeFor(UserRole.student),
-      reason: 'acknowledging should let them through to their portal',
+      reason: 'accepting should let them through to their portal',
+    );
+    expect(
+      container.read(demoStoreProvider).currentUser.value?.termsVersion,
+      TermsOfService.version,
+      reason: 'the version accepted is what the school can point at later',
     );
   });
 

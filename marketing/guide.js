@@ -213,7 +213,8 @@ add(
     ['Show password', 'Sign in', 'Reveals what has been typed. On every password field in the app, not only this one.'],
     ['Forgot password?', 'Reset password', 'Enter the account email and a reset link is sent.'],
     ['First sign-in', 'Update password', 'An account created with a temporary password must set its own before it can go anywhere.'],
-    ['First use', 'Before you start', 'The privacy notice. It must be read to the end before the button to continue becomes available; the version read is recorded against the account.'],
+    ['First use', 'Before you start', 'The privacy notice, then the terms of use, in that order - told what is held about you before being asked to agree to anything. Each must be read to the end before its button becomes available, and the version of each is recorded against the account.'],
+    ['I do not accept', 'Sign out', 'The terms can be declined, and declining signs you out. The account is untouched and the page comes back next time. The privacy notice has no equivalent: a notice is given, an agreement is entered into.'],
   ], ['Control', 'Opens', 'What happens']),
   H2('3.2 Profile - on every portal\'s top bar'),
   featureTable([

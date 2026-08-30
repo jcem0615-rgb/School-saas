@@ -21,6 +21,7 @@ class AppUserModel extends AppUser {
     super.photoUrl,
     super.linkedStudentIds,
     super.privacyNoticeVersion,
+    super.termsVersion,
   });
 
   /// Builds the model from a Firestore `users/{userId}` document combined
@@ -48,6 +49,7 @@ class AppUserModel extends AppUser {
       qrCode: data['qrCode'] as String? ?? '',
       linkedStudentIds: (data['linkedStudentIds'] as List<dynamic>?)?.cast<String>(),
       privacyNoticeVersion: (data['privacyNoticeVersion'] as num?)?.toInt(),
+      termsVersion: (data['termsVersion'] as num?)?.toInt(),
     );
   }
 }
