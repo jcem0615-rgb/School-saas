@@ -20,9 +20,19 @@
 # build: replace the signing config with a real upload key before release.
 name: Installable builds
 
+# main, since Vercel builds the web app from it and there is no reason for
+# the installable builds to trail a different branch. It used to be
+# runnable-demo-mode; that branch has caught up to main and stopped being
+# a separate line of work.
+#
+# The paths filter is what keeps the cost honest. A commit that only
+# touches docs or marketing/ changes nothing any of these three jobs
+# compile, and the iOS job runs on a macOS runner that bills at ten times
+# the Linux rate -- so it fires on app/** and on this file, and on nothing
+# else.
 on:
   push:
-    branches: [runnable-demo-mode]
+    branches: [main]
     paths:
       - 'app/**'
       - '.github/workflows/installable-builds.yml'
@@ -186,7 +196,7 @@ jobs:
           cp "$out/app-arm64-v8a-release.apk" logicclass-demo-arm64.apk
 
           notes=$(cat <<'TXT'
-          Rolling build of the demo-mode app from the runnable-demo-mode branch.
+          Rolling build of the demo-mode app from main.
           Debug-signed for sideloading -- not a Play Store build, and it needs
           Android 7.0 or newer (the APK carries a v2 signature only).
 
