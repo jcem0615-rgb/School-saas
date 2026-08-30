@@ -1,10 +1,19 @@
-# Builds an installable APK on GitHub's runners.
+# The app on every platform it targets, built where the toolchains are.
 #
-# This exists because the Android SDK cannot be installed everywhere the
-# app can be developed -- dl.google.com is unreachable from some networks,
-# and the SDK is the one part of the toolchain with no mirror. The runner
-# has it preinstalled, so the APK is built where the tools already are and
-# downloaded from the run's artifacts.
+# Two of the three jobs produce something a person can install; the third
+# only proves the code compiles. That is a real distinction and the job
+# names do not carry it, so:
+#
+#   apk      -> installable, published to the demo-apk release
+#   windows  -> installable, published to the demo-apk release
+#   ios      -> compiled and linked only, nothing published
+#
+# The APK exists here because the Android SDK cannot be installed
+# everywhere the app can be developed -- dl.google.com is unreachable from
+# some networks, and the SDK is the one part of the toolchain with no
+# mirror. The runner has it preinstalled. Windows binaries can only be
+# produced on Windows, and iOS only on macOS, which is the other half of
+# the reason all three live here rather than on anybody's machine.
 #
 # The APK is signed with the debug key (see android/app/build.gradle.kts),
 # which is what makes it installable by sideloading. It is NOT a Play Store
@@ -274,3 +283,59 @@ jobs:
             --target "$GITHUB_SHA" --title "LogicClass demo builds" --notes "Build in progress."
           gh release upload demo-apk logicclass-demo-windows.zip --clobber
         shell: bash
+
+  # iOS is compiled but not shipped, and the distinction is the point.
+  #
+  # The iOS project has been configured since the Android one -- bundle id
+  # ph.logicclass.app, deployment target 15.0, and the camera, location
+  # and photo-library usage strings iOS refuses to run without -- but it
+  # had never once been compiled. "Every dependency supports iOS" is a
+  # claim about pubspec.yaml; whether the thing links against all of them
+  # on a real toolchain is a different question, and the only way to
+  # answer it is to build.
+  #
+  # --no-codesign is what makes this possible without an Apple Developer
+  # account: it compiles and links the whole app and stops before signing.
+  # That catches the failures worth catching here -- a plugin with no iOS
+  # implementation, a Swift Package that will not resolve, a deployment
+  # target a dependency has outgrown -- and cannot produce anything
+  # installable, which is why nothing is uploaded.
+  #
+  # A signed, distributable build needs an Apple Developer account, a
+  # provisioning profile and GoogleService-Info.plist for real mode. When
+  # those exist this job is where they plug in.
+  ios:
+    runs-on: macos-latest
+    # macOS runners bill at ten times the rate of Linux ones on a private
+    # repository, and this job exists to answer a yes/no question rather
+    # than to produce a download. The cap keeps a hung resolve from
+    # spending an afternoon of minutes on it.
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.1
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # DEMO_MODE=true for the same reason the other two jobs pass it: the
+      # build must not depend on Firebase settings that are not in the
+      # repository. It also means this compiles the exact configuration a
+      # demo device would run.
+      - run: flutter build ios --release --no-codesign --dart-define=DEMO_MODE=true
+
+      # Says what was actually proved, so a green tick here is not mistaken
+      # for an app somebody can install.
+      - name: What this job did and did not prove
+        run: |
+          echo "iOS build compiled and linked against every plugin."
+          echo "Not signed, not packaged, not installable -- that needs an"
+          echo "Apple Developer account and a provisioning profile."
