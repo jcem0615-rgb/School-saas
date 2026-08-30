@@ -157,20 +157,41 @@ jobs:
       # its own config: the repository's vercel.json describes how to
       # build from source and is the wrong shape here.
       #
-      # The rewrite is the same one, and for the same reason -- only
-      # extensionless paths fall back to index.html, so a request for
-      # main.dart.js can never be answered with HTML, which is the shape
-      # a blank page with nothing in the console takes.
+      # The empty install and build commands are not decoration, and
+      # leaving them out cost a deploy. A Vercel project remembers the
+      # build settings it was given -- this one still carries
+      # `bash scripts/vercel-install.sh` from when the Git integration
+      # was connected -- and those settings apply to a CLI deploy just as
+      # much as to a push. So Vercel took a finished site and tried to
+      # build it again, running an install script that is not in a
+      # directory of compiled output, and stopped with exit 127. Setting
+      # them empty here overrides the project and makes this the static
+      # upload it was always meant to be.
+      #
+      # outputDirectory is "." for the same reason: the uploaded root is
+      # already the built site, not a source tree with the site inside
+      # it somewhere.
+      #
+      # The rewrite is the same one as the repository's, and for the same
+      # reason -- only extensionless paths fall back to index.html, so a
+      # request for main.dart.js can never be answered with HTML, which
+      # is the shape a blank page with nothing in the console takes.
       - name: Write the deployment config
         run: |
           cat > app/build/web/vercel.json <<'JSON'
           {
             "framework": null,
+            "installCommand": "",
+            "buildCommand": "",
+            "outputDirectory": ".",
             "rewrites": [
               { "source": "/((?!.*\\.).*)", "destination": "/index.html" }
             ]
           }
           JSON
+          echo "--- deployed vercel.json ---"
+          cat app/build/web/vercel.json
+          python3 -c "import json,sys; json.load(open('app/build/web/vercel.json')); print('valid JSON')"
 
       - name: Deploy to production
         env:
