@@ -150,10 +150,13 @@ const CONTENTS = [
   '19. Emergency',
   '20. Importing and exporting',
   '21. Announcements and notifications',
-  '22. Security',
-  '23. Data Privacy Act',
-  '24. Where it runs',
-  '25. Going live',
+  '22. Parent and teacher messaging',
+  '23. Staff time and leave',
+  '24. Signing in when you cannot',
+  '25. Security',
+  '26. Data Privacy Act',
+  '27. Where it runs',
+  '28. Going live',
 ];
 // Written out rather than generated as a field: a Word table-of-contents
 // field renders blank everywhere until Word itself refreshes it, and this
@@ -198,13 +201,13 @@ add(
   featureTable([
     ['Director', 'School-wide leadership', 'Today\'s figures, announcements, meetings, approvals, fee schedules, expenses, reports, audit trail, system check, data requests.'],
     ['Principal', 'One division', 'Student records, class schedule, teacher assignment, announcements, meetings, approvals, emergency - all limited to their division.'],
-    ['Admin', 'School operations', 'Employee accounts, teacher assignment, strands and programs, branding, schedules, fee schedules, reports, audit trail, attendance scanning.'],
+    ['Admin', 'School operations', 'Employee accounts, teacher assignment, strands and programs, branding, schedules, fee schedules, reports, audit trail, attendance scanning, leave requests and staff timesheets.'],
     ['Registrar / Cashier', 'The front counter', 'Enrolment, student records, fee assessment, payments and receipts, printed forms, online-payment review and setup, data requests.'],
-    ['Faculty', 'Teaching', 'Own timetable, coursework, answer keys, submissions, grade submission, material requests, attendance scanning, announcements.'],
+    ['Faculty', 'Teaching', 'Own timetable, class registers with time in and out, coursework, answer keys, submissions, grade submission, material requests, attendance scanning, messages with parents, own leave and timesheet.'],
     ['Guidance', 'Student welfare', 'Guidance records, student summons, emergency alerts.'],
-    ['Staff', 'Non-teaching staff', 'Daily checklist, daily work reports, material requests, own scannable ID.'],
+    ['Staff', 'Non-teaching staff', 'Daily checklist, daily work reports, material requests, own scannable ID, own leave and timesheet.'],
     ['Student', 'The learner', 'Subjects, timetable, coursework, grades, attendance, balance, promissory note, emergency button, announcements, QR ID.'],
-    ['Parent', 'The family', 'Each linked child\'s attendance, timetable, grades and statement of account; emergency alerts; announcements; online payment.'],
+    ['Parent', 'The family', 'Each linked child\'s attendance - by day and by subject - timetable, grades and statement of account; messages with their teachers; emergency alerts; announcements; online payment.'],
   ], ['Portal', 'For', 'What it covers']),
   note('Roles that can be scoped to a division - Principal, Registrar, Faculty, Guidance - see only that '
      + 'division\'s records. The limit is enforced by the database, not by hiding buttons.'),
@@ -528,6 +531,23 @@ add(
     'Staff roles allowed to, within their division scope.',
     'Nobody can write an attendance record from an app at all - only a scan creates one.',
   ]),
+  H2('13.3 Attendance per subject'),
+  P('The gate scan answers "did they come to school". It cannot answer "were they in Physics", which is '
+    + 'the question behind a grade that dropped and the one a parent asks that nobody could previously '
+    + 'answer. So each timetabled class has a register of its own.'),
+  featureTable([
+    ['Class Attendance', 'My classes today', 'The teacher\'s day, in order, with each class either not started, in progress or finished.'],
+    ['Time in', 'The register', 'Starts the class. Everybody in the section appears, marked present.'],
+    ['P / L / A / E', 'The register', 'Present, late, absent, excused - one tap per exception. Three absences is three taps, not forty.'],
+    ['Time out', 'The register', 'Ends the class. The finish time is recorded against everyone who was there.'],
+    ['Subject Attendance', 'Student and Parent', 'The same records from the family\'s side, grouped by subject with a rate for each - worst subject first.'],
+  ], ['Control', 'Where', 'What it does']),
+  bullets([
+    'Pressing Time in twice opens the same register, not a second one.',
+    'A class not on today\'s timetable cannot be started, so a day\'s marks cannot be filed under the wrong date.',
+    'A register can be corrected on the day it was taken, and not afterwards. After that it is the registrar\'s to amend.',
+    'An excused lesson still counts as a lesson missed in the rate. A school that dropped them would report a child who missed half a term with a note as having a perfect record.',
+  ]),
 );
 
 // ---------------------------------------------------------------- 14 Fees
@@ -593,6 +613,18 @@ add(
   ], ['Control', 'Where', 'What it does']),
   note('A new submission raises an alert wherever the cashier happens to be in the app, not only on the '
      + 'review screen.'),
+  H2('15.1 Paying by bank transfer'),
+  P('A school that banks with more than one bank publishes each account - the bank, the account name, the '
+    + 'number and the branch. The family chooses which one they sent it to, and that choice is recorded on '
+    + 'the submission.'),
+  featureTable([
+    ['Add bank account', 'Online Payment Setup', 'A bank, an account name, a number, and a branch if the school banks at more than one.'],
+    ['Stop offering this', 'Online Payment Setup', 'Closes an account. It stays on file, because older submissions point at it; it is simply no longer offered.'],
+    ['Bank Transfer', 'Pay Online', 'Offered only when the school has published at least one open account. The family picks which one and the details are on screen to copy.'],
+    ['Sent to', 'Online Payments', 'Which account the family says they used, beside the reference number - so the cashier knows which statement to check.'],
+  ], ['Control', 'Where', 'What it does']),
+  note('A cashier holding a reference number and three bank statements has to know where to look. That is '
+     + 'the whole reason the destination is recorded.'),
 );
 
 // ---------------------------------------------------------------- 16 Records
@@ -699,21 +731,128 @@ add(
   P('Who a list shows and whose phone rings are decided by two separate pieces of code, kept deliberately '
     + 'apart and covered by the same table of test cases - so a change to one cannot quietly disagree with '
     + 'the other.'),
+  H2('21.2 The notification inbox'),
+  P('A push notification is gone the moment it is swiped away, and never arrives at all for a phone that '
+    + 'was off or a browser that never granted permission. So everything the school sends is also written '
+    + 'to the person\'s own inbox, reached from the bell in every portal\'s top bar and still there '
+    + 'tomorrow.'),
+  featureTable([
+    ['Bell', 'Every portal', 'Carries the count of what has not been read.'],
+    ['Notifications', 'The inbox', 'Everything sent to this person, newest first, with what it was about.'],
+    ['Turn on notifications', 'The inbox', 'Where permission is asked - on the screen somebody opened to look at notifications, not as a prompt in front of somebody checking a grade.'],
+    ['Mark all read', 'The inbox', 'Clears the count.'],
+  ], ['Control', 'Where', 'What it does']),
+  H2('21.3 What raises one'),
+  featureTable([
+    ['An announcement', 'Everyone it is addressed to'],
+    ['A guidance summons', 'The student and every linked parent - and again if it is cancelled'],
+    ['An emergency alert', 'The class adviser and the student\'s parents'],
+    ['A leave decision', 'The employee who filed it'],
+    ['A message', 'The other person in the conversation'],
+  ], ['What happened', 'Who is told']),
+  note('A summons has always been visible to the family. Visible is not told, and a summons is the one '
+     + 'record with a date it is no use learning about afterwards - so it is now sent, and sent again if '
+     + 'the office calls it off. A family that rearranged a working day around an appointment should not '
+     + 'turn up to one that is off.'),
 );
 
-// ---------------------------------------------------------------- 22 Security
+// ---------------------------------------------------------------- 22
 add(
-  H1('22. Security'),
+  H1('22. Parent and teacher messaging'),
+  P('A parent and one of their child\'s teachers can message each other in the app. One thread per '
+    + 'teacher, per parent, per child - so a parent with two children taught by the same teacher has two '
+    + 'threads, and neither side has to say which child they mean.'),
+  H2('22.1 Who can message whom'),
+  P('A parent may write to a teacher when that teacher teaches their child. The school does not configure '
+    + 'this and nobody maintains a list: it is worked out from the timetable assignments, the student\'s '
+    + 'section and the parent\'s linked children, every time a thread is opened.'),
+  featureTable([
+    ['Parent', 'Any teacher assigned to their child\'s class. The class adviser is offered first.'],
+    ['Teacher', 'The linked guardians of any student in a class they teach.'],
+    ['Everybody else', 'Nobody. Messaging is between a family and the teacher who teaches their child.'],
+  ], ['Who', 'May write to']),
+  H2('22.2 Who can read it'),
+  P('Only the two people in it. Not the Principal, not the Director, not an administrator. This is '
+    + 'deliberate: a parent who believes the office is reading tells the teacher nothing worth reading, and '
+    + 'a channel nobody trusts is a channel nobody uses. A school that needs to see a conversation has a '
+    + 'lawful-request route and an audit trail; what it does not have is a login that quietly opens every '
+    + 'private message in the school.'),
+  H2('22.3 What is fixed and what is not'),
+  bullets([
+    'A message cannot be edited, and cannot be unsent. It is the record of what was said.',
+    'The sender is stamped by the server, so nobody can post in the other person\'s name.',
+    'Each side clears only its own unread count - marking your own as read does not clear theirs.',
+    'Every message raises a notification for the other person, naming the child it is about.',
+  ]),
+  note('Announcements remain the way to tell a whole class or a whole school something. Messaging is for '
+     + 'one family and one teacher.'),
+);
+
+// ---------------------------------------------------------------- 23
+add(
+  H1('23. Staff time and leave'),
+  P('The QR scanner has always been able to scan an employee in and out. This is where those scans are '
+    + 'read back as a month, together with the leave the office approved - which is the piece that turns a '
+    + 'blank day from an unexplained absence into an authorised one.'),
+  H2('23.1 Filing leave'),
+  P('Any employee files from My Leave: the kind of leave, the dates, and why. The system counts the '
+    + 'working days for them, weekends excluded, and stores that count so a request keeps the number it '
+    + 'was approved on. A request can be withdrawn while it is still undecided, and not after.'),
+  H2('23.2 Deciding it'),
+  P('Director, Principal and Admin see every request in one queue, with the decided ones beneath it. A '
+    + 'decision records who made it, in what role, when, and any remarks - and the employee is notified. '
+    + 'A request that has already been decided cannot be decided again.'),
+  H2('23.3 The timesheet'),
+  P('A month, per employee, for the office - and their own for every employee. Each day is named as '
+    + 'exactly one thing:'),
+  featureTable([
+    ['Worked / Late', 'There is a scan. Late still counts as present.'],
+    ['On leave', 'An approved request covers the day. A pending one does not.'],
+    ['Rest day', 'Saturday or Sunday by default, configurable for schools that teach on Saturdays.'],
+    ['Absent', 'A working day with no scan and no approved leave.'],
+  ], ['Reads as', 'When']),
+  bullets([
+    'A scan beats leave: somebody who came in on their approved leave day was at work.',
+    'A day with a time in and no time out contributes no hours at all, and the sheet says how many such days there are. Nothing is guessed onto a payslip.',
+    'Totals: days worked, hours, lates, days on leave, days absent.',
+  ]),
+  note('LogicClass does not run payroll. It produces the sheet a payroll clerk reads before they run it.'),
+);
+
+// ---------------------------------------------------------------- 24
+add(
+  H1('24. Signing in when you cannot'),
+  P('Two routes back into an account, because the people who need one do not all have the same things.'),
+  featureTable([
+    ['Reset by email', 'A link is emailed to the address on the account.'],
+    ['Reset by phone', 'A code is texted to the mobile number on the account. The person then chooses a new password.'],
+  ], ['Route', 'What happens']),
+  P('The phone route exists because a family whose only device is the handset in their pocket often has no '
+    + 'email they can reach - and the account they cannot get into is frequently the one the school emailed '
+    + 'the invitation to.'),
+  H2('24.1 What it will not do'),
+  bullets([
+    'It will not recover an account when the number is registered to more than one - a parent who also works at the school, or a household sharing a handset. It says so and asks them to contact the office.',
+    'It will not recover a suspended or closed account.',
+    'It signs out every other session on the account, because somebody recovering an account is often doing it because somebody else has it.',
+  ]),
+  note('This is only as good as the mobile numbers on your records. A school that never filled the field in '
+     + 'has given its families a route that finds nothing.'),
+);
+
+// ---------------------------------------------------------------- 25 Security
+add(
+  H1('25. Security'),
   P('Every rule below is enforced where the data lives rather than in the app, so it holds even for a '
     + 'request that never went through the app at all.'),
-  H2('22.1 One school cannot see another'),
+  H2('25.1 One school cannot see another'),
   P('Every record lives under its own school, and every account carries the school it belongs to. There is '
     + 'no query that crosses that line, for any role.'),
-  H2('22.2 Divisions hold too'),
+  H2('25.2 Divisions hold too'),
   P('A Principal, Registrar, Faculty member or Guidance counsellor can be scoped to Elementary, Junior '
     + 'High, Senior High or College - and, for College, to a department. A Junior High teacher scoped to '
     + 'their division cannot open a Senior High record: the read is denied, not filtered out of a list.'),
-  H2('22.3 Fields the app can never write'),
+  H2('25.3 Fields the app can never write'),
   featureTable([
     ['balance', 'Only a recorded payment, refund or assessment', 'A balance that could be typed is a balance nobody can trust.'],
     ['studentNumber', 'Only registration', 'A permanent identifier, issued once.'],
@@ -721,15 +860,15 @@ add(
     ['attendance', 'Only a scan', 'Cross-user writes are not something a client should be trusted with.'],
     ['receipt numbers', 'Only the server', 'Two cashiers at once must not be able to issue the same number.'],
   ], ['Field or record', 'Written by', 'Why']),
-  H2('22.4 Everything is written down'),
+  H2('25.4 Everything is written down'),
   P('Every create, edit and delete in the school lands in the audit trail with who did it and when, and it '
     + 'is recorded automatically rather than because a screen remembered to log it. The Director and Admin '
     + 'read the whole trail, filtered by module and date range; every account can read its own.'),
 );
 
-// ---------------------------------------------------------------- 23 Privacy
+// ---------------------------------------------------------------- 26 Privacy
 add(
-  H1('23. Data Privacy Act'),
+  H1('26. Data Privacy Act'),
   P('Schools hold minors\' records. These are the questions a Data Protection Officer asks, and where the '
     + 'answer lives in the system.'),
   featureTable([
@@ -744,9 +883,9 @@ add(
   ], ['What a DPO asks for', 'Where it is', 'What it contains']),
 );
 
-// ---------------------------------------------------------------- 24 Platforms
+// ---------------------------------------------------------------- 27 Platforms
 add(
-  H1('24. Where it runs'),
+  H1('27. Where it runs'),
   featureTable([
     ['Android', 'An APK the school distributes', 'Camera scanning and push notifications, on the phones staff already carry. No app store account is needed on the school side.'],
     ['Windows', 'A desktop build', 'For the registrar\'s and cashier\'s counter, where the printing and the typing happen.'],
@@ -756,9 +895,9 @@ add(
     + 'and the parent\'s phone together, and there is no separate teacher app or parent app to keep in step.'),
 );
 
-// ---------------------------------------------------------------- 25 Going live
+// ---------------------------------------------------------------- 28 Going live
 add(
-  H1('25. Going live'),
+  H1('28. Going live'),
   P('A readiness check the school can run itself, from the Director or Admin portal, before the first '
     + 'school day. Nothing runs until it is asked to, and nothing it does changes the school\'s data.'),
   featureTable([

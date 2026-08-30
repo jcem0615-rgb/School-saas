@@ -313,6 +313,20 @@ const S = () => pres.addSlide();
   s.addNotes('The "server decides late" point kills the obvious cheat - changing the phone clock.');
 }
 
+// ---------------------------------------------------------------- 15b. Subject registers
+{
+  const s = S(); bg(s, C.paper);
+  heading(s, 'Attendance per subject', 'The register the teacher takes, not just the gate',
+    { lede: 'The gate scan says they came to school. It cannot say they were in Physics - which is the question behind a grade that dropped.' });
+  await cardGrid(s, [
+    { icon: 'FiLogIn', h: 'Time in', b: 'The teacher presses it at the start of the class. The whole section appears, marked present - so a register taken in a hurry still records the truth about everyone who was there.' },
+    { icon: 'FiUserCheck', h: 'Mark the exceptions', b: 'Present, late, absent, excused - one tap each. Three absences is three taps, not forty. Corrections allowed on the day, not after.' },
+    { icon: 'FiLogOut', h: 'Time out', b: 'Ends the class, and records the finish time against everyone who was in it. Absent students get no time out, because they had no time in.' },
+    { icon: 'FiTrendingDown', h: 'What the family sees', b: 'Every subject with its own attendance rate, worst first - because the reason anybody opens this screen is to find the one that is going wrong.' },
+  ], { cols: 2, y: 2.35, h: 2.3 });
+  s.addNotes('This is the one a subject teacher asks for in the first ten minutes. Pair it with the grades screen.');
+}
+
 // ---------------------------------------------------------------- 16. Fees
 {
   const s = S(); bg(s, C.paper);
@@ -345,6 +359,50 @@ const S = () => pres.addSlide();
     x: M, y: 6.05, w: CW, h: 0.4, isTextBox: true, margin: 0,
     fontFace: F.head, fontSize: 15, italic: true, color: C.accent });
   s.addNotes('This is a differentiator for smaller schools: no merchant account, no gateway fees.');
+}
+
+// ---------------------------------------------------------------- 17b. Messaging
+{
+  const s = S(); bg(s, C.paper);
+  heading(s, 'Parent and teacher, talking', 'One thread per child, and nobody else in it',
+    { lede: 'A parent can message the teachers who teach their child. Not the whole staff list - the teachers who actually teach them.' });
+  await cardGrid(s, [
+    { icon: 'FiUsers', h: 'Who can reach whom', b: 'Worked out from the timetable, the section and the family link, every time a thread is opened. Nobody maintains a list, and nobody can message outside it.' },
+    { icon: 'FiLock', h: 'Who can read it', b: 'The two of them. Not the Principal, not an administrator. A parent who believes the office is reading tells the teacher nothing worth reading.' },
+    { icon: 'FiMessageSquare', h: 'One thread per child', b: 'A parent with two children taught by the same teacher gets two threads, so nobody has to say which child they mean.' },
+    { icon: 'FiShield', h: 'What was said stays said', b: 'A message cannot be edited or unsent, and the sender is stamped by the server - nobody can post in the other person\'s name.' },
+  ], { cols: 2, y: 2.35, h: 2.3 });
+  s.addNotes('The "not even the principal" point is the one that gets a reaction. It is also what makes the channel worth having.');
+}
+
+// ---------------------------------------------------------------- 17c. Staff time and leave
+{
+  const s = S(); bg(s, C.deep);
+  heading(s, 'Staff time and leave', 'The month a payroll clerk reads', { dark: true,
+    lede: 'The same scanner that marks students marks employees. This is where those scans become a month.' });
+  await cardGrid(s, [
+    { icon: 'FiCalendar', h: 'File it', b: 'Any employee files leave from their own screen. Working days are counted for them, weekends excluded, and the count is kept.', dark: true },
+    { icon: 'FiCheckCircle', h: 'Decide it', b: 'One queue for the office, with the decided ones beneath it. Who decided, in what role, when, and why - and the employee is told.', dark: true },
+    { icon: 'FiClock', h: 'The timesheet', b: 'Every day named as exactly one thing: worked, late, on leave, rest day, or absent. Approved leave is what turns a blank day from an absence into an authorised one.', dark: true },
+    { icon: 'FiAlertCircle', h: 'Nothing is guessed', b: 'A day with a time in and no time out contributes no hours, and the sheet says how many such days there are. No invented hours reach a payslip.', dark: true },
+  ], { cols: 2, y: 2.35, h: 2.3 });
+  s.addNotes('Say plainly that this is not payroll. It is the sheet payroll is run from.');
+}
+
+// ---------------------------------------------------------------- 17d. Notifications
+{
+  const s = S(); bg(s, C.paper);
+  heading(s, 'Nobody finds out too late', 'A push, and a record of it that is still there tomorrow',
+    { lede: 'A push notification is gone the moment it is swiped away. Everything the school sends is also written to the person\'s own inbox.' });
+  await rowList(s, [
+    { icon: 'FiBell', h: 'An announcement', b: 'Reaches every account it is addressed to - and only those. Whose phone rings is decided on the server, not by a filter on a list' },
+    { icon: 'FiUserX', h: 'A guidance summons', b: 'The student and every linked parent are told, and told again if the office calls it off. A family should not rearrange a day around an appointment that is not happening' },
+    { icon: 'FiAlertTriangle', h: 'An emergency', b: 'The class adviser and the student\'s parents, at high priority, with the app closed' },
+    { icon: 'FiCalendar', h: 'A leave decision', b: 'The employee who filed it. Somebody who never hears back either comes in when they should not have, or stays away when they were expected' },
+    { icon: 'FiMessageCircle', h: 'A message', b: 'The other person in the conversation, named by the child it is about' },
+    { icon: 'FiInbox', h: 'And all of it, in one inbox', b: 'Reached from the bell in every portal. A phone that was off, or a browser that never granted permission, misses nothing' },
+  ], { cols: 2, y: 2.2, rh: 1.4 });
+  s.addNotes('The inbox is the part competitors skip. Push alone means the school cannot prove it told anybody.');
 }
 
 // ---------------------------------------------------------------- 18. Records & forms
