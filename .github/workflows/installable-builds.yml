@@ -27,27 +27,25 @@ name: Installable builds
 #
 # ## What runs when, and why it is not everything
 #
-# A paths filter was supposed to keep the cost honest here. It does not,
-# and the arithmetic is worth writing down because it was got wrong once
-# already:
+# Only the Linux APK runs on a push. Windows and iOS run when somebody
+# asks for them from the Actions tab.
 #
-#   apk      ubuntu-latest    1x
-#   windows  windows-latest   2x
-#   ios      macos-latest    10x   (up to 45 minutes)
+# The reason is now speed rather than money. This repository is public,
+# so Actions minutes are free -- but a macOS runner still takes the best
+# part of an hour on a 45-minute cap, and a merge is not finished until
+# its checks are. A Windows binary is a release artefact and "does this
+# still build for iOS" is a question whose answer does not change between
+# commits; neither is worth waiting on to know whether a merge was good.
 #
-# On a private repository those multiply against a monthly allowance. All
-# three fired on every push whose commit touched `app/**` -- which is
-# every feature commit there has ever been -- at something like two
-# hundred billed minutes each time. Eight merges in a day exhausted the
-# month, and the first thing that broke was the *deploy* workflow: once
-# the allowance is gone, jobs fail instantly with no runner assigned and
-# no step ever running, which looks nothing like a billing problem and
-# costs an hour to diagnose.
-#
-# So only the cheap one runs automatically. Windows and iOS are release
-# artefacts and a yes/no compatibility answer respectively -- neither is
-# something anybody needs on every commit -- and they now run only when
-# somebody asks for them from the Actions tab.
+# It is worth recording what this looked like before the repository went
+# public, because the failure was invisible: all three fired on every
+# push touching `app/**` -- every feature commit there has ever been --
+# at roughly two hundred billed minutes a time, since Windows bills at
+# twice the Linux rate and macOS at ten times. Eight merges in a day
+# exhausted the monthly allowance, and the first thing to break was the
+# *deploy* workflow, which then failed with no runner assigned and no
+# step ever running. That looks nothing like a billing problem and cost
+# an hour to find.
 on:
   push:
     branches: [main]
@@ -248,9 +246,8 @@ jobs:
   # computers as much as on phones. Windows binaries can only be produced
   # on Windows, hence the separate runner rather than another step above.
   windows:
-    # Twice the Linux rate, and a desktop build nobody is waiting on
-    # between commits. Run it from the Actions tab when a Windows binary
-    # is actually wanted.
+    # A desktop build nobody is waiting on between commits. Run it from
+    # the Actions tab when a Windows binary is actually wanted.
     if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     permissions:
@@ -337,10 +334,9 @@ jobs:
   # provisioning profile and GoogleService-Info.plist for real mode. When
   # those exist this job is where they plug in.
   ios:
-    # Ten times the Linux rate, and it answers a question that does not
-    # change between commits: does this still build for iOS. Asking it
-    # once a release is worth doing; asking it on every merge is what
-    # emptied the month's allowance and stopped the web deploy.
+    # Answers a question that does not change between commits: does this
+    # still build for iOS. Worth asking once a release; not worth adding
+    # the better part of an hour to every merge.
     if: github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     # The cap keeps a hung resolve from spending an afternoon of minutes.

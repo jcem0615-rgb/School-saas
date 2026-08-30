@@ -182,7 +182,10 @@ has no Actions minutes left has `runner_id: 0`, no runner name, and no
 steps at all -- it never reached a machine. The two look the same in the
 Actions list, and only the second is a billing problem.
 
-Minutes are metered because this repository is private. Where they go:
+This repository is public, so Actions minutes are free and this failure
+should not recur. It is written down because it did happen, and because
+a repository that goes private again brings it straight back. Where the
+minutes would go:
 
 | Job | Runner | Billed at |
 |---|---|---|
@@ -192,13 +195,12 @@ Minutes are metered because this repository is private. Where they go:
 | Installable builds / ios | macos-latest | 10x |
 
 Only the first two run automatically. Windows and iOS are
-`workflow_dispatch` only, because they cost more than the rest combined
-and answer questions that do not change between commits. Run them from
-the Actions tab when a binary or a compatibility answer is actually
-wanted.
+`workflow_dispatch` only -- now for time rather than money, since a
+macOS runner adds the better part of an hour to a merge and answers a
+question that does not change between commits.
 
-Usage is at **github.com/settings/billing**. The allowance resets
-monthly; a spending limit lets it continue before then.
+Usage, if the repository is ever private again, is at
+**github.com/settings/billing**.
 
 ### Why it deploys built files rather than sources
 

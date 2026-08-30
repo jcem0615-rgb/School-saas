@@ -91,16 +91,43 @@ jobs:
       # Checked here rather than left to fail three steps later with
       # something less obvious. A run that spends five minutes building
       # before saying "no token" is five minutes nobody gets back.
+      #
+      # The message names the three ways a secret that was definitely
+      # added is still not here, because "it is not set" on its own sent
+      # somebody back to the same screen to add it a second time. The
+      # length is printed rather than the value: it separates absent
+      # from present-but-blank, and a number is not a token.
       - name: Check the token is set
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::VERCEL_TOKEN is not set."
-            echo "Create one at vercel.com/account/tokens, then add it under"
-            echo "Settings -> Secrets and variables -> Actions as VERCEL_TOKEN."
-            exit 1
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "VERCEL_TOKEN length: ${#VERCEL_TOKEN}"
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "Token is visible to this job."
+            exit 0
           fi
+          echo "::error::VERCEL_TOKEN is empty in this job."
+          echo
+          echo "If you have already added it, it is one of these three:"
+          echo
+          echo "  1. It is an ENVIRONMENT secret, not a repository one."
+          echo "     Settings -> Secrets and variables -> Actions has two"
+          echo "     tabs. Secrets under an environment reach only a job"
+          echo "     that declares 'environment:', and this job does not."
+          echo "     Move it to Repository secrets, or say which"
+          echo "     environment and the job can name it."
+          echo
+          echo "  2. It went in under Dependabot, or under Variables."
+          echo "     Same page, different tab. Neither is readable from"
+          echo "     'secrets.' in a workflow."
+          echo
+          echo "  3. It is on a different repository. This job ran on"
+          echo "     $GITHUB_REPOSITORY -- check the secret is on that one."
+          echo
+          echo "The name must match exactly: VERCEL_TOKEN."
+          echo "Create a token at vercel.com/account/tokens."
+          exit 1
 
       - uses: subosito/flutter-action@v2
         with:
