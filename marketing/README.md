@@ -46,3 +46,10 @@ pdftoppm -jpeg -r 100 LogicClass-Demo.pdf slide
 Every feature claim in both documents came from the code, not from the
 docs -- screen by screen, button label by button label. When a feature
 changes, the line to check is the one naming the button.
+
+Rebuild both after any feature change and read the pages that moved.
+Section headings in the guide carry `pageBreakBefore` rather than an
+explicit break paragraph: a standalone break is itself a line, so a
+section whose content happens to end at the page boundary used to push
+that empty paragraph onto a sheet of its own and the reader got a blank
+page. Attaching the break to the next heading cannot do that.

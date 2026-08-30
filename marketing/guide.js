@@ -3,7 +3,7 @@ const d = require('docx');
 const {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
   Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle,
-  PageBreak, TableOfContents, PageOrientation, LevelFormat, convertInchesToTwip,
+  LevelFormat,
 } = d;
 
 const INK = '1E2761', SLATE = '55608A', ACCENT = 'B37418', TINT = 'EEF2FB', RULE = 'D6DEF0';
@@ -21,8 +21,14 @@ const P = (text, o = {}) => new Paragraph({
   })],
 });
 
+// pageBreakBefore on the heading rather than a standalone break
+// paragraph: an explicit break paragraph is itself a line, so a section
+// whose content happens to end at the page boundary pushes that empty
+// paragraph onto a page of its own and the reader gets a blank sheet.
+// Attaching the break to the next heading cannot do that.
 const H1 = (text) => new Paragraph({
-  heading: HeadingLevel.HEADING_1, spacing: { before: 360, after: 160 },
+  heading: HeadingLevel.HEADING_1, pageBreakBefore: true,
+  spacing: { before: 0, after: 160 },
   children: [new TextRun({ text, font: 'Cambria', size: 32, bold: true, color: INK })],
 });
 const H2 = (text) => new Paragraph({
@@ -93,8 +99,6 @@ const rule = () => new Paragraph({
   children: [],
 });
 
-const pageBreak = () => new Paragraph({ children: [new PageBreak()] });
-
 const kids = [];
 const add = (...x) => kids.push(...x.flat());
 
@@ -114,7 +118,6 @@ add(
       text: 'Every screen and every button, portal by portal - for schools evaluating the system.',
       font: 'Calibri', size: 22, color: SLATE }),
   ]}),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- contents
@@ -152,8 +155,7 @@ add(H1('Contents'),
   CONTENTS.map((t) => new Paragraph({
     spacing: { after: 60, line: 264 },
     children: [new TextRun({ text: t, font: 'Calibri', size: 21, color: '2B3350' })],
-  })),
-  pageBreak());
+  })));
 
 // ---------------------------------------------------------------- 1
 add(
@@ -180,7 +182,6 @@ add(
     'A family that learns about a fever, a suspension or a summons when the child gets home.',
     'A grade that moves, a balance that is edited, a record that disappears - and no way to say who did it.',
   ]),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 2
@@ -200,7 +201,6 @@ add(
   ], ['Portal', 'For', 'What it covers']),
   note('Roles that can be scoped to a division - Principal, Registrar, Faculty, Guidance - see only that '
      + 'division\'s records. The limit is enforced by the database, not by hiding buttons.'),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 3
@@ -209,6 +209,8 @@ add(
   H2('3.1 Signing in'),
   featureTable([
     ['Email and password', 'The portal for your role', 'One field each, and a show-password toggle. There is no role picker: the account decides where you land.'],
+    ['Remember me', 'Sign in', 'Stores the email so the next sign-in only needs a password. The box comes back ticked with the field filled in; unticking it forgets, which is how a shared front-desk computer is cleared. No password is stored, on any platform, under any setting.'],
+    ['Show password', 'Sign in', 'Reveals what has been typed. On every password field in the app, not only this one.'],
     ['Forgot password?', 'Reset password', 'Enter the account email and a reset link is sent.'],
     ['First sign-in', 'Update password', 'An account created with a temporary password must set its own before it can go anywhere.'],
     ['First use', 'Before you start', 'The privacy notice. It must be read to the end before the button to continue becomes available; the version read is recorded against the account.'],
@@ -223,7 +225,6 @@ add(
     ['Emergency Numbers', 'The school\'s numbers', 'The published list, one tap to dial.'],
     ['Announcements on this device', 'Notification switch', 'Turn push notifications for this phone or computer on or off.'],
   ]),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 4 Director
@@ -236,7 +237,7 @@ add(
   featureTable([
     ['Announcements', 'Announcements', 'Write a title and message, address it to everyone or pick the roles it is for, and pin one to the top. Posting it notifies the phones of the roles addressed.'],
     ['Meeting Scheduler', 'Meeting Scheduler', 'Schedule a meeting with a title, description, location, start and end, and the roles expected. Cancel one that is no longer happening.'],
-    ['Approvals', 'Approvals', 'One inbox for every request filed anywhere in the school - material requests from faculty and staff, promissory notes from students. Filter by pending, approved, rejected or all; approve or reject with a reason.'],
+    ['Approvals', 'Approvals', 'One inbox for every request filed anywhere in the school - material requests from faculty and staff, promissory notes from students. Filter by pending, approved, rejected or all; approve or reject with a reason. Each card carries the request\'s own details, and each decision records who made it. See 4.2.'],
     ['Class Schedule', 'Class Schedule', 'The week for every section. See section 17.'],
     ['System Check', 'System Check', 'Seven readiness checks. See section 25.'],
     ['Data Requests', 'Data Requests', 'What families have asked about their data, and what was answered. See section 23.'],
@@ -250,7 +251,22 @@ add(
   ]),
   note('A Director decides approvals but cannot decide their own request - the rule that files a request '
      + 'and the rule that decides one are deliberately separate.'),
-  pageBreak(),
+  H2('4.2 What an approval records'),
+  P('A request card shows what is being decided, not only its title. The details a request carries - a '
+    + 'quantity and an estimated cost for a material request, an amount and a reason for a promissory note '
+    + '- are laid out on the card, so nobody approves on a title alone and nobody reading it back months '
+    + 'later has to guess what was agreed to.'),
+  featureTable([
+    ['Filed by', 'Every card', 'The name and role of whoever raised it, and the date and time.'],
+    ['The request\'s details', 'Every card', 'Whatever that kind of request carries. The field is free-form - a material request and a promissory note file into the same inbox - so the card lays out the values it finds.'],
+    ['Approved / Declined by', 'A decided card', 'The name and role of the account that decided it.'],
+    ['Date and time', 'A decided card', 'When the decision was made.'],
+    ['Reason', 'A decided card', 'What the decider wrote, on an approval as well as a refusal.'],
+    ['Pending / Approved / Rejected / All', 'Filter chips', 'The history, filtered. "All" is the full record of everything ever filed.'],
+  ], ['What is shown', 'Where', 'What it tells you']),
+  note('The decision is signed by the account that made it: the rules require the deciding account\'s own '
+     + 'id and role on the write, so an approval cannot be attributed to somebody else. A history that can '
+     + 'be authored is not a history.'),
 );
 
 // ---------------------------------------------------------------- 5 Principal
@@ -278,7 +294,6 @@ add(
     ['Write guidance records', 'Not available', 'Counselling notes stay a guidance office action; a Principal may read them for their division.'],
     ['Read payments', 'Not available', 'Financial data stays with Director, Admin and Registrar - the same separation drawn for expenses.'],
   ], ['Action', 'Availability', 'Why']),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 6 Admin
@@ -325,7 +340,6 @@ add(
     ['Data Protection Officer', 'Branding', 'The name, email and phone a family is told to contact about their data.'],
     ['Save', 'Branding', 'Applies immediately - new ID cards and documents use it from that moment.'],
   ], ['Field', 'Where', 'What it affects']),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 7 Registrar
@@ -351,14 +365,13 @@ add(
     ['Edit', 'Student detail', 'Name, grade level, section, status and guardian contacts. The student number, the balance and the link to a portal account cannot be edited here by anyone - they are set by the actions that own them.'],
     ['Photo', 'Upload', 'The picture that prints on the school ID.'],
     ['Assess Fees', 'Assess Fees', 'Charge a fee schedule against this student, or type an ad-hoc charge line by line. See section 14.'],
-    ['Record Payment', 'Record Payment', 'Take a payment with an amount, purpose, method and reference number. See section 14.'],
+    ['Record Payment', 'Record Payment', 'Take a payment with an amount, purpose, method and reference number, with this student\'s current balance on screen. See section 14.'],
     ['Payment History', 'Payment History', 'Every charge, payment and refund, and a breakdown of how the balance is made up.'],
     ['Records & Forms', 'Records & Forms', 'Print the Transcript of Records or Form 137 and log the release. See section 16.'],
     ['Attendance History', 'Attendance History', 'Every scan for this student, in and out, with the status the server decided.'],
     ['Create Student Portal Account', 'Account creation', 'Issues the student their own login, linked to this record. Shown only while the record has no account - a student record does not need one to exist.'],
     ['Set Balance', 'Balance', 'An opening balance for a student carried over from a previous system.'],
   ]),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 8 Faculty
@@ -409,7 +422,6 @@ add(
   ], ['Control', 'Where', 'What it does']),
   note('A grade can be corrected but never reassigned: an update that would move a mark to a different '
      + 'student is refused by the database, not by the screen.'),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 9 Guidance
@@ -427,7 +439,6 @@ add(
     ['Student Summons', 'Guidance, Director, Admin, the division Principal, the student, and their linked parent', 'Being called to the guidance office is something a family needs to know about, so it follows the same pattern as attendance, grades and payments.'],
     ['Guidance Records', 'Guidance, Director, and the division Principal only', 'Counselling notes are the most closely held record in the system. Not the class adviser, not the student, not the parent.'],
   ], ['Record', 'Who can read it', 'Why']),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 10 Staff
@@ -442,7 +453,6 @@ add(
   ]),
   note('The daily report is immutable on purpose: a work log is only worth keeping if it is a trustworthy '
      + 'point-in-time record.'),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 11 Student
@@ -465,7 +475,6 @@ add(
     ['My QR ID', 'My School ID', 'The school ID card, on the phone and printable.'],
     ['Profile', 'Profile', 'As section 3.2.'],
   ]),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 12 Parent
@@ -488,7 +497,6 @@ add(
   ]),
   note('A parent linked to two children sees exactly those two. The query that resolves "my children" is '
      + 'filtered per record by the database, so an unlinked student cannot appear even by accident.'),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 13 Attendance
@@ -512,7 +520,6 @@ add(
     'Staff roles allowed to, within their division scope.',
     'Nobody can write an attendance record from an app at all - only a scan creates one.',
   ]),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 14 Fees
@@ -534,7 +541,12 @@ add(
     ['Void', 'Confirmation', 'Reverses an assessment that should not have been made. The voided assessment stays visible - a family\'s account is never quietly rewritten.'],
   ], ['Control', 'Where', 'What it does']),
   H2('14.3 Taking a payment'),
+  P('Opened from a student\'s record, the student is already chosen. Opened on its own, the ID is typed - '
+    + 'and it has to name somebody before anything is sent.'),
   featureTable([
+    ['Student ID', 'Record Payment', 'Either the record\'s ID or the number printed on the ID card, because the number is what a cashier reads off the card in front of them.'],
+    ['The student banner', 'Record Payment', 'The name, class and current balance of whoever the ID resolved to - the check that this is the right record, and the figure that proves the deduction afterwards.'],
+    ['Record Payment', 'Record Payment', 'Stays disabled until the ID names a student. A payment that cannot name who it is for is not sent.'],
     ['Amount', 'Record Payment', 'What was handed over.'],
     ['Purpose', 'Record Payment', 'What it is for.'],
     ['Payment Method', 'Record Payment', 'Cash, GCash or bank transfer.'],
@@ -549,7 +561,11 @@ add(
     + 'remains, so a balance is never a number nobody can explain.'),
   note('A refund is stored as its own row with a negative amount against the original payment, and the '
      + 'original is marked refunded. Both rows stay in the history.'),
-  pageBreak(),
+  note('Two cashiers at one counter cannot lose a payment between them. Every balance change is read and '
+     + 'written inside one transaction, so two collections at the same moment cannot both start from the '
+     + 'same figure - the second is retried against the first rather than landing on top of it. Worth '
+     + 'saying because the failure it prevents is invisible: a payment banked, receipted, and simply '
+     + 'absent from the balance.'),
 );
 
 // ---------------------------------------------------------------- 15 Online payments
@@ -569,7 +585,6 @@ add(
   ], ['Control', 'Where', 'What it does']),
   note('A new submission raises an alert wherever the cashier happens to be in the app, not only on the '
      + 'review screen.'),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 16 Records
@@ -589,7 +604,6 @@ add(
   ], ['Control', 'Where', 'What it does']),
   note('When the receiving school writes back years later asking when Form 137 was sent and to whom, the '
      + 'answer is on the screen.'),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 17 Schedule
@@ -610,7 +624,6 @@ add(
     'A teacher sees their own week, on My Schedule.',
     'A student sees theirs, and a parent sees their child\'s.',
   ]),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 18 Reports
@@ -625,7 +638,6 @@ add(
     ['Export to Excel', 'File save', 'The same table as a spreadsheet.'],
     ['Print', 'Print dialog', 'A PDF with the school\'s heading and the totals row shaded.'],
   ], ['Report or control', 'Where', 'What it gives you']),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 19 Emergency
@@ -639,7 +651,6 @@ add(
     ['Emergency Numbers', 'Emergency Numbers', 'The school\'s published list - clinic, guard, barangay, hospital - each with who answers, the number, a note and its position in the list. One tap dials.'],
     ['Add number', 'Emergency Numbers', 'Director and Admin publish and reorder the list.'],
   ], ['Control', 'Where', 'What it does']),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 20 Import/export
@@ -661,7 +672,6 @@ add(
     ['Download blank template (.xlsx)', 'Export / Import sheet', 'The exact column shape the import expects - so there is no guessing, and no phone call about which columns are needed.'],
     ['Choose an Excel or CSV file', 'Preview', 'Reads the file and shows what it found before writing anything. Rows it cannot read are reported rather than silently skipped.'],
   ], ['Control', 'Where', 'What it does']),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 21 Announcements
@@ -681,7 +691,6 @@ add(
   P('Who a list shows and whose phone rings are decided by two separate pieces of code, kept deliberately '
     + 'apart and covered by the same table of test cases - so a change to one cannot quietly disagree with '
     + 'the other.'),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 22 Security
@@ -708,7 +717,6 @@ add(
   P('Every create, edit and delete in the school lands in the audit trail with who did it and when, and it '
     + 'is recorded automatically rather than because a screen remembered to log it. The Director and Admin '
     + 'read the whole trail, filtered by module and date range; every account can read its own.'),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 23 Privacy
@@ -726,7 +734,6 @@ add(
     ['A Data Processing Agreement', 'Shipped with the system', 'A template ready for the school\'s DPO to review.'],
     ['The DPO\'s contact details', 'Branding', 'The name, email and phone a family is told to contact.'],
   ], ['What a DPO asks for', 'Where it is', 'What it contains']),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 24 Platforms
@@ -739,7 +746,6 @@ add(
   ], ['Platform', 'How it is delivered', 'Notes']),
   P('It is one codebase and three builds, not three products - so a fix reaches the registrar\'s desktop '
     + 'and the parent\'s phone together, and there is no separate teacher app or parent app to keep in step.'),
-  pageBreak(),
 );
 
 // ---------------------------------------------------------------- 25 Going live

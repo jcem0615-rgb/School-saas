@@ -89,7 +89,7 @@ const S = () => pres.addSlide();
   await rowList(s, [
     { icon: 'FiSpeaker' in require('react-icons/fi') ? 'FiSpeaker' : 'FiBell', h: 'Announcements', b: 'Post to everyone or pick the roles; pin one to the top' },
     { icon: 'FiCalendar', h: 'Meeting Scheduler', b: 'Title, description, location, start and end; cancel a meeting' },
-    { icon: 'FiCheckSquare', h: 'Approvals', b: 'One inbox for every request filed in the school - approve or reject with a reason' },
+    { icon: 'FiCheckSquare', h: 'Approvals', b: 'One inbox for every request in the school. Every decision records who made it, when, and what they were deciding' },
     { icon: 'FiGrid', h: 'Class Schedule', b: 'The week\'s timetable for every section, with clash detection' },
     { icon: 'FiCheckCircle', h: 'System Check', b: 'Seven readiness checks before a school goes live' },
     { icon: 'FiShield', h: 'Data Requests', b: 'What families have asked about their data, and what was answered' },
@@ -116,7 +116,7 @@ const S = () => pres.addSlide();
     { icon: 'FiPhone', h: 'Emergency Numbers', b: 'The school\'s published numbers, one tap to dial.' },
     { icon: 'FiBell', h: 'Announcements', b: 'Post school or division messages under their own name.' },
     { icon: 'FiCalendar', h: 'Meeting Scheduler', b: 'Call a meeting and say who it is for.' },
-    { icon: 'FiCheckSquare', h: 'Approvals', b: 'Decide the requests that reach a division head.' },
+    { icon: 'FiCheckSquare', h: 'Approvals', b: 'Decide the requests that reach a division head - and the decision is signed with their account.' },
   ], { cols: 4, y: 2.35, h: 2.14, vgap: 0.22 });
   s.addNotes('The division boundary is enforced in the database rules, not just hidden in the UI - worth saying out loud.');
 }
@@ -185,7 +185,7 @@ const S = () => pres.addSlide();
     { icon: 'FiEdit3', h: 'Edit', b: 'Name, grade level, section, status and guardian contacts' },
     { icon: 'FiCamera', h: 'Photo', b: 'Upload the picture that prints on the school ID' },
     { icon: 'FiTag', h: 'Assess Fees', b: 'Charge a fee schedule, or type an ad-hoc charge; void one that was wrong' },
-    { icon: 'FiDollarSign', h: 'Record Payment', b: 'Cash, GCash or bank transfer, with a sequential receipt number' },
+    { icon: 'FiDollarSign', h: 'Record Payment', b: 'Cash, GCash or bank transfer, with a sequential receipt number and the balance in front of you' },
     { icon: 'FiCreditCard', h: 'Payment History', b: 'Every charge, payment and refund, and how the balance is made up' },
     { icon: 'FiPrinter', h: 'Records & Forms', b: 'Print the Transcript of Records or Form 137, and log the release' },
     { icon: 'FiClock', h: 'Attendance History', b: 'Every scan, in and out, with the status the server decided' },
@@ -315,7 +315,7 @@ const S = () => pres.addSlide();
   await rowList(s, [
     { icon: 'FiTag', h: '1. Define the fee schedule', b: 'A named set of fees for a division, grade level and school year - tuition, miscellaneous, books, whatever the school charges' },
     { icon: 'FiCheckSquare', h: '2. Assess the student', b: 'Charge a schedule against one student, or type an ad-hoc charge line by line. The total is shown before anything is committed' },
-    { icon: 'FiDollarSign', h: '3. Take the payment', b: 'Cash, GCash or bank transfer, with a purpose and a reference number, and a receipt number the client cannot invent' },
+    { icon: 'FiDollarSign', h: '3. Take the payment', b: 'Type the number on the ID card and the student\'s name, class and balance appear. Nothing sends until the ID names somebody' },
     { icon: 'FiRefreshCw', h: '4. Refund if needed', b: 'A refund is its own row against the original payment. Director and Admin only, enforced on the server' },
     { icon: 'FiPieChart', h: '5. Show the family the arithmetic', b: 'Charged, paid, and what is left - with the assessments listed, so a balance is never a number nobody can explain' },
     { icon: 'FiFileText', h: '6. Void a mistake, do not delete it', b: 'A wrong assessment is voided and stays visible. The history of a family\'s account is never quietly rewritten' },
@@ -436,7 +436,7 @@ const S = () => pres.addSlide();
     { icon: 'FiLock', h: 'One school cannot see another', b: 'Every record lives under its own school, and an account carries the school it belongs to. There is no query that crosses the line.' },
     { icon: 'FiLayers', h: 'Divisions hold too', b: 'A Junior High teacher scoped to their division cannot open a Senior High record - the read is denied, not filtered.' },
     { icon: 'FiShield', h: 'Sensitive fields are server-owned', b: 'A balance moves only inside a recorded payment. A role, a status or a student number cannot be changed by an app at all.' },
-    { icon: 'FiSearch', h: 'Everything is written down', b: 'Every create, edit and delete lands in the audit trail with who did it and when, automatically - not because a screen remembered to log it.' },
+    { icon: 'FiSearch', h: 'Everything is written down', b: 'Every create, edit and delete lands in the audit trail with who did it and when, automatically. A decision on a request is signed with the account that made it, so an approval cannot be attributed to somebody else.' },
   ], { cols: 2, y: 2.35, h: 2.3 });
   s.addNotes('If they have an IT person in the room, this is the slide they will ask about.');
 }
