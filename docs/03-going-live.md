@@ -116,6 +116,47 @@ document ids cannot be renamed.
 
 Then provision its Director, who staffs the rest.
 
+## How the web app reaches Vercel
+
+Two arrangements are possible, and only one should be active at a time.
+
+**The Git integration** (Vercel project -> Settings -> Git, connected to
+this repository, production branch `main`). Vercel builds from source on
+every push using the `installCommand` and `buildCommand` in
+`vercel.json`. This is the better one: it also gives a preview
+deployment per branch.
+
+**`.github/workflows/deploy-web.yml`**, which exists because that
+integration was never connected. A Vercel project with no repository
+attached has nothing to watch, so pushing, merging and rebuilding all
+reach GitHub and stop there while the site keeps serving whichever
+manual upload was last made. This workflow builds the app in CI and
+pushes the finished files to the project with the Vercel CLI.
+
+It needs three repository secrets:
+
+| Secret | Where it comes from |
+|---|---|
+| `VERCEL_TOKEN` | vercel.com/account/tokens, scoped to the owning team |
+| `VERCEL_ORG_ID` | Vercel project -> Settings -> General -> Team ID |
+| `VERCEL_PROJECT_ID` | the same page, Project ID |
+
+The job checks all three before doing anything and names the ones that
+are missing, rather than letting the CLI fail three steps later with
+something less obvious.
+
+**If the Git integration is connected later, delete the workflow.** Both
+would deploy every push, and the site would rebuild twice for no reason.
+
+### Why it deploys built files rather than sources
+
+Nothing to install or compile on Vercel's side, so a build that works in
+CI is the build that ships. It does mean the deployed directory needs
+its own `vercel.json` -- the repository's describes how to build from
+source and is the wrong shape for a directory of finished files -- so
+the workflow writes a two-line one carrying the same rewrite, for the
+same reason. See below.
+
 ## The web deploy, and the two ways it goes blank
 
 A Flutter web page is one async script tag. If that script does not run,

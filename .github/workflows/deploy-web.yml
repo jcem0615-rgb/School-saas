@@ -1,0 +1,135 @@
+# Publishes the web app to Vercel on every push to main.
+#
+# This exists because the Vercel project has no Git integration, and
+# connecting one is a dashboard action nobody had got to. Without it a
+# Vercel project has nothing to watch: pushing to main, merging, and
+# rebuilding all reach GitHub and stop there, and the site keeps serving
+# whichever manual upload was last made -- which is how logicclass.vercel.app
+# came to be thirteen app commits behind.
+#
+# So the push does the deploying instead. The Vercel CLI is given a token
+# and the ids of the project to publish into, which is the supported way
+# to target an existing project without `vercel link`.
+#
+# ## What has to exist before this works
+#
+# Three repository secrets, under Settings -> Secrets and variables ->
+# Actions:
+#
+#   VERCEL_TOKEN       vercel.com/account/tokens -> Create Token.
+#                      Scope it to the team that owns the project.
+#   VERCEL_ORG_ID      Vercel project -> Settings -> General -> Team ID.
+#   VERCEL_PROJECT_ID  The same page -> Project ID.
+#
+# The job checks for all three and says which is missing rather than
+# letting the CLI fail three steps later with something less obvious.
+#
+# ## If the Git integration is connected later
+#
+# Delete this workflow, or it and Vercel will both deploy every push and
+# the site will rebuild twice for no reason. The Git integration is the
+# better arrangement -- it gives preview deployments per branch, which
+# this does not.
+name: Deploy web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'vercel.json'
+      - 'scripts/vercel-build.sh'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+# One deploy at a time, and drop any queued behind a newer push: two
+# merges a minute apart should not race to decide what production is.
+# The in-flight one is left alone rather than cancelled, because a
+# half-finished deploy is worse than a redundant one.
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the secrets are set
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          missing=()
+          [ -n "$VERCEL_TOKEN" ]      || missing+=("VERCEL_TOKEN")
+          [ -n "$VERCEL_ORG_ID" ]     || missing+=("VERCEL_ORG_ID")
+          [ -n "$VERCEL_PROJECT_ID" ] || missing+=("VERCEL_PROJECT_ID")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository secrets: ${missing[*]}"
+            echo "Add them under Settings -> Secrets and variables -> Actions."
+            echo "VERCEL_TOKEN comes from vercel.com/account/tokens; the two ids"
+            echo "are on the Vercel project's Settings -> General page."
+            exit 1
+          fi
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.1
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+        working-directory: app
+
+      # The same script Vercel's own build step would run, rather than a
+      # second copy of the flags. It prepends a _flutter directory that
+      # does not exist here, which is harmless -- the SDK is already on
+      # PATH from the action above -- and that is what lets one script
+      # serve both without an `if CI` branch in it.
+      #
+      # It also carries the two flags this site cannot be built without:
+      # --no-web-resources-cdn, so CanvasKit is served from this origin
+      # instead of gstatic, and --pwa-strategy=none, so no service worker
+      # serves a stale asset list after a redeploy. Both were learned the
+      # hard way; see the comments in the script.
+      - name: Build the web app
+        run: bash scripts/vercel-build.sh
+
+      # Deploying built files rather than sources, so Vercel has nothing
+      # to install or compile. That means the deployed directory needs
+      # its own config: the repository's vercel.json describes how to
+      # build from source and is the wrong shape here.
+      #
+      # The rewrite is the same one, and for the same reason -- only
+      # extensionless paths fall back to index.html, so a request for
+      # main.dart.js can never be answered with HTML, which is the shape
+      # a blank page with nothing in the console takes.
+      - name: Write the deployment config
+        run: |
+          cat > app/build/web/vercel.json <<'JSON'
+          {
+            "framework": null,
+            "rewrites": [
+              { "source": "/((?!.*\\.).*)", "destination": "/index.html" }
+            ]
+          }
+          JSON
+
+      - name: Deploy to production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          # --yes so it never waits for a prompt no one is there to
+          # answer. ORG_ID and PROJECT_ID in the environment are what
+          # aim it at the existing project instead of creating a new one.
+          url=$(npx --yes vercel@latest deploy app/build/web \
+                  --prod --yes --token "$VERCEL_TOKEN")
+          echo "Deployed: $url"
+          echo "### Deployed to $url" >> "$GITHUB_STEP_SUMMARY"
