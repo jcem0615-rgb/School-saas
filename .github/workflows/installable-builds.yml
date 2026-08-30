@@ -25,11 +25,29 @@ name: Installable builds
 # runnable-demo-mode; that branch has caught up to main and stopped being
 # a separate line of work.
 #
-# The paths filter is what keeps the cost honest. A commit that only
-# touches docs or marketing/ changes nothing any of these three jobs
-# compile, and the iOS job runs on a macOS runner that bills at ten times
-# the Linux rate -- so it fires on app/** and on this file, and on nothing
-# else.
+# ## What runs when, and why it is not everything
+#
+# A paths filter was supposed to keep the cost honest here. It does not,
+# and the arithmetic is worth writing down because it was got wrong once
+# already:
+#
+#   apk      ubuntu-latest    1x
+#   windows  windows-latest   2x
+#   ios      macos-latest    10x   (up to 45 minutes)
+#
+# On a private repository those multiply against a monthly allowance. All
+# three fired on every push whose commit touched `app/**` -- which is
+# every feature commit there has ever been -- at something like two
+# hundred billed minutes each time. Eight merges in a day exhausted the
+# month, and the first thing that broke was the *deploy* workflow: once
+# the allowance is gone, jobs fail instantly with no runner assigned and
+# no step ever running, which looks nothing like a billing problem and
+# costs an hour to diagnose.
+#
+# So only the cheap one runs automatically. Windows and iOS are release
+# artefacts and a yes/no compatibility answer respectively -- neither is
+# something anybody needs on every commit -- and they now run only when
+# somebody asks for them from the Actions tab.
 on:
   push:
     branches: [main]
@@ -230,6 +248,10 @@ jobs:
   # computers as much as on phones. Windows binaries can only be produced
   # on Windows, hence the separate runner rather than another step above.
   windows:
+    # Twice the Linux rate, and a desktop build nobody is waiting on
+    # between commits. Run it from the Actions tab when a Windows binary
+    # is actually wanted.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     permissions:
       contents: write
@@ -315,11 +337,13 @@ jobs:
   # provisioning profile and GoogleService-Info.plist for real mode. When
   # those exist this job is where they plug in.
   ios:
+    # Ten times the Linux rate, and it answers a question that does not
+    # change between commits: does this still build for iOS. Asking it
+    # once a release is worth doing; asking it on every merge is what
+    # emptied the month's allowance and stopped the web deploy.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
-    # macOS runners bill at ten times the rate of Linux ones on a private
-    # repository, and this job exists to answer a yes/no question rather
-    # than to produce a download. The cap keeps a hung resolve from
-    # spending an afternoon of minutes on it.
+    # The cap keeps a hung resolve from spending an afternoon of minutes.
     timeout-minutes: 45
     defaults:
       run:

@@ -174,6 +174,32 @@ would deploy every push, and the site would rebuild twice for no reason.
 `vercel.json` and `scripts/vercel-install.sh` are kept in the repository
 for that -- they are the way back, not dead files.
 
+### If a deploy fails in seconds with no log
+
+Check the job, not the workflow. A job that ran and failed has a
+`runner_name` and a list of steps; a job that failed because the account
+has no Actions minutes left has `runner_id: 0`, no runner name, and no
+steps at all -- it never reached a machine. The two look the same in the
+Actions list, and only the second is a billing problem.
+
+Minutes are metered because this repository is private. Where they go:
+
+| Job | Runner | Billed at |
+|---|---|---|
+| Deploy web | ubuntu-latest | 1x |
+| Installable builds / apk | ubuntu-latest | 1x |
+| Installable builds / windows | windows-latest | 2x |
+| Installable builds / ios | macos-latest | 10x |
+
+Only the first two run automatically. Windows and iOS are
+`workflow_dispatch` only, because they cost more than the rest combined
+and answer questions that do not change between commits. Run them from
+the Actions tab when a binary or a compatibility answer is actually
+wanted.
+
+Usage is at **github.com/settings/billing**. The allowance resets
+monthly; a spending limit lets it continue before then.
+
 ### Why it deploys built files rather than sources
 
 Nothing to install or compile on Vercel's side, so a build that works in
