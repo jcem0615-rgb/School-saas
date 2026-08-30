@@ -196,6 +196,7 @@ void main() {
       AppRoutes.myAttendance,
       AppRoutes.myActivity,
       AppRoutes.profile,
+      AppRoutes.notifications,
       AppRoutes.recordPayment,
       '${AppRoutes.paymentHistory}/stu_001',
     ];

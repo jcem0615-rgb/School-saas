@@ -256,6 +256,39 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // ---- notification inbox ----
+      // One person's notifications, written only by the Admin SDK (see
+      // functions/src/shared/notify/deliver.ts).
+      //
+      // A subcollection under the person's own uid rather than one
+      // collection with a `userId` field, and that is the whole security
+      // model: there is no query anyone can write that returns somebody
+      // else's notifications, because the uid is in the path. A flat
+      // collection would have to be defended by a rule on every read, and
+      // a missing `where('userId', '==', uid)` in one screen would hand a
+      // parent every other family's alerts.
+      //
+      // The only thing a client may change is whether they have read it.
+      // Nobody edits the text of a notification after it was sent -- not
+      // the recipient, and not the office that sent it.
+      match /notifications/{userId}/items/{itemId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && request.auth.uid == userId;
+
+        allow update: if belongsToSchool(schoolId)
+                        && schoolIsAccessible(schoolId)
+                        && request.auth.uid == userId
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['isRead', 'readAt']);
+
+        // Server-written only. A client that could create these could
+        // post a notice in a colleague's inbox that appears to come from
+        // the school; one that could delete them could clear the record
+        // that a summons was ever sent.
+        allow create, delete: if false;
+      }
+
       // ---- announcements ----
       match /announcements/{announcementId} {
         allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);

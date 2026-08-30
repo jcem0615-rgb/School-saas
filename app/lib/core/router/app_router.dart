@@ -24,6 +24,7 @@ import '../../features/parent_portal/presentation/screens/parent_dashboard_scree
 import '../../features/payments/presentation/screens/payment_history_screen.dart';
 import '../../features/payments/presentation/screens/record_payment_screen.dart';
 import '../../features/principal_portal/presentation/screens/principal_dashboard_screen.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/qr_attendance/presentation/screens/attendance_history_screen.dart';
 import '../../features/qr_attendance/presentation/screens/e_id_screen.dart';
@@ -52,6 +53,7 @@ class AppRoutes {
   static const acknowledgePrivacy = '/privacy/acknowledge';
   static const acceptTerms = '/terms/accept';
   static const profile = '/profile';
+  static const notifications = '/notifications';
   static const recordPayment = '/payments/record';
   static const paymentHistory = '/payments/history';
   static const ownerHome = '/owner';
@@ -188,6 +190,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // than rendering a screen whose queries would be denied.
       GoRoute(path: AppRoutes.auditTrail, builder: (context, state) => const AuditTrailScreen()),
       GoRoute(path: AppRoutes.profile, builder: (context, state) => const ProfileScreen()),
+      // Reachable from the bell in every portal's app bar, and from a
+      // tapped push notification -- deliver.ts sends every one of them
+      // here, because a link to a screen that only exists for one role
+      // is a link that breaks for everybody else.
+      GoRoute(
+        path: AppRoutes.notifications,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
       GoRoute(path: AppRoutes.reports, builder: (context, state) => const ReportsScreen()),
       GoRoute(path: AppRoutes.privacy, builder: (context, state) => const PrivacyNoticeScreen()),
       GoRoute(

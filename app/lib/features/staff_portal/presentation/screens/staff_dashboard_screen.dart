@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../faculty_portal/presentation/screens/material_requests_screen.dart';
 import 'checklist_screen.dart';
 import 'daily_reports_screen.dart';
@@ -21,6 +22,7 @@ class StaffDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Staff Dashboard'),
         actions: [
+          const NotificationBell(),
           // Profile was routed but nothing navigated to it, so the one
           // screen every role shares -- and the only way into the
           // privacy notice and data requests -- could not be opened at

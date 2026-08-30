@@ -66,6 +66,14 @@ export {onCourseworkSubmissionWritten} from "./triggers/coursework/onCourseworkS
 // ---------------------------------------------------------------------------
 export {onEmergencyAlertCreated} from "./triggers/emergency/onEmergencyAlertCreated";
 
+// ---------------------------------------------------------------------------
+// Module: Guidance Office
+//
+// A summons is the one guidance record a family is allowed to see, and
+// the one with a date it is no use learning about afterwards.
+// ---------------------------------------------------------------------------
+export {onSummonsWritten} from "./triggers/guidance/onSummonsWritten";
+
 // Additional modules (billing, attendance, payments, ...)
 // export their callables/triggers/scheduled functions here as each module
 // is implemented, keeping this file as the single index of everything

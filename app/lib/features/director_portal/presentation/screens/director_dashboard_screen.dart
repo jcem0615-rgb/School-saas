@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../school_totals/presentation/widgets/school_totals_card.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,6 +39,7 @@ class DirectorDashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Director Dashboard'),
         actions: [
+          const NotificationBell(),
           IconButton(
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',

@@ -1,5 +1,9 @@
 import 'package:diacritic/diacritic.dart';
-import 'package:rxdart/rxdart.dart';
+// rxdart exports a NotificationKind of its own -- an internal detail of
+// its Notification wrapper, which nothing here uses. Hidden rather than
+// prefixed so the notification kind referred to in this file is the
+// app's own, spelled the same way it is everywhere else.
+import 'package:rxdart/rxdart.dart' hide NotificationKind;
 
 import 'demo_attachments.dart';
 import '../core/constants/education_level.dart';
@@ -21,6 +25,7 @@ import '../features/faculty_portal/domain/entities/answer_key.dart';
 import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
+import '../features/notifications/domain/entities/app_notification.dart';
 import '../features/guidance_portal/domain/entities/summons.dart';
 // Both invoice.dart (platform billing) and payment.dart (student tuition)
 // declare their own PaymentMethod. Unqualified PaymentMethod here means the
@@ -192,6 +197,16 @@ class DemoStore {
   late final guidanceRecords = BehaviorSubject<List<GuidanceRecord>>.seeded(_seedGuidanceRecords());
   late final summonses = BehaviorSubject<List<Summons>>.seeded(_seedSummonses());
   late final auditLog = BehaviorSubject<List<AuditLogEntry>>.seeded(_seedAuditLog());
+
+  /// One inbox per person, keyed by uid.
+  ///
+  /// A map rather than a flat list with a `recipientUid` field, because
+  /// that is the shape the real thing has: in Firestore the uid is part
+  /// of the path, not a field, so there is no query that returns
+  /// somebody else's. Mirroring the shape here keeps the demo honest
+  /// about the one thing this collection's design is for.
+  late final notifications =
+      BehaviorSubject<Map<String, List<AppNotification>>>.seeded(_seedNotifications());
   late final paymentSubmissions =
       BehaviorSubject<List<PaymentSubmission>>.seeded(_seedSubmissions());
   late final paymentSettings = BehaviorSubject<PaymentSettings>.seeded(_seedPaymentSettings());
@@ -422,13 +437,65 @@ class DemoStore {
     );
   }
 
+  /// Delivers a notification, mirroring what
+  /// functions/src/shared/notify/deliver.ts does server-side.
+  ///
+  /// Only the durable half. There is no push in demo mode -- Firebase is
+  /// never initialised, and asking a stranger's browser for notification
+  /// permission so they can look at a demo would be rude even if it
+  /// worked (see DemoOverrides' NoOpPushRegistrar).
+  void notify({
+    required List<String> recipientUids,
+    required NotificationKind kind,
+    required String title,
+    required String body,
+    required String sourceId,
+    String link = '/notifications',
+  }) {
+    final inboxes = {...notifications.value};
+    for (final uid in recipientUids.toSet()) {
+      final item = AppNotification(
+        id: '${kind.value}_$sourceId',
+        kind: kind,
+        title: title,
+        body: body,
+        link: link,
+        sourceId: sourceId,
+        createdAt: DateTime.now(),
+        isRead: false,
+      );
+      // Replaces any item with the same id rather than adding a second,
+      // for the same reason the real one uses a deterministic document
+      // id: a trigger that fires twice must not notify twice.
+      final existing = inboxes[uid] ?? const <AppNotification>[];
+      inboxes[uid] = [item, ...existing.where((n) => n.id != item.id)];
+    }
+    notifications.add(inboxes);
+  }
+
+  /// The student's own account and every parent linked to them --
+  /// the same set familyOf() resolves in onSummonsWritten.ts.
+  List<String> familyOf(String studentId) {
+    final uids = <String>{};
+    final student =
+        students.value.where((s) => s.id == studentId).firstOrNull;
+    if (student?.userId != null) uids.add(student!.userId!);
+    for (final account in demoAccounts) {
+      if (account.role == UserRole.parent &&
+          (account.linkedStudentIds ?? const []).contains(studentId)) {
+        uids.add(account.uid);
+      }
+    }
+    return uids.toList();
+  }
+
   void dispose() {
     for (final s in <BehaviorSubject<dynamic>>[
       currentUser, schools, revenue, invoices, students, employees,
       assignments, programs, payments, attendance, coursework, grades,
       courseworkSubmissions, answerKeys, emergencyContacts, emergencyAlerts,
       announcements, meetings, approvals, expenses, checklist,
-      dailyReports, guidanceRecords, summonses, auditLog,
+      dailyReports, guidanceRecords, summonses, auditLog, notifications,
       paymentSubmissions, paymentSettings, branding, documentReleases,
       feeStructures, assessments, scheduleBlocks, dataRequests,
       acknowledgedPrivacy, acceptedTerms,
@@ -1884,7 +1951,87 @@ class DemoStore {
           issuedByName: 'Cecilia Lim',
           createdAt: _daysAgo(8),
         ),
+        // Pending, and for the student whose account the demo signs into.
+        // The notification seeded for that family is this one -- an inbox
+        // pointing at a summons that does not exist would demonstrate the
+        // feature backwards.
+        Summons(
+          id: 'sum_003',
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+          reason: 'Follow-up on absences last week',
+          scheduledDate: _daysAhead(1),
+          status: SummonsStatus.pending,
+          issuedByName: 'Cecilia Lim',
+          createdAt: _daysAgo(2),
+        ),
       ];
+
+  /// A few things already waiting, per person.
+  ///
+  /// An empty inbox is a screen that demonstrates nothing, and the first
+  /// thing a visitor clicks the bell for is to see what a notification
+  /// looks like -- not to be told there are none. Seeded for the family
+  /// accounts because those are the ones a school is judged on, and one
+  /// for everybody else so the bell is not dead on a staff login.
+  Map<String, List<AppNotification>> _seedNotifications() {
+    AppNotification item({
+      required String kindAndSource,
+      required NotificationKind kind,
+      required String title,
+      required String body,
+      required int daysAgo,
+      bool isRead = false,
+    }) =>
+        AppNotification(
+          id: kindAndSource,
+          kind: kind,
+          title: title,
+          body: body,
+          link: '/notifications',
+          sourceId: kindAndSource.split('_').skip(1).join('_'),
+          createdAt: _atHour(daysAgo, 8, 30),
+          isRead: isRead,
+        );
+
+    final suspension = item(
+      kindAndSource: 'announcement_ann_001',
+      kind: NotificationKind.announcement,
+      title: 'Classes suspended tomorrow',
+      body: 'Signal No. 2 has been raised over Batangas. All classes and '
+          'office work are suspended tomorrow. Watch this space for word '
+          'on when we resume.',
+      daysAgo: 1,
+    );
+
+    final summons = item(
+      kindAndSource: 'summons_sum_003',
+      kind: NotificationKind.summons,
+      title: 'Guidance office appointment',
+      body: 'Miguel Torres is asked to come to the guidance office. '
+          'Reason: Follow-up on absences last week.',
+      daysAgo: 2,
+    );
+
+    return {
+      'u_student': [suspension, summons],
+      'u_parent': [suspension, summons],
+      // Already read, for staff. A staff member who was at work when the
+      // notice went out has seen it; a badge claiming otherwise on every
+      // demo login would be the wrong first impression of the bell.
+      for (final account in demoAccounts.where((a) => a.role.isStaffRole))
+        account.uid: [
+          item(
+            kindAndSource: 'announcement_ann_001',
+            kind: NotificationKind.announcement,
+            title: suspension.title,
+            body: suspension.body,
+            daysAgo: 1,
+            isRead: true,
+          ),
+        ],
+    };
+  }
 
   /// One pending submission so the registrar's review queue is not empty
   /// on first open, and one already approved so the family-side history

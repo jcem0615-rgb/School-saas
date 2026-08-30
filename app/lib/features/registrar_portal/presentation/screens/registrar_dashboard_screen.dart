@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../school_totals/presentation/widgets/school_totals_card.dart';
 import 'package:go_router/go_router.dart';
 import '../../../data_protection/presentation/screens/data_requests_screen.dart';
@@ -25,6 +26,7 @@ class RegistrarDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Registrar Dashboard'),
         actions: [
+          const NotificationBell(),
           // Profile was routed but nothing navigated to it, so the one
           // screen every role shares -- and the only way into the
           // privacy notice and data requests -- could not be opened at

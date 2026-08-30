@@ -1,3 +1,4 @@
+import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
 import '../../../schedules/presentation/screens/my_timetable_screen.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +29,7 @@ class FacultyDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Faculty Dashboard'),
         actions: [
+          const NotificationBell(),
           // Profile was routed but nothing navigated to it, so the one
           // screen every role shares -- and the only way into the
           // privacy notice and data requests -- could not be opened at

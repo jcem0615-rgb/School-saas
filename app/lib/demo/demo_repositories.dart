@@ -1,4 +1,6 @@
 import 'dart:async';
+
+import 'package:intl/intl.dart';
 import '../core/location/location_probe.dart';
 import '../core/constants/education_level.dart';
 import '../core/constants/user_roles.dart';
@@ -65,6 +67,8 @@ import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/registrar_portal/domain/repositories/registrar_repository.dart';
 import '../features/staff_portal/domain/entities/checklist_item.dart';
+import '../features/notifications/domain/entities/app_notification.dart';
+import '../features/notifications/domain/repositories/notifications_repository.dart';
 import '../features/school_totals/domain/entities/school_totals.dart';
 import '../features/school_totals/domain/repositories/school_totals_repository.dart';
 import '../features/terms/domain/repositories/terms_repository.dart';
@@ -94,6 +98,10 @@ import 'demo_store.dart';
 double _round2(double value) => (value * 100).round() / 100;
 
 Future<void> _latency([int ms = 350]) => Future<void>.delayed(Duration(milliseconds: ms));
+
+/// How a summons date reads in a notification. Matches what
+/// formatSummonsWhen() produces server-side.
+final _summonsWhen = DateFormat('EEE d MMM, h:mm a');
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -2758,6 +2766,18 @@ class DemoGuidanceRepository implements GuidanceRepository {
       targetId: id,
       newValue: {'studentId': studentId, 'reason': reason},
     );
+    // What onSummonsWritten.ts does server-side. Issued here rather than
+    // left to the guidance screen, so it happens however the summons was
+    // created -- a notification that depends on which button was pressed
+    // is one that will eventually not be sent.
+    _store.notify(
+      recipientUids: _store.familyOf(studentId),
+      kind: NotificationKind.summons,
+      title: 'Guidance office appointment',
+      body: '$studentName is asked to come to the guidance office on '
+          '${_summonsWhen.format(scheduledDate)}. Reason: $reason',
+      sourceId: id,
+    );
     return const Success(null);
   }
 
@@ -2788,6 +2808,25 @@ class DemoGuidanceRepository implements GuidanceRepository {
       targetId: summonsId,
       newValue: {'status': status.value},
     );
+    // Cancelling matters more than issuing: a family that rearranged a
+    // working day around an appointment should not turn up to one that
+    // is off. Completing is silent -- the student was there.
+    if (status == SummonsStatus.cancelled) {
+      final summons =
+          _store.summonses.value.where((s) => s.id == summonsId).firstOrNull;
+      if (summons != null) {
+        _store.notify(
+          recipientUids: _store.familyOf(summons.studentId),
+          kind: NotificationKind.summons,
+          title: 'Guidance appointment cancelled',
+          body: 'The guidance office has cancelled the appointment for '
+              '${summons.studentName} on '
+              '${_summonsWhen.format(summons.scheduledDate)}. There is '
+              'nothing to attend.',
+          sourceId: '$summonsId:cancelled',
+        );
+      }
+    }
     return const Success(null);
   }
   @override
@@ -3359,6 +3398,64 @@ class DemoTermsRepository implements TermsRepository {
     // does not put the page in front of the same person twice.
     _store.acceptedTerms.add({..._store.acceptedTerms.value, user.uid});
     return const Success(null);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+/// The signed-in demo account's own inbox.
+///
+/// Scoped to whoever is signed in, and re-scoped when the demo switcher
+/// changes role, because the whole point of the collection is that one
+/// person's notifications are not another's. Switching from the parent
+/// to the registrar and seeing the parent's summons would demonstrate
+/// the opposite of what the design does.
+class DemoNotificationsRepository implements NotificationsRepository {
+  final DemoStore _store;
+  DemoNotificationsRepository(this._store);
+
+  String? get _uid => _store.currentUser.valueOrNull?.uid;
+
+  @override
+  Stream<List<AppNotification>> watch() {
+    return _store.notifications.stream.map((inboxes) {
+      final uid = _uid;
+      if (uid == null) return const <AppNotification>[];
+      final mine = [...(inboxes[uid] ?? const <AppNotification>[])];
+      mine.sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return -1;
+        if (b.createdAt == null) return 1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+      return mine;
+    });
+  }
+
+  @override
+  Future<Result<void>> markRead(String notificationId) async {
+    _rewrite((item) => item.id == notificationId ? item.copyWith(isRead: true) : item);
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> markAllRead() async {
+    await _latency(150);
+    _rewrite((item) => item.copyWith(isRead: true));
+    return const Success(null);
+  }
+
+  /// Applies [change] to this account's inbox and nobody else's.
+  void _rewrite(AppNotification Function(AppNotification) change) {
+    final uid = _uid;
+    if (uid == null) return;
+    final inboxes = {..._store.notifications.value};
+    final mine = inboxes[uid];
+    if (mine == null) return;
+    inboxes[uid] = mine.map(change).toList();
+    _store.notifications.add(inboxes);
   }
 }
 

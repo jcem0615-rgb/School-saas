@@ -1,3 +1,4 @@
+import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
 import '../../../school_totals/presentation/widgets/school_totals_card.dart';
 import 'package:go_router/go_router.dart';
@@ -35,6 +36,7 @@ class PrincipalDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Principal Dashboard'),
         actions: [
+          const NotificationBell(),
           // Profile was routed but nothing navigated to it, so the one
           // screen every role shares -- and the only way into the
           // privacy notice and data requests -- could not be opened at
