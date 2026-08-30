@@ -1,6 +1,12 @@
 const pptxgen = require('pptxgenjs');
 const { C, F, W, H, M, CW, bg, heading, cardGrid, rowList, callout, shadow, icon } = require('./lib');
 
+const path = require('path');
+
+// Resolved against this file rather than the shell's working
+// directory, for the same reason guide.js does it.
+const out = (f) => path.join(__dirname, f);
+
 const pres = new pptxgen();
 pres.layout = 'LAYOUT_WIDE';
 pres.author = 'LogicClass';
@@ -515,6 +521,6 @@ const S = () => pres.addSlide();
   s.addNotes('Close by asking for their data. A demo on their own roster sells itself.');
 }
 
-await pres.writeFile({ fileName: 'LogicClass-Demo.pptx' });
+await pres.writeFile({ fileName: out('LogicClass-Demo.pptx') });
 console.log('written');
 })();

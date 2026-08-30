@@ -17,9 +17,23 @@ all of them. It is not part of what a school buys, and a school seeing it
 would be seeing every other school's commercial terms. Both documents
 describe the nine school-facing portals and stop there.
 
-There is a check for this: `pandoc -t markdown LogicClass-Feature-Guide.docx |
-grep -ic owner` and the `markitdown` equivalent for the deck should both
-return 0.
+There is a check for this:
+
+```sh
+python3 verify.py
+```
+
+It reads the text straight out of the OOXML of both files and exits
+non-zero if either mentions the Owner portal -- or if either turns out to
+hold no text at all.
+
+That last condition is there because of how this check failed the first
+time. It used to be `pandoc -t markdown ... | grep -ic owner`. Pandoc is
+not installed in the environment these were built in, a missing command
+prints nothing, and `grep -c` over nothing returns 0 -- which reads
+exactly like a document with no mention of the Owner in it. The check
+passed twice without ever running. A verification nobody can tell has
+stopped working is worse than none, because somebody believes it.
 
 ## Rebuilding them
 
@@ -27,7 +41,14 @@ return 0.
 npm install                     # pptxgenjs, docx, react-icons, sharp
 node deck.js                    # -> LogicClass-Demo.pptx
 node guide.js                   # -> LogicClass-Feature-Guide.docx
+python3 verify.py               # both, checked
 ```
+
+Both generators write beside themselves rather than into the shell's
+working directory. Run from the repository root, a bare relative path
+drops the document there instead -- leaving the copy in `marketing/`
+stale while looking like it was just rebuilt, which is exactly what
+happened once.
 
 `lib.js` holds the deck's slide components (headings, card grids, row
 lists, callouts) and its palette; `icons.js` rasterises Feather icons to

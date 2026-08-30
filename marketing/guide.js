@@ -1,4 +1,11 @@
 const fs = require('fs');
+const path = require('path');
+
+// Resolved against this file, not the shell's working directory.
+// Run from the repository root, a bare relative path drops the
+// document there instead -- which leaves the copy in marketing/
+// stale while looking like it was just rebuilt.
+const out = (f) => path.join(__dirname, f);
 const d = require('docx');
 const {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
@@ -797,6 +804,6 @@ const doc = new Document({
 });
 
 Packer.toBuffer(doc).then((b) => {
-  fs.writeFileSync('LogicClass-Feature-Guide.docx', b);
+  fs.writeFileSync(out('LogicClass-Feature-Guide.docx'), b);
   console.log('written', b.length);
 });
