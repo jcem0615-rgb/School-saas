@@ -73,6 +73,16 @@ class GuidanceDashboardScreen extends StatelessWidget {
                   onTap: () =>
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SummonsScreen())),
                 ),
+                GlassTile(
+                  icon: Icons.event_busy_outlined,
+                  label: 'My Leave',
+                  onTap: () => context.push('/my-leave'),
+                ),
+                GlassTile(
+                  icon: Icons.punch_clock_outlined,
+                  label: 'My Timesheet',
+                  onTap: () => context.push('/my-timesheet'),
+                ),
               ],
             ),
           ],

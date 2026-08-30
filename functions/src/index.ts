@@ -87,6 +87,16 @@ export {onEmergencyAlertCreated} from "./triggers/emergency/onEmergencyAlertCrea
 // ---------------------------------------------------------------------------
 export {onSummonsWritten} from "./triggers/guidance/onSummonsWritten";
 
+// ---------------------------------------------------------------------------
+// Module: Employee leave
+//
+// The decision is already on the employee's own screen; this is what
+// tells them it is there. Somebody who filed for Thursday and never
+// heard back either comes in when they should not have, or stays away
+// when they were expected.
+// ---------------------------------------------------------------------------
+export {onLeaveRequestDecided} from "./triggers/leave/onLeaveRequestDecided";
+
 // Additional modules (billing, attendance, payments, ...)
 // export their callables/triggers/scheduled functions here as each module
 // is implemented, keeping this file as the single index of everything

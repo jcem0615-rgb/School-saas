@@ -82,6 +82,16 @@ class StaffDashboardScreen extends StatelessWidget {
                   label: 'My e-ID',
                   onTap: () => context.push('/qr-id'),
                 ),
+                GlassTile(
+                  icon: Icons.event_busy_outlined,
+                  label: 'My Leave',
+                  onTap: () => context.push('/my-leave'),
+                ),
+                GlassTile(
+                  icon: Icons.punch_clock_outlined,
+                  label: 'My Timesheet',
+                  onTap: () => context.push('/my-timesheet'),
+                ),
               ],
             ),
           ],

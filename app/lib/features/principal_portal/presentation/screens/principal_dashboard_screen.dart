@@ -131,6 +131,26 @@ class PrincipalDashboardScreen extends StatelessWidget {
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const ApprovalsScreen())),
                 ),
+                GlassTile(
+                  icon: Icons.fact_check_outlined,
+                  label: 'Leave Requests',
+                  onTap: () => context.push('/leave-requests'),
+                ),
+                GlassTile(
+                  icon: Icons.punch_clock_outlined,
+                  label: 'Timesheets',
+                  onTap: () => context.push('/timesheets'),
+                ),
+                GlassTile(
+                  icon: Icons.event_busy_outlined,
+                  label: 'My Leave',
+                  onTap: () => context.push('/my-leave'),
+                ),
+                GlassTile(
+                  icon: Icons.punch_clock_outlined,
+                  label: 'My Timesheet',
+                  onTap: () => context.push('/my-timesheet'),
+                ),
               ],
             ),
           ],

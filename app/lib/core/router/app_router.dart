@@ -25,6 +25,9 @@ import '../../features/payments/presentation/screens/payment_history_screen.dart
 import '../../features/payments/presentation/screens/record_payment_screen.dart';
 import '../../features/principal_portal/presentation/screens/principal_dashboard_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/timekeeping/presentation/screens/leave_requests_screen.dart';
+import '../../features/timekeeping/presentation/screens/my_leave_screen.dart';
+import '../../features/timekeeping/presentation/screens/timesheet_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/qr_attendance/presentation/screens/attendance_history_screen.dart';
 import '../../features/qr_attendance/presentation/screens/e_id_screen.dart';
@@ -54,6 +57,10 @@ class AppRoutes {
   static const acceptTerms = '/terms/accept';
   static const profile = '/profile';
   static const notifications = '/notifications';
+  static const myLeave = '/my-leave';
+  static const myTimesheet = '/my-timesheet';
+  static const leaveRequests = '/leave-requests';
+  static const timesheets = '/timesheets';
   static const recordPayment = '/payments/record';
   static const paymentHistory = '/payments/history';
   static const ownerHome = '/owner';
@@ -197,6 +204,25 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.notifications,
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      // Employee timekeeping. My Leave is routed rather than only
+      // pushed because a leave decision notification links straight to
+      // it, and a push whose link goes nowhere is worse than no link.
+      GoRoute(
+        path: AppRoutes.myLeave,
+        builder: (context, state) => const MyLeaveScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.myTimesheet,
+        builder: (context, state) => const MyTimesheetScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.leaveRequests,
+        builder: (context, state) => const LeaveRequestsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.timesheets,
+        builder: (context, state) => const TimesheetScreen(),
       ),
       GoRoute(path: AppRoutes.reports, builder: (context, state) => const ReportsScreen()),
       GoRoute(path: AppRoutes.privacy, builder: (context, state) => const PrivacyNoticeScreen()),

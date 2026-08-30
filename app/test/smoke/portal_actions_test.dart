@@ -7,6 +7,9 @@ import 'package:logicclass/core/theme/app_theme.dart';
 import 'package:logicclass/core/widgets/confirm_delete_dialog.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/timekeeping/presentation/screens/leave_requests_screen.dart';
+import 'package:logicclass/features/timekeeping/presentation/screens/my_leave_screen.dart';
+import 'package:logicclass/features/timekeeping/presentation/screens/timesheet_screen.dart';
 import 'package:logicclass/features/class_sessions/presentation/screens/subject_attendance_screen.dart';
 import 'package:logicclass/features/class_sessions/presentation/screens/todays_classes_screen.dart';
 import 'package:logicclass/features/admin_portal/presentation/screens/employee_list_screen.dart';
@@ -43,6 +46,7 @@ void main() {
     'Faculty · Coursework': (UserRole.faculty, const CourseworkListScreen()),
     'Faculty · Material Requests': (UserRole.faculty, const MaterialRequestsScreen()),
     'Guidance · Summons': (UserRole.guidance, const SummonsScreen()),
+    'Staff · My Leave': (UserRole.staff, const MyLeaveScreen()),
     'Staff · Checklist': (UserRole.staff, const ChecklistScreen()),
     'Staff · Daily Reports': (UserRole.staff, const DailyReportsScreen()),
     'Registrar · Students': (UserRole.registrar, const StudentListScreen()),
@@ -75,6 +79,9 @@ void main() {
   /// suite renders these.
   final readOnlyScreens = <String, (UserRole, Widget)>{
     'Faculty · My classes today': (UserRole.faculty, const TodaysClassesScreen()),
+    'Admin · Leave requests': (UserRole.admin, const LeaveRequestsScreen()),
+    'Admin · Timesheets': (UserRole.admin, const TimesheetScreen()),
+    'Staff · My timesheet': (UserRole.staff, const MyTimesheetScreen()),
     'Student · Attendance by subject': (
       UserRole.student,
       const SubjectAttendanceScreen(studentId: 'stu_001'),

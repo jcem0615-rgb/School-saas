@@ -70,6 +70,8 @@ import '../features/staff_portal/domain/entities/checklist_item.dart';
 import '../features/class_sessions/domain/entities/class_session.dart';
 import '../features/class_sessions/domain/repositories/class_session_repository.dart';
 import '../features/notifications/domain/entities/app_notification.dart';
+import '../features/timekeeping/domain/entities/leave_request.dart';
+import '../features/timekeeping/domain/repositories/timekeeping_repository.dart';
 import '../features/notifications/domain/repositories/notifications_repository.dart';
 import '../features/school_totals/domain/entities/school_totals.dart';
 import '../features/school_totals/domain/repositories/school_totals_repository.dart';
@@ -3661,6 +3663,218 @@ class DemoClassSessionRepository implements ClassSessionRepository {
         studentCount: session.studentCount,
         closedAt: closedAt ?? session.closedAt,
         counts: counts ?? session.counts,
+      );
+}
+
+// ---------------------------------------------------------------------------
+// Timekeeping: leave, and the scans a timesheet is built from
+// ---------------------------------------------------------------------------
+
+/// Leave, in memory.
+///
+/// Mirrors what firestore.rules enforces rather than only what the
+/// screens offer: an employee files for themselves and may withdraw only
+/// what is still undecided, and a decision is stamped with whoever is
+/// signed in. A demo that let a teacher approve their own leave would be
+/// demonstrating a system that does not exist.
+class DemoTimekeepingRepository implements TimekeepingRepository {
+  final DemoStore _store;
+  DemoTimekeepingRepository(this._store);
+
+  static const _officeRoles = {UserRole.director, UserRole.principal, UserRole.admin};
+
+  @override
+  Stream<List<LeaveRequest>> watchMyLeave() {
+    final uid = _store.currentUser.valueOrNull?.uid;
+    if (uid == null) return Stream.value(const []);
+    return watchLeaveFor(uid);
+  }
+
+  @override
+  Stream<List<LeaveRequest>> watchLeaveFor(String employeeUid) =>
+      _store.leaveRequests.stream.map((all) {
+        final mine = all.where((r) => r.employeeUid == employeeUid).toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return mine;
+      });
+
+  @override
+  Stream<List<LeaveRequest>> watchAllLeave() =>
+      _store.leaveRequests.stream.map((all) {
+        final sorted = [...all]
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return sorted;
+      });
+
+  @override
+  Stream<List<AttendanceRecord>> watchAttendanceFor({
+    required String employeeUid,
+    required String fromDate,
+    required String toDate,
+  }) =>
+      _store.attendance.stream.map((all) => all
+          .where((r) =>
+              r.personId == employeeUid &&
+              r.date.compareTo(fromDate) >= 0 &&
+              r.date.compareTo(toDate) <= 0)
+          .toList());
+
+  @override
+  Future<Result<void>> fileLeave({
+    required LeaveType type,
+    required String fromDate,
+    required String toDate,
+    required int days,
+    required String reason,
+  }) async {
+    await _latency();
+    final user = _store.currentUser.valueOrNull;
+    if (user == null) {
+      return const Error(AuthFailure('no-user', 'Nobody is signed in.'));
+    }
+    final id = _store.nextId('lv');
+    _store.prepend(
+      _store.leaveRequests,
+      LeaveRequest(
+        id: id,
+        // Pinned to the signed-in account, as the rules require. Nobody
+        // files in a colleague's name.
+        employeeUid: user.uid,
+        employeeName: user.fullName,
+        employeeRole: user.role.value,
+        type: type,
+        fromDate: fromDate,
+        toDate: toDate,
+        days: days,
+        reason: reason,
+        status: LeaveStatus.pending,
+        createdAt: DateTime.now(),
+      ),
+    );
+    _store.audit(
+      module: 'leaveRequests',
+      action: 'create',
+      targetCollection: 'leaveRequests',
+      targetId: id,
+      newValue: {'type': type.value, 'fromDate': fromDate, 'toDate': toDate},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> cancelLeave(String requestId) async {
+    await _latency(200);
+    final user = _store.currentUser.valueOrNull;
+    final request =
+        _store.leaveRequests.value.where((r) => r.id == requestId).firstOrNull;
+    if (user == null || request == null) {
+      return const Error(ServerFailure('That request no longer exists.'));
+    }
+    if (request.employeeUid != user.uid || !request.isPending) {
+      // Both refusals the rules make: somebody else's request, or one
+      // that has already been answered.
+      return const Error(ServerFailure('That request can no longer be withdrawn.'));
+    }
+    _store.update<LeaveRequest>(
+      _store.leaveRequests,
+      (r) => r.id == requestId,
+      (r) => _copy(r, status: LeaveStatus.cancelled),
+    );
+    _store.audit(
+      module: 'leaveRequests',
+      action: 'update',
+      targetCollection: 'leaveRequests',
+      targetId: requestId,
+      newValue: {'status': 'cancelled'},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> decideLeave({
+    required String requestId,
+    required bool approved,
+    String? remarks,
+  }) async {
+    await _latency(250);
+    final user = _store.currentUser.valueOrNull;
+    final request =
+        _store.leaveRequests.value.where((r) => r.id == requestId).firstOrNull;
+    if (user == null || request == null) {
+      return const Error(ServerFailure('That request no longer exists.'));
+    }
+    if (!_officeRoles.contains(user.role)) {
+      return const Error(ServerFailure('Only the office decides leave.'));
+    }
+    if (!request.isPending) {
+      return const Error(ServerFailure('That request has already been decided.'));
+    }
+
+    final now = DateTime.now();
+    _store.update<LeaveRequest>(
+      _store.leaveRequests,
+      (r) => r.id == requestId,
+      (r) => _copy(
+        r,
+        status: approved ? LeaveStatus.approved : LeaveStatus.declined,
+        // Stamped from the signed-in account, never from the client's
+        // claim about who decided.
+        decidedByUid: user.uid,
+        decidedByName: user.fullName,
+        decidedByRole: user.role.value,
+        decidedAt: now,
+        remarks: (remarks == null || remarks.trim().isEmpty) ? null : remarks.trim(),
+      ),
+    );
+
+    // What onLeaveRequestDecided does server-side.
+    _store.notify(
+      recipientUids: [request.employeeUid],
+      kind: NotificationKind.approval,
+      title: approved ? 'Leave approved' : 'Leave not approved',
+      body: 'Your ${request.type.displayLabel.toLowerCase()} for '
+          '${request.fromDate} to ${request.toDate} was '
+          '${approved ? 'approved' : 'declined'} by ${user.fullName}.',
+      sourceId: '$requestId:${approved ? 'approved' : 'declined'}',
+      link: '/my-leave',
+    );
+
+    _store.audit(
+      module: 'leaveRequests',
+      action: 'update',
+      targetCollection: 'leaveRequests',
+      targetId: requestId,
+      newValue: {'status': approved ? 'approved' : 'declined'},
+    );
+    return const Success(null);
+  }
+
+  static LeaveRequest _copy(
+    LeaveRequest request, {
+    LeaveStatus? status,
+    String? decidedByUid,
+    String? decidedByName,
+    String? decidedByRole,
+    DateTime? decidedAt,
+    String? remarks,
+  }) =>
+      LeaveRequest(
+        id: request.id,
+        employeeUid: request.employeeUid,
+        employeeName: request.employeeName,
+        employeeRole: request.employeeRole,
+        type: request.type,
+        fromDate: request.fromDate,
+        toDate: request.toDate,
+        days: request.days,
+        reason: request.reason,
+        status: status ?? request.status,
+        decidedByUid: decidedByUid ?? request.decidedByUid,
+        decidedByName: decidedByName ?? request.decidedByName,
+        decidedByRole: decidedByRole ?? request.decidedByRole,
+        decidedAt: decidedAt ?? request.decidedAt,
+        decisionRemarks: remarks ?? request.decisionRemarks,
+        createdAt: request.createdAt,
       );
 }
 

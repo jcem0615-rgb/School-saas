@@ -27,6 +27,12 @@ export const FirestorePaths = {
   studentDoc: (schoolId: string, studentId: string) =>
     `schools/${schoolId}/students/${studentId}`,
 
+  // Employee leave. Its own collection rather than a row in the generic
+  // approvals queue: the timesheet asks "was this day covered", which is
+  // a date-range query, and an employee reads their own without reading
+  // the school's.
+  leaveRequests: (schoolId: string) => `schools/${schoolId}/leaveRequests`,
+
   auditLog: (schoolId: string) => `schools/${schoolId}/auditLog`,
 
   attendance: (schoolId: string) => `schools/${schoolId}/attendance`,

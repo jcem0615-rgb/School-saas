@@ -256,6 +256,81 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // ---- employee leave ----
+      // Its own collection rather than a row in the generic approvals
+      // queue, for two reasons that are not about tidiness: the
+      // timesheet has to ask "was this day covered", which is a
+      // date-range query, and an employee must be able to read their own
+      // requests without being able to read the school's.
+      //
+      // The employee-facing list queries `employeeUid == uid`, which is
+      // what makes the first read branch satisfiable per document. The
+      // office's queue is unfiltered, and only their role clears it.
+      match /leaveRequests/{requestId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        resource.data.employeeUid == request.auth.uid
+                        || hasRole(schoolId, ['director', 'principal', 'admin'])
+                      );
+
+        // Filing is a person asserting something about themselves, so it
+        // is a client write -- but only about themselves, and only ever
+        // as undecided. A request that could arrive pre-approved would
+        // make the whole decision step decorative.
+        allow create: if schoolIsAccessible(schoolId)
+                        && belongsToSchool(schoolId)
+                        && claims().role in ['director', 'principal', 'admin', 'registrar', 'faculty', 'staff', 'guidance']
+                        && request.resource.data.employeeUid == request.auth.uid
+                        && request.resource.data.status == 'pending'
+                        && request.resource.data.decidedByUid == null
+                        && request.resource.data.days is int
+                        && request.resource.data.days > 0
+                        && request.resource.data.fromDate is string
+                        && request.resource.data.toDate is string
+                        && request.resource.data.fromDate <= request.resource.data.toDate;
+
+        allow update: if schoolIsAccessible(schoolId)
+                        && belongsToSchool(schoolId)
+                        && request.resource.data.employeeUid == resource.data.employeeUid
+                        && resource.data.status == 'pending'
+                        && (
+                          // The employee withdrawing their own, and
+                          // nothing else about it. Only while it is
+                          // undecided: a request cannot be un-approved
+                          // by the person it was approved for.
+                          (
+                            resource.data.employeeUid == request.auth.uid
+                            && request.resource.data.status == 'cancelled'
+                            && request.resource.data.diff(resource.data).affectedKeys()
+                                 .hasOnly(['status', 'updatedAt', 'updatedBy'])
+                          )
+                          ||
+                          // The office deciding. decidedByUid and
+                          // decidedByRole are pinned to the caller's own
+                          // token, so the name beside a decision is the
+                          // account that made it -- the same rule the
+                          // approvals queue uses, and for the same
+                          // reason.
+                          (
+                            hasRole(schoolId, ['director', 'principal', 'admin'])
+                            && request.resource.data.status in ['approved', 'declined']
+                            && request.resource.data.decidedByUid == request.auth.uid
+                            && request.resource.data.decidedByRole == claims().role
+                            && request.resource.data.diff(resource.data).affectedKeys()
+                                 .hasOnly([
+                                   'status', 'decidedByUid', 'decidedByName',
+                                   'decidedByRole', 'decidedAt', 'decisionRemarks',
+                                   'updatedAt', 'updatedBy',
+                                 ])
+                          )
+                        );
+
+        // Never. A leave record is what a timesheet and a payslip are
+        // argued over; it is withdrawn or declined, not removed.
+        allow delete: if false;
+      }
+
       // ---- notification inbox ----
       // One person's notifications, written only by the Admin SDK (see
       // functions/src/shared/notify/deliver.ts).

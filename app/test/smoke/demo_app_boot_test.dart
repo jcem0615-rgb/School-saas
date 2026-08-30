@@ -197,6 +197,10 @@ void main() {
       AppRoutes.myActivity,
       AppRoutes.profile,
       AppRoutes.notifications,
+      AppRoutes.myLeave,
+      AppRoutes.myTimesheet,
+      AppRoutes.leaveRequests,
+      AppRoutes.timesheets,
       AppRoutes.recordPayment,
       '${AppRoutes.paymentHistory}/stu_001',
     ];

@@ -132,6 +132,12 @@ class FirestorePaths {
   static String subjectAttendance(String schoolId) =>
       '${school(schoolId)}/subjectAttendance';
 
+  /// Employee leave. A collection of its own rather than a row in the
+  /// generic approvals queue: the timesheet has to ask "was this day
+  /// covered", which is a date-range query, and an employee has to be
+  /// able to read their own without being able to read the school's.
+  static String leaveRequests(String schoolId) => '${school(schoolId)}/leaveRequests';
+
   static String auditLog(String schoolId) => '${school(schoolId)}/auditLog';
 
   static String documents(String schoolId) => '${school(schoolId)}/documents';

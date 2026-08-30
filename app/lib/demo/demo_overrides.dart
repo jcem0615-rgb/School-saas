@@ -27,6 +27,7 @@ import '../features/system_check/presentation/controllers/system_check_controlle
 import '../features/class_sessions/presentation/controllers/class_session_controller.dart';
 import '../features/notifications/presentation/controllers/notifications_controller.dart';
 import '../features/school_totals/presentation/controllers/school_totals_controller.dart';
+import '../features/timekeeping/presentation/controllers/timekeeping_controller.dart';
 import '../features/staff_portal/presentation/controllers/staff_controller.dart';
 import '../features/terms/presentation/controllers/terms_controller.dart';
 import '../features/student_portal/presentation/controllers/student_controller.dart';
@@ -145,6 +146,10 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
     classSessionRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoClassSessionRepository(ref.watch(demoStoreProvider));
+    }),
+    timekeepingRepositoryProvider.overrideWith((ref) {
+      ref.watch(authStateProvider);
+      return DemoTimekeepingRepository(ref.watch(demoStoreProvider));
     }),
     notificationsRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);

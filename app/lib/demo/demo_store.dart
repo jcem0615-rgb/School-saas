@@ -27,6 +27,8 @@ import '../features/faculty_portal/domain/entities/grade.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
 import '../features/class_sessions/domain/entities/class_session.dart';
 import '../features/notifications/domain/entities/app_notification.dart';
+import '../features/timekeeping/domain/entities/leave_request.dart';
+import '../features/timekeeping/domain/entities/timesheet.dart' show workingDaysBetween;
 import '../features/guidance_portal/domain/entities/summons.dart';
 // Both invoice.dart (platform billing) and payment.dart (student tuition)
 // declare their own PaymentMethod. Unqualified PaymentMethod here means the
@@ -202,6 +204,8 @@ class DemoStore {
   late final guidanceRecords = BehaviorSubject<List<GuidanceRecord>>.seeded(_seedGuidanceRecords());
   late final summonses = BehaviorSubject<List<Summons>>.seeded(_seedSummonses());
   late final auditLog = BehaviorSubject<List<AuditLogEntry>>.seeded(_seedAuditLog());
+  late final leaveRequests =
+      BehaviorSubject<List<LeaveRequest>>.seeded(_seedLeaveRequests());
 
   /// The register: the classes teachers have opened, and the marks taken
   /// in them. Seeded together, because a mark without its session is a
@@ -511,7 +515,7 @@ class DemoStore {
       courseworkSubmissions, answerKeys, emergencyContacts, emergencyAlerts,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog, notifications,
-      classSessions, subjectAttendance,
+      classSessions, subjectAttendance, leaveRequests,
       paymentSubmissions, paymentSettings, branding, documentReleases,
       feeStructures, assessments, scheduleBlocks, dataRequests,
       acknowledgedPrivacy, acceptedTerms,
@@ -1428,21 +1432,66 @@ class DemoStore {
         ));
       }
 
-      records.add(AttendanceRecord(
-        id: 'att_${++seq}',
-        personId: 'u_faculty',
-        personRole: 'faculty',
-        subjectType: AttendanceSubjectType.employee,
-        date: _dateKey(day),
-        timestampIn: DateTime(day.year, day.month, day.day, 7, 12),
-        timestampOut:
-            d == 0 ? null : DateTime(day.year, day.month, day.day, 17, 2),
-        status: AttendanceStatus.present,
-        location: 'Faculty Entrance',
-      ));
+    }
+
+    // Staff scans, going back far enough for a timesheet to cover a whole
+    // month rather than the fortnight the student rows need. Weekdays
+    // only: a Saturday with no scan is a rest day, and seeding one would
+    // teach the timesheet to call it absence.
+    for (var d = 0; d < 40; d++) {
+      final day = _daysAgo(d);
+      if (day.weekday == DateTime.saturday || day.weekday == DateTime.sunday) {
+        continue;
+      }
+
+      for (var i = 0; i < _staffAccounts.length; i++) {
+        final employee = _staffAccounts[i];
+
+        // Maria Santos is away for three days in the middle of last
+        // month, which is what the seeded leave request covers -- so her
+        // timesheet reads "on leave" and not "absent", which is the
+        // whole point of the two records being read together.
+        if (employee.uid == 'u_faculty' && d >= 20 && d <= 22) continue;
+        // And Dennis simply did not come in one day, so at least one
+        // sheet shows what an unexplained absence looks like.
+        if (employee.uid == 'u_faculty_2' && d == 9) continue;
+
+        final late = (i + d) % 9 == 0;
+        records.add(AttendanceRecord(
+          id: 'att_${++seq}',
+          personId: employee.uid,
+          personRole: employee.role.value,
+          subjectType: AttendanceSubjectType.employee,
+          date: _dateKey(day),
+          timestampIn: DateTime(
+            day.year,
+            day.month,
+            day.day,
+            late ? 8 : 7,
+            late ? 5 + (i + d) % 20 : 5 + (i * 4 + d * 3) % 40,
+          ),
+          // Nobody has tapped out yet today. And one day a fortnight
+          // somebody forgets entirely, which is the case the timesheet
+          // has to report honestly rather than guess at.
+          timestampOut: (d == 0 || (i == 0 && d == 6))
+              ? null
+              : DateTime(day.year, day.month, day.day, 17, 2 + (i + d) % 20),
+          status: late ? AttendanceStatus.late : AttendanceStatus.present,
+          location: 'Faculty Entrance',
+        ));
+      }
     }
     return records;
   }
+
+  /// The demo's employees, in a stable order.
+  ///
+  /// From the employee list rather than the sign-in accounts, because
+  /// the two differ: Dennis Pascual is on staff and teaches, but there
+  /// is no demo login for him. A timesheet picker offers every employee,
+  /// so every employee needs scans -- otherwise choosing him shows a
+  /// month of absence for somebody who was at work every day.
+  late final List<EmployeeSummary> _staffAccounts = _seedEmployees();
 
   List<CourseworkItem> _seedCoursework() => [
         CourseworkItem(
@@ -1945,6 +1994,100 @@ class DemoStore {
       ];
 
   List<GuidanceRecord> get _extraSectionRecord => [];
+
+  /// One of each outcome, so the office's queue is not empty and the
+  /// history above it is not either.
+  ///
+  /// Maria Santos's approved sick leave lines up with three days her
+  /// scans are deliberately missing, which is the pairing the whole
+  /// feature turns on: without the leave record those days read as
+  /// absence, and with it they read as leave.
+  List<LeaveRequest> _seedLeaveRequests() {
+    LeaveRequest request({
+      required String id,
+      required String uid,
+      required String name,
+      required String role,
+      required LeaveType type,
+      required DateTime from,
+      required DateTime to,
+      required String reason,
+      required LeaveStatus status,
+      String? decidedByUid,
+      String? decidedByName,
+      String? decidedByRole,
+      DateTime? decidedAt,
+      String? remarks,
+      required DateTime createdAt,
+    }) =>
+        LeaveRequest(
+          id: id,
+          employeeUid: uid,
+          employeeName: name,
+          employeeRole: role,
+          type: type,
+          fromDate: _dateKey(from),
+          toDate: _dateKey(to),
+          days: workingDaysBetween(from, to),
+          reason: reason,
+          status: status,
+          decidedByUid: decidedByUid,
+          decidedByName: decidedByName,
+          decidedByRole: decidedByRole,
+          decidedAt: decidedAt,
+          decisionRemarks: remarks,
+          createdAt: createdAt,
+        );
+
+    return [
+      request(
+        id: 'lv_001',
+        uid: 'u_staff',
+        name: 'Ricardo Bautista',
+        role: 'staff',
+        type: LeaveType.vacation,
+        from: _daysAhead(10),
+        to: _daysAhead(12),
+        reason: 'Family trip to Bicol, booked before the term calendar came out.',
+        status: LeaveStatus.pending,
+        createdAt: _daysAgo(1),
+      ),
+      request(
+        id: 'lv_002',
+        uid: 'u_faculty',
+        name: 'Maria Santos',
+        role: 'faculty',
+        type: LeaveType.sick,
+        from: _daysAgo(22),
+        to: _daysAgo(20),
+        reason: 'Dengue. Medical certificate handed to the office.',
+        status: LeaveStatus.approved,
+        decidedByUid: 'u_admin',
+        decidedByName: 'Josefina Dela Cruz',
+        decidedByRole: 'admin',
+        decidedAt: _daysAgo(23),
+        remarks: 'Get well. Cover arranged for Grade 10 Mathematics.',
+        createdAt: _daysAgo(23),
+      ),
+      request(
+        id: 'lv_003',
+        uid: 'u_registrar',
+        name: 'Corazon Mendoza',
+        role: 'registrar',
+        type: LeaveType.vacation,
+        from: _daysAgo(4),
+        to: _daysAgo(2),
+        reason: 'Long weekend.',
+        status: LeaveStatus.declined,
+        decidedByUid: 'u_director',
+        decidedByName: 'Elena Cruz',
+        decidedByRole: 'director',
+        decidedAt: _daysAgo(6),
+        remarks: 'Enrolment week. Please refile for the week after.',
+        createdAt: _daysAgo(7),
+      ),
+    ];
+  }
 
   /// Three weeks of registers for Grade 10 - Rizal, so the family-facing
   /// "by subject" screen has a term to show rather than an empty list.
