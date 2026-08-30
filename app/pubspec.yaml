@@ -58,9 +58,10 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   file_picker: ^11.0.2
-  # Remembers the demo session across a page reload. Real mode does not
-  # need it -- firebase_auth persists its own session -- so this is the
-  # only thing in the app that uses it.
+  # Two things use it. The demo session across a page reload (real mode
+  # does not need that -- firebase_auth persists its own), and the device
+  # id behind the one-account-one-device rule, which has to survive a
+  # restart or the account displaces itself every launch.
   shared_preferences: ^2.3.2
   url_launcher: ^6.3.2
   geolocator: ^14.0.2

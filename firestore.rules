@@ -171,6 +171,15 @@ service cloud.firestore {
     match /platform_owner_profiles/{uid} {
       allow read: if isOwner() && request.auth.uid == uid;
       allow write: if false; // provisioned only via Admin SDK / console
+
+      // The Owner belongs to no school, so their single-device claim
+      // cannot live under schools/{schoolId}/users. Same document, same
+      // rule, different parent. A subcollection is not covered by the
+      // parent's `allow write: if false` -- each match block stands on
+      // its own -- so this is written out rather than inherited.
+      match /sessions/{sessionId} {
+        allow read, write: if isOwner() && request.auth.uid == uid;
+      }
     }
 
     // Denormalized dashboard metrics maintained by dailyBillingJob --
@@ -240,6 +249,26 @@ service cloud.firestore {
         // onAnnouncementCreated.ts uses the Admin SDK, which bypasses
         // rules entirely.
         match /deviceTokens/{token} {
+          allow read, write: if belongsToSchool(schoolId)
+                               && request.auth.uid == userId;
+        }
+
+        // ---- which single device holds this account ----
+        // One document, `current`, naming the device that signed in last.
+        // Every signed-in device watches it; a device that reads an id
+        // which is not its own signs itself out. See
+        // app/lib/core/session/session_guard.dart.
+        //
+        // Here rather than on the user document for the same reason as
+        // deviceTokens: users/{userId} is readable by everyone in the
+        // school, and where a colleague is signed in is not the school's
+        // business. Only the account holder reads or writes their own.
+        //
+        // The account holder may write it freely -- there is nothing to
+        // police. The only thing this document can do is sign its own
+        // owner out, and a user who wants to be signed out has a button
+        // for that.
+        match /sessions/{sessionId} {
           allow read, write: if belongsToSchool(schoolId)
                                && request.auth.uid == userId;
         }

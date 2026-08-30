@@ -5,6 +5,8 @@ import '../core/location/location_providers.dart';
 import '../core/push/push_providers.dart';
 import '../core/push/push_registrar.dart';
 import '../core/router/app_router.dart';
+import '../core/session/session_guard.dart';
+import '../core/session/session_providers.dart';
 import '../core/storage/upload_providers.dart';
 import '../features/auth/domain/entities/app_user.dart';
 import '../features/admin_portal/presentation/controllers/admin_controller.dart';
@@ -125,6 +127,11 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
     // browser for notification permission to look at a demo would be
     // rude even if it worked.
     pushRegistrarProvider.overrideWith((ref) => const NoOpPushRegistrar()),
+    // Nothing to enforce: the demo has no Firebase to hold the claim,
+    // and one browser tab cannot take a session from itself. Overridden
+    // explicitly rather than left to fall through, so switching demo
+    // roles never trips the displacement path.
+    sessionGuardProvider.overrideWith((ref) => const NoOpSessionGuard()),
     // Never asks the browser for the real thing -- see DemoLocationProbe.
     locationProbeProvider.overrideWith((ref) => const DemoLocationProbe()),
     emergencyRepositoryProvider.overrideWith((ref) {

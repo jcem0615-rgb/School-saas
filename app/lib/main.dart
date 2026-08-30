@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router/app_router.dart';
+import 'core/session/single_device_session.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/glass.dart';
 import 'demo/demo_session.dart';
@@ -123,14 +124,22 @@ class LogicClassApp extends ConsumerWidget {
       // Both of these are layered here -- above the router, inside
       // MaterialApp -- so they apply across every route.
       builder: (context, child) {
-        // Tells the cashier about incoming online payments wherever they
-        // are in the app. Not demo-only: this is a real feature.
-        // The wash the whole app sits on. Above the router so it is
-        // painted once and every route's transparent scaffold shows it
+        // AmbientBackground: the wash the whole app sits on. Painted
+        // once here so every route's transparent scaffold shows it
         // through, rather than each screen carrying its own copy.
+        //
+        // SingleDeviceSession: one account, one device. Signs this one
+        // out when the account is signed in somewhere else, which can
+        // land on any screen and so belongs above all of them.
+        //
+        // PaymentSubmissionAlerts: tells the cashier about incoming
+        // online payments wherever they are in the app. Not demo-only;
+        // this is a real feature.
         final content = AmbientBackground(
-          child: PaymentSubmissionAlerts(
-            child: child ?? const SizedBox.shrink(),
+          child: SingleDeviceSession(
+            child: PaymentSubmissionAlerts(
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         );
         return kDemoMode ? DemoSwitcher(child: content) : content;

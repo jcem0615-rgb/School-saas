@@ -74,6 +74,56 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  /// Asks first, and names the account being signed out.
+  ///
+  /// The name is there because school computers are shared: the person at
+  /// the keyboard is not always the person the app is signed in as, and
+  /// "Sign out?" alone tells them nothing about whose session they are
+  /// about to end.
+  Future<void> _signOut() async {
+    final user = ref.read(authStateProvider).valueOrNull;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.logout),
+        title: const Text('Sign out?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (user != null) ...[
+              Text('You are signed in as ${user.fullName} (${user.email}).'),
+              const SizedBox(height: 12),
+            ],
+            Text(
+              'This device will stop receiving notifications for this '
+              'account, and you will need your password to sign back in.',
+              style: Theme.of(dialogContext).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await ref.read(authControllerProvider.notifier).logout();
+    // No navigation here: the router redirects on the auth state change.
+    // Popping as well would race it and briefly show the screen behind.
+  }
+
   Future<void> _save() async {
     final success =
         await ref.read(profileActionControllerProvider.notifier).updateProfile(phone: _phoneController.text);
@@ -96,7 +146,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
-            onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+            onPressed: _signOut,
           ),
         ],
       ),
@@ -200,6 +250,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             value: _pushOn ?? false,
             onChanged: _pushBusy || _pushOn == null ? null : _togglePush,
           ),
+          const Divider(height: 40),
+          // Spelled out, at the bottom, where a settings screen's last
+          // item is always the one that ends the session.
+          //
+          // There was already a sign-out here, as an unlabelled icon in
+          // the app bar -- which is to say it was two taps behind a
+          // person-outline icon and then a symbol. People asked where
+          // sign-out was while looking at it. An icon is a reminder for
+          // somebody who already knows the button exists; it is not how
+          // anybody finds one.
+          Card(
+            elevation: 0,
+            color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.35),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.4)),
+            ),
+            child: ListTile(
+              leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+              title: Text(
+                'Sign out',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text('End your session on this device', style: Theme.of(context).textTheme.bodySmall),
+              onTap: _signOut,
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
