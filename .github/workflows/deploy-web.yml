@@ -13,16 +13,22 @@
 #
 # ## What has to exist before this works
 #
-# Three repository secrets, under Settings -> Secrets and variables ->
+# One repository secret, under Settings -> Secrets and variables ->
 # Actions:
 #
-#   VERCEL_TOKEN       vercel.com/account/tokens -> Create Token.
-#                      Scope it to the team that owns the project.
-#   VERCEL_ORG_ID      Vercel project -> Settings -> General -> Team ID.
-#   VERCEL_PROJECT_ID  The same page -> Project ID.
+#   VERCEL_TOKEN   vercel.com/account/tokens -> Create Token, scoped to
+#                  the account that owns the project.
 #
-# The job checks for all three and says which is missing rather than
-# letting the CLI fail three steps later with something less obvious.
+# The two ids below are not secrets -- they are the addresses of the
+# thing being deployed to, and Vercel documents them as identifiers
+# rather than credentials. Holding one gets you nothing without the
+# token. Written here rather than hidden in repository settings because
+# a value nobody can see is a value nobody can check when a deploy lands
+# somewhere unexpected.
+#
+# The org id is not on the project's Settings -> General page: a Hobby
+# account shows a Project ID and no Team ID, because there is no team.
+# It exists all the same, and this is it.
 #
 # ## If the Git integration is connected later
 #
@@ -50,6 +56,11 @@ concurrency:
   group: deploy-web
   cancel-in-progress: false
 
+env:
+  # jcem0615-5649's projects -> logicclass
+  VERCEL_ORG_ID: team_13Ys87NDrANbxiOJrc0x48Vj
+  VERCEL_PROJECT_ID: prj_2Lpob95pF5VDOpwh6Qm46gUfbai4
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -58,21 +69,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check the secrets are set
+      # Checked here rather than left to fail three steps later with
+      # something less obvious. A run that spends five minutes building
+      # before saying "no token" is five minutes nobody gets back.
+      - name: Check the token is set
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          missing=()
-          [ -n "$VERCEL_TOKEN" ]      || missing+=("VERCEL_TOKEN")
-          [ -n "$VERCEL_ORG_ID" ]     || missing+=("VERCEL_ORG_ID")
-          [ -n "$VERCEL_PROJECT_ID" ] || missing+=("VERCEL_PROJECT_ID")
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing repository secrets: ${missing[*]}"
-            echo "Add them under Settings -> Secrets and variables -> Actions."
-            echo "VERCEL_TOKEN comes from vercel.com/account/tokens; the two ids"
-            echo "are on the Vercel project's Settings -> General page."
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN is not set."
+            echo "Create one at vercel.com/account/tokens, then add it under"
+            echo "Settings -> Secrets and variables -> Actions as VERCEL_TOKEN."
             exit 1
           fi
 
@@ -122,13 +129,12 @@ jobs:
       - name: Deploy to production
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           set -euo pipefail
           # --yes so it never waits for a prompt no one is there to
-          # answer. ORG_ID and PROJECT_ID in the environment are what
-          # aim it at the existing project instead of creating a new one.
+          # answer. VERCEL_ORG_ID and VERCEL_PROJECT_ID, from the env
+          # block at the top, are what aim this at the existing project
+          # instead of creating a new one beside it.
           url=$(npx --yes vercel@latest deploy app/build/web \
                   --prod --yes --token "$VERCEL_TOKEN")
           echo "Deployed: $url"

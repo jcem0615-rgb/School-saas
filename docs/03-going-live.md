@@ -133,17 +133,26 @@ reach GitHub and stop there while the site keeps serving whichever
 manual upload was last made. This workflow builds the app in CI and
 pushes the finished files to the project with the Vercel CLI.
 
-It needs three repository secrets:
+It needs **one** repository secret:
 
 | Secret | Where it comes from |
 |---|---|
-| `VERCEL_TOKEN` | vercel.com/account/tokens, scoped to the owning team |
-| `VERCEL_ORG_ID` | Vercel project -> Settings -> General -> Team ID |
-| `VERCEL_PROJECT_ID` | the same page, Project ID |
+| `VERCEL_TOKEN` | vercel.com/account/tokens, scoped to the owning account |
 
-The job checks all three before doing anything and names the ones that
-are missing, rather than letting the CLI fail three steps later with
-something less obvious.
+The org and project ids are written into the workflow's `env` block
+instead. They are not secrets -- Vercel documents them as identifiers,
+and holding one gets you nothing without the token -- and a value nobody
+can see is a value nobody can check when a deploy lands somewhere
+unexpected.
+
+Worth knowing where the org id comes from, because the obvious place
+does not have it: a Hobby account's project page shows a Project ID and
+no Team ID, since there is no team. The id exists all the same and the
+API returns it; it is in the workflow.
+
+The job checks for the token before doing anything, rather than letting
+the CLI fail three steps later. A run that spends five minutes building
+before saying "no token" is five minutes nobody gets back.
 
 **If the Git integration is connected later, delete the workflow.** Both
 would deploy every push, and the site would rebuild twice for no reason.
