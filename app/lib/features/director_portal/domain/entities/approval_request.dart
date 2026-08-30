@@ -25,7 +25,18 @@ class ApprovalRequest {
   final String requestedByName;
   final String requestedByRole;
   final ApprovalStatus status;
+
+  /// Who decided it, in what role, and when.
+  ///
+  /// [decidedByUid] is the one the rules pin to the caller, so the name
+  /// beside a decision is the account that actually made it rather than
+  /// whatever the client claimed. The name and role are denormalised
+  /// alongside it because the screen has to render a decision without a
+  /// second read per row, and because a person's name should stay as it
+  /// was on the day they decided.
+  final String? decidedByUid;
   final String? decidedByName;
+  final String? decidedByRole;
   final DateTime? decidedAt;
   final String? decisionRemarks;
   final DateTime createdAt;
@@ -40,8 +51,12 @@ class ApprovalRequest {
     required this.status,
     required this.createdAt,
     this.description,
+    this.decidedByUid,
     this.decidedByName,
+    this.decidedByRole,
     this.decidedAt,
     this.decisionRemarks,
   });
+
+  bool get isDecided => status != ApprovalStatus.pending;
 }

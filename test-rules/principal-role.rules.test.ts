@@ -148,7 +148,11 @@ describe("Principal leadership actions", () => {
     });
     const principal = contextAs("principal", "principal_hs");
     await assertSucceeds(
-      updateDoc(doc(principal.firestore(), `schools/${SCHOOL}/approvals/req_1`), {status: "approved"})
+      updateDoc(doc(principal.firestore(), `schools/${SCHOOL}/approvals/req_1`), {
+        status: "approved",
+        decidedByUid: "principal_hs",
+        decidedByRole: "principal",
+      })
     );
   });
 
@@ -162,7 +166,11 @@ describe("Principal leadership actions", () => {
     });
     const principal = contextAs("principal", "principal_hs");
     await assertFails(
-      updateDoc(doc(principal.firestore(), `schools/${SCHOOL}/approvals/req_2`), {status: "rejected"})
+      updateDoc(doc(principal.firestore(), `schools/${SCHOOL}/approvals/req_2`), {
+        status: "rejected",
+        decidedByUid: "principal_hs",
+        decidedByRole: "principal",
+      })
     );
   });
 });

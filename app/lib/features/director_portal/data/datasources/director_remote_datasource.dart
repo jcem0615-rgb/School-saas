@@ -271,7 +271,12 @@ class DirectorRemoteDataSource {
         .doc(approvalId)
         .update({
       'status': approve ? 'approved' : 'rejected',
+      // decidedByUid is what firestore.rules pins to the caller, so a
+      // decision cannot be attributed to somebody else. The name and role
+      // ride along for the screen.
+      'decidedByUid': _actingUser.uid,
       'decidedByName': _actingUser.name,
+      'decidedByRole': _actingUser.role,
       'decidedAt': FieldValue.serverTimestamp(),
       'decisionRemarks': remarks,
       'updatedBy': _actingUser.uid,

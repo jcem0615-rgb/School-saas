@@ -70,6 +70,28 @@ computed on demand (pull-to-refresh, or on screen entry) rather than
 streamed — Directors expect this screen to reflect the current moment
 when they open it, not eventual consistency from a scheduled job.
 
+## The approval history
+
+A decided request used to show its outcome and the remarks, and nothing
+else. The one question anybody asks about an approval weeks later --
+"who approved this?" -- had no answer on the screen that recorded it.
+
+A decision now carries `decidedByUid`, `decidedByName`, `decidedByRole`
+and `decidedAt`, and the card renders all four alongside the reason.
+
+`decidedByUid` is the one that matters, because `firestore.rules` pins it
+to `request.auth.uid` and `decidedByRole` to the caller's own claim. The
+same shape as the authorship check already on create: without it a
+decider could write any name beside their decision, and a history that
+can be authored is not a history.
+
+The request's `details` are rendered too, whatever they are. That map is
+deliberately free-form -- a material request and a promissory note file
+into the same collection -- so the card lays out whatever keys it finds
+rather than knowing about either. A director approving on a title alone
+has no idea what quantity or amount they just agreed to, and afterwards
+neither does anybody reading the record.
+
 ## Testing
 
 | Layer | File | Covers |

@@ -150,7 +150,66 @@ describe("approvals", () => {
     });
     const director = contextAs("director");
     await assertSucceeds(
-      updateDoc(doc(director.firestore(), `schools/${SCHOOL}/approvals/req_4`), {status: "approved"})
+      updateDoc(doc(director.firestore(), `schools/${SCHOOL}/approvals/req_4`), {
+        status: "approved",
+        decidedByUid: "director_1",
+        decidedByRole: "director",
+      })
+    );
+  });
+
+  test("a decision must be signed by the account making it", async () => {
+    // The approval history exists to answer "who approved this?". If a
+    // decider can write somebody else's uid beside their decision, it
+    // answers with whatever the client typed.
+    await seedActiveSubscription();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/approvals/req_5`), {
+        status: "pending",
+        requestedByRole: "staff",
+      });
+    });
+    const director = contextAs("director");
+    await assertFails(
+      updateDoc(doc(director.firestore(), `schools/${SCHOOL}/approvals/req_5`), {
+        status: "approved",
+        decidedByUid: "admin_1", // somebody else
+        decidedByRole: "director",
+      })
+    );
+  });
+
+  test("a decision cannot claim a role the decider does not hold", async () => {
+    await seedActiveSubscription();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/approvals/req_6`), {
+        status: "pending",
+        requestedByRole: "staff",
+      });
+    });
+    const admin = contextAs("admin");
+    await assertFails(
+      updateDoc(doc(admin.firestore(), `schools/${SCHOOL}/approvals/req_6`), {
+        status: "approved",
+        decidedByUid: "admin_1",
+        decidedByRole: "director", // an Admin signing as the Director
+      })
+    );
+  });
+
+  test("an unsigned decision is refused outright", async () => {
+    await seedActiveSubscription();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/approvals/req_7`), {
+        status: "pending",
+        requestedByRole: "staff",
+      });
+    });
+    const director = contextAs("director");
+    await assertFails(
+      updateDoc(doc(director.firestore(), `schools/${SCHOOL}/approvals/req_7`), {
+        status: "approved",
+      })
     );
   });
 });

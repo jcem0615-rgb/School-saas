@@ -305,10 +305,17 @@ service cloud.firestore {
                         && schoolIsAccessible(schoolId)
                         && request.resource.data.requestedByRole == claims().role
                         && request.resource.data.status == 'pending';
+        // The decision has to be signed by the account making it. Without
+        // this a decider could write any name into decidedByName, and the
+        // approval history -- which exists to answer "who approved this?"
+        // -- would answer with whatever the client typed. The same shape
+        // as the authorship check on create.
         allow update: if hasRole(schoolId, ['director', 'principal', 'admin'])
                         && schoolIsAccessible(schoolId)
                         && resource.data.status == 'pending'
-                        && request.resource.data.status in ['approved', 'rejected'];
+                        && request.resource.data.status in ['approved', 'rejected']
+                        && request.resource.data.decidedByUid == request.auth.uid
+                        && request.resource.data.decidedByRole == claims().role;
         allow delete: if false;
       }
 
