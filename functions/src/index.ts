@@ -8,6 +8,9 @@ admin.initializeApp();
 export {provisionUser} from "./callable/users/provisionUser";
 export {bootstrapOwner} from "./callable/users/bootstrapOwner";
 export {resetPasswordAdmin} from "./callable/users/resetPasswordAdmin";
+// Recovery by SMS: the SIM is the proof, and the number the school
+// wrote down is what it is checked against.
+export {resetPasswordByPhone} from "./callable/users/resetPasswordByPhone";
 export {clearForcePasswordChangeFlag} from "./callable/users/clearForcePasswordChangeFlag";
 export {setUserStatus} from "./callable/users/setUserStatus";
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../main.dart' show kDemoMode;
+import 'phone_reset_screen.dart';
 import '../../../../core/utils/validators.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/auth_text_field.dart';
@@ -69,6 +71,23 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         children: [
           const Text(
             'Enter the email associated with your account and we will send a link to reset your password.',
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              // Offered beside the email route rather than instead of
+              // it. A parent whose only device is the handset in their
+              // pocket often has no email they can reach; a teacher on a
+              // school laptop would rather not wait for a text.
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const PhoneResetScreen(demoMode: kDemoMode),
+                ),
+              ),
+              icon: const Icon(Icons.smartphone_outlined, size: 18),
+              label: const Text('Use my phone number instead'),
+            ),
           ),
           const SizedBox(height: 24),
           AuthTextField(

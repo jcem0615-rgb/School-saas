@@ -13,6 +13,7 @@ import 'package:logicclass/features/payments/presentation/screens/payment_settin
 import 'package:logicclass/features/timekeeping/presentation/screens/leave_requests_screen.dart';
 import 'package:logicclass/features/timekeeping/presentation/screens/my_leave_screen.dart';
 import 'package:logicclass/features/timekeeping/presentation/screens/timesheet_screen.dart';
+import 'package:logicclass/features/auth/presentation/screens/phone_reset_screen.dart';
 import 'package:logicclass/features/class_sessions/presentation/screens/subject_attendance_screen.dart';
 import 'package:logicclass/features/class_sessions/presentation/screens/todays_classes_screen.dart';
 import 'package:logicclass/features/admin_portal/presentation/screens/employee_list_screen.dart';
@@ -88,6 +89,9 @@ void main() {
     'Registrar · Payment setup': (UserRole.registrar, const PaymentSettingsScreen()),
     'Parent · Messages': (UserRole.parent, const ConversationsScreen()),
     'Faculty · Messages': (UserRole.faculty, const ConversationsScreen()),
+    // Reached before anybody signs in, so the role here only decides
+    // which fakes back the container.
+    'Reset by phone': (UserRole.parent, const PhoneResetScreen(demoMode: true)),
     'Parent · Pay online': (
       UserRole.parent,
       OnlinePaymentScreen(
