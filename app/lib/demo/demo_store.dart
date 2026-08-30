@@ -25,6 +25,7 @@ import '../features/faculty_portal/domain/entities/answer_key.dart';
 import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
+import '../features/class_sessions/domain/entities/class_session.dart';
 import '../features/notifications/domain/entities/app_notification.dart';
 import '../features/guidance_portal/domain/entities/summons.dart';
 // Both invoice.dart (platform billing) and payment.dart (student tuition)
@@ -80,6 +81,10 @@ class DemoStore {
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   String get todayKey => _dateKey(now);
+
+  /// The school's day for an arbitrary date, in the same 'YYYY-MM-DD'
+  /// shape the real records use.
+  String dateKeyOf(DateTime at) => _dateKey(at);
 
   /// Turns a school name into an id safe to use as a Firestore path
   /// segment. Kept in step with slugify() in
@@ -197,6 +202,16 @@ class DemoStore {
   late final guidanceRecords = BehaviorSubject<List<GuidanceRecord>>.seeded(_seedGuidanceRecords());
   late final summonses = BehaviorSubject<List<Summons>>.seeded(_seedSummonses());
   late final auditLog = BehaviorSubject<List<AuditLogEntry>>.seeded(_seedAuditLog());
+
+  /// The register: the classes teachers have opened, and the marks taken
+  /// in them. Seeded together, because a mark without its session is a
+  /// row pointing at nothing -- which is exactly the state a demo built
+  /// from two independent seed methods drifts into.
+  late final _seededRegister = _seedRegister();
+  late final classSessions =
+      BehaviorSubject<List<ClassSession>>.seeded(_seededRegister.$1);
+  late final subjectAttendance =
+      BehaviorSubject<List<SubjectAttendanceMark>>.seeded(_seededRegister.$2);
 
   /// One inbox per person, keyed by uid.
   ///
@@ -496,6 +511,7 @@ class DemoStore {
       courseworkSubmissions, answerKeys, emergencyContacts, emergencyAlerts,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog, notifications,
+      classSessions, subjectAttendance,
       paymentSubmissions, paymentSettings, branding, documentReleases,
       feeStructures, assessments, scheduleBlocks, dataRequests,
       acknowledgedPrivacy, acceptedTerms,
@@ -1929,6 +1945,112 @@ class DemoStore {
       ];
 
   List<GuidanceRecord> get _extraSectionRecord => [];
+
+  /// Three weeks of registers for Grade 10 - Rizal, so the family-facing
+  /// "by subject" screen has a term to show rather than an empty list.
+  ///
+  /// Built from the seeded timetable rather than hand-written, so the
+  /// sessions land on the days those classes are actually timetabled --
+  /// a register for a Tuesday Science lesson that the timetable says is
+  /// on Monday would demonstrate the feature working incorrectly.
+  ///
+  /// Miguel Torres is given a poor Science record on purpose. A demo
+  /// where every child is present in every lesson shows the screen and
+  /// not the point of it: the reason anybody opens this is to find the
+  /// subject that is going wrong.
+  (List<ClassSession>, List<SubjectAttendanceMark>) _seedRegister() {
+    final sessions = <ClassSession>[];
+    final marks = <SubjectAttendanceMark>[];
+    final roster = _seedStudents()
+        .where((s) => s.section == 'Grade 10 - Rizal' && s.status == StudentStatus.enrolled)
+        .toList();
+    final blocks = _seedScheduleBlocks()
+        .where((b) => b.section == 'Grade 10 - Rizal')
+        .toList();
+
+    // Yesterday backwards, so nothing is seeded for today: today is what
+    // the teacher is about to take, and a register already filled in
+    // before anyone pressed Time In would be the wrong first impression.
+    for (var daysAgo = 1; daysAgo <= 21; daysAgo++) {
+      final day = _daysAgo(daysAgo);
+      final dateKey = _dateKey(day);
+      for (final block in blocks.where((b) => b.dayOfWeek == day.weekday)) {
+        final openedAt = DateTime(day.year, day.month, day.day,
+            block.startMinute ~/ 60, (block.startMinute % 60) + 2);
+        final closedAt = DateTime(day.year, day.month, day.day,
+            block.endMinute ~/ 60, block.endMinute % 60);
+        final sessionId = '\${dateKey}_\${block.id}';
+
+        final sessionMarks = <SubjectAttendanceMark>[];
+        for (final student in roster) {
+          final status = _seededMark(
+            studentId: student.id,
+            subject: block.subject,
+            daysAgo: daysAgo,
+          );
+          final wasThere = status == AttendanceStatus.present ||
+              status == AttendanceStatus.late;
+          sessionMarks.add(SubjectAttendanceMark(
+            id: '\${sessionId}_\${student.id}',
+            sessionId: sessionId,
+            studentId: student.id,
+            studentName: student.fullName,
+            subject: block.subject,
+            section: block.section,
+            date: dateKey,
+            status: status,
+            timeIn: wasThere
+                ? (status == AttendanceStatus.late
+                    ? openedAt.add(const Duration(minutes: 12))
+                    : openedAt)
+                : null,
+            timeOut: wasThere ? closedAt : null,
+          ));
+        }
+
+        sessions.add(ClassSession(
+          id: sessionId,
+          scheduleBlockId: block.id,
+          subject: block.subject,
+          section: block.section,
+          room: block.room,
+          date: dateKey,
+          teacherName: block.teacherName,
+          takenByUid: block.teacherId,
+          takenByName: block.teacherName,
+          openedAt: openedAt,
+          closedAt: closedAt,
+          studentCount: sessionMarks.length,
+          counts: RollCounts.of(sessionMarks),
+        ));
+        marks.addAll(sessionMarks);
+      }
+    }
+    return (sessions, marks);
+  }
+
+  /// Who was where. Deterministic rather than random, so a demo opened
+  /// twice tells the same story and a screenshot keeps matching.
+  AttendanceStatus _seededMark({
+    required String studentId,
+    required String subject,
+    required int daysAgo,
+  }) {
+    if (studentId == 'stu_001' && subject == 'Science') {
+      // The record a parent is called in about: away for most of a
+      // fortnight, once with a note.
+      if (daysAgo <= 4) return AttendanceStatus.absent;
+      if (daysAgo == 6) return AttendanceStatus.excused;
+      if (daysAgo == 8) return AttendanceStatus.late;
+      if (daysAgo <= 12) return AttendanceStatus.absent;
+      return AttendanceStatus.present;
+    }
+    if (studentId == 'stu_001' && daysAgo == 9) return AttendanceStatus.late;
+    // Everybody else: the ordinary picture, an occasional absence.
+    if (daysAgo % 11 == 0) return AttendanceStatus.absent;
+    if (daysAgo % 7 == 0) return AttendanceStatus.late;
+    return AttendanceStatus.present;
+  }
 
   List<Summons> _seedSummonses() => [
         Summons(

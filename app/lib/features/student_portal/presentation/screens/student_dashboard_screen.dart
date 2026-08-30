@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../class_sessions/presentation/screens/subject_attendance_screen.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../emergency/presentation/screens/sos_screen.dart';
@@ -121,6 +122,13 @@ class StudentDashboardScreen extends ConsumerWidget {
                     label: 'Assignments & Exams',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => CourseworkFeedScreen(section: student.section))),
+                  ),
+                  GlassTile(
+                    icon: Icons.how_to_reg_outlined,
+                    label: 'Subject Attendance',
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => SubjectAttendanceScreen(studentId: student.id),
+                    )),
                   ),
                   GlassTile(
                     icon: Icons.grade_outlined,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../class_sessions/presentation/screens/subject_attendance_screen.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
 import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
@@ -90,6 +91,22 @@ class ChildDetailScreen extends StatelessWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => AttendanceHistoryScreen(personId: child.id, title: '${child.fullName} - Attendance'),
+                  ),
+                ),
+              ),
+              // Beside the gate record, not instead of it. The two
+              // answer different questions -- "did they come to school"
+              // and "were they in the lesson" -- and a family that has
+              // been told about a failing subject is asking the second.
+              _ActionChip(
+                icon: Icons.how_to_reg_outlined,
+                label: 'By Subject',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => SubjectAttendanceScreen(
+                      studentId: child.id,
+                      studentName: child.fullName,
+                    ),
                   ),
                 ),
               ),

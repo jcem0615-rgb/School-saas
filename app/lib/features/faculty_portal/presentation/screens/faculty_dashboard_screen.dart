@@ -1,3 +1,4 @@
+import '../../../class_sessions/presentation/screens/todays_classes_screen.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
 import '../../../schedules/presentation/screens/my_timetable_screen.dart';
@@ -83,6 +84,14 @@ class FacultyDashboardScreen extends StatelessWidget {
                       );
                     },
                   ),
+                ),
+                // First of the ordinary tiles, because it is the one
+                // pressed at the start of every lesson.
+                GlassTile(
+                  icon: Icons.how_to_reg_outlined,
+                  label: 'Class Attendance',
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const TodaysClassesScreen())),
                 ),
                 GlassTile(
                   icon: Icons.menu_book_outlined,

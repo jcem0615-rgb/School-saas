@@ -123,6 +123,15 @@ class FirestorePaths {
 
   static String summons(String schoolId) => '${school(schoolId)}/summons';
 
+  /// Per-subject attendance: the class the teacher opened, and the marks
+  /// taken in it. Two collections rather than marks nested in the
+  /// session, because "was this child in Physics all term" is a query
+  /// across sessions, and a subcollection cannot be asked that without a
+  /// collection-group index the marks do not otherwise need.
+  static String classSessions(String schoolId) => '${school(schoolId)}/classSessions';
+  static String subjectAttendance(String schoolId) =>
+      '${school(schoolId)}/subjectAttendance';
+
   static String auditLog(String schoolId) => '${school(schoolId)}/auditLog';
 
   static String documents(String schoolId) => '${school(schoolId)}/documents';

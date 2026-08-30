@@ -7,6 +7,8 @@ import 'package:logicclass/core/theme/app_theme.dart';
 import 'package:logicclass/core/widgets/confirm_delete_dialog.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/class_sessions/presentation/screens/subject_attendance_screen.dart';
+import 'package:logicclass/features/class_sessions/presentation/screens/todays_classes_screen.dart';
 import 'package:logicclass/features/admin_portal/presentation/screens/employee_list_screen.dart';
 import 'package:logicclass/features/admin_portal/presentation/screens/programs_screen.dart';
 import 'package:logicclass/features/admin_portal/presentation/screens/teacher_assignments_screen.dart';
@@ -66,6 +68,40 @@ void main() {
     await tester.pumpAndSettle();
     return container;
   }
+
+  /// Screens whose whole job is to show something, with no form behind a
+  /// button. They are here for the same reason the ones above are: a
+  /// screen that throws on open is a dead end, and nothing else in the
+  /// suite renders these.
+  final readOnlyScreens = <String, (UserRole, Widget)>{
+    'Faculty · My classes today': (UserRole.faculty, const TodaysClassesScreen()),
+    'Student · Attendance by subject': (
+      UserRole.student,
+      const SubjectAttendanceScreen(studentId: 'stu_001'),
+    ),
+    'Parent · Attendance by subject': (
+      UserRole.parent,
+      const SubjectAttendanceScreen(studentId: 'stu_001', studentName: 'Miguel Torres'),
+    ),
+  };
+
+  group('read-only screens open', () {
+    readOnlyScreens.forEach((label, spec) {
+      final (role, screen) = spec;
+
+      testWidgets(label, (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 3.0;
+        addTearDown(tester.view.reset);
+
+        await pumpAs(tester, role, screen);
+
+        expect(tester.takeException(), isNull, reason: '$label threw on open');
+        expect(find.byType(Scaffold), findsWidgets,
+            reason: '$label rendered nothing');
+      });
+    });
+  });
 
   group('every screen with a primary action can open it', () {
     formScreens.forEach((label, spec) {

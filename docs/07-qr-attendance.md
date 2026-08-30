@@ -1,5 +1,11 @@
 # Module 7: QR Attendance
 
+> **This module is the gate record**: one time in and one time out per
+> person per day. Attendance *per subject* -- the register a teacher
+> takes at the start of each lesson -- is a separate thing, in
+> [Module 28](28-subject-attendance.md). The two answer different
+> questions and neither replaces the other.
+
 ## Overview
 
 Every user gets a QR ID (`MyQrIdScreen`, reused across all nine roles).

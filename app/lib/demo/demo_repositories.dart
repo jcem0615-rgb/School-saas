@@ -67,6 +67,8 @@ import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/registrar_portal/domain/repositories/registrar_repository.dart';
 import '../features/staff_portal/domain/entities/checklist_item.dart';
+import '../features/class_sessions/domain/entities/class_session.dart';
+import '../features/class_sessions/domain/repositories/class_session_repository.dart';
 import '../features/notifications/domain/entities/app_notification.dart';
 import '../features/notifications/domain/repositories/notifications_repository.dart';
 import '../features/school_totals/domain/entities/school_totals.dart';
@@ -3399,6 +3401,267 @@ class DemoTermsRepository implements TermsRepository {
     _store.acceptedTerms.add({..._store.acceptedTerms.value, user.uid});
     return const Success(null);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Per-subject attendance
+// ---------------------------------------------------------------------------
+
+/// The register, in memory.
+///
+/// Mirrors what the three callables do server-side, including the two
+/// refusals worth demonstrating: a class that is not timetabled today
+/// cannot be started, and a register from an earlier day cannot be
+/// rewritten. A demo that let you do either would be showing a system
+/// that does not exist.
+class DemoClassSessionRepository implements ClassSessionRepository {
+  final DemoStore _store;
+  DemoClassSessionRepository(this._store);
+
+  String get _todayKey => _store.dateKeyOf(DateTime.now());
+
+  @override
+  Stream<List<ClassSession>> watchTodaysSessions() => _store.classSessions.stream
+      .map((all) => all.where((s) => s.date == _todayKey).toList());
+
+  @override
+  Stream<ClassSession?> watchSession(String sessionId) => _store.classSessions.stream
+      .map((all) => all.where((s) => s.id == sessionId).firstOrNull);
+
+  @override
+  Stream<List<SubjectAttendanceMark>> watchRoll(String sessionId) =>
+      _store.subjectAttendance.stream.map((all) {
+        final roll = all.where((m) => m.sessionId == sessionId).toList()
+          ..sort((a, b) => a.studentName.compareTo(b.studentName));
+        return roll;
+      });
+
+  @override
+  Stream<List<SubjectAttendanceMark>> watchStudentMarks(String studentId) =>
+      _store.subjectAttendance.stream.map((all) {
+        final mine = all.where((m) => m.studentId == studentId).toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
+        return mine;
+      });
+
+  @override
+  Future<Result<String>> openSession(String scheduleBlockId) async {
+    await _latency();
+    final block = _store.scheduleBlocks.value
+        .where((b) => b.id == scheduleBlockId)
+        .firstOrNull;
+    if (block == null) {
+      return const Error(ServerFailure('That class is not on the timetable.'));
+    }
+    final now = DateTime.now();
+    if (block.dayOfWeek != now.weekday) {
+      return Error(ServerFailure('\${block.subject} is not timetabled today.'));
+    }
+
+    final dateKey = _store.dateKeyOf(now);
+    final sessionId = '\${dateKey}_\$scheduleBlockId';
+    // Pressing Time In twice is what happens when the first press is
+    // slow and the teacher is holding a phone in front of a class. The
+    // second one must find the register, not replace it.
+    if (_store.classSessions.value.any((s) => s.id == sessionId)) {
+      return Success(sessionId);
+    }
+
+    final user = _store.requireUser;
+    final roster = _store.students.value
+        .where((s) => s.section == block.section && s.status == StudentStatus.enrolled)
+        .toList();
+
+    final marks = [
+      for (final student in roster)
+        SubjectAttendanceMark(
+          id: '\${sessionId}_\${student.id}',
+          sessionId: sessionId,
+          studentId: student.id,
+          studentName: student.fullName,
+          subject: block.subject,
+          section: block.section,
+          date: dateKey,
+          // Everybody present. Marking a register is marking exceptions.
+          status: AttendanceStatus.present,
+          timeIn: now,
+        ),
+    ];
+
+    _store.prepend(
+      _store.classSessions,
+      ClassSession(
+        id: sessionId,
+        scheduleBlockId: scheduleBlockId,
+        subject: block.subject,
+        section: block.section,
+        room: block.room,
+        date: dateKey,
+        teacherName: block.teacherName,
+        takenByUid: user.uid,
+        takenByName: user.fullName,
+        openedAt: now,
+        studentCount: marks.length,
+      ),
+    );
+    _store.subjectAttendance.add([...marks, ..._store.subjectAttendance.value]);
+
+    _store.audit(
+      module: 'classSessions',
+      action: 'time_in',
+      targetCollection: 'classSessions',
+      targetId: sessionId,
+      newValue: {
+        'subject': block.subject,
+        'section': block.section,
+        'studentCount': marks.length,
+      },
+    );
+    return Success(sessionId);
+  }
+
+  @override
+  Future<Result<void>> closeSession(String sessionId) async {
+    await _latency(250);
+    final session =
+        _store.classSessions.value.where((s) => s.id == sessionId).firstOrNull;
+    if (session == null) {
+      return const Error(ServerFailure('That class was never started.'));
+    }
+    if (!session.isOpen) return const Success(null);
+
+    final closedAt = DateTime.now();
+    // The students who were in the room get a time out. An absent
+    // student gets none, because they had no time in.
+    _store.subjectAttendance.add([
+      for (final mark in _store.subjectAttendance.value)
+        if (mark.sessionId == sessionId && mark.wasThere)
+          _copyMark(mark, timeOut: closedAt)
+        else
+          mark,
+    ]);
+
+    final marks = _store.subjectAttendance.value
+        .where((m) => m.sessionId == sessionId)
+        .toList();
+    _store.update<ClassSession>(
+      _store.classSessions,
+      (s) => s.id == sessionId,
+      (s) => _copySession(s, closedAt: closedAt, counts: RollCounts.of(marks)),
+    );
+
+    _store.audit(
+      module: 'classSessions',
+      action: 'time_out',
+      targetCollection: 'classSessions',
+      targetId: sessionId,
+      newValue: {'subject': session.subject, 'section': session.section},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> mark({
+    required String sessionId,
+    required String studentId,
+    required AttendanceStatus status,
+  }) async {
+    await _latency(150);
+    final session =
+        _store.classSessions.value.where((s) => s.id == sessionId).firstOrNull;
+    if (session == null) {
+      return const Error(ServerFailure('That class was never started.'));
+    }
+    // A register that stays editable for a term is not a record of what
+    // happened; it is a record of what somebody last thought.
+    if (session.date != _todayKey) {
+      return const Error(ServerFailure(
+        'This register is from an earlier day. Ask the registrar to amend it.',
+      ));
+    }
+
+    final now = DateTime.now();
+    final arriving =
+        status == AttendanceStatus.present || status == AttendanceStatus.late;
+    _store.subjectAttendance.add([
+      for (final mark in _store.subjectAttendance.value)
+        if (mark.sessionId == sessionId && mark.studentId == studentId)
+          SubjectAttendanceMark(
+            id: mark.id,
+            sessionId: mark.sessionId,
+            studentId: mark.studentId,
+            studentName: mark.studentName,
+            subject: mark.subject,
+            section: mark.section,
+            date: mark.date,
+            status: status,
+            timeIn: arriving ? (mark.timeIn ?? now) : null,
+            timeOut: arriving ? mark.timeOut : null,
+          )
+        else
+          mark,
+    ]);
+
+    // Keep a closed session's summary honest when the register is
+    // corrected afterwards.
+    if (!session.isOpen) {
+      final marks = _store.subjectAttendance.value
+          .where((m) => m.sessionId == sessionId)
+          .toList();
+      _store.update<ClassSession>(
+        _store.classSessions,
+        (s) => s.id == sessionId,
+        (s) => _copySession(s, closedAt: s.closedAt, counts: RollCounts.of(marks)),
+      );
+    }
+
+    _store.audit(
+      module: 'classSessions',
+      action: 'mark',
+      targetCollection: 'subjectAttendance',
+      targetId: '\${sessionId}_\$studentId',
+      newValue: {'status': status.value, 'studentId': studentId},
+    );
+    return const Success(null);
+  }
+
+  static SubjectAttendanceMark _copyMark(
+    SubjectAttendanceMark mark, {
+    DateTime? timeOut,
+  }) =>
+      SubjectAttendanceMark(
+        id: mark.id,
+        sessionId: mark.sessionId,
+        studentId: mark.studentId,
+        studentName: mark.studentName,
+        subject: mark.subject,
+        section: mark.section,
+        date: mark.date,
+        status: mark.status,
+        timeIn: mark.timeIn,
+        timeOut: timeOut ?? mark.timeOut,
+      );
+
+  static ClassSession _copySession(
+    ClassSession session, {
+    DateTime? closedAt,
+    RollCounts? counts,
+  }) =>
+      ClassSession(
+        id: session.id,
+        scheduleBlockId: session.scheduleBlockId,
+        subject: session.subject,
+        section: session.section,
+        room: session.room,
+        date: session.date,
+        teacherName: session.teacherName,
+        takenByUid: session.takenByUid,
+        takenByName: session.takenByName,
+        openedAt: session.openedAt,
+        studentCount: session.studentCount,
+        closedAt: closedAt ?? session.closedAt,
+        counts: counts ?? session.counts,
+      );
 }
 
 // ---------------------------------------------------------------------------

@@ -32,6 +32,19 @@ export const FirestorePaths = {
   attendance: (schoolId: string) => `schools/${schoolId}/attendance`,
   attendanceDoc: (schoolId: string, recordId: string) => `schools/${schoolId}/attendance/${recordId}`,
 
+  // Per-subject attendance. Two collections rather than one, because a
+  // session is a thing that happened to a class (it started at 7:32 and
+  // ran 48 minutes) and a mark is a thing that happened to a student.
+  // Folding the marks into the session document would cap a section at
+  // whatever fits in one megabyte and make "was this child in Physics
+  // all term" a scan of every session in the school.
+  classSessions: (schoolId: string) => `schools/${schoolId}/classSessions`,
+  classSessionDoc: (schoolId: string, sessionId: string) =>
+    `schools/${schoolId}/classSessions/${sessionId}`,
+  subjectAttendance: (schoolId: string) => `schools/${schoolId}/subjectAttendance`,
+  subjectAttendanceDoc: (schoolId: string, markId: string) =>
+    `schools/${schoolId}/subjectAttendance/${markId}`,
+
   payments: (schoolId: string) => `schools/${schoolId}/payments`,
   paymentDoc: (schoolId: string, paymentId: string) => `schools/${schoolId}/payments/${paymentId}`,
   // Claims of online payment awaiting a cashier's verification. Kept apart

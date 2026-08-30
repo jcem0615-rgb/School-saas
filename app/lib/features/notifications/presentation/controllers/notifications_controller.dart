@@ -59,21 +59,32 @@ final unreadNotificationCountProvider = Provider.autoDispose<int>((ref) {
 /// mark a notification read is not worth a snackbar over the top of the
 /// notification itself.
 class NotificationsActionController extends StateNotifier<AsyncValue<void>> {
-  final NotificationsRepository _repository;
+  /// Resolved per call rather than captured once, so this notifier
+  /// outlives the repository rebuilding -- which it does every time
+  /// `authStateProvider` emits, including in the middle of a write.
+  final NotificationsRepository Function() _repository;
+
   NotificationsActionController(this._repository) : super(const AsyncValue.data(null));
 
   Future<void> markRead(String id) async {
-    await _repository.markRead(id);
+    await _repository().markRead(id);
   }
 
   Future<void> markAllRead() async {
-    state = const AsyncValue.loading();
-    await _repository.markAllRead();
-    if (mounted) state = const AsyncValue.data(null);
+    _set(const AsyncValue.loading());
+    await _repository().markAllRead();
+    _set(const AsyncValue.data(null));
+  }
+
+  /// Assigning to a disposed notifier throws, and the symptom is a
+  /// button that appears to do nothing even though the write landed.
+  void _set(AsyncValue<void> next) {
+    if (mounted) state = next;
   }
 }
 
 final notificationsActionControllerProvider =
     StateNotifierProvider<NotificationsActionController, AsyncValue<void>>((ref) {
-  return NotificationsActionController(ref.watch(notificationsRepositoryProvider));
+  // `ref.read`, deliberately -- see the comment on the field above.
+  return NotificationsActionController(() => ref.read(notificationsRepositoryProvider));
 });

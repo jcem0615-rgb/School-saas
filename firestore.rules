@@ -856,6 +856,43 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // ---- per-subject attendance ----
+      // Two collections: the class the teacher opened, and the marks
+      // taken in it. Both are written only by the callables
+      // (openClassSession, closeClassSession, markSubjectAttendance) --
+      // the roll is built server-side from the section's enrolment, and
+      // a client that could write these could mark itself present in a
+      // lesson it never attended. `allow write: if false` is what makes
+      // the callables the only door.
+      match /classSessions/{sessionId} {
+        // Staff only. A session document is the class -- who taught it,
+        // when it ran, how the section came out. A student's own line
+        // in it is a mark, below, and that is what a family reads.
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && claims().role in ['director', 'principal', 'admin', 'registrar', 'faculty', 'guidance'];
+        allow write: if false;
+      }
+
+      match /subjectAttendance/{markId} {
+        // The same "self, staff-who-need-it, or linked parent" shape as
+        // gate attendance above. studentId is the students/{id} academic
+        // record, not an auth uid, so the student's own read resolves
+        // through that record's userId -- the same ID space every other
+        // student-scoped collection in this file uses.
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.studentId)).data.userId == request.auth.uid
+                        || claims().role in ['director', 'principal', 'admin', 'registrar', 'faculty', 'staff', 'guidance']
+                        || (claims().role == 'parent'
+                            && exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid))
+                            && resource.data.studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+        allow write: if false;
+      }
+
       // ---- students ----
       // Read access mirrors the "self, staff-who-need-it, or linked
       // parent" shape used by attendance and payments for consistency.

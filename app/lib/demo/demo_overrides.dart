@@ -24,6 +24,7 @@ import '../features/reports/presentation/controllers/reports_controller.dart';
 import '../features/schedules/presentation/controllers/schedule_controller.dart';
 import '../features/data_protection/presentation/controllers/data_protection_controller.dart';
 import '../features/system_check/presentation/controllers/system_check_controller.dart';
+import '../features/class_sessions/presentation/controllers/class_session_controller.dart';
 import '../features/notifications/presentation/controllers/notifications_controller.dart';
 import '../features/school_totals/presentation/controllers/school_totals_controller.dart';
 import '../features/staff_portal/presentation/controllers/staff_controller.dart';
@@ -141,6 +142,10 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
     // Watches auth as well as the store, so switching demo role re-reads
     // the inbox: notifications belong to a person, and the switcher
     // changes which person this is.
+    classSessionRepositoryProvider.overrideWith((ref) {
+      ref.watch(authStateProvider);
+      return DemoClassSessionRepository(ref.watch(demoStoreProvider));
+    }),
     notificationsRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoNotificationsRepository(ref.watch(demoStoreProvider));

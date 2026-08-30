@@ -32,6 +32,19 @@ export {onAnyTenantDocWrite} from "./triggers/audit/onAnyTenantDocWrite";
 export {markAttendance} from "./callable/attendance/markAttendance";
 
 // ---------------------------------------------------------------------------
+// Module: Per-subject attendance
+//
+// Gate attendance answers "did they come to school". These answer "were
+// they in Physics", which is what a subject teacher, a failing grade and
+// a worried parent all need. Callables rather than client writes,
+// because the roll is built server-side from the section's enrolment
+// and the register is the record a grade gets argued over.
+// ---------------------------------------------------------------------------
+export {openClassSession} from "./callable/classSessions/openClassSession";
+export {closeClassSession} from "./callable/classSessions/closeClassSession";
+export {markSubjectAttendance} from "./callable/classSessions/markSubjectAttendance";
+
+// ---------------------------------------------------------------------------
 // Module: Payments
 // ---------------------------------------------------------------------------
 export {recordPayment} from "./callable/payments/recordPayment";
