@@ -1,15 +1,23 @@
 # Publishes the web app to Vercel on every push to main.
 #
-# This exists because the Vercel project has no Git integration, and
-# connecting one is a dashboard action nobody had got to. Without it a
-# Vercel project has nothing to watch: pushing to main, merging, and
-# rebuilding all reach GitHub and stop there, and the site keeps serving
-# whichever manual upload was last made -- which is how logicclass.vercel.app
-# came to be thirteen app commits behind.
+# This was first written on the belief that the Vercel project had no Git
+# integration at all. That was wrong: `logicclass` is attached to this
+# repository and has been building every push. What it has not been doing
+# is *finishing* -- the builds fail, and a failed build leaves the
+# previous deployment serving, which is why the site sat on a commit from
+# 26 August while main ran twenty-nine ahead of it. "Nothing arrives" and
+# "everything arrives and dies in the build container" look identical
+# from outside, and only one of them is fixed by adding a workflow.
 #
-# So the push does the deploying instead. The Vercel CLI is given a token
-# and the ids of the project to publish into, which is the supported way
-# to target an existing project without `vercel link`.
+# It is fixed by this one either way, and that is why it stayed. Building
+# in CI uses a cached, purpose-built Flutter action instead of cloning
+# the SDK into a Vercel build container, which is the part that has to
+# survive there and evidently does not. Only finished files are handed
+# to Vercel, so nothing about its build image can break a deploy again.
+#
+# The Vercel CLI is given a token and the ids of the project to publish
+# into, which is the supported way to target an existing project without
+# `vercel link`.
 #
 # ## What has to exist before this works
 #
@@ -30,12 +38,23 @@
 # account shows a Project ID and no Team ID, because there is no team.
 # It exists all the same, and this is it.
 #
-# ## If the Git integration is connected later
+# ## Turn Vercel's own Git integration off
 #
-# Delete this workflow, or it and Vercel will both deploy every push and
-# the site will rebuild twice for no reason. The Git integration is the
-# better arrangement -- it gives preview deployments per branch, which
-# this does not.
+# Vercel project -> Settings -> Git -> Disconnect. Two reasons, and the
+# second is the one that bites:
+#
+#   * Both would deploy every push, and the site would rebuild twice.
+#   * While its builds keep failing, every push sends a failed-build
+#     notification for a deploy nobody is waiting on -- and a red mark
+#     that is always red is one nobody reads on the day it means
+#     something.
+#
+# The trade is real: the Git integration gives a preview deployment per
+# branch and this does not. It is worth having back if somebody works
+# out why the SDK install does not survive that build container.
+# `vercel.json` and `scripts/vercel-install.sh` stay in the repository
+# for exactly that -- they are the Vercel-side build, kept as the way
+# back rather than deleted.
 name: Deploy web
 
 on:

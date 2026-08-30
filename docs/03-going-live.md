@@ -123,15 +123,30 @@ Two arrangements are possible, and only one should be active at a time.
 **The Git integration** (Vercel project -> Settings -> Git, connected to
 this repository, production branch `main`). Vercel builds from source on
 every push using the `installCommand` and `buildCommand` in
-`vercel.json`. This is the better one: it also gives a preview
-deployment per branch.
+`vercel.json`, and gives a preview deployment per branch.
 
-**`.github/workflows/deploy-web.yml`**, which exists because that
-integration was never connected. A Vercel project with no repository
-attached has nothing to watch, so pushing, merging and rebuilding all
-reach GitHub and stop there while the site keeps serving whichever
-manual upload was last made. This workflow builds the app in CI and
-pushes the finished files to the project with the Vercel CLI.
+It is connected, and it does not work. Builds run and fail inside
+Vercel's build container, and a failed build leaves the previous
+deployment serving -- so `logicclass.vercel.app` served a commit from 26
+August while `main` ran twenty-nine commits ahead, with no outward sign
+that anything was wrong. This was misdiagnosed once as "the project has
+no Git integration", because from outside, a push that never arrives and
+a push that arrives and dies in the build look the same. Check the
+project's Deployments tab before believing either story.
+
+The likely culprit is `scripts/vercel-install.sh`, which clones the
+whole Flutter SDK into the build container and then has it download a
+Dart SDK on first run. That is a lot of disk and minutes for a Hobby
+build image. Unconfirmed: the build log says which, and it is one click
+from the failed deployment.
+
+**`.github/workflows/deploy-web.yml`**, which is the arrangement now in
+use. It builds the app in CI with a cached Flutter action -- no SDK
+clone, nothing for a build container to run out of -- and pushes the
+finished files to the project with the Vercel CLI. Turn the Git
+integration off (Settings -> Git -> Disconnect) when you enable this,
+or both will deploy and Vercel will keep sending failed-build mail for
+deploys nobody is waiting on.
 
 It needs **one** repository secret:
 
@@ -154,8 +169,10 @@ The job checks for the token before doing anything, rather than letting
 the CLI fail three steps later. A run that spends five minutes building
 before saying "no token" is five minutes nobody gets back.
 
-**If the Git integration is connected later, delete the workflow.** Both
+**If somebody fixes the Vercel-side build, delete the workflow.** Both
 would deploy every push, and the site would rebuild twice for no reason.
+`vercel.json` and `scripts/vercel-install.sh` are kept in the repository
+for that -- they are the way back, not dead files.
 
 ### Why it deploys built files rather than sources
 
