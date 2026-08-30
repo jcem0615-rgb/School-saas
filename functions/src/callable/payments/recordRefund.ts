@@ -48,13 +48,30 @@ export const recordRefund = onCall(
     if (!studentSnap.exists) {
       throw new HttpsError("not-found", "Student record not found.");
     }
-    const student = studentSnap.data()!;
 
     const refundAmount = original.amount as number;
-    const newBalance = applyRefund((student.balance as number) ?? 0, refundAmount);
     const refundRef = db.collection(FirestorePaths.payments(schoolId)).doc();
 
+    // Read inside the transaction, for the same reason recordPayment
+    // does: a refund and a payment landing on one student at the same
+    // moment both read the same starting balance otherwise, and one of
+    // the two silently disappears from the figure.
+    //
+    // The re-read of the original payment is what makes the
+    // already-refunded check hold too: the snapshot above can be stale by
+    // the time this runs, which would refund the same payment twice.
+    let newBalance = 0;
     await db.runTransaction(async (tx) => {
+      const freshOriginal = await tx.get(originalRef);
+      if (freshOriginal.data()?.status === "refunded") {
+        throw new HttpsError("failed-precondition", "This payment has already been refunded.");
+      }
+      const freshStudent = await tx.get(studentRef);
+      if (!freshStudent.exists) {
+        throw new HttpsError("not-found", "Student record not found.");
+      }
+      newBalance = applyRefund((freshStudent.data()?.balance as number) ?? 0, refundAmount);
+
       tx.update(originalRef, {
         status: "refunded",
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),

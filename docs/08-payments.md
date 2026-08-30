@@ -143,6 +143,61 @@ joins after the field trip — and the alternative is the office abandoning
 the schedule and typing everything by hand for the one student in ten who
 differs.
 
+## "The student paid but the balance is not deducting"
+
+Reported from a counter, and it had three separate causes. All of them
+produce the same thing a cashier sees: a receipt, and a balance that did
+not move.
+
+**A payment could be recorded against nobody.** Record Payment, opened
+without a student already chosen, took a typed ID and sent it. In demo
+mode the store's `update` silently matches nothing when the id is wrong,
+so the payment was appended, the audit entry written, the receipt handed
+over, and no student's balance touched. The natural mistake makes it
+happen: a cashier types the **student number** off the ID card
+(`2024-00051`) rather than the record id (`stu_001`).
+
+Three changes, because one alone leaves the hole open somewhere:
+
+- The screen resolves the ID against the roster before anything is sent,
+  accepting either the record id **or** the printed student number, and
+  shows the student's name, class and current balance. Record Payment
+  stays disabled until it names somebody.
+- The demo repository refuses an unknown student, the way the callable
+  already did with `not-found`.
+- The id sent is always the resolved record's id, never the typed text.
+
+The balance on that banner is the second half of it: a cashier keying an
+id had no confirmation they had reached the right record, and afterwards
+no figure to check the deduction against.
+
+**The balance was not rounded on the payment paths.** `applyPayment`
+rounds server-side, and the demo's assessment path rounds, but its
+payment, approval and refund paths did not. Three centavo-denominated
+payments left a balance of `1462.9900000000002`, which prints as
+`₱1,462.99` and fails every equality check made against it -- the worst
+combination for a figure a school reconciles against.
+
+**Two cashiers at once could lose one of the two payments.**
+`recordPayment` and `recordRefund` read the student's balance *before*
+opening their transaction, so two collections happening at the same
+counter both started from the same figure and the second write landed on
+top of the first. One payment banked, receipted, and absent from the
+balance. Both now read inside the transaction, which is what makes
+Firestore retry rather than overwrite -- `assessStudentFees`,
+`voidAssessment` and `decidePaymentSubmission` already did.
+
+`recordRefund` gained one more thing from that move: it re-reads the
+original payment inside the transaction, so the already-refunded check
+holds against a snapshot that could otherwise be stale by the time it
+runs.
+
+### What is not this bug
+
+An online payment submitted by a family deliberately does **not** move
+the balance. It moves when a cashier approves it, which is the whole
+point of the review step, and the confirmation dialog says so.
+
 ## Firestore collections touched
 
 ```

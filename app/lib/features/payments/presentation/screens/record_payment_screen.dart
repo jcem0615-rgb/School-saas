@@ -2,16 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../registrar_portal/domain/entities/student_summary.dart';
+import '../../../registrar_portal/presentation/controllers/registrar_controller.dart';
 import '../../domain/entities/payment.dart';
 import '../controllers/payment_controller.dart';
 import 'receipt_screen.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
 
-/// Accepts [studentId] and [studentName] as navigation params -- in the
-/// full app these come from the Registrar's Student Records screen (that
-/// module comes later in the build). Until then, this screen also accepts
-/// manual entry of a student ID so it's independently testable/usable.
+/// Accepts [studentId] and [studentName] as navigation params, from the
+/// Registrar's Student Records screen. Opened from the dashboard instead,
+/// the id is typed -- and then it has to be resolved against the roster
+/// before anything is recorded.
+///
+/// Typed entry accepts either the record's id or the student number
+/// printed on the ID card, because the number is what a cashier reads off
+/// the card in front of them. It used to accept neither in the sense that
+/// mattered: any string was taken, a receipt was issued, and nobody's
+/// balance moved. A payment that cannot name the student it is for is not
+/// a payment, so this screen will not send one.
 class RecordPaymentScreen extends ConsumerStatefulWidget {
   final String? studentId;
   final String? studentName;
@@ -29,10 +38,29 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   PaymentMethod _method = PaymentMethod.cash;
   PaymentPurpose _purpose = PaymentPurpose.tuition;
 
+  /// What is typed, held in state so the resolved student re-renders on
+  /// every keystroke rather than only when something else rebuilds.
+  String _typedId = '';
+
   @override
   void initState() {
     super.initState();
     _studentIdController = TextEditingController(text: widget.studentId ?? '');
+    _typedId = _studentIdController.text;
+  }
+
+  /// The roster row this payment is for, or null while the id matches
+  /// nothing. Matched on the record id or the printed student number.
+  StudentSummary? _resolve(List<StudentSummary> roster) {
+    final query = _typedId.trim().toLowerCase();
+    if (query.isEmpty) return null;
+    for (final s in roster) {
+      if (s.id.toLowerCase() == query ||
+          s.studentNumber.toLowerCase() == query) {
+        return s;
+      }
+    }
+    return null;
   }
 
   @override
@@ -46,12 +74,13 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   bool get _referenceRequired =>
       _method == PaymentMethod.gcash || _method == PaymentMethod.bankTransfer;
 
-  Future<void> _submit() async {
-    final studentId = _studentIdController.text.trim();
+  Future<void> _submit(StudentSummary student) async {
     final amount = double.tryParse(_amountController.text) ?? -1;
 
+    // The record's id, never what was typed: a cashier who entered the
+    // student number would otherwise send a value nothing matches.
     final outcome = await ref.read(paymentActionControllerProvider.notifier).recordPayment(
-          studentId: studentId,
+          studentId: student.id,
           amount: amount,
           method: _method,
           purpose: _purpose,
@@ -62,7 +91,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => ReceiptScreen(
-            studentId: studentId,
+            studentId: student.id,
             receiptNumber: outcome.receiptNumber,
           ),
         ),
@@ -73,9 +102,12 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final actionState = ref.watch(paymentActionControllerProvider);
-    final balanceAsync = widget.studentId != null
-        ? ref.watch(studentBalanceStreamProvider(widget.studentId!))
-        : null;
+    // The whole roster, watched rather than read: the balance shown below
+    // is the one from this stream, so it moves the moment the payment
+    // lands instead of waiting for the screen to be reopened.
+    final rosterAsync = ref.watch(studentsStreamProvider);
+    final roster = rosterAsync.valueOrNull ?? const <StudentSummary>[];
+    final student = _resolve(roster);
 
     ref.listen(paymentActionControllerProvider, (previous, next) {
       if (next case AsyncError(:final error)) {
@@ -94,23 +126,20 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (widget.studentName != null) ...[
-                Text(widget.studentName!, style: Theme.of(context).textTheme.titleLarge),
-                if (balanceAsync != null)
-                  balanceAsync.when(
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                    data: (balance) => Text(
-                      'Current balance: ${_currencyFormat.format(balance)}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                const SizedBox(height: 16),
-              ],
               TextField(
                 controller: _studentIdController,
                 enabled: widget.studentId == null,
-                decoration: const InputDecoration(labelText: 'Student ID'),
+                onChanged: (v) => setState(() => _typedId = v),
+                decoration: const InputDecoration(
+                  labelText: 'Student ID',
+                  helperText: 'The record ID or the number on the ID card.',
+                ),
+              ),
+              const SizedBox(height: 12),
+              _StudentBanner(
+                student: student,
+                typed: _typedId.trim(),
+                loading: rosterAsync.isLoading,
               ),
               const SizedBox(height: 12),
               TextField(
@@ -147,7 +176,13 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
               ],
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: actionState.isLoading ? null : _submit,
+                // Disabled until the id names somebody. Recording a
+                // payment against nobody is the failure this screen
+                // exists to prevent, and a disabled button says so
+                // earlier than an error would.
+                onPressed: actionState.isLoading || student == null
+                    ? null
+                    : () => _submit(student),
                 style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
                 child: actionState.isLoading
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
@@ -156,6 +191,97 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Who the money is being taken from, and what they owe right now.
+///
+/// The balance is the point of this: a cashier keying an id has no other
+/// confirmation that they reached the right record, and after the payment
+/// it is the figure that proves the deduction happened.
+class _StudentBanner extends StatelessWidget {
+  final StudentSummary? student;
+  final String typed;
+  final bool loading;
+
+  const _StudentBanner({
+    required this.student,
+    required this.typed,
+    required this.loading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    if (student == null) {
+      final waiting = typed.isEmpty || loading;
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: waiting
+              ? scheme.surfaceContainerHighest
+              : scheme.errorContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              waiting ? Icons.badge_outlined : Icons.person_off_outlined,
+              size: 20,
+              color: waiting ? scheme.onSurfaceVariant : scheme.onErrorContainer,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                waiting
+                    ? 'Enter the student ID to see who this payment is for.'
+                    : 'No student has that ID. Nothing will be recorded.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color:
+                      waiting ? scheme.onSurfaceVariant : scheme.onErrorContainer,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final s = student!;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            s.fullName,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: scheme.onSecondaryContainer,
+            ),
+          ),
+          Text(
+            '${s.studentNumber} - ${s.classLabel}',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: scheme.onSecondaryContainer),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Current balance: ${_currencyFormat.format(s.balance)}',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: scheme.onSecondaryContainer,
+            ),
+          ),
+        ],
       ),
     );
   }

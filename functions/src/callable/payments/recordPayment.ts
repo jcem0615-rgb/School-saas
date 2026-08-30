@@ -61,19 +61,32 @@ export const recordPayment = onCall(
     if (!studentSnap.exists) {
       throw new HttpsError("not-found", "Student record not found.");
     }
-    const student = studentSnap.data()!;
-
-    // Authorization needs the student record (to check ownership/linkage),
-    // so it happens here rather than at the top of the handler.
+    // Authorization happens after the student is known to exist, so a
+    // mistyped id fails as not-found rather than as a permission error.
     await authorizePayer(callerClaims.role);
 
     const sequence = await getNextSequence(schoolId, "receiptNumber");
     const receiptNumber = formatReceiptNumber(sequence, new Date().getFullYear());
 
     const paymentRef = db.collection(FirestorePaths.payments(schoolId)).doc();
-    const newBalance = applyPayment((student.balance as number) ?? 0, amount);
 
+    // The balance is read inside the transaction, not from the snapshot
+    // fetched above. Two cashiers taking money from two families at the
+    // same counter both read the same starting figure otherwise, and the
+    // second write lands on top of the first -- one payment receipted,
+    // banked, and not deducted. Reading here makes Firestore retry the
+    // transaction instead, which is the whole reason it exists.
+    //
+    // The snapshot above is still worth having: it fails a bad student id
+    // before a receipt number is burned from the counter.
+    let newBalance = 0;
     await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(studentRef);
+      if (!fresh.exists) {
+        throw new HttpsError("not-found", "Student record not found.");
+      }
+      newBalance = applyPayment((fresh.data()?.balance as number) ?? 0, amount);
+
       tx.set(paymentRef, {
         id: paymentRef.id,
         schoolId,

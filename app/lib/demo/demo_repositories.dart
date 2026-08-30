@@ -2049,6 +2049,20 @@ class DemoPaymentRepository implements PaymentRepository {
     if (amount <= 0) {
       return const Error(ValidationFailure('Amount must be greater than zero.'));
     }
+    // The student is looked up before anything is written, because
+    // _store.update silently matches nothing when the id is wrong -- so
+    // without this a payment against a mistyped id produced a receipt,
+    // an audit entry and no deduction anywhere. That is exactly what a
+    // cashier reports as "the balance is not deducting": the money was
+    // recorded, just not against this student. The real callable refuses
+    // it with not-found; this refuses it too.
+    final student =
+        _store.students.value.where((s) => s.id == studentId).firstOrNull;
+    if (student == null) {
+      return const Error(
+        ValidationFailure('No student has that ID. Check it and try again.'),
+      );
+    }
     final id = _store.nextId('pay');
     final receiptNumber =
         'OR-${DateTime.now().year}-${(_store.payments.value.length + 1).toString().padLeft(6, '0')}';
@@ -2077,7 +2091,7 @@ class DemoPaymentRepository implements PaymentRepository {
       _store.students,
       (s) => s.id == studentId,
       (s) {
-        newBalance = s.balance - amount;
+        newBalance = _round2(s.balance - amount);
         return _copyStudent(s, balance: newBalance);
       },
     );
@@ -2205,7 +2219,7 @@ class DemoPaymentRepository implements PaymentRepository {
       _store.update<StudentSummary>(
         _store.students,
         (s) => s.id == submission.studentId,
-        (s) => _copyStudent(s, balance: s.balance - submission.amount),
+        (s) => _copyStudent(s, balance: _round2(s.balance - submission.amount)),
       );
     }
 
@@ -2330,7 +2344,7 @@ class DemoPaymentRepository implements PaymentRepository {
     _store.update<StudentSummary>(
       _store.students,
       (s) => s.id == original.studentId,
-      (s) => _copyStudent(s, balance: s.balance + original.amount),
+      (s) => _copyStudent(s, balance: _round2(s.balance + original.amount)),
     );
     _store.audit(
       module: 'payments',
