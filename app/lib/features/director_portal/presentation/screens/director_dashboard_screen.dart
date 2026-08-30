@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../school_totals/presentation/widgets/school_totals_card.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -109,6 +110,8 @@ class DirectorDashboardScreen extends ConsumerWidget {
                 }),
               ),
               const SizedBox(height: 32),
+              const SchoolTotalsCard(),
+              const SizedBox(height: 20),
               Text('Manage', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
               Wrap(

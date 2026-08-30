@@ -1,4 +1,5 @@
 import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
+import '../../../school_totals/presentation/widgets/school_totals_card.dart';
 import 'package:go_router/go_router.dart';
 import '../../../schedules/presentation/screens/schedule_screen.dart';
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
@@ -61,6 +62,8 @@ class PrincipalDashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SchoolTotalsCard(),
+            const SizedBox(height: 20),
             Text('Manage', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
             Wrap(

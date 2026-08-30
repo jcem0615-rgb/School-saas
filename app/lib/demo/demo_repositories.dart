@@ -65,6 +65,8 @@ import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/registrar_portal/domain/repositories/registrar_repository.dart';
 import '../features/staff_portal/domain/entities/checklist_item.dart';
+import '../features/school_totals/domain/entities/school_totals.dart';
+import '../features/school_totals/domain/repositories/school_totals_repository.dart';
 import '../features/staff_portal/domain/entities/daily_report.dart';
 import '../features/staff_portal/domain/repositories/staff_repository.dart';
 import '../features/student_portal/domain/repositories/student_repository.dart';
@@ -3337,6 +3339,52 @@ class DemoDataProtectionRepository implements DataProtectionRepository {
 /// against an in-memory store is a green light that means nothing, shown
 /// to the one person who most needs it to mean something -- so demo mode
 /// says so and checks nothing at all.
+// ---------------------------------------------------------------------------
+// School totals
+// ---------------------------------------------------------------------------
+
+class DemoSchoolTotalsRepository implements SchoolTotalsRepository {
+  final DemoStore _store;
+  DemoSchoolTotalsRepository(this._store);
+
+  /// The same list the real datasource uses. A Principal is division
+  /// oversight and does not see money, here as there -- a demo that
+  /// showed them a balance would be demonstrating a boundary the real
+  /// app does not have.
+  static const _moneyRoles = {UserRole.director, UserRole.admin, UserRole.registrar};
+
+  @override
+  Future<Result<SchoolTotals>> fetch() async {
+    await _latency(400);
+    final user = _store.requireUser;
+
+    // The demo store has no per-account division scope, so every reader
+    // sees the whole school. Said in the entity rather than faked: a
+    // division field invented here would demonstrate scoping that this
+    // store cannot actually apply.
+    final students = _store.students.value;
+    final active =
+        students.where((s) => s.status == StudentStatus.enrolled).length;
+
+    if (!_moneyRoles.contains(user.role)) {
+      return Success(SchoolTotals(activeStudents: active));
+    }
+
+    final owing = students.where((s) => s.balance > 0).toList();
+    final monthStart = DateTime(_store.now.year, _store.now.month);
+    final collected = _store.payments.value
+        .where((p) => !p.createdAt.isBefore(monthStart))
+        .fold<double>(0, (sum, p) => sum + p.amount);
+
+    return Success(SchoolTotals(
+      activeStudents: active,
+      outstanding: _round2(owing.fold<double>(0, (sum, s) => sum + s.balance)),
+      studentsOwing: owing.length,
+      collectedThisMonth: _round2(collected),
+    ));
+  }
+}
+
 class DemoSystemCheckRepository implements SystemCheckRepository {
   DemoSystemCheckRepository();
 
