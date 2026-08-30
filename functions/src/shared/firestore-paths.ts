@@ -33,6 +33,15 @@ export const FirestorePaths = {
   // the school's.
   leaveRequests: (schoolId: string) => `schools/${schoolId}/leaveRequests`,
 
+  // Parent-teacher messaging. Messages are a subcollection because
+  // they are only ever read through their conversation -- there is no
+  // "all messages in the school" screen, and there must not be.
+  conversations: (schoolId: string) => `schools/${schoolId}/conversations`,
+  conversationDoc: (schoolId: string, conversationId: string) =>
+    `schools/${schoolId}/conversations/${conversationId}`,
+  messages: (schoolId: string, conversationId: string) =>
+    `schools/${schoolId}/conversations/${conversationId}/messages`,
+
   auditLog: (schoolId: string) => `schools/${schoolId}/auditLog`,
 
   attendance: (schoolId: string) => `schools/${schoolId}/attendance`,

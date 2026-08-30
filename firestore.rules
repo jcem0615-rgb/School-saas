@@ -256,6 +256,79 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // ---- parent-teacher messaging ----
+      // Whether these two people may talk at all was decided by the
+      // startConversation callable, because deciding it needs a query
+      // (which of this teacher's assignments covers that section) and
+      // rules can only fetch a document by path. By the time anything
+      // here runs, membership is a field on a document, which rules can
+      // police.
+      //
+      // Nobody but the two participants can read a conversation -- not
+      // an admin, not the director. A message between a parent and a
+      // teacher is between the two of them; a school that needs to see
+      // one has a lawful-request path and an audit trail, not a back
+      // door that would quietly make every such conversation readable
+      // by the office.
+      match /conversations/{conversationId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && request.auth.uid in resource.data.participantUids;
+
+        // Server-written. The summary is what each side's list is
+        // sorted and badged by, so a client that could write it could
+        // push its own thread to the top of somebody's list, or mark
+        // its messages read on their behalf.
+        allow create, delete: if false;
+
+        // One exception: clearing your own unread count when you open
+        // the thread. Yours only, and to zero only -- the other
+        // person's count must come back unchanged.
+        // Written out for both participants rather than looped over,
+        // because rules have no loops -- and because being explicit is
+        // what makes it checkable: mine goes to zero, theirs comes back
+        // exactly as it was. Without the second half, "I read it"
+        // becomes "you read it" and the other side's badge disappears
+        // without them ever opening the thread.
+        allow update: if belongsToSchool(schoolId)
+                        && schoolIsAccessible(schoolId)
+                        && request.auth.uid in resource.data.participantUids
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['unread'])
+                        && request.resource.data.unread.get(resource.data.teacherUid, 0) ==
+                             (request.auth.uid == resource.data.teacherUid
+                               ? 0
+                               : resource.data.unread.get(resource.data.teacherUid, 0))
+                        && request.resource.data.unread.get(resource.data.parentUid, 0) ==
+                             (request.auth.uid == resource.data.parentUid
+                               ? 0
+                               : resource.data.unread.get(resource.data.parentUid, 0));
+
+        match /messages/{messageId} {
+          allow read: if belongsToSchool(schoolId)
+                        && schoolIsAccessible(schoolId)
+                        && request.auth.uid in
+                           get(/databases/$(database)/documents/schools/$(schoolId)/conversations/$(conversationId)).data.participantUids;
+
+          // An ordinary client write, because by here the hard question
+          // is already answered. The sender is pinned to the caller so
+          // nobody puts words in the other person's mouth.
+          allow create: if belongsToSchool(schoolId)
+                          && schoolIsAccessible(schoolId)
+                          && request.auth.uid in
+                             get(/databases/$(database)/documents/schools/$(schoolId)/conversations/$(conversationId)).data.participantUids
+                          && request.resource.data.senderUid == request.auth.uid
+                          && request.resource.data.text is string
+                          && request.resource.data.text.size() > 0
+                          && request.resource.data.text.size() <= 4000;
+
+          // A message is not edited and not unsent. It is the record of
+          // what was said, and a thread either side could rewrite
+          // afterwards is worth nothing to either of them.
+          allow update, delete: if false;
+        }
+      }
+
       // ---- employee leave ----
       // Its own collection rather than a row in the generic approvals
       // queue, for two reasons that are not about tidiness: the

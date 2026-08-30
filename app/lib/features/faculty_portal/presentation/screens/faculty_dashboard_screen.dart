@@ -129,6 +129,11 @@ class FacultyDashboardScreen extends StatelessWidget {
                       .push(MaterialPageRoute(builder: (_) => const AnnouncementsScreen())),
                 ),
                 GlassTile(
+                icon: Icons.forum_outlined,
+                label: 'Messages',
+                onTap: () => context.push('/messages'),
+                ),
+                GlassTile(
                   icon: Icons.event_busy_outlined,
                   label: 'My Leave',
                   onTap: () => context.push('/my-leave'),

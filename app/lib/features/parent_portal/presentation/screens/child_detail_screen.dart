@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../messaging/presentation/screens/conversations_screen.dart';
 import '../../../class_sessions/presentation/screens/subject_attendance_screen.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
 import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
@@ -98,6 +99,13 @@ class ChildDetailScreen extends StatelessWidget {
               // answer different questions -- "did they come to school"
               // and "were they in the lesson" -- and a family that has
               // been told about a failing subject is asking the second.
+              _ActionChip(
+                icon: Icons.forum_outlined,
+                label: 'Message a Teacher',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ConversationsScreen()),
+                ),
+              ),
               _ActionChip(
                 icon: Icons.how_to_reg_outlined,
                 label: 'By Subject',

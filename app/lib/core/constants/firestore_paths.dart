@@ -138,6 +138,13 @@ class FirestorePaths {
   /// able to read their own without being able to read the school's.
   static String leaveRequests(String schoolId) => '${school(schoolId)}/leaveRequests';
 
+  /// Parent-teacher messaging. Messages are a subcollection of their
+  /// conversation because they are only ever read through it: there is
+  /// no "all messages in the school" screen, and there must not be.
+  static String conversations(String schoolId) => '${school(schoolId)}/conversations';
+  static String messages(String schoolId, String conversationId) =>
+      '${conversations(schoolId)}/$conversationId/messages';
+
   static String auditLog(String schoolId) => '${school(schoolId)}/auditLog';
 
   static String documents(String schoolId) => '${school(schoolId)}/documents';

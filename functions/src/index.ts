@@ -97,6 +97,17 @@ export {onSummonsWritten} from "./triggers/guidance/onSummonsWritten";
 // ---------------------------------------------------------------------------
 export {onLeaveRequestDecided} from "./triggers/leave/onLeaveRequestDecided";
 
+// ---------------------------------------------------------------------------
+// Module: Parent-teacher messaging
+//
+// Starting a thread is a callable because deciding whether these two
+// people may talk needs a query, and rules cannot query. Everything
+// after that is an ordinary client write, policed by membership of the
+// conversation this produced.
+// ---------------------------------------------------------------------------
+export {startConversation} from "./callable/messaging/startConversation";
+export {onMessageCreated} from "./triggers/messaging/onMessageCreated";
+
 // Additional modules (billing, attendance, payments, ...)
 // export their callables/triggers/scheduled functions here as each module
 // is implemented, keeping this file as the single index of everything

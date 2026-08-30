@@ -24,6 +24,7 @@ import '../../features/parent_portal/presentation/screens/parent_dashboard_scree
 import '../../features/payments/presentation/screens/payment_history_screen.dart';
 import '../../features/payments/presentation/screens/record_payment_screen.dart';
 import '../../features/principal_portal/presentation/screens/principal_dashboard_screen.dart';
+import '../../features/messaging/presentation/screens/conversations_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/timekeeping/presentation/screens/leave_requests_screen.dart';
 import '../../features/timekeeping/presentation/screens/my_leave_screen.dart';
@@ -57,6 +58,7 @@ class AppRoutes {
   static const acceptTerms = '/terms/accept';
   static const profile = '/profile';
   static const notifications = '/notifications';
+  static const messages = '/messages';
   static const myLeave = '/my-leave';
   static const myTimesheet = '/my-timesheet';
   static const leaveRequests = '/leave-requests';
@@ -204,6 +206,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.notifications,
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      // Routed because a new message links here from the notification
+      // inbox, and a push whose link goes nowhere is worse than no link.
+      GoRoute(
+        path: AppRoutes.messages,
+        builder: (context, state) => const ConversationsScreen(),
       ),
       // Employee timekeeping. My Leave is routed rather than only
       // pushed because a leave decision notification links straight to

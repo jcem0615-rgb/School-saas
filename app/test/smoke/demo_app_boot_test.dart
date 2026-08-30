@@ -197,6 +197,7 @@ void main() {
       AppRoutes.myActivity,
       AppRoutes.profile,
       AppRoutes.notifications,
+      AppRoutes.messages,
       AppRoutes.myLeave,
       AppRoutes.myTimesheet,
       AppRoutes.leaveRequests,

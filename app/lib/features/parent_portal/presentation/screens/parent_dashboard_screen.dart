@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../messaging/presentation/controllers/messaging_controller.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
@@ -38,6 +39,23 @@ class ParentDashboardScreen extends ConsumerWidget {
             tooltip: 'My Activity',
             onPressed: () => Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
+          ),
+          // Badged, because the point of a message from a teacher is
+          // that it is waiting, and an unbadged icon is one nobody taps
+          // on the day it matters.
+          Consumer(
+            builder: (context, ref, _) {
+              final unread = ref.watch(unreadMessageCountProvider);
+              return IconButton(
+                icon: Badge(
+                  label: Text(unread > 99 ? '99+' : '$unread'),
+                  isLabelVisible: unread > 0,
+                  child: const Icon(Icons.forum_outlined),
+                ),
+                tooltip: unread == 0 ? 'Messages' : 'Messages, $unread unread',
+                onPressed: () => context.push('/messages'),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.campaign_outlined),

@@ -117,6 +117,29 @@ void main() {
       );
     });
 
+    test('two classes on the same day are two registers', () async {
+      // The bug this exists for made every session share one id, and
+      // stayed invisible because everything compared equal to
+      // everything else -- opening any class showed the same register.
+      final container = await signedInAs(UserRole.faculty);
+      final store = container.read(demoStoreProvider);
+      final maths = addTodaysClass(store, subject: 'Mathematics');
+      final science = addTodaysClass(store, subject: 'Science');
+      final controller = actions(container);
+
+      final first = await controller.openSession(maths.id);
+      final second = await controller.openSession(science.id);
+
+      expect(first, isNotNull);
+      expect(second, isNotNull);
+      expect(first, isNot(second));
+      expect(first, contains(maths.id));
+      expect(second, contains(science.id));
+      // And two rolls, not one shared between them.
+      expect(rollOf(store, first!).first.subject, 'Mathematics');
+      expect(rollOf(store, second!).first.subject, 'Science');
+    });
+
     test('refuses a class that is not timetabled today', () async {
       final container = await signedInAs(UserRole.faculty);
       final store = container.read(demoStoreProvider);

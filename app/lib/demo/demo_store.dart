@@ -26,6 +26,7 @@ import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
 import '../features/class_sessions/domain/entities/class_session.dart';
+import '../features/messaging/domain/entities/conversation.dart';
 import '../features/notifications/domain/entities/app_notification.dart';
 import '../features/timekeeping/domain/entities/leave_request.dart';
 import '../features/timekeeping/domain/entities/timesheet.dart' show workingDaysBetween;
@@ -207,6 +208,17 @@ class DemoStore {
   late final auditLog = BehaviorSubject<List<AuditLogEntry>>.seeded(_seedAuditLog());
   late final leaveRequests =
       BehaviorSubject<List<LeaveRequest>>.seeded(_seedLeaveRequests());
+
+  /// Parent-teacher threads, and the messages in them.
+  ///
+  /// Messages keyed by conversation rather than held in one flat list,
+  /// because that is the shape they have in Firestore -- a subcollection
+  /// of their thread -- and because there is no screen anywhere that
+  /// reads "every message in the school", nor should there be.
+  late final conversations =
+      BehaviorSubject<List<Conversation>>.seeded(_seedConversations());
+  late final messages =
+      BehaviorSubject<Map<String, List<Message>>>.seeded(_seedMessages());
 
   /// The register: the classes teachers have opened, and the marks taken
   /// in them. Seeded together, because a mark without its session is a
@@ -517,6 +529,7 @@ class DemoStore {
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog, notifications,
       classSessions, subjectAttendance, leaveRequests,
+      conversations, messages,
       paymentSubmissions, paymentSettings, branding, documentReleases,
       feeStructures, assessments, scheduleBlocks, dataRequests,
       acknowledgedPrivacy, acceptedTerms,
@@ -1996,6 +2009,73 @@ class DemoStore {
 
   List<GuidanceRecord> get _extraSectionRecord => [];
 
+  /// The demo conversation id, in the same shape the callable derives:
+  /// one thread per teacher, parent and child.
+  static const _demoConversationId = 'u_faculty__u_parent__stu_001';
+
+  /// A thread already in progress, because an empty inbox demonstrates
+  /// nothing: the first thing a visitor wants to see is what a
+  /// conversation between a teacher and a parent actually looks like.
+  List<Conversation> _seedConversations() => [
+        Conversation(
+          id: _demoConversationId,
+          participantUids: const ['u_faculty', 'u_parent'],
+          teacherUid: 'u_faculty',
+          teacherName: 'Maria Santos',
+          parentUid: 'u_parent',
+          parentName: 'Rosario Torres',
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+          section: 'Grade 10 - Rizal',
+          lastMessage: 'Thank you po. I will talk to him tonight.',
+          lastMessageAt: _atHour(1, 19, 42),
+          lastSenderUid: 'u_parent',
+          // Waiting on the teacher, so signing in as Maria shows a badge
+          // rather than a list that looks already dealt with.
+          unread: const {'u_faculty': 1, 'u_parent': 0},
+        ),
+      ];
+
+  Map<String, List<Message>> _seedMessages() => {
+        _demoConversationId: [
+          Message(
+            id: 'msg_001',
+            senderUid: 'u_faculty',
+            senderName: 'Maria Santos',
+            senderRole: 'faculty',
+            text: 'Good afternoon po. Miguel has missed three Science classes '
+                'this week. Is everything alright at home?',
+            sentAt: _atHour(1, 16, 10),
+          ),
+          Message(
+            id: 'msg_002',
+            senderUid: 'u_parent',
+            senderName: 'Rosario Torres',
+            senderRole: 'parent',
+            text: 'Good afternoon Ma\'am. He had a fever Monday and Tuesday, '
+                'we have the medical certificate. Wednesday I am not sure.',
+            sentAt: _atHour(1, 18, 25),
+          ),
+          Message(
+            id: 'msg_003',
+            senderUid: 'u_faculty',
+            senderName: 'Maria Santos',
+            senderRole: 'faculty',
+            text: 'Thank you for telling me. Please send the certificate to '
+                'the office and I will mark those two excused.',
+            sentAt: _atHour(1, 19, 5),
+          ),
+          Message(
+            id: 'msg_004',
+            senderUid: 'u_parent',
+            senderName: 'Rosario Torres',
+            senderRole: 'parent',
+            text: 'Thank you po. I will talk to him tonight.',
+            sentAt: _atHour(1, 19, 42),
+          ),
+        ],
+      };
+
   /// One of each outcome, so the office's queue is not empty and the
   /// history above it is not either.
   ///
@@ -2123,7 +2203,7 @@ class DemoStore {
             block.startMinute ~/ 60, (block.startMinute % 60) + 2);
         final closedAt = DateTime(day.year, day.month, day.day,
             block.endMinute ~/ 60, block.endMinute % 60);
-        final sessionId = '\${dateKey}_\${block.id}';
+        final sessionId = '${dateKey}_${block.id}';
 
         final sessionMarks = <SubjectAttendanceMark>[];
         for (final student in roster) {
@@ -2135,7 +2215,7 @@ class DemoStore {
           final wasThere = status == AttendanceStatus.present ||
               status == AttendanceStatus.late;
           sessionMarks.add(SubjectAttendanceMark(
-            id: '\${sessionId}_\${student.id}',
+            id: '${sessionId}_${student.id}',
             sessionId: sessionId,
             studentId: student.id,
             studentName: student.fullName,

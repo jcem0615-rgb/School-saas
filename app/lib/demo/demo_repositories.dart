@@ -70,6 +70,8 @@ import '../features/registrar_portal/domain/repositories/registrar_repository.da
 import '../features/staff_portal/domain/entities/checklist_item.dart';
 import '../features/class_sessions/domain/entities/class_session.dart';
 import '../features/class_sessions/domain/repositories/class_session_repository.dart';
+import '../features/messaging/domain/entities/conversation.dart';
+import '../features/messaging/domain/repositories/messaging_repository.dart';
 import '../features/notifications/domain/entities/app_notification.dart';
 import '../features/timekeeping/domain/entities/leave_request.dart';
 import '../features/timekeeping/domain/repositories/timekeeping_repository.dart';
@@ -3462,11 +3464,11 @@ class DemoClassSessionRepository implements ClassSessionRepository {
     }
     final now = DateTime.now();
     if (block.dayOfWeek != now.weekday) {
-      return Error(ServerFailure('\${block.subject} is not timetabled today.'));
+      return Error(ServerFailure('${block.subject} is not timetabled today.'));
     }
 
     final dateKey = _store.dateKeyOf(now);
-    final sessionId = '\${dateKey}_\$scheduleBlockId';
+    final sessionId = '${dateKey}_$scheduleBlockId';
     // Pressing Time In twice is what happens when the first press is
     // slow and the teacher is holding a phone in front of a class. The
     // second one must find the register, not replace it.
@@ -3482,7 +3484,7 @@ class DemoClassSessionRepository implements ClassSessionRepository {
     final marks = [
       for (final student in roster)
         SubjectAttendanceMark(
-          id: '\${sessionId}_\${student.id}',
+          id: '${sessionId}_${student.id}',
           sessionId: sessionId,
           studentId: student.id,
           studentName: student.fullName,
@@ -3626,7 +3628,7 @@ class DemoClassSessionRepository implements ClassSessionRepository {
       module: 'classSessions',
       action: 'mark',
       targetCollection: 'subjectAttendance',
-      targetId: '\${sessionId}_\$studentId',
+      targetId: '${sessionId}_$studentId',
       newValue: {'status': status.value, 'studentId': studentId},
     );
     return const Success(null);
@@ -3668,6 +3670,237 @@ class DemoClassSessionRepository implements ClassSessionRepository {
         studentCount: session.studentCount,
         closedAt: closedAt ?? session.closedAt,
         counts: counts ?? session.counts,
+      );
+}
+
+// ---------------------------------------------------------------------------
+// Parent-teacher messaging
+// ---------------------------------------------------------------------------
+
+/// Threads, in memory.
+///
+/// Mirrors the two refusals the real system makes, because they are the
+/// feature: a teacher may only be reached about a class they teach, and
+/// a parent only about their own child. A demo that let anybody message
+/// anybody would be showing a system that does not exist -- and this is
+/// the one place where the difference is somebody's private
+/// conversation.
+class DemoMessagingRepository implements MessagingRepository {
+  final DemoStore _store;
+  DemoMessagingRepository(this._store);
+
+  String? get _uid => _store.currentUser.valueOrNull?.uid;
+
+  @override
+  Stream<List<Conversation>> watchMyConversations() =>
+      _store.conversations.stream.map((all) {
+        final uid = _uid;
+        if (uid == null) return const <Conversation>[];
+        final mine =
+            all.where((c) => c.participantUids.contains(uid)).toList()
+              ..sort((a, b) {
+                final at = a.lastMessageAt;
+                final bt = b.lastMessageAt;
+                if (at == null && bt == null) return 0;
+                if (at == null) return 1;
+                if (bt == null) return -1;
+                return bt.compareTo(at);
+              });
+        return mine;
+      });
+
+  @override
+  Stream<List<Message>> watchMessages(String conversationId) =>
+      _store.messages.stream
+          .map((all) => all[conversationId] ?? const <Message>[]);
+
+  @override
+  Future<Result<String>> startConversation({
+    required String studentId,
+    required String otherUid,
+  }) async {
+    await _latency(400);
+    final me = _store.currentUser.valueOrNull;
+    if (me == null) {
+      return const Error(AuthFailure('no-user', 'Nobody is signed in.'));
+    }
+
+    // Which of the two is the teacher comes from the signed-in account,
+    // never from the request.
+    final String teacherUid;
+    final String parentUid;
+    if (me.role == UserRole.parent) {
+      parentUid = me.uid;
+      teacherUid = otherUid;
+    } else if (me.role == UserRole.faculty) {
+      teacherUid = me.uid;
+      parentUid = otherUid;
+    } else {
+      return const Error(ServerFailure(
+        'Only a teacher and a parent can open a conversation.',
+      ));
+    }
+
+    final student =
+        _store.students.value.where((s) => s.id == studentId).firstOrNull;
+    if (student == null) {
+      return const Error(ServerFailure('That student is not on the roll.'));
+    }
+
+    final parent = DemoStore.demoAccounts
+        .where((a) => a.uid == parentUid && a.role == UserRole.parent)
+        .firstOrNull;
+    if (parent == null ||
+        !(parent.linkedStudentIds ?? const []).contains(studentId)) {
+      return const Error(
+        ServerFailure('That parent is not linked to that student.'),
+      );
+    }
+
+    final teaches = _store.assignments.value.any((a) =>
+        a.teacherId == teacherUid &&
+        a.section.trim().toLowerCase() == student.section.trim().toLowerCase());
+    if (!teaches) {
+      return Error(ServerFailure(
+        'That teacher does not teach ${student.firstName}\'s class.',
+      ));
+    }
+
+    final id = '${teacherUid}__${parentUid}__$studentId';
+    final existing =
+        _store.conversations.value.where((c) => c.id == id).firstOrNull;
+    if (existing != null) return Success(id);
+
+    final teacherName = _store.assignments.value
+            .where((a) => a.teacherId == teacherUid)
+            .map((a) => a.teacherName)
+            .firstOrNull ??
+        'Teacher';
+
+    _store.prepend(
+      _store.conversations,
+      Conversation(
+        id: id,
+        participantUids: [teacherUid, parentUid],
+        teacherUid: teacherUid,
+        teacherName: teacherName,
+        parentUid: parentUid,
+        parentName: parent.fullName,
+        studentId: studentId,
+        studentName: student.fullName,
+        section: student.section,
+        unread: {teacherUid: 0, parentUid: 0},
+      ),
+    );
+    return Success(id);
+  }
+
+  @override
+  Future<Result<void>> send({
+    required String conversationId,
+    required String text,
+  }) async {
+    await _latency(200);
+    final me = _store.currentUser.valueOrNull;
+    final conversation = _store.conversations.value
+        .where((c) => c.id == conversationId)
+        .firstOrNull;
+    if (me == null || conversation == null) {
+      return const Error(ServerFailure('That conversation no longer exists.'));
+    }
+    if (!conversation.participantUids.contains(me.uid)) {
+      return const Error(ServerFailure('You are not in that conversation.'));
+    }
+    final body = text.trim();
+    if (body.isEmpty) {
+      return const Error(ValidationFailure('Write something first.'));
+    }
+
+    final now = DateTime.now();
+    final all = {..._store.messages.value};
+    all[conversationId] = [
+      ...(all[conversationId] ?? const <Message>[]),
+      Message(
+        id: _store.nextId('msg'),
+        // Stamped from the signed-in account. Nobody puts words in the
+        // other person's mouth.
+        senderUid: me.uid,
+        senderName: me.fullName,
+        senderRole: me.role.value,
+        text: body,
+        sentAt: now,
+      ),
+    ];
+    _store.messages.add(all);
+
+    // What onMessageCreated does server-side: move the summary, and
+    // raise only the other person's count.
+    final recipients =
+        conversation.participantUids.where((uid) => uid != me.uid).toList();
+    _store.update<Conversation>(
+      _store.conversations,
+      (c) => c.id == conversationId,
+      (c) => _copy(
+        c,
+        lastMessage: body,
+        lastMessageAt: now,
+        lastSenderUid: me.uid,
+        unread: {
+          for (final uid in c.participantUids)
+            uid: recipients.contains(uid) ? c.unreadFor(uid) + 1 : c.unreadFor(uid),
+        },
+      ),
+    );
+
+    for (final uid in recipients) {
+      _store.notify(
+        recipientUids: [uid],
+        kind: NotificationKind.general,
+        title: '${me.fullName} · about ${conversation.studentName}',
+        body: body,
+        sourceId: '$conversationId:${all[conversationId]!.last.id}',
+        link: '/messages',
+      );
+    }
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> markRead(String conversationId) async {
+    final uid = _uid;
+    if (uid == null) return const Success(null);
+    _store.update<Conversation>(
+      _store.conversations,
+      (c) => c.id == conversationId,
+      // This account's count only. The other person's is left exactly as
+      // it was -- which is what the rules require, and what stops "I
+      // read it" from becoming "you read it".
+      (c) => _copy(c, unread: {...c.unread, uid: 0}),
+    );
+    return const Success(null);
+  }
+
+  static Conversation _copy(
+    Conversation c, {
+    String? lastMessage,
+    DateTime? lastMessageAt,
+    String? lastSenderUid,
+    Map<String, int>? unread,
+  }) =>
+      Conversation(
+        id: c.id,
+        participantUids: c.participantUids,
+        teacherUid: c.teacherUid,
+        teacherName: c.teacherName,
+        parentUid: c.parentUid,
+        parentName: c.parentName,
+        studentId: c.studentId,
+        studentName: c.studentName,
+        section: c.section,
+        lastMessage: lastMessage ?? c.lastMessage,
+        lastMessageAt: lastMessageAt ?? c.lastMessageAt,
+        lastSenderUid: lastSenderUid ?? c.lastSenderUid,
+        unread: unread ?? c.unread,
       );
 }
 
