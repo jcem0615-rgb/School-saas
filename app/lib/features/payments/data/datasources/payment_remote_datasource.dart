@@ -232,6 +232,7 @@ class PaymentRemoteDataSource {
     required String method,
     required String purpose,
     required String referenceNumber,
+    String? destinationLabel,
     String? receiptUrl,
     String? receiptFileName,
   }) async {
@@ -247,6 +248,7 @@ class PaymentRemoteDataSource {
       'method': method,
       'purpose': purpose,
       'referenceNumber': referenceNumber,
+      'destinationLabel': destinationLabel,
       'receiptUrl': receiptUrl,
       'receiptFileName': receiptFileName,
       'status': 'pending',

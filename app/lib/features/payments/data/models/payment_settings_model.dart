@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../domain/entities/bank_account.dart';
 import '../../domain/entities/payment_settings.dart';
 
 class PaymentSettingsModel extends PaymentSettings {
@@ -9,6 +10,7 @@ class PaymentSettingsModel extends PaymentSettings {
     super.accountName,
     super.accountNumber,
     super.instructions,
+    super.bankAccounts,
     super.updatedAt,
     super.updatedByName,
   });
@@ -24,6 +26,14 @@ class PaymentSettingsModel extends PaymentSettings {
       accountName: data['accountName'] as String?,
       accountNumber: data['accountNumber'] as String?,
       instructions: data['instructions'] as String?,
+      // Anything unreadable is dropped rather than throwing. A malformed
+      // row in the list would otherwise take the whole pay screen down,
+      // and a family that cannot see the other two accounts because of
+      // one bad one is worse off than one that sees two.
+      bankAccounts: [
+        for (final raw in (data['bankAccounts'] as List<dynamic>? ?? const []))
+          if (BankAccount.fromMap(raw) case final account?) account,
+      ],
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       updatedByName: data['updatedByName'] as String?,
     );

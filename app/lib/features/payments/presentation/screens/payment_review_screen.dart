@@ -186,6 +186,25 @@ class _SubmissionCard extends StatelessWidget {
                 Expanded(child: SelectableText(s.referenceNumber)),
               ],
             ),
+            if (s.destinationLabel != null)
+              // Which account the family says they paid into. A cashier
+              // with three bank accounts and a reference number and no
+              // destination has to look in all three statements.
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_balance_outlined, size: 16),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        s.destinationLabel!,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Text(_dateFormat.format(s.submittedAt), style: theme.textTheme.bodySmall),
             if (s.receiptUrl != null) ...[
               const SizedBox(height: 8),

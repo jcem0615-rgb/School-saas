@@ -198,6 +198,56 @@ An online payment submitted by a family deliberately does **not** move
 the balance. It moves when a cashier approves it, which is the whole
 point of the review step, and the confirmation dialog says so.
 
+## Paying by bank transfer
+
+A family paying online can now choose **Bank Transfer**, and the school
+publishes the accounts they may send it to.
+
+Bank transfer used to be left off the family's list, on the reasoning
+that it was "something a cashier attests to, not a family". That is true
+of cash and it is not true of a transfer: a transfer carries a reference
+number and a deposit slip, which is exactly the evidence an e-wallet
+payment carries and exactly what the cashier checks. Nothing about the
+verification step changes — the balance still moves only when a
+registrar approves — so the only thing keeping transfers off the list
+was the list.
+
+**Accounts are a list, not a field.** `PaymentSettings` used to hold one
+unlabelled account number beside the e-wallet QR. That is enough for a
+school with one account and useless for one with three: the family typed
+a reference number and the cashier had no idea which statement to look
+in. Each account now carries a bank, an account name, a number and an
+optional branch.
+
+**Which account the family used is recorded on the submission**, as text
+(`destinationLabel`, e.g. `BPI - Lipa City · 1234-5678-90`) rather than
+as an account id. A cashier reading it months later has to know which
+account was meant even if it has since been closed and taken off the
+list, and an id that no longer resolves is worse than a label that does.
+
+**An account is closed, never deleted.** Submissions point at it, and a
+row that vanishes takes their meaning with it. A closed account stops
+being offered and stays on file.
+
+**A method is only offered when the school can receive it.**
+`PaymentSettings.payableMethods` asks per method: bank transfer needs at
+least one open account, e-wallet needs a QR or a number. Offering
+"Bank Transfer" on a school that has published no bank account is an
+option that leads to a screen saying it cannot be done.
+
+**The destination card follows the method.** A family transferring to BDO
+does not need the GCash QR on screen, and showing both is how money ends
+up in the wrong account. Account numbers are selectable and set in
+tabular figures, because the next thing that happens is somebody copying
+one into a banking app.
+
+Covered by `app/test/unit/features/payments/bank_accounts_test.dart` (what
+a school offers, how an account reads, and per-row parsing that drops a
+bank account with no number rather than offering it) and
+`app/test/smoke/online_banking_test.dart` (the registrar adding and
+closing accounts without disturbing the QR, and a family's transfer
+recording its destination and crediting nothing until approved).
+
 ## Firestore collections touched
 
 ```

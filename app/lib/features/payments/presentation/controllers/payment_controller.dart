@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/entities/bank_account.dart';
 import '../../../../core/errors/result.dart';
 
 import '../../../auth/presentation/controllers/auth_controller.dart'
@@ -235,6 +236,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
     required PaymentMethod method,
     required PaymentPurpose purpose,
     required String referenceNumber,
+    String? destinationLabel,
     String? receiptUrl,
     String? receiptFileName,
   }) async {
@@ -246,6 +248,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
       method: method,
       purpose: purpose,
       referenceNumber: referenceNumber,
+      destinationLabel: destinationLabel,
       receiptUrl: receiptUrl,
       receiptFileName: receiptFileName,
     );
@@ -290,6 +293,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
     String? accountName,
     String? accountNumber,
     String? instructions,
+    List<BankAccount>? bankAccounts,
   }) async {
     if (mounted) state = const AsyncLoading();
     final result = await _updatePaymentSettings(
@@ -298,6 +302,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
       accountName: accountName,
       accountNumber: accountNumber,
       instructions: instructions,
+      bankAccounts: bankAccounts,
     );
     return switch (result) {
       Success() => () {

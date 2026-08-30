@@ -38,6 +38,7 @@ import '../features/owner_portal/domain/entities/invoice.dart' as billing;
 import '../features/owner_portal/domain/entities/revenue_summary.dart';
 import '../features/owner_portal/domain/entities/school_summary.dart';
 import '../features/payments/domain/entities/assessment.dart';
+import '../features/payments/domain/entities/bank_account.dart';
 import '../features/payments/domain/entities/fee_structure.dart';
 import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
@@ -2340,6 +2341,34 @@ class DemoStore {
             'Scan the QR or send to the number above, then upload your receipt '
             'with the reference number. Payments are posted once the cashier '
             'verifies them.',
+        // Two open accounts and one closed, because one account
+        // demonstrates a list and three demonstrate the reason there is
+        // one: a cashier holding a reference number needs to know which
+        // statement to look in. The closed one is still on file, which
+        // is what happens to an account a school stops using while old
+        // submissions still point at it.
+        bankAccounts: const [
+          BankAccount(
+            id: 'ba_bpi',
+            bankName: 'BPI',
+            accountName: 'St. Nicholas Academy Inc.',
+            accountNumber: '1234-5678-90',
+            branch: 'Lipa City',
+          ),
+          BankAccount(
+            id: 'ba_bdo',
+            bankName: 'BDO',
+            accountName: 'St. Nicholas Academy Inc.',
+            accountNumber: '0098 7654 3210',
+          ),
+          BankAccount(
+            id: 'ba_old',
+            bankName: 'LandBank',
+            accountName: 'St. Nicholas Academy Inc.',
+            accountNumber: '3344 5566 7788',
+            isActive: false,
+          ),
+        ],
         updatedAt: _daysAgo(30),
         updatedByName: 'Joel Bautista',
       );

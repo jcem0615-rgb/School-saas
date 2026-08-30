@@ -1,3 +1,4 @@
+import '../../domain/entities/bank_account.dart';
 import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../../../../core/errors/failures.dart';
@@ -157,6 +158,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
     required PaymentMethod method,
     required PaymentPurpose purpose,
     required String referenceNumber,
+    String? destinationLabel,
     String? receiptUrl,
     String? receiptFileName,
   }) async {
@@ -168,6 +170,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
         method: method.value,
         purpose: purpose.value,
         referenceNumber: referenceNumber,
+        destinationLabel: destinationLabel,
         receiptUrl: receiptUrl,
         receiptFileName: receiptFileName,
       );
@@ -209,6 +212,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
     String? accountName,
     String? accountNumber,
     String? instructions,
+    List<BankAccount>? bankAccounts,
   }) async {
     try {
       // Only send what was provided, so saving the account details does
@@ -219,6 +223,12 @@ class PaymentRepositoryImpl implements PaymentRepository {
         if (accountName != null) 'accountName': accountName,
         if (accountNumber != null) 'accountNumber': accountNumber,
         if (instructions != null) 'instructions': instructions,
+        // The whole list, when it is sent at all. Bank accounts are
+        // edited as a set -- adding one, closing another -- and merging
+        // a partial list would silently drop whichever the editor did
+        // not happen to touch.
+        if (bankAccounts != null)
+          'bankAccounts': [for (final account in bankAccounts) account.toMap()],
       });
       return const Success(null);
     } on ServerException catch (e) {

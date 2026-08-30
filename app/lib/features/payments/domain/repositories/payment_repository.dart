@@ -1,3 +1,4 @@
+import '../entities/bank_account.dart';
 import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/result.dart';
 import '../entities/assessment.dart';
@@ -107,6 +108,7 @@ abstract class PaymentRepository {
     required PaymentMethod method,
     required PaymentPurpose purpose,
     required String referenceNumber,
+    String? destinationLabel,
     String? receiptUrl,
     String? receiptFileName,
   });
@@ -137,5 +139,6 @@ abstract class PaymentRepository {
     String? accountName,
     String? accountNumber,
     String? instructions,
+    List<BankAccount>? bankAccounts,
   });
 }

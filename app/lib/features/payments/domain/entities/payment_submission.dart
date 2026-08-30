@@ -50,6 +50,17 @@ class PaymentSubmission {
   /// it is the one field a cashier can check against the school's account.
   final String referenceNumber;
 
+  /// Which of the school's accounts the family says they sent it to.
+  ///
+  /// Recorded as text rather than an account id, and deliberately: a
+  /// cashier reading this months later has to know which account was
+  /// meant even if it has since been closed and taken off the list. An
+  /// id that no longer resolves is worse than a label that does.
+  ///
+  /// Null for older submissions, and for e-wallet payments where the
+  /// school has only one destination.
+  final String? destinationLabel;
+
   /// Screenshot or photo of the receipt.
   final String? receiptUrl;
   final String? receiptFileName;
@@ -76,6 +87,7 @@ class PaymentSubmission {
     required this.referenceNumber,
     required this.status,
     required this.submittedAt,
+    this.destinationLabel,
     this.receiptUrl,
     this.receiptFileName,
     this.reviewedByName,

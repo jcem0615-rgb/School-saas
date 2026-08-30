@@ -1,3 +1,4 @@
+import '../features/payments/domain/entities/bank_account.dart';
 import 'dart:async';
 
 import 'package:intl/intl.dart';
@@ -2151,6 +2152,7 @@ class DemoPaymentRepository implements PaymentRepository {
     required PaymentMethod method,
     required PaymentPurpose purpose,
     required String referenceNumber,
+    String? destinationLabel,
     String? receiptUrl,
     String? receiptFileName,
   }) async {
@@ -2172,6 +2174,7 @@ class DemoPaymentRepository implements PaymentRepository {
         method: method,
         purpose: purpose,
         referenceNumber: referenceNumber,
+        destinationLabel: destinationLabel,
         receiptUrl: receiptUrl,
         receiptFileName: receiptFileName,
         status: SubmissionStatus.pending,
@@ -2287,6 +2290,7 @@ class DemoPaymentRepository implements PaymentRepository {
     String? accountName,
     String? accountNumber,
     String? instructions,
+    List<BankAccount>? bankAccounts,
   }) async {
     await _latency();
     final current = _store.paymentSettings.value;
@@ -2298,6 +2302,7 @@ class DemoPaymentRepository implements PaymentRepository {
       accountName: accountName ?? current.accountName,
       accountNumber: accountNumber ?? current.accountNumber,
       instructions: instructions ?? current.instructions,
+      bankAccounts: bankAccounts ?? current.bankAccounts,
       updatedAt: DateTime.now(),
       updatedByName: _store.requireUser.fullName,
     ));

@@ -1,3 +1,4 @@
+import '../entities/bank_account.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../entities/payment.dart';
@@ -32,6 +33,7 @@ class SubmitOnlinePaymentUseCase {
     required PaymentMethod method,
     required PaymentPurpose purpose,
     required String referenceNumber,
+    String? destinationLabel,
     String? receiptUrl,
     String? receiptFileName,
   }) {
@@ -56,6 +58,7 @@ class SubmitOnlinePaymentUseCase {
       method: method,
       purpose: purpose,
       referenceNumber: referenceNumber.trim(),
+      destinationLabel: destinationLabel,
       receiptUrl: receiptUrl,
       receiptFileName: receiptFileName,
     );
@@ -106,6 +109,7 @@ class UpdatePaymentSettingsUseCase {
     String? accountName,
     String? accountNumber,
     String? instructions,
+    List<BankAccount>? bankAccounts,
   }) {
     return _repository.updatePaymentSettings(
       qrCodeUrl: qrCodeUrl,
@@ -113,6 +117,7 @@ class UpdatePaymentSettingsUseCase {
       accountName: accountName,
       accountNumber: accountNumber,
       instructions: instructions,
+      bankAccounts: bankAccounts,
     );
   }
 }

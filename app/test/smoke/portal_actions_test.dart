@@ -7,6 +7,8 @@ import 'package:logicclass/core/theme/app_theme.dart';
 import 'package:logicclass/core/widgets/confirm_delete_dialog.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/payments/presentation/screens/online_payment_screen.dart';
+import 'package:logicclass/features/payments/presentation/screens/payment_settings_screen.dart';
 import 'package:logicclass/features/timekeeping/presentation/screens/leave_requests_screen.dart';
 import 'package:logicclass/features/timekeeping/presentation/screens/my_leave_screen.dart';
 import 'package:logicclass/features/timekeeping/presentation/screens/timesheet_screen.dart';
@@ -82,6 +84,15 @@ void main() {
     'Admin · Leave requests': (UserRole.admin, const LeaveRequestsScreen()),
     'Admin · Timesheets': (UserRole.admin, const TimesheetScreen()),
     'Staff · My timesheet': (UserRole.staff, const MyTimesheetScreen()),
+    'Registrar · Payment setup': (UserRole.registrar, const PaymentSettingsScreen()),
+    'Parent · Pay online': (
+      UserRole.parent,
+      OnlinePaymentScreen(
+        studentId: 'stu_001',
+        studentName: 'Miguel Torres',
+        outstandingBalance: 12500,
+      ),
+    ),
     'Student · Attendance by subject': (
       UserRole.student,
       const SubjectAttendanceScreen(studentId: 'stu_001'),

@@ -1,3 +1,5 @@
+import 'dart:ui' show FontFeature;
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +8,9 @@ import 'package:intl/intl.dart';
 import '../../../../core/errors/result.dart';
 import '../../../../core/storage/upload_providers.dart';
 import '../../../../core/storage/upload_repository.dart';
+import '../../domain/entities/bank_account.dart';
 import '../../domain/entities/payment.dart';
+import '../../domain/entities/payment_settings.dart';
 import '../controllers/payment_controller.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
@@ -44,7 +48,18 @@ class _OnlinePaymentScreenState extends ConsumerState<OnlinePaymentScreen> {
   );
   final _referenceController = TextEditingController();
   PaymentPurpose _purpose = PaymentPurpose.tuition;
-  PaymentMethod _method = PaymentMethod.gcash;
+
+  /// Null until the school's settings have loaded, because what a family
+  /// may choose depends on what the school has published -- a default of
+  /// GCash on a school that only takes bank transfers is an option that
+  /// leads nowhere.
+  PaymentMethod? _method;
+
+  /// Which bank account, when they are paying by transfer. Recorded on
+  /// the submission so the cashier knows which statement to check: a
+  /// school with three accounts and a reference number and no
+  /// destination has to look in all three.
+  BankAccount? _bankAccount;
 
   String? _receiptUrl;
   String? _receiptFileName;
@@ -91,6 +106,15 @@ class _OnlinePaymentScreenState extends ConsumerState<OnlinePaymentScreen> {
   }
 
   Future<void> _submit() async {
+    final method = _method;
+    if (method == null) {
+      _snack('Choose how you paid.');
+      return;
+    }
+    if (method == PaymentMethod.bankTransfer && _bankAccount == null) {
+      _snack('Choose which of the school\'s accounts you sent it to.');
+      return;
+    }
     final amount = double.tryParse(_amountController.text) ?? -1;
     if (amount <= 0) {
       _snack('Enter an amount greater than zero.');
@@ -110,9 +134,10 @@ class _OnlinePaymentScreenState extends ConsumerState<OnlinePaymentScreen> {
           studentId: widget.studentId,
           studentName: widget.studentName,
           amount: amount,
-          method: _method,
+          method: method,
           purpose: _purpose,
           referenceNumber: _referenceController.text,
+          destinationLabel: _bankAccount?.reconciliationLabel,
           receiptUrl: _receiptUrl,
           receiptFileName: _receiptFileName,
         );
@@ -151,6 +176,20 @@ class _OnlinePaymentScreenState extends ConsumerState<OnlinePaymentScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final settings = ref.watch(paymentSettingsProvider).valueOrNull;
+    final methods = settings?.payableMethods ?? const <PaymentMethod>[];
+
+    // Settled once, when the settings arrive: whatever the school offers
+    // first. Chosen here rather than as a field initialiser because the
+    // settings are not loaded yet when this screen is built.
+    if (_method == null && methods.isNotEmpty) {
+      _method = methods.first;
+    } else if (_method != null && methods.isNotEmpty && !methods.contains(_method)) {
+      // The registrar removed the last bank account while this screen
+      // was open. Falling back beats leaving a selection that cannot be
+      // paid.
+      _method = methods.first;
+      _bankAccount = null;
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Pay Online')),
@@ -177,24 +216,39 @@ class _OnlinePaymentScreenState extends ConsumerState<OnlinePaymentScreen> {
                         style: TextStyle(color: theme.colorScheme.error),
                       )
                     else ...[
-                      if (settings.qrCodeUrl != null)
-                        Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 240, maxWidth: 240),
-                            child: Image.network(
-                              settings.qrCodeUrl!,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
-                                  const Text('QR image could not be loaded.'),
+                      // What is shown depends on how they are paying. A
+                      // family transferring to BDO does not need the
+                      // GCash QR on screen, and showing both is how
+                      // money ends up in the wrong account.
+                      if (_method == PaymentMethod.bankTransfer)
+                        _BankAccounts(
+                          accounts: settings.activeBankAccounts,
+                          selected: _bankAccount,
+                          onChanged: (account) =>
+                              setState(() => _bankAccount = account),
+                        )
+                      else ...[
+                        if (settings.qrCodeUrl != null)
+                          Center(
+                            child: ConstrainedBox(
+                              constraints:
+                                  const BoxConstraints(maxHeight: 240, maxWidth: 240),
+                              child: Image.network(
+                                settings.qrCodeUrl!,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                    const Text('QR image could not be loaded.'),
+                              ),
                             ),
                           ),
-                        ),
-                      if (settings.accountName != null || settings.accountNumber != null) ...[
-                        const SizedBox(height: 12),
-                        if (settings.accountName != null)
-                          Text('Account: ${settings.accountName}'),
-                        if (settings.accountNumber != null)
-                          SelectableText('Number: ${settings.accountNumber}'),
+                        if (settings.accountName != null ||
+                            settings.accountNumber != null) ...[
+                          const SizedBox(height: 12),
+                          if (settings.accountName != null)
+                            Text('Account: ${settings.accountName}'),
+                          if (settings.accountNumber != null)
+                            SelectableText('Number: ${settings.accountNumber}'),
+                        ],
                       ],
                       if (settings.instructions?.trim().isNotEmpty ?? false) ...[
                         const SizedBox(height: 12),
@@ -242,15 +296,31 @@ class _OnlinePaymentScreenState extends ConsumerState<OnlinePaymentScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<PaymentMethod>(
                       isExpanded: true,
-                      value: _method,
-                      decoration: const InputDecoration(
-                          labelText: 'Paid via'),
-                      // Only the online methods: cash and bank transfer are
-                      // things a cashier attests to, not a family.
-                      items: const [PaymentMethod.gcash, PaymentMethod.online]
-                          .map((m) => DropdownMenuItem(value: m, child: Text(m.displayLabel)))
-                          .toList(),
-                      onChanged: (v) => setState(() => _method = v ?? _method),
+                      initialValue: _method,
+                      decoration: const InputDecoration(labelText: 'Paid via'),
+                      // Only what this school has actually published a
+                      // destination for. Bank transfer is on this list
+                      // now, having previously been left off as
+                      // "something a cashier attests to" -- which is
+                      // true of cash, and is not true of a transfer: it
+                      // carries a reference number and a deposit slip,
+                      // which is the same evidence an e-wallet payment
+                      // carries and the same thing the cashier checks.
+                      items: [
+                        for (final method in methods)
+                          DropdownMenuItem(
+                            value: method,
+                            child: Text(method.displayLabel),
+                          ),
+                      ],
+                      onChanged: (value) => setState(() {
+                        _method = value ?? _method;
+                        // A destination chosen for one method means
+                        // nothing under another.
+                        if (_method != PaymentMethod.bankTransfer) {
+                          _bankAccount = null;
+                        }
+                      }),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<PaymentPurpose>(
@@ -310,6 +380,83 @@ class _OnlinePaymentScreenState extends ConsumerState<OnlinePaymentScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The school's bank accounts, as a family chooses between them.
+///
+/// Radio rows rather than a dropdown: the details of the account matter
+/// -- the number is what they are about to type into their banking app
+/// -- and a dropdown hides them behind a tap.
+class _BankAccounts extends StatelessWidget {
+  final List<BankAccount> accounts;
+  final BankAccount? selected;
+  final ValueChanged<BankAccount> onChanged;
+
+  const _BankAccounts({
+    required this.accounts,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (accounts.isEmpty) {
+      return Text(
+        'The school has not published a bank account. Pay by e-wallet, or '
+        'ask the registrar.',
+        style: TextStyle(color: theme.colorScheme.error),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          accounts.length == 1
+              ? 'Transfer to this account:'
+              : 'Transfer to one of these, and tell us which:',
+          style: theme.textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 4),
+        RadioGroup<String>(
+          groupValue: selected?.id,
+          onChanged: (id) {
+            final match = accounts.where((a) => a.id == id).firstOrNull;
+            if (match != null) onChanged(match);
+          },
+          child: Column(
+            children: [
+              for (final account in accounts)
+                RadioListTile<String>(
+                  contentPadding: EdgeInsets.zero,
+                  value: account.id,
+                  title: Text(account.label,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (account.accountName.isNotEmpty)
+                        Text(account.accountName),
+                      // Selectable, because the next thing that happens
+                      // is somebody copying it into a banking app, and
+                      // retyping a sixteen-digit number is how money
+                      // reaches a stranger.
+                      SelectableText(
+                        account.accountNumber,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
