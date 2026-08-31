@@ -52,6 +52,8 @@ import '../features/payments/domain/entities/payment_submission.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
+import '../features/payroll/domain/entities/contribution_scheme.dart';
+import '../features/payroll/domain/entities/payslip.dart';
 import '../features/registrar_portal/domain/entities/promotion.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/schedules/domain/entities/schedule_block.dart';
@@ -202,6 +204,85 @@ class DemoStore {
   late final courseworkSubmissions =
       BehaviorSubject<List<CourseworkSubmission>>.seeded(_seedCourseworkSubmissions());
   late final grades = BehaviorSubject<List<Grade>>.seeded(_seedGrades());
+
+  /// What the demo school pays its staff.
+  ///
+  /// Three of the twelve accounts, on three different bases, so the
+  /// payroll screen shows a monthly salary, a daily rate and an hourly
+  /// one side by side rather than three rows of the same arithmetic.
+  late final compensation = BehaviorSubject<List<Compensation>>.seeded([
+    const Compensation(
+      employeeUid: 'u_faculty',
+      employeeName: 'Maria Santos',
+      basis: PayBasis.monthly,
+      rate: 32000,
+      allowance: 2000,
+    ),
+    const Compensation(
+      employeeUid: 'u_staff',
+      employeeName: 'Ricardo Aquino',
+      basis: PayBasis.daily,
+      rate: 850,
+    ),
+    const Compensation(
+      employeeUid: 'u_guidance',
+      employeeName: 'Cecilia Lim',
+      basis: PayBasis.monthly,
+      rate: 28000,
+    ),
+  ]);
+
+  /// The contribution tables, filled in and confirmed.
+  ///
+  /// Round numbers, and labelled as the demo's own rather than as
+  /// anybody's real rates. The point being demonstrated is that the
+  /// tables are the school's to type and confirm -- putting invented
+  /// figures here and calling them SSS would be the exact thing the
+  /// feature refuses to do.
+  late final contributionScheme = BehaviorSubject<ContributionScheme>.seeded(
+    ContributionScheme(
+      confirmedBySchool: true,
+      confirmedByName: 'Joel Bautista',
+      confirmedAt: _daysAgo(30),
+      tables: const [
+        ContributionTable(
+          kind: ContributionKind.sss,
+          sourceLabel: 'Demo figures, not a real circular',
+          brackets: [
+            ContributionBracket(from: 0, to: 20000, fixedAmount: 900, employerFixedAmount: 1800),
+            ContributionBracket(from: 20000.01, fixedAmount: 1350, employerFixedAmount: 2650),
+          ],
+        ),
+        ContributionTable(
+          kind: ContributionKind.philHealth,
+          sourceLabel: 'Demo figures, not a real circular',
+          brackets: [
+            ContributionBracket(from: 0, percentOfExcess: 2.5, employerPercentOfExcess: 2.5),
+          ],
+        ),
+        ContributionTable(
+          kind: ContributionKind.pagIbig,
+          sourceLabel: 'Demo figures, not a real circular',
+          brackets: [
+            ContributionBracket(from: 0, fixedAmount: 200, employerFixedAmount: 200),
+          ],
+        ),
+        ContributionTable(
+          kind: ContributionKind.withholdingTax,
+          sourceLabel: 'Demo figures, not a real issuance',
+          brackets: [
+            ContributionBracket(from: 0, to: 20833),
+            ContributionBracket(from: 20833.01, percentOfExcess: 15),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  /// Nothing issued yet. The interesting thing to watch is a run being
+  /// drawn up and issued, and a demo that opens after the fact shows
+  /// none of it.
+  late final payslips = BehaviorSubject<List<Payslip>>.seeded(const []);
 
   /// The admissions pipeline, part-way through a season.
   ///
@@ -578,7 +659,7 @@ class DemoStore {
     for (final s in <BehaviorSubject<dynamic>>[
       currentUser, schools, revenue, invoices, students, employees,
       assignments, programs, payments, attendance, coursework, grades, gradingScheme,
-      promotions, applicants,
+      promotions, applicants, compensation, contributionScheme, payslips,
       courseworkSubmissions, answerKeys, emergencyContacts, emergencyAlerts,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog, notifications,

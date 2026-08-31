@@ -130,6 +130,21 @@ class FirestorePaths {
 
   static String grades(String schoolId) => '${school(schoolId)}/grades';
 
+  // ---- Payroll ----
+  /// What each employee is paid, and how. One document per employee,
+  /// keyed by their uid so a pay rate is never two documents.
+  static String compensation(String schoolId) => '${school(schoolId)}/compensation';
+  static String compensationDoc(String schoolId, String employeeUid) =>
+      '${compensation(schoolId)}/$employeeUid';
+
+  /// Single document: the SSS, PhilHealth, Pag-IBIG and withholding
+  /// tables the school typed in from its circulars.
+  static String payrollSchemeDoc(String schoolId) =>
+      '${school(schoolId)}/settings/payroll';
+
+  /// One issued payslip. Append-only -- see firestore.rules.
+  static String payslips(String schoolId) => '${school(schoolId)}/payslips';
+
   /// Enquiries, from the first phone call to the day they enrol.
   /// Written only by the admissions callables -- see firestore.rules,
   /// which denies client writes outright.

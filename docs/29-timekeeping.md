@@ -149,3 +149,13 @@ trigger's own transition check is asserted by reading. And no test proves
 a real QR scan of a staff ID reaches this timesheet, because that needs
 a camera; the scan half is Module 7's, and this module reads what it
 writes.
+
+## Turning this into pay
+
+What the timesheet is ultimately for — rates, the three agencies,
+withholding, 13th month and a printable payslip — is
+[Module 35](35-payroll.md). It reads this module's output directly,
+including the figure that matters most to it: the days somebody scanned
+in and never out, which are hours this system does not know and will not
+invent.
+

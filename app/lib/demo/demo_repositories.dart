@@ -71,6 +71,9 @@ import '../features/qr_attendance/domain/entities/qr_scan_result.dart';
 import '../features/qr_attendance/domain/repositories/qr_attendance_repository.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
+import '../features/payroll/domain/entities/contribution_scheme.dart';
+import '../features/payroll/domain/entities/payslip.dart';
+import '../features/payroll/domain/repositories/payroll_repository.dart';
 import '../features/admissions/domain/repositories/admissions_repository.dart';
 import '../features/registrar_portal/domain/entities/promotion.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
@@ -1161,6 +1164,98 @@ class DemoAdminRepository implements AdminRepository {
 // ---------------------------------------------------------------------------
 // Registrar
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Payroll
+// ---------------------------------------------------------------------------
+
+class DemoPayrollRepository implements PayrollRepository {
+  final DemoStore _store;
+  DemoPayrollRepository(this._store);
+
+  @override
+  Stream<List<Compensation>> watchCompensation() => _store.compensation.stream;
+
+  @override
+  Stream<ContributionScheme> watchContributionScheme() =>
+      _store.contributionScheme.stream;
+
+  @override
+  Stream<List<Payslip>> watchPayslips({String? employeeUid}) =>
+      _store.payslips.stream.map((all) => employeeUid == null
+          ? all
+          : all.where((p) => p.employeeUid == employeeUid).toList());
+
+  @override
+  Future<Result<void>> saveCompensation(Compensation compensation) async {
+    await _latency();
+    final existing = _store.compensation.value
+        .any((c) => c.employeeUid == compensation.employeeUid);
+    if (existing) {
+      _store.update<Compensation>(
+        _store.compensation,
+        (c) => c.employeeUid == compensation.employeeUid,
+        (_) => compensation,
+      );
+    } else {
+      _store.prepend(_store.compensation, compensation);
+    }
+    _store.audit(
+      module: 'payroll',
+      action: 'update',
+      targetCollection: 'compensation',
+      targetId: compensation.employeeUid,
+      newValue: {'basis': compensation.basis.value, 'rate': compensation.rate},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> saveContributionScheme(ContributionScheme scheme) async {
+    await _latency();
+    // Saving revokes the confirmation, exactly as the real data source
+    // does. A demo that kept it would show a table somebody edited still
+    // marked as checked, which is the thing that must not happen with
+    // money coming out of a salary.
+    _store.contributionScheme.add(ContributionScheme(tables: scheme.tables));
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> confirmContributionScheme() async {
+    await _latency();
+    final current = _store.contributionScheme.value;
+    _store.contributionScheme.add(ContributionScheme(
+      tables: current.tables,
+      confirmedBySchool: true,
+      confirmedByName: _store.requireUser.fullName,
+      confirmedAt: DateTime.now(),
+    ));
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<int>> issuePayslips(List<Payslip> payslips) async {
+    await _latency();
+    // Keyed the way the real one is, so running a period twice replaces
+    // rather than doubles.
+    final keyOf = (Payslip p) => '${p.periodFrom}_${p.periodTo}_${p.employeeUid}';
+    final existing = {for (final p in _store.payslips.value) keyOf(p): p};
+    for (final payslip in payslips) {
+      existing[keyOf(payslip)] = payslip;
+    }
+    _store.payslips.add(existing.values.toList());
+
+    _store.audit(
+      module: 'payroll',
+      action: 'create',
+      targetCollection: 'payslips',
+      targetId: payslips.first.periodTo,
+      newValue: {'count': payslips.length},
+    );
+    return Success(payslips.length);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Admissions

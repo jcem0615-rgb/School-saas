@@ -872,6 +872,43 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ---- payroll ----
+      // What people are paid, and what was taken out of it.
+      //
+      // The tightest read list in the tenant. A salary is the one number
+      // colleagues will read each other's if they can, and a school
+      // where the pay scale leaks is a school with a problem no software
+      // fixes afterwards. Director and Admin only -- not the principal,
+      // not the registrar, and not the cashier who handles every other
+      // peso in the building.
+      //
+      // The one exception is an employee's own payslip. They are
+      // entitled to it, they are handed it on paper anyway, and a
+      // system that will not show somebody their own deductions sends
+      // them to ask a person instead.
+      match /compensation/{employeeUid} {
+        allow read: if hasRole(schoolId, ['director', 'admin'])
+                      && schoolIsAccessible(schoolId);
+        allow write: if hasRole(schoolId, ['director', 'admin'])
+                       && schoolIsAccessible(schoolId);
+      }
+
+      match /payslips/{payslipId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin'])
+                        || resource.data.employeeUid == request.auth.uid
+                      );
+        allow create: if hasRole(schoolId, ['director', 'admin'])
+                        && schoolIsAccessible(schoolId);
+        // A payslip is a statement of what was paid on a date. Editing
+        // one after the fact turns the record of a payday into whatever
+        // somebody needs it to have been, which is the opposite of what
+        // it is for. A correction is a fresh payslip.
+        allow update, delete: if false;
+      }
+
       // ---- applicants ----
       // Enquiries: names, phone numbers and exam scores for children who
       // are not students here and may never be.

@@ -17,6 +17,7 @@ import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../controllers/director_controller.dart';
 import 'announcements_screen.dart';
 import 'approvals_screen.dart';
+import '../../../payroll/presentation/screens/payroll_run_screen.dart';
 import 'expenses_screen.dart';
 import 'meetings_screen.dart';
 import '../../../../core/widgets/glass_tile.dart';
@@ -170,6 +171,15 @@ class DirectorDashboardScreen extends ConsumerWidget {
                     label: 'Fee Schedules',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const FeeStructuresScreen())),
+                  ),
+                  // Beside Expenses because it is the largest of them,
+                  // and a Director looking at what the school spends is
+                  // looking at salaries first.
+                  GlassTile(
+                    icon: Icons.payments_outlined,
+                    label: 'Payroll',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const PayrollRunScreen())),
                   ),
                   GlassTile(
                     icon: Icons.receipt_long_outlined,
