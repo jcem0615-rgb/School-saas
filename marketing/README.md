@@ -5,8 +5,8 @@ build them.
 
 | File | What it is |
 |---|---|
-| `LogicClass-Demo.pptx` | 27-slide demo deck, with speaker notes on every slide |
-| `LogicClass-Feature-Guide.docx` | 35-page reference: every screen and every button, portal by portal |
+| `LogicClass-Demo.pptx` | 38-slide demo deck, with speaker notes on every slide |
+| `LogicClass-Feature-Guide.docx` | 52-page reference: every screen and every button, portal by portal |
 | `LogicClass-Demo.pdf`, `LogicClass-Feature-Guide.pdf` | The same two, for sending to somebody who will not open Office |
 
 ## The Owner portal is not in either of them
@@ -67,6 +67,11 @@ pdftoppm -jpeg -r 100 LogicClass-Demo.pdf slide
 Every feature claim in both documents came from the code, not from the
 docs -- screen by screen, button label by button label. When a feature
 changes, the line to check is the one naming the button.
+
+There is a third document, `docs/38-demo-script.md`, which is the running
+order for the demo itself -- what to open, in what sequence, and what to
+say. It is internal: it covers the Owner portal, and it says in as many
+words not to open that portal in front of a school.
 
 Rebuild both after any feature change and read the pages that moved.
 Section headings in the guide carry `pageBreakBefore` rather than an

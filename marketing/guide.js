@@ -157,6 +157,14 @@ const CONTENTS = [
   '26. Data Privacy Act',
   '27. Where it runs',
   '28. Going live',
+  '29. Admissions',
+  '30. Grading and the report card',
+  '31. Instalments, discounts and vouchers',
+  '32. Official receipts',
+  '33. Payroll',
+  '34. Inventory',
+  '35. Year-end rollover',
+  '36. The live demo',
 ];
 // Written out rather than generated as a field: a Word table-of-contents
 // field renders blank everywhere until Word itself refreshes it, and this
@@ -816,7 +824,7 @@ add(
     'A day with a time in and no time out contributes no hours at all, and the sheet says how many such days there are. Nothing is guessed onto a payslip.',
     'Totals: days worked, hours, lates, days on leave, days absent.',
   ]),
-  note('LogicClass does not run payroll. It produces the sheet a payroll clerk reads before they run it.'),
+  note('This is the sheet payroll is run from. The run itself is section 33.'),
 );
 
 // ---------------------------------------------------------------- 24
@@ -911,6 +919,189 @@ add(
   ], ['Check', 'Result type', 'What it proves']),
   note('Every failure names its remedy. A check that cannot say what to do about it is not a check, it is '
      + 'an alarm.'),
+);
+
+
+// ---------------------------------------------------------------- 29 Admissions
+add(
+  H1('29. Admissions'),
+  P('The pipeline in front of enrolment: an enquiry becomes an applicant, an applicant becomes a student. '
+    + 'Opened from the Registrar portal, and the screen opens on the enquiries nobody has moved in a week, '
+    + 'longest wait first - because that list is the one a school loses a year to.'),
+  H2('29.1 The seven stages'),
+  featureTable([
+    ['Enquiry', 'Somebody asked', 'Name, contact number, the grade level applied for, and where the family heard about the school.'],
+    ['Applied', 'The form is in', 'With the documents the school asked for listed against the record.'],
+    ['Exam scheduled', 'A date is set', 'And the family is told it.'],
+    ['Exam taken', 'A score exists', 'Without a score the stage will not move. The app will not record an exam as taken because somebody expects it to have been.'],
+    ['Offered', 'A place is offered', 'With the date the offer lapses.'],
+    ['Reserved', 'A fee is paid', 'The reservation fee follows the child and lands as a credit on their ledger once they enrol.'],
+    ['Enrolled', 'A student exists', 'One server transaction creates the student record and issues the student number.'],
+  ], ['Stage', 'Means', 'What it needs']),
+  H2('29.2 The buttons'),
+  featureTable([
+    ['New Enquiry', 'Applicant form', 'Name, contact, grade level applied for, source, and any remarks.'],
+    ['Advance', 'Stage picker', 'Offers only the stages that legally follow this one: one step on, one step back, or out. There is no free choice of stage.'],
+    ['Decline / Withdraw', 'Applicant', 'Ends the pipeline for this family, with a reason. Neither counts as a stage reached.'],
+    ['Enrol', 'Confirmation', 'Available only from Reserved. Creates the student, issues the number, and posts the reservation fee as a credit.'],
+    ['Follow-up list', 'Applicants', 'Every open applicant nobody has touched in a week, oldest wait first.'],
+    ['Funnel', 'Admission funnel', 'How many reached each stage this year, and where the drop-off is.'],
+  ], ['Control', 'Opens', 'What happens']),
+  note('A stage cannot be wished forward. No score, no "exam taken"; no payment, no "reserved". The '
+     + 'evidence is what moves the record, which is the only reason the funnel means anything.'),
+);
+
+// ---------------------------------------------------------------- 30 Grading
+add(
+  H1('30. Grading and the report card'),
+  P('Grades are weighted the way DepEd Order 8 s.2015 describes: written work, performance tasks and '
+    + 'quarterly assessment, weighted differently per subject group, then transmuted for the report card.'),
+  H2('30.1 The grading scheme'),
+  featureTable([
+    ['Grading Scheme', 'Admin portal', 'The weights per subject group, and the transmutation table. Shipped seeded with the Order 8 groupings as a starting point - not as an answer.'],
+    ['Edit weights', 'Grading Scheme', 'Change any weight. The three components of a group must total 100.'],
+    ['Confirm', 'Grading Scheme', 'A named person at the school states that these weights match the order current for them, and that name is stored.'],
+    ['Any edit', 'Grading Scheme', 'Revokes the confirmation. A changed scheme has to be confirmed again before anything prints.'],
+  ], ['Control', 'Where', 'What happens']),
+  H2('30.2 How a quarterly grade is computed'),
+  bullets([
+    'Each score is a raw mark out of a maximum, filed under one of the three components.',
+    'A component with no work in it yet is left out of the arithmetic entirely - it is not a zero.',
+    'The grade is the earned total rescaled over the weight that actually exists, and the screen names which component is still missing.',
+    'That is the difference between "no exam has been given yet" and "every child in the school is capped at 80 until it has".',
+  ]),
+  H2('30.3 The report card'),
+  featureTable([
+    ['Submit Grades', 'Faculty portal', 'Enter marks by hand, or import a spreadsheet. The class record shows the arithmetic behind every grade.'],
+    ['Print Form 138', 'Report card', 'Every subject, every quarter, the final grade, the DepEd descriptor and the remarks - on the school\'s own letterhead.'],
+    ['Unconfirmed scheme', 'Refusal', 'The report card will not print at all until somebody at the school has confirmed the weights. This is deliberate.'],
+  ], ['Control', 'Opens', 'What happens']),
+  note('The weights are the school\'s, not ours. We seed them so nobody starts from a blank table, and then '
+     + 'we refuse to print anything until a named person has checked them.'),
+);
+
+// ---------------------------------------------------------------- 31 Billing
+add(
+  H1('31. Instalments, discounts and vouchers'),
+  P('Section 14 covers charging a fee and taking a payment. This section covers the four things a '
+    + 'Philippine private school then does to that bill - and none of them is a remark typed into a notes '
+    + 'field.'),
+  H2('31.1 Instalments'),
+  featureTable([
+    ['Billing Schedule', 'Fee schedule', 'Split a schedule into parts - upon enrolment, then monthly - each with its own amount and due date.'],
+    ['Due dates', 'Statement', 'What is overdue becomes a date the family and the cashier can both read, rather than an opinion at a counter.'],
+  ], ['Control', 'Opens', 'What happens']),
+  H2('31.2 Discounts'),
+  featureTable([
+    ['Grant Discount', 'Discount', 'Kind - sibling, early bird, staff child, scholarship - amount or percentage, the charge it applies to, and the authority it was granted on.'],
+    ['Revoke', 'Discount', 'Ends it. The original grant and the revocation both stay on the record.'],
+  ], ['Control', 'Opens', 'What happens']),
+  H2('31.3 ESC and SHS vouchers'),
+  P('A voucher is a subsidy owed to the school by PEAC, not a discount the school gave away. It is carried '
+    + 'as a receivable: the family sees the net they owe, and the school still sees what is outstanding '
+    + 'from the programme. A school that books a voucher as a discount cannot say what PEAC still owes it.'),
+  H2('31.4 The exam permit'),
+  P('Cleared or not cleared, read from the ledger, so nobody is deciding at a desk on exam morning whether '
+    + 'this family is up to date. A promissory note recorded against the account is what clears a student '
+    + 'the school has decided to let sit.'),
+);
+
+// ---------------------------------------------------------------- 32 Receipts
+add(
+  H1('32. Official receipts'),
+  P('The BIR register a school keeps by hand in a booklet, kept in the app instead - with the one property '
+    + 'a paper booklet has for free and software usually loses: a serial is issued exactly once.'),
+  featureTable([
+    ['Register Booklet', 'OR booklet', 'The Authority to Print number, the serial range it covers, and the date it was received.'],
+    ['Issue OR', 'Official receipt', 'Claims the next serial from the open booklet, on the server, inside a transaction. Two cashiers pressing at the same moment are handed different numbers - never the same one.'],
+    ['Print', 'Official receipt', 'Payer, amount, what it was for, and the serial, on the school\'s own letterhead.'],
+    ['Cancel', 'Official receipt', 'Marks a serial cancelled. It is never re-issued to somebody else.'],
+    ['Reconcile', 'OR register', 'Which serials were issued, which were cancelled, and which are simply missing - the question an audit opens with.'],
+  ], ['Control', 'Opens', 'What happens']),
+  note('The serial is not a number the app displays. It is a number the server gives out once and can '
+     + 'never give out again.'),
+);
+
+// ---------------------------------------------------------------- 33 Payroll
+add(
+  H1('33. Payroll'),
+  P('The timesheet in section 23 is the input. This is the run: a period, a set of employees, and a '
+    + 'payslip each.'),
+  H2('33.1 Setting it up'),
+  featureTable([
+    ['Compensation', 'Employee', 'Basis - monthly, daily or hourly - the rate, and any allowances. Director and Admin only, enforced by the database.'],
+    ['Contribution Scheme', 'Payroll Setup', 'The SSS, PhilHealth, Pag-IBIG and withholding brackets. It ships EMPTY.'],
+    ['Confirm', 'Payroll Setup', 'A named person states that these brackets came from the circular in front of them, names that circular, and confirms. No payslip prints until they have.'],
+  ], ['Control', 'Opens', 'What happens']),
+  H2('33.2 The run'),
+  bullets([
+    'Days worked, late and absent come from the month already on the timesheet - nothing is retyped.',
+    'An absence is costed at the period\'s own day rate, not a fixed twenty-two, so February does not pay differently from March.',
+    'Contributions are deducted first, and tax is computed on what is left.',
+    'Net pay never falls below zero.',
+    '13th month is a twelfth of what was actually earned across the year, taken from the runs rather than from a headline salary.',
+  ]),
+  H2('33.3 The payslip'),
+  featureTable([
+    ['Print Payslips', 'Payslip', 'A5, two to a sheet, with the basis of every line on it - so an employee can check their own pay without asking anybody.'],
+    ['My Payslips', 'Own payslips', 'An employee can read their own, and nobody else\'s. Payslips are create-only: a correction is a new payslip.'],
+  ], ['Control', 'Opens', 'What happens']),
+  note('We ship no contribution tables. Rates move most years, a wrong bracket looks entirely plausible on '
+     + 'a payslip, and the result is somebody short every payday or handed a bill in December. Your school '
+     + 'types them from the circular, records which circular that was, and confirms - and that name prints '
+     + 'beside the deduction.'),
+);
+
+// ---------------------------------------------------------------- 34 Inventory
+add(
+  H1('34. Inventory'),
+  P('The stock room, as a ledger. Every movement is a row, and the quantity on hand is what those rows add '
+    + 'up to - it is never a number somebody typed.'),
+  featureTable([
+    ['Add Item', 'Item', 'Name, category, unit, reorder level, and where in the school it is kept.'],
+    ['Receive', 'Movement', 'A delivery, with the supplier and the document number against it.'],
+    ['Issue', 'Movement', 'To a named person, for a reason. The projector has a name against it from the moment it leaves the room.'],
+    ['Return', 'Movement', 'Back on the shelf, and the person who had it is clear.'],
+    ['Consume / Write off', 'Movement', 'Used up, or damaged and gone. Both are movements, so both are explained.'],
+    ['Low Stock', 'Report', 'What has fallen to its reorder level, before somebody needs it.'],
+    ['Outstanding', 'Report', 'What is out of the room right now, and who is holding each of it.'],
+  ], ['Control', 'Opens', 'What happens']),
+  note('The movement and the new quantity are written in one transaction, and each movement stores the '
+     + 'quantity before and after it. A count that looks wrong has a history that explains it.'),
+);
+
+// ---------------------------------------------------------------- 35 Year-end
+add(
+  H1('35. Year-end rollover'),
+  P('The week every April that a school currently does by hand, on a printed list, in a room. Run from the '
+    + 'Registrar portal, one decision per student, against the final grades already held.'),
+  featureTable([
+    ['Promoted', 'Next grade level', 'Taken from the school\'s own roster of levels. Where there is no next level, the app says so rather than inventing one.'],
+    ['Retained', 'Same grade level', 'With a reason recorded where the school needs one.'],
+    ['Graduated', 'Exit', 'For students in the last level of a division, read off the roster rather than hard-coded.'],
+    ['Transferred out', 'Exit', 'The record stays; the student does not roll forward.'],
+    ['Held', 'Nothing', 'The default. A student the school has not decided on is left out of the run entirely.'],
+  ], ['Decision', 'Effect', 'What it means']),
+  bullets([
+    'Silence never becomes a promotion: held students are excluded from the run, not defaulted through it.',
+    'A student already rolled over is skipped rather than moved twice, so the run is safe to repeat.',
+    'The run reports how many were applied and how many were already done.',
+    'A promotion record is written once and never edited. A correction is a new record.',
+  ]),
+);
+
+// ---------------------------------------------------------------- 36 Demo
+add(
+  H1('36. The live demo'),
+  P('Everything in this guide can be clicked through at logicclass.vercel.app, with no sign-up, no '
+    + 'install, and no Firebase project behind it.'),
+  bullets([
+    'An account for every portal. The round button at the bottom left switches between them and names, under each, the one screen worth opening.',
+    'The data is in memory. Nothing typed into it is kept, and reloading the page puts it all back.',
+    'Every screen there is the real application. The demo swaps the database underneath it and nothing else.',
+  ]),
+  note('A demo that hides behind a booking form is a demo somebody has decided you should not see. Hand a '
+     + 'principal the laptop and stop talking.'),
 );
 
 // ---------------------------------------------------------------- build

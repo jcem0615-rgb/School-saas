@@ -30,12 +30,13 @@ const S = () => pres.addSlide();
     fontFace: F.head, fontSize: 22, color: C.accent, italic: true,
   });
   s.addText(
-    'Enrolment, attendance, grades, fees, records, schedules, reports and safety - '
-    + 'in one app your Director, Principal, Admin, Registrar, Faculty, Guidance, Staff, '
-    + 'Students and Parents each sign in to and see only their own part of.',
+    'Admissions, enrolment, attendance, grades, fees, payroll, records, schedules, '
+    + 'reports and safety - in one app your Director, Principal, Admin, Registrar, '
+    + 'Faculty, Guidance, Staff, Students and Parents each sign in to and see only '
+    + 'their own part of.',
     { x: M, y: 3.85, w: 8.1, h: 1.1, isTextBox: true, margin: 0,
       fontFace: F.body, fontSize: 14.5, color: C.mist, lineSpacing: 22 });
-  const chips = ['9 role portals', 'Android . Windows . Web', 'Data Privacy Act ready'];
+  const chips = ['9 role portals', 'Android . Windows . Web', 'Live demo online'];
   for (let i = 0; i < chips.length; i++) {
     const x = M + i * 2.75;
     s.addShape('roundRect', { x, y: 5.35, w: 2.55, h: 0.52, rectRadius: 0.26,
@@ -182,6 +183,28 @@ const S = () => pres.addSlide();
   s.addNotes('Registration issues a sequential student number the client cannot forge - S-2026-000001.');
 }
 
+// ---------------------------------------------------------------- 8b. Admissions
+{
+  const s = S(); bg(s, C.deep);
+  heading(s, 'Admissions', 'From the first phone call to a student number', { dark: true,
+    lede: 'Seven stages - and the screen opens on the enquiries nobody has moved in a week, longest wait first.' });
+  await rowList(s, [
+    { icon: 'FiPhone', h: 'Enquiry', b: 'Name, contact, the grade level applied for, and where the family heard about the school' },
+    { icon: 'FiFileText', h: 'Applied', b: 'The form is in, with the documents the school asked for listed against it' },
+    { icon: 'FiCalendar', h: 'Exam scheduled', b: 'A date is set, and the family is told it' },
+    { icon: 'FiEdit3', h: 'Exam taken', b: 'The score is recorded - and without a score the stage will not move' },
+    { icon: 'FiMail', h: 'Offered', b: 'The place is offered, with the date the offer lapses' },
+    { icon: 'FiDollarSign', h: 'Reserved', b: 'The reservation fee is paid, and it follows the child as a credit' },
+    { icon: 'FiUserCheck', h: 'Enrolled', b: 'One transaction creates the student record and issues the number' },
+    { icon: 'FiPieChart', h: 'The funnel', b: 'How many reached each stage, and where in the year the school is losing families' },
+  ], { cols: 2, y: 2.3, rh: 1.05, disc: '2E3A70', glyph: C.accent,
+       headColor: C.paper, bodyColor: '9EABD6' });
+  s.addText('A stage cannot be wished forward: no score, no "exam taken"; no payment, no "reserved".', {
+    x: M, y: 6.45, w: CW, h: 0.4, isTextBox: true, margin: 0,
+    fontFace: F.head, fontSize: 15, italic: true, color: C.accent });
+  s.addNotes('Open on the follow-up list. Two families who enquired three weeks ago and were never rung back is the number a school loses its year to.');
+}
+
 // ---------------------------------------------------------------- 9. Student record
 {
   const s = S(); bg(s, C.deep);
@@ -238,6 +261,20 @@ const S = () => pres.addSlide();
     x: M, y: 5.95, w: CW, h: 0.4, isTextBox: true, margin: 0,
     fontFace: F.head, fontSize: 15, italic: true, color: C.ink });
   s.addNotes('Auto-marking is the demo moment: paste a key, watch the marks appear.');
+}
+
+// ---------------------------------------------------------------- 11b. Grading
+{
+  const s = S(); bg(s, C.paper);
+  heading(s, 'Grading', 'Weighted the DepEd way, and printed as a Form 138',
+    { lede: 'Written work, performance tasks and quarterly assessment - weighted per subject group by the school\'s own table.' });
+  await cardGrid(s, [
+    { icon: 'FiPieChart', h: 'The weights are the school\'s', b: 'Seeded with the DepEd Order 8 s.2015 groupings as a starting point, then edited and confirmed by a named person at the school.' },
+    { icon: 'FiAlertCircle', h: 'A missing component is not a zero', b: 'In week two of a quarter no exam has been given. The grade is rescaled out of the weight that exists and names what is still missing, rather than capping every child at 80.' },
+    { icon: 'FiFileText', h: 'The report card', b: 'Form 138 on the school\'s own letterhead: every subject, every quarter, the final grade, the descriptor and the remarks.' },
+    { icon: 'FiLock', h: 'Nothing prints unconfirmed', b: 'Until somebody at the school has checked the weights against the order current for them, the report card refuses to print - and editing them revokes the confirmation.' },
+  ], { cols: 2, y: 2.35, h: 2.3 });
+  s.addNotes('Grades arrive by hand or from a spreadsheet, and the class record shows the arithmetic. The rescaling point is the one teachers react to: every other system they have used counts a missing exam as a zero.');
 }
 
 // ---------------------------------------------------------------- 12. Guidance + Staff
@@ -343,6 +380,24 @@ const S = () => pres.addSlide();
   s.addNotes('Six steps, one screen each. Walk it live if there is time.');
 }
 
+// ---------------------------------------------------------------- 16b. Billing
+{
+  const s = S(); bg(s, C.deep);
+  heading(s, 'Billing', 'Instalments, discounts, vouchers and the exam permit', { dark: true,
+    lede: 'The four things a private school here does to a bill - and not one of them is a remark typed into a notes field.' });
+  await cardGrid(s, [
+    { icon: 'FiCalendar', h: 'Instalments with due dates', b: 'A schedule can be split - upon enrolment, then monthly - with a due date on every part. What is overdue becomes a date rather than an opinion.' },
+    { icon: 'FiTag', h: 'A discount is a record', b: 'Sibling, early bird, staff child, scholarship: who granted it, on what authority, and against which charge. It can be revoked, and the revocation is a record too.' },
+    { icon: 'FiAward', h: 'ESC and SHS vouchers', b: 'The subsidy is carried as a receivable from PEAC, not as a discount the school gave away. The family sees the net; the school still sees who owes the rest.' },
+    { icon: 'FiCheckSquare', h: 'The exam permit', b: 'Cleared or not cleared, read from the ledger - so nobody is deciding at a desk on exam morning whether this family is up to date.' },
+  ], { cols: 4, y: 2.55, h: 3.05, tint: C.ink, line: '3A4783', discColor: C.accent,
+       glyph: '141B3D', headColor: C.paper, bodyColor: '9EABD6' });
+  s.addText('A school that writes a voucher off as a discount cannot say what PEAC still owes it. This one can.', {
+    x: M, y: 6.05, w: CW, h: 0.4, isTextBox: true, margin: 0,
+    fontFace: F.head, fontSize: 15, italic: true, color: C.accent });
+  s.addNotes('Vouchers are the slide a Philippine private school leans forward for - nobody else models the PEAC receivable.');
+}
+
 // ---------------------------------------------------------------- 17. Online payments
 {
   const s = S(); bg(s, C.deep);
@@ -359,6 +414,23 @@ const S = () => pres.addSlide();
     x: M, y: 6.05, w: CW, h: 0.4, isTextBox: true, margin: 0,
     fontFace: F.head, fontSize: 15, italic: true, color: C.accent });
   s.addNotes('This is a differentiator for smaller schools: no merchant account, no gateway fees.');
+}
+
+// ---------------------------------------------------------------- 17a. Official receipts
+{
+  const s = S(); bg(s, C.paper);
+  heading(s, 'Official receipts', 'BIR serials, issued once and reconciled',
+    { lede: 'A booklet is registered with its Authority to Print number and its range. The app hands out serials from it, one at a time.' });
+  await rowList(s, [
+    { icon: 'FiBookOpen', h: 'Register the booklet', b: 'The ATP number, the serial range it covers, and the date it was received' },
+    { icon: 'FiTag', h: 'One serial, once', b: 'Claimed on the server inside a transaction. Two cashiers pressing at the same moment cannot be handed the same number' },
+    { icon: 'FiPrinter', h: 'Printed as an OR', b: 'Payer, amount, what it was for, and the serial - on the school\'s own letterhead' },
+    { icon: 'FiSearch', h: 'Reconciled, gaps and all', b: 'Which serials were issued, which were cancelled, and which are simply missing - the question an audit opens with' },
+  ], { cols: 2, y: 2.35, rh: 1.7 });
+  await callout(s, 'FiLock',
+    'The serial is not a number the app displays. It is a number the server gives out once and can never give out again.',
+    { y: 5.5, h: 0.95 });
+  s.addNotes('Say the concurrency point out loud: no two receipts can carry the same serial, ever.');
 }
 
 // ---------------------------------------------------------------- 17b. Messaging
@@ -386,7 +458,44 @@ const S = () => pres.addSlide();
     { icon: 'FiClock', h: 'The timesheet', b: 'Every day named as exactly one thing: worked, late, on leave, rest day, or absent. Approved leave is what turns a blank day from an absence into an authorised one.', dark: true },
     { icon: 'FiAlertCircle', h: 'Nothing is guessed', b: 'A day with a time in and no time out contributes no hours, and the sheet says how many such days there are. No invented hours reach a payslip.', dark: true },
   ], { cols: 2, y: 2.35, h: 2.3 });
-  s.addNotes('Say plainly that this is not payroll. It is the sheet payroll is run from.');
+  s.addNotes('This is the sheet payroll is run from - the next slide is the run itself.');
+}
+
+// ---------------------------------------------------------------- 17c2. Payroll
+{
+  const s = S(); bg(s, C.paper);
+  heading(s, 'Payroll', 'Salaries computed from the timesheet',
+    { lede: 'Monthly, daily or hourly - whichever the contract says. Absences are costed at the period\'s own day rate, not a fixed twenty-two.' });
+  await cardGrid(s, [
+    { icon: 'FiDollarSign', h: 'What goes in', b: 'Basic pay and allowances from the employee\'s compensation record; days worked, late and absent from the month already on the timesheet.' },
+    { icon: 'FiMinusCircle', h: 'What comes out', b: 'SSS, PhilHealth, Pag-IBIG and withholding tax - contributions first, then tax on what is left. Net pay never falls below zero.' },
+    { icon: 'FiGift', h: '13th month', b: 'A twelfth of what was actually earned across the year, computed from the runs rather than from a headline salary.' },
+    { icon: 'FiPrinter', h: 'The payslip', b: 'A5, two to a sheet, with the basis of every line on it - so an employee can check their own pay without asking anybody.' },
+  ], { cols: 4, y: 2.4, h: 2.75 });
+  await callout(s, 'FiAlertCircle',
+    'We ship no contribution tables. Your school types them from the circular in front of it, records which circular that was, and confirms - and no payslip prints until somebody has.',
+    { y: 5.45, h: 1.15 });
+  s.addNotes('The refusal to ship rate tables is the credibility line. A wrong bracket looks entirely plausible on a payslip, and it is somebody short every payday.');
+}
+
+// ---------------------------------------------------------------- 17c3. Inventory
+{
+  const s = S(); bg(s, C.deep);
+  heading(s, 'The stock room', 'What the school owns, and who is holding it', { dark: true,
+    lede: 'Every movement is a row - received, issued, returned, consumed, written off - and the quantity is what those rows add up to.' });
+  await rowList(s, [
+    { icon: 'FiPackage', h: 'The item', b: 'Name, category, unit, reorder level, and where in the school it is kept' },
+    { icon: 'FiTruck', h: 'Received', b: 'A delivery, with the supplier and the document number against it' },
+    { icon: 'FiArrowUpRight', h: 'Issued', b: 'To a person, for a reason - the projector has a name against it' },
+    { icon: 'FiRotateCcw', h: 'Returned', b: 'Back on the shelf, and the person who had it is clear' },
+    { icon: 'FiAlertTriangle', h: 'Low stock', b: 'What has fallen to its reorder level, before somebody needs it' },
+    { icon: 'FiClipboard', h: 'Outstanding', b: 'What is out of the room right now, and who is holding each of it' },
+  ], { cols: 2, y: 2.35, rh: 1.25, disc: '2E3A70', glyph: C.accent,
+       headColor: C.paper, bodyColor: '9EABD6' });
+  s.addText('The quantity is never typed in - it is the movements, added up.', {
+    x: M, y: 6.35, w: CW, h: 0.4, isTextBox: true, margin: 0,
+    fontFace: F.head, fontSize: 15, italic: true, color: C.accent });
+  s.addNotes('Ask the room who currently has the LCD projector. Nobody will know, and that is the slide.');
 }
 
 // ---------------------------------------------------------------- 17d. Notifications
@@ -420,6 +529,24 @@ const S = () => pres.addSlide();
     x: M, y: 5.95, w: CW, h: 0.4, isTextBox: true, margin: 0,
     fontFace: F.head, fontSize: 15, italic: true, color: C.ink });
   s.addNotes('The release log is the part registrars react to - it is the question they get asked years later.');
+}
+
+// ---------------------------------------------------------------- 18b. Year-end
+{
+  const s = S(); bg(s, C.deep);
+  heading(s, 'Year-end', 'Promoted, retained or graduated - decided once', { dark: true,
+    lede: 'The week every April that a school currently does by hand, on a printed list, in a room.' });
+  await cardGrid(s, [
+    { icon: 'FiCheckCircle', h: 'A decision per student', b: 'Promoted, retained, graduated or transferred out, taken against the final grades already held - with a reason recorded where the school needs one.' },
+    { icon: 'FiClock', h: 'Nobody is decided by default', b: 'A student the school has not decided on is held, and held students are left out of the run entirely. Silence never quietly becomes a promotion.' },
+    { icon: 'FiArrowRight', h: 'The next level is not guessed', b: 'It comes from the school\'s own roster of grade levels. Where there is no next level, the app says so instead of inventing one.' },
+    { icon: 'FiRefreshCw', h: 'Run it twice, safely', b: 'A student already rolled over is skipped rather than moved again, and the run reports how many were applied and how many were already done.' },
+  ], { cols: 4, y: 2.55, h: 3.05, tint: C.ink, line: '3A4783', discColor: C.accent,
+       glyph: '141B3D', headColor: C.paper, bodyColor: '9EABD6' });
+  s.addText('A promotion record is written once and never edited - a correction is a new record.', {
+    x: M, y: 6.05, w: CW, h: 0.4, isTextBox: true, margin: 0,
+    fontFace: F.head, fontSize: 15, italic: true, color: C.accent });
+  s.addNotes('Ask how long last April took. The answer is usually days, and always at least one argument about who decided what.');
 }
 
 // ---------------------------------------------------------------- 19. Schedule
@@ -574,9 +701,15 @@ const S = () => pres.addSlide();
     + 'We load them in front of you, and you click through the portals your own staff would use.',
     { x: 5.0, y: 3.75, w: 7.4, h: 1.1, isTextBox: true, margin: 0,
       fontFace: F.body, fontSize: 14.5, color: C.mist, lineSpacing: 23 });
-  s.addText('LogicClass', { x: 5.0, y: 5.35, w: 7.4, h: 0.5, isTextBox: true, margin: 0,
-    fontFace: F.head, fontSize: 24, bold: true, color: C.accent });
-  s.addNotes('Close by asking for their data. A demo on their own roster sells itself.');
+  s.addText('Or try it before you believe any of it:', {
+    x: 5.0, y: 5.05, w: 7.4, h: 0.32, isTextBox: true, margin: 0,
+    fontFace: F.body, fontSize: 13, color: C.mist });
+  s.addText('logicclass.vercel.app', { x: 5.0, y: 5.4, w: 7.4, h: 0.5, isTextBox: true, margin: 0,
+    fontFace: F.head, fontSize: 26, bold: true, color: C.accent });
+  s.addText('Twelve accounts, one per role. Nothing to install, and nothing you type into it is kept.', {
+    x: 5.0, y: 5.95, w: 7.4, h: 0.35, isTextBox: true, margin: 0,
+    fontFace: F.body, fontSize: 12, italic: true, color: '8895C4' });
+  s.addNotes('Close by asking for their data, then hand them the laptop. Do not talk over the first thing they tap.');
 }
 
 await pres.writeFile({ fileName: out('LogicClass-Demo.pptx') });
