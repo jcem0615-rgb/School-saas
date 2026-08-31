@@ -32,6 +32,7 @@ import '../features/emergency/domain/repositories/emergency_repository.dart';
 import '../features/faculty_portal/domain/entities/answer_key.dart';
 import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
+import '../features/faculty_portal/domain/entities/grading_scheme.dart';
 import '../core/storage/upload_repository.dart';
 import '../features/faculty_portal/domain/repositories/faculty_repository.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
@@ -1656,6 +1657,50 @@ class DemoFacultyRepository implements FacultyRepository {
   }
 
   @override
+  Stream<GradingScheme> watchGradingScheme() => _store.gradingScheme.stream;
+
+  @override
+  Future<Result<void>> saveGradingScheme(GradingScheme scheme) async {
+    await _latency();
+    // Saving revokes the confirmation, exactly as the real data source
+    // does -- a demo that kept it would show a scheme somebody edited
+    // still marked as checked, which is the thing that must not happen.
+    _store.gradingScheme.add(GradingScheme(
+      weights: scheme.weights,
+      transmutation: scheme.transmutation,
+    ));
+    _store.audit(
+      module: 'settings',
+      action: 'update',
+      targetCollection: 'settings',
+      targetId: 'grading',
+      newValue: {'groups': scheme.weights.length},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> confirmGradingScheme() async {
+    await _latency();
+    final current = _store.gradingScheme.value;
+    _store.gradingScheme.add(GradingScheme(
+      weights: current.weights,
+      transmutation: current.transmutation,
+      confirmedBySchool: true,
+      confirmedByName: _store.requireUser.fullName,
+      confirmedAt: DateTime.now(),
+    ));
+    _store.audit(
+      module: 'settings',
+      action: 'update',
+      targetCollection: 'settings',
+      targetId: 'grading',
+      newValue: {'confirmedBySchool': true},
+    );
+    return const Success(null);
+  }
+
+  @override
   Future<Result<void>> submitGrade({
     required String studentId,
     required String studentName,
@@ -1664,6 +1709,7 @@ class DemoFacultyRepository implements FacultyRepository {
     required String term,
     required double score,
     required double maxScore,
+    required GradingComponent component,
     String? courseworkItemId,
     String? remarks,
   }) async {
@@ -1678,6 +1724,7 @@ class DemoFacultyRepository implements FacultyRepository {
         subject: subject,
         section: section,
         term: term,
+        component: component,
         courseworkItemId: courseworkItemId,
         score: score,
         maxScore: maxScore,

@@ -6,6 +6,11 @@ import '../../../admin_portal/domain/entities/school_branding.dart';
 import '../../../admin_portal/presentation/controllers/admin_controller.dart' show brandingProvider;
 import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider;
 import '../../../faculty_portal/domain/entities/grade.dart';
+import '../../../faculty_portal/domain/entities/grading_scheme.dart';
+import '../../../faculty_portal/domain/entities/quarterly_grade.dart';
+import '../../../faculty_portal/presentation/controllers/faculty_controller.dart'
+    show gradingSchemeProvider;
+import '../../../faculty_portal/presentation/documents/report_card_pdf.dart';
 import '../../domain/entities/document_release.dart';
 import '../../domain/entities/student_summary.dart';
 import '../controllers/registrar_controller.dart';
@@ -113,9 +118,37 @@ class _DocumentReleaseScreenState extends ConsumerState<DocumentReleaseScreen> {
     final grades = ref.read(studentGradesStreamProvider(widget.student.id)).valueOrNull ??
         const <Grade>[];
     final registrarName = ref.read(authStateProvider).valueOrNull?.fullName ?? 'Registrar';
+    final chosen = document ?? _document;
+
+    if (chosen == SchoolDocument.form138) {
+      final scheme = ref.read(gradingSchemeProvider).valueOrNull;
+      if (scheme == null) {
+        _say('The grading scheme has not loaded yet. Try again in a moment.');
+        return;
+      }
+      try {
+        await ReportCardPdf.print(
+          studentName: widget.student.fullName,
+          studentNumber: widget.student.studentNumber,
+          classLabel: widget.student.classLabel,
+          schoolYear: branding.schoolYear ?? '',
+          terms: _termsIn(grades),
+          bySubject: _quarterlyBySubject(grades, scheme),
+          scheme: scheme,
+          branding: branding,
+          preparedByName: registrarName,
+        );
+      } on StateError catch (e) {
+        // The unconfirmed-scheme refusal. Said in the words the domain
+        // used rather than as a failure, because it is not one: it is
+        // the school being told to do the step it has not done.
+        if (mounted) _say(e.message);
+      }
+      return;
+    }
 
     await AcademicRecordPdf.print(
-      document: document ?? _document,
+      document: chosen,
       student: widget.student,
       branding: branding,
       grades: grades,
@@ -124,6 +157,34 @@ class _DocumentReleaseScreenState extends ConsumerState<DocumentReleaseScreen> {
       releasedToName: releasedTo,
       copies: copies,
     );
+  }
+
+  /// The quarters the student has marks in, in the order a report card
+  /// reads them. Sorted by name, which puts "1st Quarter" before "2nd"
+  /// and "Q1" before "Q2" -- and leaves a school with its own labels
+  /// with a stable order rather than the order Firestore happened to
+  /// return.
+  static List<String> _termsIn(List<Grade> grades) =>
+      ({for (final g in grades) g.term}.toList()..sort());
+
+  static Map<String, List<QuarterlyGrade>> _quarterlyBySubject(
+    List<Grade> grades,
+    GradingScheme scheme,
+  ) {
+    final subjects = {for (final g in grades) g.subject}.toList()..sort();
+    final terms = _termsIn(grades);
+    return {
+      for (final subject in subjects)
+        subject: [
+          for (final term in terms)
+            computeQuarterlyGrade(
+              subject: subject,
+              term: term,
+              grades: grades.where((g) => g.subject == subject && g.term == term),
+              scheme: scheme,
+            ),
+        ],
+    };
   }
 
   void _say(String message) {
@@ -140,6 +201,10 @@ class _DocumentReleaseScreenState extends ConsumerState<DocumentReleaseScreen> {
     // Watched purely so the letterhead and the principal's signature are
     // loaded before anybody presses print. See _print.
     final branding = ref.watch(brandingProvider).valueOrNull;
+    // Watched for the same reason as branding: the report card cannot be
+    // computed without it, and subscribing for the first time inside
+    // _print would return nothing.
+    ref.watch(gradingSchemeProvider);
 
     ref.listen(registrarActionControllerProvider, (previous, next) {
       if (next case AsyncError(:final error)) _say(error.toString());

@@ -7,6 +7,8 @@ import '../../../../core/widgets/combo_field.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/coursework_item.dart';
 import '../../domain/entities/grade.dart';
+import '../../domain/entities/grading_scheme.dart';
+import '../../domain/entities/quarterly_grade.dart';
 import '../controllers/faculty_controller.dart';
 import '../import/grade_import.dart';
 
@@ -141,6 +143,25 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
                                 ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
                               final latest = theirs.firstOrNull;
 
+                              // The weighted grade for the term the last
+                              // mark was posted in -- which is the one
+                              // the teacher is working on. A running
+                              // total of raw scores was never the number
+                              // that goes on a report card, and a teacher
+                              // who cannot see the real one keeps a
+                              // spreadsheet that computes it.
+                              final scheme =
+                                  ref.watch(gradingSchemeProvider).valueOrNull;
+                              final computed = (latest == null || scheme == null)
+                                  ? null
+                                  : computeQuarterlyGrade(
+                                      subject: _activeQuery!.subject,
+                                      term: latest.term,
+                                      grades: theirs
+                                          .where((g) => g.term == latest.term),
+                                      scheme: scheme,
+                                    );
+
                               return Card(
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
@@ -156,17 +177,37 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
                                   subtitle: Text(
                                     latest == null
                                         ? 'No grade yet · ${student.studentNumber}'
-                                        : '${latest.term} · ${_dateFormat.format(latest.submittedAt)}',
+                                        : _componentSummary(latest, computed),
                                   ),
-                                  trailing: latest == null
+                                  trailing: latest == null || computed == null
                                       ? const Chip(
                                           label: Text('Ungraded'),
                                           visualDensity: VisualDensity.compact,
                                         )
-                                      : Text(
-                                          '${latest.score.toStringAsFixed(1)} / '
-                                          '${latest.maxScore.toStringAsFixed(1)}',
-                                          style: Theme.of(context).textTheme.titleSmall,
+                                      : Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              '${computed.finalGrade}',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                    color: isPassing(computed.finalGrade)
+                                                        ? null
+                                                        : Theme.of(context)
+                                                            .colorScheme
+                                                            .error,
+                                                  ),
+                                            ),
+                                            Text(
+                                              latest.term,
+                                              style:
+                                                  Theme.of(context).textTheme.bodySmall,
+                                            ),
+                                          ],
                                         ),
                                   onTap: () => _showSubmitDialog(
                                     context,
@@ -186,6 +227,22 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
         ],
       ),
     );
+  }
+
+  /// What is behind the number, in one line.
+  ///
+  /// Says which components are still empty, because a grade computed from
+  /// written work alone is not the grade the child will end the quarter
+  /// with, and a teacher reading 92 in week two should know that.
+  static String _componentSummary(Grade latest, QuarterlyGrade? computed) {
+    final when = _dateFormat.format(latest.submittedAt);
+    if (computed == null) return '${latest.term} · $when';
+    final missing = computed.missingComponents;
+    if (missing.isEmpty) {
+      return '${computed.weights.label} · all three components · $when';
+    }
+    return '${computed.weights.label} · no '
+        '${missing.map((c) => c.shortLabel).join(' or ')} yet · $when';
   }
 
   /// Export, and import for the class currently on screen.
@@ -218,15 +275,20 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
     showExportImportSheet(
       context: context,
       label: 'Grades',
-      headers: const ['Student', 'Subject', 'Section', 'Term', 'Score', 'Max Score', 'Remarks'],
-      importHeaders: const ['Student', 'Term', 'Score', 'Max Score', 'Remarks'],
+      headers: const [
+        'Student', 'Subject', 'Section', 'Term', 'Component', 'Score',
+        'Max Score', 'Remarks',
+      ],
+      importHeaders: const ['Student', 'Term', 'Component', 'Score', 'Max Score', 'Remarks'],
       importNote: !canImport
           ? null
           : 'Marks are posted to ${query.subject} · ${query.section} — the '
               'class chosen above — so the file does not carry Subject or '
               'Section. Name students as they appear on the class list, or '
-              'by student number. Leave Max Score blank for a mark out '
-              'of 100.',
+              'by student number. Component is Written Work, Performance '
+              'Tasks or Quarterly Assessment (WW, PT, QA) and decides how '
+              'the mark is weighted; blank means written work. Leave Max '
+              'Score blank for a mark out of 100.',
       importUnavailableNote: query == null
           ? 'Choose a subject and section above first. Marks are posted to '
               'the class on screen, and students are matched against that '
@@ -240,6 +302,7 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
                 g.subject,
                 g.section,
                 g.term,
+                g.component.displayLabel,
                 g.score.toStringAsFixed(1),
                 g.maxScore.toStringAsFixed(1),
                 g.remarks ?? '',
@@ -269,6 +332,7 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
                   subject: query.subject,
                   section: query.section,
                   term: r.term,
+                  component: r.component,
                   score: r.score,
                   maxScore: r.maxScore,
                   remarks: r.remarks,
@@ -294,10 +358,12 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
     final termController = TextEditingController(text: 'Q1');
     final scoreController = TextEditingController();
     final maxScoreController = TextEditingController(text: '100');
+    var component = GradingComponent.writtenWork;
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
         title: const Text('Submit Grade'),
         content: SingleChildScrollView(
           child: Column(
@@ -318,6 +384,26 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
               TextField(
                 controller: termController,
                 decoration: const InputDecoration(labelText: 'Term (e.g. Q1)'),
+              ),
+              const SizedBox(height: 12),
+              // Which of the three the mark counts towards. Not optional
+              // and not a free-text field: a score filed under nothing
+              // cannot be weighted, and the whole quarterly grade rests
+              // on this one choice being right.
+              DropdownButtonFormField<GradingComponent>(
+                initialValue: component,
+                // Without this the dropdown takes its width from the
+                // longest label -- "Quarterly Assessment" -- and pushes
+                // the dialog past the edge of a phone.
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Component'),
+                items: [
+                  for (final c in GradingComponent.values)
+                    DropdownMenuItem(value: c, child: Text(c.displayLabel)),
+                ],
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => component = value);
+                },
               ),
               const SizedBox(height: 12),
               TextField(
@@ -344,6 +430,7 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
                     subject: query.subject,
                     section: query.section,
                     term: termController.text.trim(),
+                    component: component,
                     score: double.tryParse(scoreController.text) ?? -1,
                     maxScore: double.tryParse(maxScoreController.text) ?? 0,
                   );
@@ -352,6 +439,7 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
             child: const Text('Submit'),
           ),
         ],
+      ),
       ),
     );
   }

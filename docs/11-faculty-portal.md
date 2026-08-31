@@ -172,12 +172,30 @@ What it refuses, and why each one matters:
 - **A score above the max score.** Almost always the two columns filled
   in the wrong order, and it would enter the general average as a mark
   over 100%.
-- **A term the student already has a mark for.** `submitGrade` writes a
-  new document every time, so a re-run would leave two marks for one term
-  and no way to tell which the teacher meant.
+- **A mark the student already has, exactly.** `submitGrade` writes a new
+  document every time and scores inside a component are summed, so a file
+  run twice would silently double a child's written work. This used to be
+  "a term the student already has a mark for", which stopped being right
+  when components arrived — see [Module 32](32-grading.md) for what
+  replaced it.
 
 A blank Max Score means a mark out of 100 — the same default the submit
 dialog offers, and the first column anyone preparing the file deletes.
 Names match full name, "Surname, First", and the form carrying a middle
 name, with whitespace collapsed, because a class list copied out of
 another system routinely carries a double space.
+
+A **Component** column decides whether a mark is Written Work,
+Performance Tasks or Quarterly Assessment, and so how it is weighted.
+Blank means written work, which is where a quiz or a seatwork belongs and
+is what every mark posted before components existed already counts as. A
+component that is none of the three is refused rather than defaulted: a
+mark the teacher labelled "recitation" is not necessarily written work,
+and weighting it as if it were would be the app deciding something they
+did not say.
+
+## Grading
+
+What turns those marks into the number on a report card — the weights,
+the transmutation, the confirmation step that gates printing — is
+[Module 32](32-grading.md).

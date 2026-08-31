@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/grade.dart';
+import '../../domain/entities/grading_scheme.dart';
 
 class GradeModel extends Grade {
   const GradeModel({
@@ -14,6 +15,7 @@ class GradeModel extends Grade {
     required super.maxScore,
     required super.submittedByName,
     required super.submittedAt,
+    super.component,
     super.courseworkItemId,
     super.remarks,
   });
@@ -26,6 +28,7 @@ class GradeModel extends Grade {
       subject: data['subject'] as String? ?? '',
       section: data['section'] as String? ?? '',
       term: data['term'] as String? ?? '',
+      component: GradingComponent.fromString(data['component'] as String? ?? ''),
       courseworkItemId: data['courseworkItemId'] as String?,
       score: (data['score'] as num?)?.toDouble() ?? 0.0,
       maxScore: (data['maxScore'] as num?)?.toDouble() ?? 0.0,

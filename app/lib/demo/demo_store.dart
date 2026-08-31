@@ -24,6 +24,7 @@ import '../features/emergency/domain/entities/emergency_contact.dart';
 import '../features/faculty_portal/domain/entities/answer_key.dart';
 import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
+import '../features/faculty_portal/domain/entities/grading_scheme.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
 import '../features/class_sessions/domain/entities/class_session.dart';
 import '../features/messaging/domain/entities/conversation.dart';
@@ -199,6 +200,21 @@ class DemoStore {
   late final courseworkSubmissions =
       BehaviorSubject<List<CourseworkSubmission>>.seeded(_seedCourseworkSubmissions());
   late final grades = BehaviorSubject<List<Grade>>.seeded(_seedGrades());
+
+  /// The demo school's grading scheme: the DepEd defaults, confirmed.
+  ///
+  /// Confirmed rather than pending, because the demo needs the report
+  /// card to print. The unconfirmed state is one press of "Change these"
+  /// away on the grading settings screen, which is the right way to see
+  /// what it does.
+  late final gradingScheme = BehaviorSubject<GradingScheme>.seeded(
+    GradingScheme(
+      weights: GradingScheme.depEdBasicEducationDefaults,
+      confirmedBySchool: true,
+      confirmedByName: 'Grace Mendoza',
+      confirmedAt: _daysAgo(45),
+    ),
+  );
   late final documentReleases =
       BehaviorSubject<List<DocumentRelease>>.seeded(_seedDocumentReleases());
   late final announcements = BehaviorSubject<List<Announcement>>.seeded(_seedAnnouncements());
@@ -544,7 +560,7 @@ class DemoStore {
   void dispose() {
     for (final s in <BehaviorSubject<dynamic>>[
       currentUser, schools, revenue, invoices, students, employees,
-      assignments, programs, payments, attendance, coursework, grades,
+      assignments, programs, payments, attendance, coursework, grades, gradingScheme,
       courseworkSubmissions, answerKeys, emergencyContacts, emergencyAlerts,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog, notifications,
@@ -1688,72 +1704,152 @@ class DemoStore {
         ),
       ];
 
+  /// A quarter's marks in the shape the grading feature needs them.
+  ///
+  /// Three components per subject, because that is what a DepEd quarterly
+  /// grade is made of and a demo that seeds one loose score per subject
+  /// shows a report card with nothing on it. The quarterly assessment is
+  /// optional here on purpose: the current quarter has not had its exam
+  /// yet, which is the case the whole "an ungraded component is not a
+  /// zero" rule exists for, and the demo should show it rather than
+  /// describe it.
+  List<Grade> _componentSet({
+    required String idPrefix,
+    required String studentId,
+    required String studentName,
+    required String subject,
+    required String term,
+    required int daysAgo,
+    required (double, double) written,
+    required (double, double) performance,
+    (double, double)? quarterly,
+  }) {
+    Grade one(String suffix, GradingComponent component, (double, double) mark) => Grade(
+          id: '${idPrefix}_$suffix',
+          studentId: studentId,
+          studentName: studentName,
+          subject: subject,
+          section: 'Grade 10 - Rizal',
+          term: term,
+          component: component,
+          score: mark.$1,
+          maxScore: mark.$2,
+          submittedByName: 'Maria Santos',
+          submittedAt: _daysAgo(daysAgo),
+        );
+
+    return [
+      one('ww', GradingComponent.writtenWork, written),
+      one('pt', GradingComponent.performanceTask, performance),
+      if (quarterly != null)
+        one('qa', GradingComponent.quarterlyAssessment, quarterly),
+    ];
+  }
+
   List<Grade> _seedGrades() => [
-        Grade(
-          id: 'gr_001',
+        // Miguel's first quarter, closed: every component in, so the
+        // report card has a complete column to print.
+        ..._componentSet(
+          idPrefix: 'gr_m1_math',
           studentId: 'stu_001',
           studentName: 'Miguel Torres',
           subject: 'Mathematics',
-          section: 'Grade 10 - Rizal',
-          term: '2nd Quarter',
-          courseworkItemId: 'cw_001',
-          score: 34,
-          maxScore: 40,
-          submittedByName: 'Maria Santos',
-          submittedAt: _daysAgo(1),
+          term: '1st Quarter',
+          daysAgo: 40,
+          written: (128, 150),
+          performance: (172, 200),
+          quarterly: (42, 50),
         ),
-        Grade(
-          id: 'gr_002',
+        ..._componentSet(
+          idPrefix: 'gr_m1_sci',
           studentId: 'stu_001',
           studentName: 'Miguel Torres',
           subject: 'Science',
-          section: 'Grade 10 - Rizal',
-          term: '2nd Quarter',
-          courseworkItemId: 'cw_002',
-          score: 21,
-          maxScore: 25,
-          remarks: 'Good improvement from Quiz 2.',
-          submittedByName: 'Maria Santos',
-          submittedAt: _daysAgo(3),
+          term: '1st Quarter',
+          daysAgo: 40,
+          written: (142, 165),
+          performance: (180, 200),
+          quarterly: (44, 50),
         ),
-        Grade(
-          id: 'gr_003',
+        ..._componentSet(
+          idPrefix: 'gr_m1_eng',
           studentId: 'stu_001',
           studentName: 'Miguel Torres',
           subject: 'English',
-          section: 'Grade 10 - Rizal',
           term: '1st Quarter',
-          score: 88,
-          maxScore: 100,
-          submittedByName: 'Maria Santos',
-          submittedAt: _daysAgo(40),
+          daysAgo: 40,
+          written: (118, 140),
+          performance: (186, 200),
+          quarterly: (46, 50),
         ),
-        Grade(
-          id: 'gr_004',
+        ..._componentSet(
+          idPrefix: 'gr_m1_fil',
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+          subject: 'Filipino',
+          term: '1st Quarter',
+          daysAgo: 40,
+          written: (110, 140),
+          performance: (168, 200),
+          quarterly: (40, 50),
+        ),
+        ..._componentSet(
+          idPrefix: 'gr_m1_mapeh',
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+          subject: 'MAPEH',
+          term: '1st Quarter',
+          daysAgo: 40,
+          written: (86, 100),
+          performance: (228, 250),
+          quarterly: (44, 50),
+        ),
+
+        // The quarter in progress: no quarterly assessment anywhere,
+        // because the exam has not been sat. Every grade on screen is
+        // computed from the two components that exist.
+        ..._componentSet(
+          idPrefix: 'gr_m2_math',
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+          subject: 'Mathematics',
+          term: '2nd Quarter',
+          daysAgo: 1,
+          written: (34, 40),
+          performance: (88, 100),
+        ),
+        ..._componentSet(
+          idPrefix: 'gr_m2_sci',
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+          subject: 'Science',
+          term: '2nd Quarter',
+          daysAgo: 3,
+          written: (21, 25),
+          performance: (92, 100),
+        ),
+
+        // Two classmates, so the teacher's class record is a class and
+        // not one child -- and so the spread on it is visible.
+        ..._componentSet(
+          idPrefix: 'gr_a2_math',
           studentId: 'stu_003',
           studentName: 'Andrea Villanueva',
           subject: 'Mathematics',
-          section: 'Grade 10 - Rizal',
           term: '2nd Quarter',
-          courseworkItemId: 'cw_001',
-          score: 39,
-          maxScore: 40,
-          submittedByName: 'Maria Santos',
-          submittedAt: _daysAgo(1),
+          daysAgo: 1,
+          written: (39, 40),
+          performance: (96, 100),
         ),
-        Grade(
-          id: 'gr_005',
+        ..._componentSet(
+          idPrefix: 'gr_p2_math',
           studentId: 'stu_004',
           studentName: 'Paolo Ramirez',
           subject: 'Mathematics',
-          section: 'Grade 10 - Rizal',
           term: '2nd Quarter',
-          courseworkItemId: 'cw_001',
-          score: 27,
-          maxScore: 40,
-          remarks: 'Needs to review factoring.',
-          submittedByName: 'Maria Santos',
-          submittedAt: _daysAgo(1),
+          daysAgo: 1,
+          written: (27, 40),
+          performance: (71, 100),
         ),
       ];
 

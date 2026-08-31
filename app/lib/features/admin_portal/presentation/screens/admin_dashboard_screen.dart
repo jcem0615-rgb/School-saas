@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
+import '../../../faculty_portal/presentation/screens/grading_scheme_screen.dart';
 import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../../system_check/presentation/screens/system_check_screen.dart';
@@ -145,6 +146,16 @@ class AdminDashboardScreen extends StatelessWidget {
                   label: 'Fee Schedules',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const FeeStructuresScreen())),
+                ),
+                // What every grade in the school is computed from. Under
+                // Admin rather than in the staffroom on purpose: the
+                // weights are a school-wide decision somebody is
+                // answerable for, not a per-teacher preference.
+                GlassTile(
+                  icon: Icons.rule_outlined,
+                  label: 'Grading Scheme',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const GradingSchemeScreen())),
                 ),
                 GlassTile(
                   icon: Icons.campaign_outlined,

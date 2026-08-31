@@ -9,6 +9,8 @@ import '../../domain/entities/answer_key.dart';
 import '../../domain/entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/grade.dart';
+import '../../domain/entities/grading_scheme.dart';
+import '../../domain/entities/quarterly_grade.dart';
 import '../../domain/repositories/faculty_repository.dart';
 import '../../domain/usecases/coursework_usecases.dart';
 import '../../domain/usecases/grade_usecases.dart';
@@ -144,6 +146,18 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
   Future<bool> deleteCourseworkItem(String itemId) =>
       _run(() => _deleteCourseworkItem(itemId));
 
+  /// Saving the scheme and confirming it are two acts, not one.
+  ///
+  /// A screen that saved and confirmed together would make the
+  /// confirmation meaningless -- it would record that somebody typed
+  /// numbers, which is not the same as somebody having checked them
+  /// against the order that is current for their school.
+  Future<bool> saveGradingScheme(GradingScheme scheme) =>
+      _run(() => SaveGradingSchemeUseCase(_repository)(scheme));
+
+  Future<bool> confirmGradingScheme(GradingScheme scheme) =>
+      _run(() => ConfirmGradingSchemeUseCase(_repository)(scheme));
+
   Future<bool> submitGrade({
     required String studentId,
     required String studentName,
@@ -152,9 +166,11 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
     required String term,
     required double score,
     required double maxScore,
+    required GradingComponent component,
     String? courseworkItemId,
     String? remarks,
   }) => _run(() => _submitGrade(
+        component: component,
         studentId: studentId,
         studentName: studentName,
         subject: subject,
@@ -221,4 +237,38 @@ final answerKeyProvider =
 final submissionsForProvider =
     StreamProvider.autoDispose.family<List<CourseworkSubmission>, String>((ref, courseworkId) {
   return ref.watch(facultyRepositoryProvider).watchSubmissionsFor(courseworkId);
+});
+
+/// The school's grading scheme.
+///
+/// Not autoDispose: every screen that shows a computed grade needs it, and
+/// a report card printed the instant a screen opens must not come out
+/// against a scheme that has not arrived yet.
+final gradingSchemeProvider = StreamProvider<GradingScheme>((ref) {
+  return WatchGradingSchemeUseCase(ref.watch(facultyRepositoryProvider))();
+});
+
+/// One section's marks in one subject, turned into a quarterly grade per
+/// student, for the teacher's own class record.
+final sectionQuarterlyGradesProvider = Provider.autoDispose
+    .family<Map<String, QuarterlyGrade>, GradeQuery>((ref, query) {
+  final grades = ref.watch(gradesStreamProvider(query)).valueOrNull ?? const <Grade>[];
+  final scheme = ref.watch(gradingSchemeProvider).valueOrNull;
+  if (scheme == null) return const {};
+
+  final byStudent = <String, List<Grade>>{};
+  for (final grade in grades) {
+    (byStudent[grade.studentId] ??= []).add(grade);
+  }
+  return {
+    for (final entry in byStudent.entries)
+      entry.key: computeQuarterlyGrade(
+        subject: query.subject,
+        // Every mark on this screen is for the term the teacher is
+        // looking at; the first one's term names it.
+        term: entry.value.first.term,
+        grades: entry.value,
+        scheme: scheme,
+      ),
+  };
 });

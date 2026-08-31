@@ -5,6 +5,7 @@ import '../../domain/entities/answer_key.dart';
 import '../../domain/entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/grade.dart';
+import '../../domain/entities/grading_scheme.dart';
 import '../../domain/repositories/faculty_repository.dart';
 import '../datasources/faculty_remote_datasource.dart';
 
@@ -145,11 +146,13 @@ class FacultyRepositoryImpl implements FacultyRepository {
     required String term,
     required double score,
     required double maxScore,
+    required GradingComponent component,
     String? courseworkItemId,
     String? remarks,
   }) async {
     try {
       await _remote.submitGrade(
+        component: component,
         studentId: studentId,
         studentName: studentName,
         subject: subject,
@@ -160,6 +163,29 @@ class FacultyRepositoryImpl implements FacultyRepository {
         courseworkItemId: courseworkItemId,
         remarks: remarks,
       );
+      return const Success(null);
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Stream<GradingScheme> watchGradingScheme() => _remote.watchGradingScheme();
+
+  @override
+  Future<Result<void>> saveGradingScheme(GradingScheme scheme) async {
+    try {
+      await _remote.saveGradingScheme(scheme);
+      return const Success(null);
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Result<void>> confirmGradingScheme() async {
+    try {
+      await _remote.confirmGradingScheme();
       return const Success(null);
     } catch (_) {
       return const Error(UnknownFailure());

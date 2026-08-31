@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:logicclass/core/constants/education_level.dart';
+import 'package:logicclass/features/faculty_portal/domain/entities/grading_scheme.dart';
 import 'package:logicclass/core/constants/user_roles.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
@@ -162,6 +163,7 @@ void main() {
           subject: 'Mathematics',
           section: 'Grade 10 - Rizal',
           term: 'Q2',
+          component: GradingComponent.writtenWork,
           score: 88,
           maxScore: 100,
         );

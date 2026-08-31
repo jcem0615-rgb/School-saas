@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logicclass/core/constants/education_level.dart';
 import 'package:logicclass/core/data_transfer/csv.dart' show ImportIssue;
 import 'package:logicclass/features/faculty_portal/domain/entities/grade.dart';
+import 'package:logicclass/features/faculty_portal/domain/entities/grading_scheme.dart';
 import 'package:logicclass/features/faculty_portal/presentation/import/grade_import.dart';
 import 'package:logicclass/features/registrar_portal/domain/entities/student_summary.dart';
 
@@ -40,11 +41,12 @@ void main() {
   List<String> row({
     String name = 'Maria Santos',
     String term = 'Q1',
+    String component = '',
     String score = '88',
     String maxScore = '100',
     String remarks = '',
   }) =>
-      [name, term, score, maxScore, remarks];
+      [name, term, component, score, maxScore, remarks];
 
   Object? parse(
     List<String> r, {
@@ -60,15 +62,25 @@ void main() {
         seen: seen ?? <String>{},
       );
 
-  Grade posted({required String studentId, required String term}) => Grade(
+  Grade posted({
+    required String studentId,
+    required String term,
+    GradingComponent component = GradingComponent.writtenWork,
+    double score = 88,
+    double maxScore = 100,
+    String? remarks,
+  }) =>
+      Grade(
         id: 'gr_1',
         studentId: studentId,
         studentName: 'Maria Santos',
         subject: 'Mathematics',
         section: 'Grade 10 - Rizal',
         term: term,
-        score: 80,
-        maxScore: 100,
+        component: component,
+        score: score,
+        maxScore: maxScore,
+        remarks: remarks,
         submittedByName: 'Maria Santos',
         submittedAt: DateTime(2026, 1, 1),
       );
@@ -81,6 +93,23 @@ void main() {
       expect(g.term, 'Q1');
       expect(g.score, 88);
       expect(g.maxScore, 100);
+      // Blank is written work, which is where a quiz belongs and is what
+      // every mark posted before components existed already counts as.
+      expect(g.component, GradingComponent.writtenWork);
+    });
+
+    test('reads the component column, in the spellings a teacher uses', () {
+      GradingComponent read(String text) =>
+          (parse(row(component: text)) as GradeImportRow).component;
+
+      expect(read('Performance Tasks'), GradingComponent.performanceTask);
+      expect(read('performance task'), GradingComponent.performanceTask);
+      expect(read('PT'), GradingComponent.performanceTask);
+      expect(read('Written Work'), GradingComponent.writtenWork);
+      expect(read('ww'), GradingComponent.writtenWork);
+      expect(read('Quarterly Assessment'), GradingComponent.quarterlyAssessment);
+      expect(read('QA'), GradingComponent.quarterlyAssessment);
+      expect(read('Quarterly Exam'), GradingComponent.quarterlyAssessment);
     });
 
     test('matches a student by their number', () {
@@ -153,17 +182,26 @@ void main() {
       expect(parse(row(score: 'absent')), isA<ImportIssue>());
     });
 
-    test('a term the student already has a mark for', () {
-      // submitGrade writes a new document every time, so a re-run would
-      // leave two marks for one term and no way to tell which was meant.
+    test('a component that is none of the three', () {
+      // Refused rather than defaulted. A mark the teacher labelled
+      // "recitation" is not necessarily written work, and weighting it as
+      // if it were would be the app deciding something they did not say.
+      final issue = parse(row(component: 'Recitation')) as ImportIssue;
+      expect(issue.message, contains('Could not read the component'));
+    });
+
+    test('a mark the student already has, exactly', () {
+      // submitGrade writes a new document every time and scores inside a
+      // component are summed, so a file run twice would silently double
+      // a child's written work.
       final issue = parse(
         row(),
         existing: [posted(studentId: 'stu_1', term: 'Q1')],
       ) as ImportIssue;
-      expect(issue.message, contains('already has a Q1 mark'));
+      expect(issue.message, contains('already has this exact'));
     });
 
-    test('the same student twice for one term in one file', () {
+    test('the same mark twice in one file', () {
       final seen = <String>{};
       expect(parse(row(), seen: seen), isA<GradeImportRow>());
       final issue = parse(row(), seen: seen) as ImportIssue;
@@ -174,6 +212,47 @@ void main() {
       final seen = <String>{};
       expect(parse(row(term: 'Q1'), seen: seen), isA<GradeImportRow>());
       expect(parse(row(term: 'Q2'), seen: seen), isA<GradeImportRow>());
+    });
+
+    test('nothing when the second mark is a different component', () {
+      // What had to change when components arrived. A student
+      // legitimately has three components in one term, and the old rule
+      // -- one mark per student per term -- would have refused the
+      // performance tasks file after the written work one.
+      final seen = <String>{};
+      expect(
+        parse(row(component: 'WW'), seen: seen, existing: [
+          posted(studentId: 'stu_1', term: 'Q1', component: GradingComponent.performanceTask),
+        ]),
+        isA<GradeImportRow>(),
+      );
+      expect(parse(row(component: 'PT'), seen: seen), isA<GradeImportRow>());
+      expect(parse(row(component: 'QA'), seen: seen), isA<GradeImportRow>());
+    });
+
+    test('nothing when it is a second, different piece of written work', () {
+      // Several quizzes in one component is the normal case -- the
+      // domain sums them -- so a second one out of a different total, or
+      // with a different mark, is not a duplicate.
+      final seen = <String>{};
+      expect(
+        parse(row(score: '18', maxScore: '20'), seen: seen, existing: [
+          posted(studentId: 'stu_1', term: 'Q1', score: 9, maxScore: 10),
+        ]),
+        isA<GradeImportRow>(),
+      );
+    });
+
+    test('nothing when two identical quizzes are told apart by their remark', () {
+      // The one case the fingerprint refuses wrongly, and the way
+      // through it: name one of them.
+      final seen = <String>{};
+      expect(
+        parse(row(remarks: 'Quiz 2'), seen: seen, existing: [
+          posted(studentId: 'stu_1', term: 'Q1', remarks: 'Quiz 1'),
+        ]),
+        isA<GradeImportRow>(),
+      );
     });
   });
 }

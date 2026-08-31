@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 
 import '../../../payments/presentation/screens/payment_review_screen.dart';
+import '../../../faculty_portal/presentation/screens/grading_scheme_screen.dart';
 import '../../../payments/presentation/screens/payment_settings_screen.dart';
 import 'student_list_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
@@ -88,6 +89,14 @@ class RegistrarDashboardScreen extends StatelessWidget {
                   label: 'Payment Setup',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const PaymentSettingsScreen())),
+                ),
+                // The registrar signs the report cards, so the scheme
+                // they are computed from is reachable from here too.
+                GlassTile(
+                  icon: Icons.rule_outlined,
+                  label: 'Grading Scheme',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const GradingSchemeScreen())),
                 ),
                 GlassTile(
                   icon: Icons.event_busy_outlined,

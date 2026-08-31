@@ -60,6 +60,14 @@ class FirestorePaths {
   /// Single document: logo and school name for the app and printed IDs.
   static String brandingDoc(String schoolId) => '${school(schoolId)}/settings/branding';
 
+  /// Single document: the weights and transmutation table every quarterly
+  /// grade in the school is computed with. Under settings/ so it is
+  /// readable by everyone in the tenant -- a student reading their own
+  /// grade needs the weights to be told how it was arrived at -- and
+  /// writable only by the roles that already own school-wide settings.
+  static String gradingSchemeDoc(String schoolId) =>
+      '${school(schoolId)}/settings/grading';
+
   /// The school's published fee schedules, and the record of each
   /// occasion one was charged to a student.
   static String feeStructures(String schoolId) => '${school(schoolId)}/feeStructures';

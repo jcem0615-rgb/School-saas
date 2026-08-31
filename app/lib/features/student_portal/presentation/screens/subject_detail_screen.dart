@@ -4,6 +4,9 @@ import 'package:intl/intl.dart';
 
 import '../../../faculty_portal/domain/entities/coursework_item.dart';
 import '../../../faculty_portal/domain/entities/grade.dart';
+import '../../../faculty_portal/domain/entities/quarterly_grade.dart';
+import '../../../faculty_portal/presentation/controllers/faculty_controller.dart'
+    show gradingSchemeProvider;
 import '../controllers/student_controller.dart';
 import 'coursework_detail_screen.dart';
 
@@ -42,12 +45,31 @@ class SubjectDetailScreen extends ConsumerWidget {
         .where((g) => g.subject == subject)
         .toList();
 
-    // A simple average across every mark in the subject. Deliberately not
-    // called a "final grade": weighting by term and by assessment type is
-    // a school policy decision this module does not model.
-    final average = grades.isEmpty
-        ? null
-        : grades.map((g) => g.percentage).reduce((a, b) => a + b) / grades.length;
+    // The real quarterly grade, one per term, computed the way the school
+    // says grades are computed.
+    //
+    // This used to be a flat average of every mark in the subject, with a
+    // comment saying it was deliberately not called a final grade because
+    // weighting was a school policy decision the app did not model. It
+    // models it now, so the number here is the number that goes on the
+    // report card -- and a student comparing the two should find them the
+    // same, which is the whole point of not having two ways to compute a
+    // grade.
+    final scheme = ref.watch(gradingSchemeProvider).valueOrNull;
+    final terms = {for (final g in grades) g.term}.toList()..sort();
+    final byTerm = scheme == null
+        ? const <QuarterlyGrade>[]
+        : [
+            for (final term in terms)
+              computeQuarterlyGrade(
+                subject: subject,
+                term: term,
+                grades: grades.where((g) => g.term == term),
+                scheme: scheme,
+              ),
+          ];
+    final graded = byTerm.where((g) => g.hasWork).toList();
+    final latest = graded.isEmpty ? null : graded.last;
 
     return Scaffold(
       appBar: AppBar(title: Text(subject)),
@@ -65,20 +87,32 @@ class SubjectDetailScreen extends ConsumerWidget {
                       style: TextStyle(color: theme.colorScheme.onPrimaryContainer)),
                   Text(section,
                       style: TextStyle(color: theme.colorScheme.onPrimaryContainer)),
-                  if (average != null) ...[
+                  if (latest != null) ...[
                     const SizedBox(height: 8),
                     Text(
-                      '${average.toStringAsFixed(1)}% average',
-                      style: theme.textTheme.headlineSmall?.copyWith(
+                      '${latest.finalGrade}',
+                      style: theme.textTheme.headlineMedium?.copyWith(
                         color: theme.colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
-                      'across ${grades.length} mark${grades.length == 1 ? '' : 's'}',
-                      style: theme.textTheme.bodySmall
+                      '${latest.term} · ${gradeDescriptor(latest.finalGrade)}',
+                      style: theme.textTheme.bodyMedium
                           ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
                     ),
+                    // Said plainly rather than left to be discovered. A
+                    // grade computed from two of three components will
+                    // move when the exam is marked, and a student who
+                    // does not know that reads a provisional number as a
+                    // final one.
+                    if (latest.missingComponents.isNotEmpty)
+                      Text(
+                        'Still to come: '
+                        '${latest.missingComponents.map((c) => c.displayLabel).join(' and ')}',
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
+                      ),
                   ],
                 ],
               ),
@@ -117,6 +151,66 @@ class SubjectDetailScreen extends ConsumerWidget {
                 ),
               ),
             ),
+          if (graded.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text('How this was worked out', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            // A grade a student cannot trace is one they have to take on
+            // trust. The weights are not the same for every subject --
+            // which is exactly the thing people assume -- so the group
+            // that produced them is named.
+            Text(
+              graded.last.weights.label,
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            for (final quarter in graded)
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(quarter.term, style: theme.textTheme.titleSmall),
+                          Text(
+                            '${quarter.finalGrade}',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: isPassing(quarter.finalGrade)
+                                  ? null
+                                  : theme.colorScheme.error,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      for (final component in quarter.components)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 1),
+                          child: Text(
+                            component.hasWork
+                                ? '${component.component.displayLabel}: '
+                                    '${component.raw.toStringAsFixed(0)} of '
+                                    '${component.possible.toStringAsFixed(0)} '
+                                    '(${component.percentageScore.toStringAsFixed(1)}%) '
+                                    'at ${component.weight.toStringAsFixed(0)}%'
+                                : '${component.component.displayLabel}: nothing recorded yet',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
           const SizedBox(height: 20),
           Text('My Marks', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -134,7 +228,7 @@ class SubjectDetailScreen extends ConsumerWidget {
                   side: BorderSide(color: theme.colorScheme.outlineVariant),
                 ),
                 child: ListTile(
-                  title: Text(g.term),
+                  title: Text('${g.term} · ${g.component.displayLabel}'),
                   subtitle: Text(
                     g.remarks?.trim().isNotEmpty == true
                         ? g.remarks!

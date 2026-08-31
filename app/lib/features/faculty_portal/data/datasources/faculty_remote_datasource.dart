@@ -6,6 +6,8 @@ import '../models/answer_key_model.dart';
 import '../models/coursework_submission_model.dart';
 import '../../../registrar_portal/data/models/student_summary_model.dart';
 import '../models/grade_model.dart';
+import '../models/grading_scheme_model.dart';
+import '../../domain/entities/grading_scheme.dart';
 
 class ActingFaculty {
   final String uid;
@@ -222,6 +224,7 @@ class FacultyRemoteDataSource {
     required String term,
     required double score,
     required double maxScore,
+    required GradingComponent component,
     String? courseworkItemId,
     String? remarks,
   }) async {
@@ -233,6 +236,7 @@ class FacultyRemoteDataSource {
       'subject': subject,
       'section': section,
       'term': term,
+      'component': component.value,
       'courseworkItemId': courseworkItemId,
       'score': score,
       'maxScore': maxScore,
@@ -248,5 +252,46 @@ class FacultyRemoteDataSource {
       'deletedBy': null,
       'isDeleted': false,
     });
+  }
+
+  // ---- The grading scheme (weights and transmutation) ----
+
+  Stream<GradingSchemeModel> watchGradingScheme() {
+    return _firestore
+        .doc(FirestorePaths.gradingSchemeDoc(_actingUser.schoolId))
+        .snapshots()
+        .map((snap) => GradingSchemeModel.fromFirestore(snap.data()));
+  }
+
+  /// Saves the weights and the table, and clears the confirmation.
+  ///
+  /// Clearing it is the point. A scheme somebody confirmed in June and
+  /// somebody else edited in October is not a confirmed scheme, and the
+  /// only way that stays true is if editing revokes it rather than
+  /// relying on whoever edited to remember to say so.
+  Future<void> saveGradingScheme(GradingScheme scheme) async {
+    await _firestore.doc(FirestorePaths.gradingSchemeDoc(_actingUser.schoolId)).set({
+      ...GradingSchemeModel.toMap(scheme),
+      'confirmedBySchool': false,
+      'confirmedByName': null,
+      'confirmedAt': null,
+      'schoolId': _actingUser.schoolId,
+      'updatedBy': _actingUser.uid,
+      'updatedByName': _actingUser.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Records that a named person at the school has checked the weights
+  /// against the order that is current for them.
+  Future<void> confirmGradingScheme() async {
+    await _firestore.doc(FirestorePaths.gradingSchemeDoc(_actingUser.schoolId)).set({
+      'confirmedBySchool': true,
+      'confirmedByName': _actingUser.name,
+      'confirmedAt': FieldValue.serverTimestamp(),
+      'schoolId': _actingUser.schoolId,
+      'updatedBy': _actingUser.uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

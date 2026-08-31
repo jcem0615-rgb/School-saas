@@ -4,6 +4,7 @@ import '../entities/answer_key.dart';
 import '../entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../entities/grade.dart';
+import '../entities/grading_scheme.dart';
 
 abstract class FacultyRepository {
   /// Scoped to the signed-in teacher's own items -- a Faculty member sees
@@ -81,7 +82,24 @@ abstract class FacultyRepository {
     required String term,
     required double score,
     required double maxScore,
+    required GradingComponent component,
     String? courseworkItemId,
     String? remarks,
   });
+
+  /// The school's weights and transmutation table.
+  ///
+  /// Lives on the faculty repository because grading is what it is for,
+  /// but it is read far beyond the staffroom: the student's own subject
+  /// page and the report card both need it to say how a number was
+  /// arrived at. The document is under settings/, readable by everyone in
+  /// the tenant.
+  Stream<GradingScheme> watchGradingScheme();
+
+  /// Replaces the weights and the table. Revokes the confirmation --
+  /// see the data source for why that is not the caller's choice.
+  Future<Result<void>> saveGradingScheme(GradingScheme scheme);
+
+  /// Records that somebody at the school has checked the weights.
+  Future<Result<void>> confirmGradingScheme();
 }

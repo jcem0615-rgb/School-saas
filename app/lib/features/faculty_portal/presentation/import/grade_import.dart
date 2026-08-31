@@ -2,6 +2,7 @@ import '../../../../core/data_transfer/csv.dart' show ImportIssue;
 import '../../../../core/data_transfer/sheet_values.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/grade.dart';
+import '../../domain/entities/grading_scheme.dart';
 
 /// Turns spreadsheet rows into marks the teacher could have typed.
 ///
@@ -25,6 +26,32 @@ class GradeImport {
   /// submit dialog already defaults to.
   static const defaultMaxScore = 100.0;
 
+  /// Reads the component column: "written work", "WW", "performance
+  /// task", "PT", "quarterly assessment", "QA". Blank is written work,
+  /// which is where a quiz or a seatwork belongs and is what every mark
+  /// posted before components existed already counts as.
+  ///
+  /// Returns null for text that is none of these, so the row is refused
+  /// rather than quietly weighted as something the teacher did not say.
+  static GradingComponent? parseComponent(String text) {
+    final needle = text.trim().toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+    if (needle.isEmpty) return GradingComponent.writtenWork;
+    for (final component in GradingComponent.values) {
+      if (needle == component.shortLabel.toLowerCase()) return component;
+      if (needle == component.displayLabel.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '')) {
+        return component;
+      }
+      // "performance task" for "Performance Tasks", and the reverse.
+      if (needle == component.value.replaceAll(RegExp(r'[^a-z]'), '')) return component;
+    }
+    if (needle == 'performancetask') return GradingComponent.performanceTask;
+    if (needle == 'writtenworks') return GradingComponent.writtenWork;
+    if (needle == 'quarterlyexam' || needle == 'quarterlyassessments') {
+      return GradingComponent.quarterlyAssessment;
+    }
+    return null;
+  }
+
   /// Validates one spreadsheet row into something submittable.
   ///
   /// [roster] is the class as it stands, [existing] the marks already
@@ -39,9 +66,10 @@ class GradeImport {
   }) {
     final studentText = row[0].trim();
     final term = row[1].trim();
-    final scoreText = row[2].trim();
-    final maxScoreText = row[3].trim();
-    final remarks = row[4].trim();
+    final componentText = row[2].trim();
+    final scoreText = row[3].trim();
+    final maxScoreText = row[4].trim();
+    final remarks = row[5].trim();
 
     if (studentText.isEmpty) return ImportIssue(rowNumber, 'Student is required.');
 
@@ -74,6 +102,16 @@ class GradeImport {
 
     if (term.isEmpty) {
       return ImportIssue(rowNumber, 'Term is required (for example Q1).');
+    }
+
+    final component = parseComponent(componentText);
+    if (component == null) {
+      return ImportIssue(
+        rowNumber,
+        'Could not read the component "$componentText". Use Written Work, '
+        'Performance Tasks or Quarterly Assessment (WW, PT, QA), or leave '
+        'it blank for written work.',
+      );
     }
 
     if (scoreText.isEmpty) return ImportIssue(rowNumber, 'Score is required.');
@@ -109,19 +147,40 @@ class GradeImport {
     }
 
     // A mark is posted, never replaced -- submitGrade writes a new
-    // document every time -- so an import that ran twice would leave two
-    // marks for one term and no way to tell which the teacher meant.
+    // document every time -- and scores inside one component are summed,
+    // so an import that ran twice would silently double a child's
+    // written work.
+    //
+    // What counts as a duplicate had to widen when components arrived. A
+    // student legitimately has many marks in one term now: three
+    // components, and several pieces of work inside each. So the check is
+    // no longer "already has a mark this term" -- which would refuse the
+    // second quiz -- but "already has this exact mark": same component,
+    // same label, same score out of the same total. That is a file being
+    // run twice. Two genuinely identical unlabelled quizzes are the one
+    // case this refuses wrongly, and naming one of them in Remarks is the
+    // way through.
+    final fingerprint = '${student.id}|${term.toLowerCase()}|${component.value}|'
+        '${remarks.toLowerCase()}|$score|$maxScore';
+
     if (existing.any((g) =>
-        g.studentId == student.id && g.term.toLowerCase() == term.toLowerCase())) {
+        g.studentId == student.id &&
+        g.term.toLowerCase() == term.toLowerCase() &&
+        g.component == component &&
+        (g.remarks ?? '').toLowerCase() == remarks.toLowerCase() &&
+        g.score == score &&
+        g.maxScore == maxScore)) {
       return ImportIssue(
         rowNumber,
-        '${student.fullName} already has a $term mark for this class.',
+        '${student.fullName} already has this exact ${component.displayLabel} '
+        'mark for $term. Posting it again would count it twice.',
       );
     }
-    if (!seen.add('${student.id}|${term.toLowerCase()}')) {
+    if (!seen.add(fingerprint)) {
       return ImportIssue(
         rowNumber,
-        '${student.fullName} appears twice for $term in this file.',
+        '${student.fullName} appears twice in this file with the same '
+        '${component.displayLabel} mark for $term.',
       );
     }
 
@@ -129,6 +188,7 @@ class GradeImport {
       studentId: student.id,
       studentName: student.fullName,
       term: term,
+      component: component,
       score: score,
       maxScore: maxScore,
       remarks: remarks.isEmpty ? null : remarks,
@@ -158,6 +218,7 @@ class GradeImportRow {
   final String studentId;
   final String studentName;
   final String term;
+  final GradingComponent component;
   final double score;
   final double maxScore;
   final String? remarks;
@@ -166,6 +227,7 @@ class GradeImportRow {
     required this.studentId,
     required this.studentName,
     required this.term,
+    required this.component,
     required this.score,
     required this.maxScore,
     required this.remarks,
