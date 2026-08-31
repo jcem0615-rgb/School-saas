@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../domain/entities/payment.dart';
+import '../../../director_portal/presentation/controllers/director_controller.dart' show myApprovalsStreamProvider;
+import '../../../reports/domain/usecases/exam_permits_report.dart' show promissoryCoversByStudent;
 import '../controllers/payment_controller.dart';
 import '../widgets/balance_breakdown.dart';
+import '../widgets/exam_permit_card.dart';
 import '../widgets/payment_plan_card.dart';
 import '../widgets/payment_method_chip.dart';
 import 'online_payment_screen.dart';
@@ -138,6 +141,20 @@ class PaymentHistoryScreen extends ConsumerWidget {
                     PaymentPlanCard(
                       assessments: assessmentsAsync.valueOrNull ?? const [],
                       payments: payments,
+                    ),
+                    const SizedBox(height: 16),
+                    // No print button here. A permit is issued by the
+                    // cashier and a self-printed one is worth nothing at
+                    // the door; what a family needs from this screen is
+                    // to know a week early that they are short.
+                    ExamPermitCard(
+                      assessments: assessmentsAsync.valueOrNull ?? const [],
+                      payments: payments,
+                      notes: promissoryCoversByStudent(
+                            ref.watch(myApprovalsStreamProvider).valueOrNull ??
+                                const [],
+                          )[studentId] ??
+                          const [],
                     ),
                     const SizedBox(height: 16),
                     Text('Payment history', style: Theme.of(context).textTheme.titleSmall),

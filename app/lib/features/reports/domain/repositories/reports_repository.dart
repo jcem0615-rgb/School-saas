@@ -1,4 +1,5 @@
 import '../../../../core/errors/result.dart';
+import '../../../director_portal/domain/entities/approval_request.dart';
 import '../../../faculty_portal/domain/entities/grade.dart';
 import '../../../payments/domain/entities/assessment.dart';
 import '../../../payments/domain/entities/payment.dart';
@@ -20,6 +21,12 @@ class ReportData {
   final List<AttendanceRecord> attendance;
   final List<Grade> grades;
 
+  /// The approvals queue, when a report needs it. Only the exam-permit
+  /// report does: a promissory note is an approval, and a permit list
+  /// that ignored them would turn away every student the school has
+  /// already agreed to let sit the exam.
+  final List<ApprovalRequest> approvals;
+
   /// Collections that came back at their read limit, and so may be
   /// missing rows.
   ///
@@ -34,6 +41,7 @@ class ReportData {
     this.assessments = const [],
     this.attendance = const [],
     this.grades = const [],
+    this.approvals = const [],
     this.truncated = const {},
   });
 }

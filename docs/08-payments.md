@@ -473,6 +473,69 @@ narrower question -- did the school actually publish a plan -- so a
 school billing in one lump is never shown a card containing an invented
 row.
 
+## Exam permits and clearance
+
+The permit is the lever a private school actually uses to collect: the
+cashier signs a slip and the proctor turns away anybody without one.
+The workflow already existed in the school and not in the app -- the
+promissory note in the demo fixture is titled *"Second Quarter exam
+permit"*, which is the tell.
+
+### Derived, never stored
+
+A permit written down on Monday lies on Friday: the family pays on
+Wednesday and the record still says they owe. `clearanceFor()` computes
+it from the payment plan, the payments and the approved notes each time
+it is asked, so a payment taken at the window clears the student before
+they have walked back to the classroom.
+
+Three outcomes: **cleared** (nothing overdue), **cleared by note** (an
+approved promissory note covers the whole of what is overdue), and
+**blocked**, which carries the shortfall.
+
+### Partly covered is not covered
+
+A note for 2,000 against 5,000 overdue leaves 3,000. Issuing a permit on
+it would be the school agreeing to something nobody agreed to, so the
+student is blocked -- but the note is still cited, because the cashier
+needs to know one exists before having that conversation.
+
+### Notes now expire
+
+A promissory note is an `ApprovalRequest` of type `promissory_note`, and
+it carried an amount and a reason but no date -- so an approved note
+would have cleared a student for exams forever, which is not what anybody
+approving one thought they were agreeing to. The request form now takes a
+**settle-by** date, defaulting to a fortnight.
+
+A note whose date has passed clears nobody. A note *on* its date still
+clears -- a note to settle by the 30th covers the exam on the 30th, which
+is the whole point of asking for it. A note with no date at all (every
+note written before the field existed, and any whose date will not parse)
+covers indefinitely: refusing to honour one would turn a student away
+over a schema change.
+
+Only **approved** notes count. Clearing somebody for having asked would
+make the approval step decorative.
+
+### Where it shows up
+
+| Who | Where |
+|---|---|
+| A family | `ExamPermitCard` on Payment History, without a print button -- a self-printed permit is worth nothing at the door, but knowing a week early that you are ₱3,400 short is worth a great deal |
+| The cashier | **Exam Permits** in Reports: everybody, blocked first, then by how much, with the shortfall and what each clearance rests on |
+| The proctor | `ExamPermitPdf` -- half a page, two to a sheet, verdict boxed in capitals in the top third because it is read at arm's length in a queue |
+
+Students with no assessment never appear on the list. There is nothing
+they can be behind on.
+
+### The approvals read
+
+`ExamPermits` is the only report that sets `needsApprovals`, and its
+approvals query is deliberately **not** filtered by the report period:
+a note approved in August still covers an examination in October, and a
+note filtered out of the read is a student wrongly turned away.
+
 ## Firestore collections touched
 
 ```
@@ -507,6 +570,7 @@ remains until Registrar Portal defines the real create/update rules.
 | Functions | `discounts.test.ts` | over-granting (singly and in combination), the approver stamp, unknown kinds |
 | Domain | `subsidy_test.dart` | netting apart from discounts, the required certificate, duplicate claims, and that neither report double-counts the other's money |
 | Functions | `subsidies.test.ts` | the certificate requirement, case-insensitive duplicates, the post-discount ceiling |
+| Domain | `clearance_test.dart` | partial cover, expiry on and after the date, undated notes, and reading notes out of the approvals queue |
 
 ## Known gap flagged for QA
 

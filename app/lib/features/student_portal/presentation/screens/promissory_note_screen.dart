@@ -14,6 +14,8 @@ final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
 /// workflow as Faculty's Material Requests -- reused again here with
 /// `type: 'promissory_note'` and the amount/reason carried in [details].
 /// No new collection, no new security rule.
+final _dayFormat = DateFormat('d MMM y');
+
 class PromissoryNoteScreen extends ConsumerWidget {
   const PromissoryNoteScreen({super.key});
 
@@ -104,43 +106,79 @@ class PromissoryNoteScreen extends ConsumerWidget {
   Future<void> _showRequestDialog(BuildContext context, WidgetRef ref) async {
     final amountController = TextEditingController();
     final reasonController = TextEditingController();
+    // A fortnight is what a family asking for time usually means, and it
+    // is a date rather than a blank because a promise with no end is not
+    // one the cashier can act on.
+    var settleBy = DateTime.now().add(const Duration(days: 14));
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Request Promissory Note'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Amount (₱)'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reasonController,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Reason'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Request Promissory Note'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Amount (₱)'),
+              ),
+              const SizedBox(height: 12),
+              // The date is the point of the note. Without one an approved
+              // note would clear a student for exams forever, which is not
+              // what anybody approving it thought they were agreeing to.
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.event_outlined),
+                title: const Text('Settle by'),
+                subtitle: Text(_dayFormat.format(settleBy)),
+                trailing: const Icon(Icons.edit_calendar_outlined),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: dialogContext,
+                    initialDate: settleBy,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                  );
+                  if (picked != null) setDialogState(() => settleBy = picked);
+                },
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: reasonController,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Reason'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                final amount = double.tryParse(amountController.text) ?? 0;
+                final success = await ref
+                    .read(directorActionControllerProvider.notifier)
+                    .createApprovalRequest(
+                      type: 'promissory_note',
+                      title: 'Payment deferral request',
+                      description: reasonController.text,
+                      details: {
+                        'amount': amount,
+                        // ISO, and read back by the clearance rule. A note
+                        // whose date cannot be parsed covers indefinitely
+                        // rather than not at all -- see PromissoryCover.
+                        'settleBy': settleBy.toIso8601String(),
+                      },
+                    );
+                if (success && dialogContext.mounted) Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Submit'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              final amount = double.tryParse(amountController.text) ?? 0;
-              final success = await ref.read(directorActionControllerProvider.notifier).createApprovalRequest(
-                    type: 'promissory_note',
-                    title: 'Payment deferral request',
-                    description: reasonController.text,
-                    details: {'amount': amount},
-                  );
-              if (success && dialogContext.mounted) Navigator.of(dialogContext).pop();
-            },
-            child: const Text('Submit'),
-          ),
-        ],
       ),
     );
   }

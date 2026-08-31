@@ -3206,6 +3206,13 @@ class DemoReportsRepository implements ReportsRepository {
       grades: kind.needsGrades
           ? _store.grades.value.where((g) => period.contains(g.submittedAt)).toList()
           : const [],
+      // Not filtered by the period, matching the real datasource: a note
+      // approved in August still covers an examination in October.
+      approvals: kind.needsApprovals
+          ? _store.approvals.value
+              .where((a) => a.type == 'promissory_note')
+              .toList()
+          : const [],
     ));
   }
 }

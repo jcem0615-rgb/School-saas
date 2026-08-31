@@ -41,6 +41,20 @@ enum ReportKind {
     needsStudents: true,
     needsAssessments: true,
   ),
+  examPermits(
+    'Exam Permits',
+    'Who may sit the examination, and who is short and by how much.',
+    needsStudents: true,
+    needsPayments: true,
+    needsAssessments: true,
+    // Promissory notes are approvals. Without them this list would turn
+    // away every student the school has already agreed to let sit.
+    needsApprovals: true,
+    // Cleared as of today. "Who was cleared in March" would need a
+    // history of payments against the plan that this system does not
+    // keep, and a date picker beside it would promise one.
+    usesPeriod: false,
+  ),
   attendance(
     'Attendance Rate by Section',
     'Present, late and absent by section, with the rate.',
@@ -60,6 +74,7 @@ enum ReportKind {
   final bool needsAssessments;
   final bool needsAttendance;
   final bool needsGrades;
+  final bool needsApprovals;
 
   /// Whether the date range means anything here. Enrollment is a head
   /// count taken today; offering a date picker beside it would promise a
@@ -74,6 +89,7 @@ enum ReportKind {
     this.needsAssessments = false,
     this.needsAttendance = false,
     this.needsGrades = false,
+    this.needsApprovals = false,
     this.usesPeriod = true,
   });
 }

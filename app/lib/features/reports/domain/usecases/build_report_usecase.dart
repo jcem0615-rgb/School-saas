@@ -8,6 +8,7 @@ import 'collections_report.dart';
 import 'enrollment_report.dart';
 import 'grade_distribution_report.dart';
 import 'discounts_report.dart';
+import 'exam_permits_report.dart';
 import 'overdue_report.dart';
 import 'subsidy_claims_report.dart';
 
@@ -51,6 +52,12 @@ class BuildReportUseCase {
                 period: period,
                 students: value.students,
                 assessments: value.assessments,
+              ),
+            ReportKind.examPermits => ExamPermitsReport.build(
+                students: value.students,
+                payments: value.payments,
+                assessments: value.assessments,
+                approvals: value.approvals,
               ),
             ReportKind.attendance => AttendanceReport.build(
                 period: period,

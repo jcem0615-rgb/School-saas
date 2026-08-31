@@ -1952,7 +1952,15 @@ class DemoStore {
           type: 'promissory_note',
           title: 'Promissory note - Second Quarter exam permit',
           description: 'Requesting to take the exam and settle the balance by the 30th.',
-          details: const {'studentId': 'stu_001', 'amount': 8500.0},
+          // Dated, so the permit report has a note that actually covers
+          // somebody rather than one the clearance rule ignores. Miguel
+          // is the demo's behind-on-the-plan family, and this is what
+          // makes him "Permitted (note)" rather than turned away.
+          details: {
+            'studentId': 'stu_001',
+            'amount': 8500.0,
+            'settleBy': _daysAhead(12).toIso8601String(),
+          },
           requestedByName: 'Miguel Torres',
           requestedByRole: 'student',
           status: ApprovalStatus.approved,

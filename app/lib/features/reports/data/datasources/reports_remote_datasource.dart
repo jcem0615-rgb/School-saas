@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/constants/firestore_paths.dart';
 import '../../../faculty_portal/data/models/grade_model.dart';
 import '../../../payments/data/models/fee_models.dart';
+import '../../../director_portal/data/models/approval_request_model.dart';
 import '../../../payments/data/models/payment_model.dart';
 import '../../../qr_attendance/data/models/attendance_record_model.dart';
 import '../../../registrar_portal/data/models/student_summary_model.dart';
@@ -89,6 +90,16 @@ class ReportsRemoteDataSource {
             .where('date', isLessThanOrEqualTo: _dayKey(period.end)),
       ),
       run(
+        kind.needsApprovals,
+        'approvals',
+        // Not filtered by date. A promissory note approved in August
+        // still covers an examination in October, and a note filtered
+        // out of the read is a student wrongly turned away.
+        _firestore
+            .collection(FirestorePaths.approvals(_schoolId))
+            .where('type', isEqualTo: 'promissory_note'),
+      ),
+      run(
         kind.needsGrades,
         'grades',
         _firestore
@@ -116,8 +127,12 @@ class ReportsRemoteDataSource {
         for (final doc in results[3]?.docs ?? const [])
           AttendanceRecordModel.fromFirestore(doc.id, doc.data())
       ],
-      grades: [
+      approvals: [
         for (final doc in results[4]?.docs ?? const [])
+          ApprovalRequestModel.fromFirestore(doc.id, doc.data())
+      ],
+      grades: [
+        for (final doc in results[5]?.docs ?? const [])
           GradeModel.fromFirestore(doc.id, doc.data())
       ],
       truncated: truncated,
