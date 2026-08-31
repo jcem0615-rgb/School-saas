@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 
 import '../../../payments/presentation/screens/payment_review_screen.dart';
+import '../../../admissions/presentation/screens/admissions_screen.dart';
 import '../../../faculty_portal/presentation/screens/grading_scheme_screen.dart';
 import 'year_end_rollover_screen.dart';
 import '../../../payments/presentation/screens/payment_settings_screen.dart';
@@ -64,6 +65,17 @@ class RegistrarDashboardScreen extends StatelessWidget {
               spacing: 12,
               runSpacing: 12,
               children: [
+                // First tile on the registrar's dashboard. The families
+                // in here are not students yet, and the ones nobody
+                // rings back stop being prospects within a fortnight --
+                // so the pipeline is the thing to open in the morning,
+                // not the roster, which will still be there at four.
+                GlassTile(
+                  icon: Icons.groups_outlined,
+                  label: 'Admissions',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const AdmissionsScreen())),
+                ),
                 GlassTile(
                   icon: Icons.how_to_reg_outlined,
                   label: 'Student Records',

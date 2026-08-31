@@ -70,6 +70,8 @@ import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/qr_attendance/domain/entities/qr_scan_result.dart';
 import '../features/qr_attendance/domain/repositories/qr_attendance_repository.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
+import '../features/admissions/domain/entities/applicant.dart';
+import '../features/admissions/domain/repositories/admissions_repository.dart';
 import '../features/registrar_portal/domain/entities/promotion.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/registrar_portal/domain/repositories/registrar_repository.dart';
@@ -1159,6 +1161,290 @@ class DemoAdminRepository implements AdminRepository {
 // ---------------------------------------------------------------------------
 // Registrar
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Admissions
+// ---------------------------------------------------------------------------
+
+class DemoAdmissionsRepository implements AdmissionsRepository {
+  final DemoStore _store;
+  DemoAdmissionsRepository(this._store);
+
+  @override
+  Stream<List<Applicant>> watchApplicants() => _store.applicants.stream;
+
+  @override
+  Future<Result<SavedApplicant>> saveApplicant({
+    String? applicantId,
+    required String firstName,
+    required String lastName,
+    String? middleName,
+    required EducationLevel educationLevel,
+    required String gradeLevel,
+    String? programId,
+    required String guardianName,
+    required String guardianPhone,
+    String? guardianEmail,
+    String? source,
+    String? notes,
+  }) async {
+    await _latency();
+
+    if (applicantId != null) {
+      _store.update<Applicant>(
+        _store.applicants,
+        (a) => a.id == applicantId,
+        (a) => _copyApplicant(
+          a,
+          firstName: firstName,
+          lastName: lastName,
+          middleName: middleName,
+          educationLevel: educationLevel,
+          gradeLevel: gradeLevel,
+          programId: programId,
+          guardianName: guardianName,
+          guardianPhone: guardianPhone,
+          guardianEmail: guardianEmail,
+          source: source,
+          notes: notes,
+        ),
+      );
+      _store.audit(
+        module: 'admissions',
+        action: 'update',
+        targetCollection: 'applicants',
+        targetId: applicantId,
+        newValue: {'name': '$firstName $lastName'},
+      );
+      return Success(SavedApplicant(applicantId: applicantId));
+    }
+
+    final id = _store.nextId('app');
+    final reference =
+        'A-${DateTime.now().year}-${_store.applicants.value.length + 1}'.padRight(1);
+    final now = DateTime.now();
+    _store.prepend(
+      _store.applicants,
+      Applicant(
+        id: id,
+        referenceNumber: reference,
+        firstName: firstName,
+        lastName: lastName,
+        middleName: middleName,
+        educationLevel: educationLevel,
+        gradeLevel: gradeLevel,
+        programId: programId,
+        guardianName: guardianName,
+        guardianPhone: guardianPhone,
+        guardianEmail: guardianEmail,
+        source: source,
+        notes: notes,
+        stage: AdmissionStage.inquiry,
+        inquiredAt: now,
+        stageChangedAt: now,
+        lastUpdatedByName: _store.requireUser.fullName,
+      ),
+    );
+    _store.audit(
+      module: 'admissions',
+      action: 'create',
+      targetCollection: 'applicants',
+      targetId: id,
+      newValue: {'referenceNumber': reference},
+    );
+    return Success(SavedApplicant(applicantId: id, referenceNumber: reference));
+  }
+
+  @override
+  Future<Result<void>> advanceApplicant({
+    required String applicantId,
+    required AdmissionStage stage,
+    DateTime? examScheduledFor,
+    double? examScore,
+    double? examMaxScore,
+    double? reservationFee,
+    String? reservationReference,
+    String? notes,
+  }) async {
+    await _latency();
+    final applicant =
+        _store.applicants.value.where((a) => a.id == applicantId).firstOrNull;
+    if (applicant == null) {
+      return const Error(ValidationFailure('That enquiry is not on file.'));
+    }
+    // The demo enforces the same pipeline the server does. A demo that
+    // let a family jump from enquiry to enrolled would teach the wrong
+    // thing about what the funnel numbers mean.
+    if (!nextStagesFrom(applicant.stage).contains(stage)) {
+      return Error(ValidationFailure(
+        '${applicant.fullName} is at "${applicant.stage.displayLabel}" and '
+        'cannot be moved straight to "${stage.displayLabel}".',
+      ));
+    }
+
+    _store.update<Applicant>(
+      _store.applicants,
+      (a) => a.id == applicantId,
+      (a) => _copyApplicant(
+        a,
+        stage: stage,
+        stageChangedAt: DateTime.now(),
+        examScheduledFor: examScheduledFor,
+        examScore: examScore,
+        examMaxScore: examMaxScore,
+        // Added, not replaced: a family paying the reservation in two
+        // instalments is ordinary, and overwriting would lose money the
+        // school has taken.
+        reservationFeePaid: reservationFee == null
+            ? null
+            : a.reservationFeePaid + reservationFee,
+        reservationPaidAt: reservationFee == null ? null : DateTime.now(),
+        reservationReference: reservationReference,
+        notes: notes,
+      ),
+    );
+    _store.audit(
+      module: 'admissions',
+      action: 'advance',
+      targetCollection: 'applicants',
+      targetId: applicantId,
+      newValue: {'from': applicant.stage.value, 'to': stage.value},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<EnrolledApplicant>> enrolApplicant({
+    required String applicantId,
+    required String section,
+    required DateTime birthDate,
+  }) async {
+    await _latency();
+    final applicant =
+        _store.applicants.value.where((a) => a.id == applicantId).firstOrNull;
+    if (applicant == null) {
+      return const Error(ValidationFailure('That enquiry is not on file.'));
+    }
+    // The guarantee that matters, kept in the demo too: one child, one
+    // student record, however many times the button is pressed.
+    if (applicant.hasEnrolled) {
+      return Error(ValidationFailure(
+        '${applicant.fullName} has already been enrolled. Their student record '
+        'is on the roster.',
+      ));
+    }
+
+    final studentId = _store.nextId('stu');
+    final studentNumber =
+        '${DateTime.now().year}-${(_store.students.value.length + 1).toString().padLeft(5, '0')}';
+
+    _store.prepend(
+      _store.students,
+      StudentSummary(
+        id: studentId,
+        studentNumber: studentNumber,
+        firstName: applicant.firstName,
+        lastName: applicant.lastName,
+        middleName: applicant.middleName,
+        educationLevel: applicant.educationLevel,
+        gradeLevel: applicant.gradeLevel,
+        section: section,
+        programId: applicant.programId,
+        programName: applicant.programName,
+        status: StudentStatus.enrolled,
+        // Negative is a credit: money the family has already handed
+        // over, against fees not yet assessed.
+        balance: applicant.reservationFeePaid > 0 ? -applicant.reservationFeePaid : 0,
+        enrollmentDate: DateTime.now(),
+        birthDate: birthDate,
+        guardianContacts: [
+          GuardianContact(
+            name: applicant.guardianName,
+            relationship: 'Guardian',
+            phone: applicant.guardianPhone,
+            email: applicant.guardianEmail,
+          ),
+        ],
+      ),
+    );
+
+    _store.update<Applicant>(
+      _store.applicants,
+      (a) => a.id == applicantId,
+      (a) => _copyApplicant(
+        a,
+        stage: AdmissionStage.enrolled,
+        stageChangedAt: DateTime.now(),
+        studentId: studentId,
+      ),
+    );
+
+    _store.audit(
+      module: 'admissions',
+      action: 'enrol',
+      targetCollection: 'students',
+      targetId: studentId,
+      newValue: {'applicantId': applicantId, 'studentNumber': studentNumber},
+    );
+
+    return Success(EnrolledApplicant(
+      studentId: studentId,
+      studentNumber: studentNumber,
+      openingCredit: applicant.reservationFeePaid,
+    ));
+  }
+}
+
+Applicant _copyApplicant(
+  Applicant a, {
+  String? firstName,
+  String? lastName,
+  String? middleName,
+  EducationLevel? educationLevel,
+  String? gradeLevel,
+  String? programId,
+  String? guardianName,
+  String? guardianPhone,
+  String? guardianEmail,
+  String? source,
+  String? notes,
+  AdmissionStage? stage,
+  DateTime? stageChangedAt,
+  DateTime? examScheduledFor,
+  double? examScore,
+  double? examMaxScore,
+  double? reservationFeePaid,
+  DateTime? reservationPaidAt,
+  String? reservationReference,
+  String? studentId,
+}) =>
+    Applicant(
+      id: a.id,
+      referenceNumber: a.referenceNumber,
+      firstName: firstName ?? a.firstName,
+      lastName: lastName ?? a.lastName,
+      middleName: middleName ?? a.middleName,
+      educationLevel: educationLevel ?? a.educationLevel,
+      gradeLevel: gradeLevel ?? a.gradeLevel,
+      programId: programId ?? a.programId,
+      programName: a.programName,
+      guardianName: guardianName ?? a.guardianName,
+      guardianPhone: guardianPhone ?? a.guardianPhone,
+      guardianEmail: guardianEmail ?? a.guardianEmail,
+      source: source ?? a.source,
+      stage: stage ?? a.stage,
+      inquiredAt: a.inquiredAt,
+      stageChangedAt: stageChangedAt ?? a.stageChangedAt,
+      examScheduledFor: examScheduledFor ?? a.examScheduledFor,
+      examScore: examScore ?? a.examScore,
+      examMaxScore: examMaxScore ?? a.examMaxScore,
+      reservationFeePaid: reservationFeePaid ?? a.reservationFeePaid,
+      reservationPaidAt: reservationPaidAt ?? a.reservationPaidAt,
+      reservationReference: reservationReference ?? a.reservationReference,
+      studentId: studentId ?? a.studentId,
+      notes: notes ?? a.notes,
+      lastUpdatedByName: a.lastUpdatedByName,
+    );
 
 class DemoRegistrarRepository implements RegistrarRepository {
   final DemoStore _store;

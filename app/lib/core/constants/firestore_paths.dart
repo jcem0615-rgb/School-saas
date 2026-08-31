@@ -130,6 +130,11 @@ class FirestorePaths {
 
   static String grades(String schoolId) => '${school(schoolId)}/grades';
 
+  /// Enquiries, from the first phone call to the day they enrol.
+  /// Written only by the admissions callables -- see firestore.rules,
+  /// which denies client writes outright.
+  static String applicants(String schoolId) => '${school(schoolId)}/applicants';
+
   /// What happened to each student at the end of a year, and the record
   /// of the run itself. Written only by runYearEndRollover -- see
   /// firestore.rules, which denies client writes to both outright.

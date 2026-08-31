@@ -311,3 +311,11 @@ somebody reads and can change, not a button that does it.
 The report card the decision rests on, and the grading scheme it is
 computed from, are [Module 32](32-grading.md).
 
+## Before they are a student
+
+The pipeline from the first phone call to the day a child is on a class
+list — enquiry, entrance exam, offer, reservation fee, enrolment — is
+[Module 34](34-admissions.md). It hands off to this module at exactly one
+point: `enrolApplicant` creates the student record, once, and carries the
+reservation fee onto it as a credit.
+

@@ -51,6 +51,7 @@ import '../features/payments/domain/entities/payment_settings.dart';
 import '../features/payments/domain/entities/payment_submission.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
+import '../features/admissions/domain/entities/applicant.dart';
 import '../features/registrar_portal/domain/entities/promotion.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/schedules/domain/entities/schedule_block.dart';
@@ -201,6 +202,13 @@ class DemoStore {
   late final courseworkSubmissions =
       BehaviorSubject<List<CourseworkSubmission>>.seeded(_seedCourseworkSubmissions());
   late final grades = BehaviorSubject<List<Grade>>.seeded(_seedGrades());
+
+  /// The admissions pipeline, part-way through a season.
+  ///
+  /// Seeded with families at every stage and two who are already
+  /// overdue a phone call, because the follow-up list is the thing this
+  /// module is really for and an empty one demonstrates nothing.
+  late final applicants = BehaviorSubject<List<Applicant>>.seeded(_seedApplicants());
 
   /// What the demo school has already decided at a year end.
   ///
@@ -570,7 +578,7 @@ class DemoStore {
     for (final s in <BehaviorSubject<dynamic>>[
       currentUser, schools, revenue, invoices, students, employees,
       assignments, programs, payments, attendance, coursework, grades, gradingScheme,
-      promotions,
+      promotions, applicants,
       courseworkSubmissions, answerKeys, emergencyContacts, emergencyAlerts,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog, notifications,
@@ -1723,6 +1731,178 @@ class DemoStore {
   /// yet, which is the case the whole "an ungraded component is not a
   /// zero" rule exists for, and the demo should show it rather than
   /// describe it.
+  /// Families at every stage of the pipeline.
+  ///
+  /// Two of them have been sitting still for well over a week, so the
+  /// "to ring back" count on the admissions screen is not zero. That is
+  /// the number the office acts on, and a demo where it is always zero
+  /// shows the one thing the module is for as an empty box.
+  List<Applicant> _seedApplicants() {
+    Applicant one({
+      required String id,
+      required String reference,
+      required String first,
+      required String last,
+      required String gradeLevel,
+      required AdmissionStage stage,
+      required int inquiredDaysAgo,
+      required int stageDaysAgo,
+      EducationLevel level = EducationLevel.highSchool,
+      String? source,
+      String guardian = 'Rosario Torres',
+      double? examScore,
+      double? examMaxScore,
+      double reservationPaid = 0,
+      String? studentId,
+    }) =>
+        Applicant(
+          id: id,
+          referenceNumber: reference,
+          firstName: first,
+          lastName: last,
+          educationLevel: level,
+          gradeLevel: gradeLevel,
+          guardianName: guardian,
+          guardianPhone: '0917${1000000 + id.hashCode.abs() % 8999999}',
+          source: source,
+          stage: stage,
+          inquiredAt: _daysAgo(inquiredDaysAgo),
+          stageChangedAt: _daysAgo(stageDaysAgo),
+          examScore: examScore,
+          examMaxScore: examMaxScore,
+          reservationFeePaid: reservationPaid,
+          reservationPaidAt: reservationPaid > 0 ? _daysAgo(stageDaysAgo) : null,
+          reservationReference: reservationPaid > 0 ? 'OR-0121' : null,
+          studentId: studentId,
+          lastUpdatedByName: 'Grace Mendoza',
+        );
+
+    return [
+      one(
+        id: 'app_001',
+        reference: 'A-2026-0001',
+        first: 'Bea',
+        last: 'Marquez',
+        gradeLevel: 'Grade 7',
+        stage: AdmissionStage.inquiry,
+        inquiredDaysAgo: 2,
+        stageDaysAgo: 2,
+        source: 'Facebook',
+        guardian: 'Alma Marquez',
+      ),
+      // Nobody has rung this family in three weeks. This is the row the
+      // office is meant to see first.
+      one(
+        id: 'app_002',
+        reference: 'A-2026-0002',
+        first: 'Kier',
+        last: 'Santos',
+        gradeLevel: 'Grade 7',
+        stage: AdmissionStage.inquiry,
+        inquiredDaysAgo: 21,
+        stageDaysAgo: 21,
+        source: 'Walk-in',
+        guardian: 'Divina Santos',
+      ),
+      one(
+        id: 'app_003',
+        reference: 'A-2026-0003',
+        first: 'Lian',
+        last: 'Reyes',
+        gradeLevel: 'Grade 11',
+        level: EducationLevel.seniorHigh,
+        stage: AdmissionStage.applied,
+        inquiredDaysAgo: 18,
+        stageDaysAgo: 12,
+        source: 'Referral from a parent',
+        guardian: 'Nestor Reyes',
+      ),
+      one(
+        id: 'app_004',
+        reference: 'A-2026-0004',
+        first: 'Trisha',
+        last: 'Delos Santos',
+        gradeLevel: 'Grade 7',
+        stage: AdmissionStage.examScheduled,
+        inquiredDaysAgo: 15,
+        stageDaysAgo: 3,
+        source: 'Sibling already here',
+        guardian: 'Marites Delos Santos',
+      ),
+      one(
+        id: 'app_005',
+        reference: 'A-2026-0005',
+        first: 'Enzo',
+        last: 'Ramirez',
+        gradeLevel: 'Grade 7',
+        stage: AdmissionStage.examTaken,
+        inquiredDaysAgo: 20,
+        stageDaysAgo: 4,
+        examScore: 68,
+        examMaxScore: 80,
+        source: 'Alumni family',
+        guardian: 'Joel Ramirez',
+      ),
+      one(
+        id: 'app_006',
+        reference: 'A-2026-0006',
+        first: 'Nadine',
+        last: 'Cruz',
+        gradeLevel: 'Grade 8',
+        stage: AdmissionStage.offered,
+        inquiredDaysAgo: 30,
+        stageDaysAgo: 9,
+        examScore: 74,
+        examMaxScore: 80,
+        source: 'Facebook',
+        guardian: 'Leah Cruz',
+      ),
+      one(
+        id: 'app_007',
+        reference: 'A-2026-0007',
+        first: 'Marco',
+        last: 'Villanueva',
+        gradeLevel: 'Grade 7',
+        stage: AdmissionStage.reserved,
+        inquiredDaysAgo: 35,
+        stageDaysAgo: 2,
+        examScore: 71,
+        examMaxScore: 80,
+        reservationPaid: 2000,
+        source: 'Referral from a parent',
+        guardian: 'Cristina Villanueva',
+      ),
+      // The two endings, kept apart on purpose: one the school's
+      // decision, one the family's.
+      one(
+        id: 'app_008',
+        reference: 'A-2026-0008',
+        first: 'Rhea',
+        last: 'Bautista',
+        gradeLevel: 'Grade 9',
+        stage: AdmissionStage.declined,
+        inquiredDaysAgo: 40,
+        stageDaysAgo: 22,
+        examScore: 31,
+        examMaxScore: 80,
+        source: 'Barangay flyer',
+        guardian: 'Fely Bautista',
+      ),
+      one(
+        id: 'app_009',
+        reference: 'A-2026-0009',
+        first: 'Gabriel',
+        last: 'Ocampo',
+        gradeLevel: 'Grade 7',
+        stage: AdmissionStage.withdrawn,
+        inquiredDaysAgo: 38,
+        stageDaysAgo: 16,
+        source: 'Walk-in',
+        guardian: 'Rowena Ocampo',
+      ),
+    ];
+  }
+
   List<Grade> _componentSet({
     required String idPrefix,
     required String studentId,

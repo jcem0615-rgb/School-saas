@@ -21,6 +21,7 @@ import '../features/parent_portal/presentation/controllers/parent_controller.dar
 import '../features/payments/presentation/controllers/payment_controller.dart';
 import '../features/profile/presentation/controllers/profile_controller.dart';
 import '../features/qr_attendance/presentation/controllers/qr_attendance_controller.dart';
+import '../features/admissions/presentation/controllers/admissions_controller.dart';
 import '../features/registrar_portal/presentation/controllers/registrar_controller.dart';
 import '../features/reports/presentation/controllers/reports_controller.dart';
 import '../features/schedules/presentation/controllers/schedule_controller.dart';
@@ -106,6 +107,10 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
     adminRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoAdminRepository(ref.watch(demoStoreProvider));
+    }),
+    admissionsRepositoryProvider.overrideWith((ref) {
+      ref.watch(authStateProvider);
+      return DemoAdmissionsRepository(ref.watch(demoStoreProvider));
     }),
     registrarRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);

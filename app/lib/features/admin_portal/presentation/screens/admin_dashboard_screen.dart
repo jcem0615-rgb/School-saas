@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
+import '../../../admissions/presentation/screens/admissions_screen.dart';
 import '../../../faculty_portal/presentation/screens/grading_scheme_screen.dart';
 import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
@@ -146,6 +147,15 @@ class AdminDashboardScreen extends StatelessWidget {
                   label: 'Fee Schedules',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const FeeStructuresScreen())),
+                ),
+                // On the Admin dashboard too: in a school small enough
+                // that one person is both, the pipeline is where their
+                // morning starts.
+                GlassTile(
+                  icon: Icons.groups_outlined,
+                  label: 'Admissions',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const AdmissionsScreen())),
                 ),
                 // What every grade in the school is computed from. Under
                 // Admin rather than in the staffroom on purpose: the

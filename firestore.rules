@@ -872,6 +872,30 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ---- applicants ----
+      // Enquiries: names, phone numbers and exam scores for children who
+      // are not students here and may never be.
+      //
+      // Reads are the admissions office only. This is the one collection
+      // in the tenant holding personal data about people with no
+      // relationship to the school at all -- a family who rang once and
+      // went elsewhere -- and there is no role in a school that needs to
+      // browse it. Faculty, students and parents have no business here,
+      // and a parent whose child later enrols reads the student record,
+      // not the enquiry.
+      //
+      // Writes are server-only. The stage transitions, the exam result
+      // and the "enrolled exactly once" guarantee are all enforced in
+      // the callables; a client that could write this document could set
+      // stage to enrolled with no student record behind it, which is a
+      // child the school believes is enrolled and the registrar cannot
+      // find.
+      match /applicants/{applicantId} {
+        allow read: if hasRole(schoolId, ['director', 'admin', 'registrar'])
+                      && schoolIsAccessible(schoolId);
+        allow write: if false;
+      }
+
       // ---- promotions and schoolYears ----
       // What happened to each student at the end of a year, and the
       // record of the run itself.

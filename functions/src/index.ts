@@ -66,6 +66,9 @@ export {decidePaymentSubmission} from "./callable/payments/decidePaymentSubmissi
 // ---------------------------------------------------------------------------
 export {registerStudent} from "./callable/students/registerStudent";
 export {runYearEndRollover} from "./callable/academics/runYearEndRollover";
+export {saveApplicant} from "./callable/admissions/saveApplicant";
+export {advanceApplicant} from "./callable/admissions/advanceApplicant";
+export {enrolApplicant} from "./callable/admissions/enrolApplicant";
 export {setStudentBalance} from "./callable/students/setStudentBalance";
 
 // ---------------------------------------------------------------------------

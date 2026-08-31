@@ -102,6 +102,12 @@ export const FirestorePaths = {
   counterDoc: (schoolId: string, counterName: string) =>
     `schools/${schoolId}/counters/${counterName}`,
 
+  // ---- Admissions ----
+  // Enquiries, from the first phone call to the day they enrol.
+  applicants: (schoolId: string) => `schools/${schoolId}/applicants`,
+  applicantDoc: (schoolId: string, applicantId: string) =>
+    `schools/${schoolId}/applicants/${applicantId}`,
+
   // ---- Year-end rollover ----
   // One document per school year, holding what was decided and by whom.
   schoolYears: (schoolId: string) => `schools/${schoolId}/schoolYears`,
