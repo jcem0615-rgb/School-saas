@@ -65,6 +65,7 @@ export {decidePaymentSubmission} from "./callable/payments/decidePaymentSubmissi
 // Module: Registrar/Cashier Portal
 // ---------------------------------------------------------------------------
 export {registerStudent} from "./callable/students/registerStudent";
+export {runYearEndRollover} from "./callable/academics/runYearEndRollover";
 export {setStudentBalance} from "./callable/students/setStudentBalance";
 
 // ---------------------------------------------------------------------------

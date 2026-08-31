@@ -101,4 +101,17 @@ export const FirestorePaths = {
 
   counterDoc: (schoolId: string, counterName: string) =>
     `schools/${schoolId}/counters/${counterName}`,
+
+  // ---- Year-end rollover ----
+  // One document per school year, holding what was decided and by whom.
+  schoolYears: (schoolId: string) => `schools/${schoolId}/schoolYears`,
+  schoolYearDoc: (schoolId: string, schoolYear: string) =>
+    `schools/${schoolId}/schoolYears/${schoolYear}`,
+
+  // One per student per year. The id is deliberate: it is what makes a
+  // rollover safe to re-run, since a student already moved cannot be
+  // created again.
+  promotions: (schoolId: string) => `schools/${schoolId}/promotions`,
+  promotionDoc: (schoolId: string, schoolYear: string, studentId: string) =>
+    `schools/${schoolId}/promotions/${schoolYear}_${studentId}`,
 };

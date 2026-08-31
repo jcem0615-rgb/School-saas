@@ -51,6 +51,7 @@ import '../features/payments/domain/entities/payment_settings.dart';
 import '../features/payments/domain/entities/payment_submission.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
+import '../features/registrar_portal/domain/entities/promotion.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/schedules/domain/entities/schedule_block.dart';
 import '../features/data_protection/domain/entities/data_request.dart';
@@ -200,6 +201,14 @@ class DemoStore {
   late final courseworkSubmissions =
       BehaviorSubject<List<CourseworkSubmission>>.seeded(_seedCourseworkSubmissions());
   late final grades = BehaviorSubject<List<Grade>>.seeded(_seedGrades());
+
+  /// What the demo school has already decided at a year end.
+  ///
+  /// Seeded empty. The rollover is the one operation here with no undo,
+  /// so the demo opens with it not yet run -- the interesting thing to
+  /// watch is the plan being drawn up, reviewed and applied, and a demo
+  /// that starts after the fact shows none of it.
+  late final promotions = BehaviorSubject<List<DemoPromotion>>.seeded(const []);
 
   /// The demo school's grading scheme: the DepEd defaults, confirmed.
   ///
@@ -561,6 +570,7 @@ class DemoStore {
     for (final s in <BehaviorSubject<dynamic>>[
       currentUser, schools, revenue, invoices, students, employees,
       assignments, programs, payments, attendance, coursework, grades, gradingScheme,
+      promotions,
       courseworkSubmissions, answerKeys, emergencyContacts, emergencyAlerts,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog, notifications,
@@ -2695,4 +2705,23 @@ class DemoStore {
           timestamp: _daysAgo(2),
         ),
       ];
+}
+
+/// One decision the demo school made at a year end, with who made it.
+///
+/// A record rather than a reuse of PromotionDecision: the decision is
+/// what was chosen, this is the fact that it happened, and the two are
+/// separate in Firestore for the same reason.
+class DemoPromotion {
+  final String schoolYear;
+  final PromotionDecision decision;
+  final String decidedByName;
+  final DateTime decidedAt;
+
+  const DemoPromotion({
+    required this.schoolYear,
+    required this.decision,
+    required this.decidedByName,
+    required this.decidedAt,
+  });
 }

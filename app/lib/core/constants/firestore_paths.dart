@@ -130,6 +130,12 @@ class FirestorePaths {
 
   static String grades(String schoolId) => '${school(schoolId)}/grades';
 
+  /// What happened to each student at the end of a year, and the record
+  /// of the run itself. Written only by runYearEndRollover -- see
+  /// firestore.rules, which denies client writes to both outright.
+  static String promotions(String schoolId) => '${school(schoolId)}/promotions';
+  static String schoolYears(String schoolId) => '${school(schoolId)}/schoolYears';
+
   static String checklistItems(String schoolId) => '${school(schoolId)}/checklistItems';
 
   static String dailyReports(String schoolId) => '${school(schoolId)}/dailyReports';

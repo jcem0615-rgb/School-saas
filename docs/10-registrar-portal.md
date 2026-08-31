@@ -299,3 +299,15 @@ prints correctly.
 | Layer | File | Covers |
 |---|---|---|
 | Store | `document_release_test.dart` | the write lands, blank purpose/recipient and implausible copies refused, history is per student and newest-first, the PDF renders for a student with marks and for one without, control-number format |
+
+## Rolling the school up a year
+
+Promotion and retention, and the act of changing every student record to
+say so, is [Module 33](33-year-end-rollover.md). It lives on the
+registrar's dashboard because the academic record is theirs, and it is
+the one operation in this system with no undo — so it is built as a plan
+somebody reads and can change, not a button that does it.
+
+The report card the decision rests on, and the grading scheme it is
+computed from, are [Module 32](32-grading.md).
+

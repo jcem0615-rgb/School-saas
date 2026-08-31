@@ -70,6 +70,7 @@ import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/qr_attendance/domain/entities/qr_scan_result.dart';
 import '../features/qr_attendance/domain/repositories/qr_attendance_repository.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
+import '../features/registrar_portal/domain/entities/promotion.dart';
 import '../features/registrar_portal/domain/entities/student_summary.dart';
 import '../features/registrar_portal/domain/repositories/registrar_repository.dart';
 import '../features/staff_portal/domain/entities/checklist_item.dart';
@@ -1162,6 +1163,101 @@ class DemoAdminRepository implements AdminRepository {
 class DemoRegistrarRepository implements RegistrarRepository {
   final DemoStore _store;
   DemoRegistrarRepository(this._store);
+
+  // ---- Year-end rollover ----
+
+  @override
+  Future<List<Grade>> fetchGradesForSection(String section) async {
+    await _latency();
+    return _store.grades.value.where((g) => g.section == section).toList();
+  }
+
+  @override
+  Future<Set<String>> fetchRolledOverStudentIds(String schoolYear) async {
+    await _latency();
+    return {
+      for (final p in _store.promotions.value)
+        if (p.schoolYear == schoolYear) p.decision.studentId,
+    };
+  }
+
+  @override
+  Future<Result<RolloverOutcome>> runYearEndRollover({
+    required String schoolYear,
+    required List<PromotionDecision> decisions,
+  }) async {
+    await _latency();
+
+    // The demo keeps the real thing's most important property: a student
+    // already moved this year is skipped, not moved again. A demo that
+    // promoted twice would teach the wrong lesson about the one
+    // operation in this system that has no undo.
+    final already = {
+      for (final p in _store.promotions.value)
+        if (p.schoolYear == schoolYear) p.decision.studentId,
+    };
+
+    var applied = 0;
+    var skipped = 0;
+    for (final decision in decisions) {
+      if (already.contains(decision.studentId)) {
+        skipped++;
+        continue;
+      }
+      final student =
+          _store.students.value.where((s) => s.id == decision.studentId).firstOrNull;
+      if (student == null) {
+        skipped++;
+        continue;
+      }
+
+      _store.prepend(
+        _store.promotions,
+        DemoPromotion(
+          schoolYear: schoolYear,
+          decision: decision,
+          decidedByName: _store.requireUser.fullName,
+          decidedAt: DateTime.now(),
+        ),
+      );
+
+      // Retained, conditional and held deliberately change nothing: a
+      // student who has not been promoted stays exactly where they are,
+      // and a conditional one has not sat the remedial classes yet.
+      if (decision.outcome == PromotionOutcome.promoted) {
+        _store.update<StudentSummary>(
+          _store.students,
+          (s) => s.id == student.id,
+          (s) => _copyStudent(
+            s,
+            gradeLevel: decision.toGradeLevel,
+            section: decision.toSection,
+          ),
+        );
+      } else if (decision.outcome == PromotionOutcome.graduated) {
+        _store.update<StudentSummary>(
+          _store.students,
+          (s) => s.id == student.id,
+          (s) => _copyStudent(s, status: StudentStatus.graduated),
+        );
+      }
+      applied++;
+    }
+
+    _store.audit(
+      module: 'academics',
+      action: 'rollover',
+      targetCollection: 'promotions',
+      targetId: schoolYear,
+      newValue: {'applied': applied, 'skipped': skipped},
+    );
+
+    return Success(RolloverOutcome(
+      applied: applied,
+      skipped: skipped,
+      schoolYear: schoolYear,
+    ));
+  }
 
   @override
   Stream<List<StudentSummary>> watchStudents({int? limit, EducationLevel? educationLevel}) =>

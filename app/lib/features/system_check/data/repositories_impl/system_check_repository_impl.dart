@@ -265,6 +265,15 @@ class SystemCheckRepositoryImpl implements SystemCheckRepository {
           .where('isDeleted', isEqualTo: false)
           .orderBy('submittedAt', descending: true)
           .limit(1),
+      // The year-end rollover reads a whole section's marks at once. It
+      // is run on one day of the year, which is exactly the kind of
+      // query a missing index is discovered by on the day it matters.
+      'a section\'s marks for the rollover': _firestore
+          .collection(FirestorePaths.grades(_schoolId))
+          .where('section', isEqualTo: '__preflight')
+          .where('isDeleted', isEqualTo: false)
+          .orderBy('submittedAt', descending: true)
+          .limit(1),
     };
 
     final missing = <String>[];

@@ -10,7 +10,9 @@ import '../../data/repositories_impl/registrar_repository_impl.dart';
 import '../../../faculty_portal/domain/entities/grade.dart';
 import '../../domain/entities/document_release.dart';
 import '../../domain/entities/student_summary.dart';
+import '../../domain/entities/promotion.dart';
 import '../../domain/repositories/registrar_repository.dart';
+import '../../domain/usecases/rollover_usecases.dart';
 import '../../domain/usecases/student_usecases.dart';
 
 final registrarRemoteDataSourceProvider = Provider<RegistrarRemoteDataSource>((ref) {
@@ -98,6 +100,7 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
   final SetStudentBalanceUseCase _setStudentBalance;
   final SetStudentPhotoUseCase _setStudentPhoto;
   final RecordDocumentReleaseUseCase _recordDocumentRelease;
+  final RunRolloverUseCase _runRollover;
 
   RegistrarActionController({
     required RegisterStudentUseCase registerStudent,
@@ -106,13 +109,36 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     required SetStudentBalanceUseCase setStudentBalance,
     required SetStudentPhotoUseCase setStudentPhoto,
     required RecordDocumentReleaseUseCase recordDocumentRelease,
+    required RunRolloverUseCase runRollover,
   })  : _registerStudent = registerStudent,
         _updateStudent = updateStudent,
         _provisionStudentAccount = provisionStudentAccount,
         _setStudentBalance = setStudentBalance,
         _setStudentPhoto = setStudentPhoto,
         _recordDocumentRelease = recordDocumentRelease,
+        _runRollover = runRollover,
         super(const AsyncData(null));
+
+  /// Moves one section into the next school year.
+  ///
+  /// Returns what happened rather than a bare success: "42 moved, 3 were
+  /// already done" is what a registrar needs to see after a run that was
+  /// interrupted and started again, and a plain green tick would hide
+  /// the difference.
+  Future<RolloverOutcome?> runYearEndRollover({
+    required String schoolYear,
+    required List<PromotionDecision> decisions,
+  }) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _runRollover(schoolYear: schoolYear, decisions: decisions);
+    if (result case Success(:final value)) {
+      if (mounted) state = const AsyncData(null);
+      return value;
+    } else if (result case Error(:final failure)) {
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
+    }
+    return null;
+  }
 
   Future<bool> recordDocumentRelease({
     required String studentId,
@@ -287,5 +313,13 @@ final registrarActionControllerProvider =
     setStudentBalance: SetStudentBalanceUseCase(repo),
     setStudentPhoto: SetStudentPhotoUseCase(repo),
     recordDocumentRelease: RecordDocumentReleaseUseCase(repo),
+    runRollover: RunRolloverUseCase(repo),
   );
+});
+
+/// Who has already been moved for a school year, so the rollover screen
+/// shows what is done instead of offering to do it again.
+final rolledOverStudentIdsProvider =
+    FutureProvider.autoDispose.family<Set<String>, String>((ref, schoolYear) {
+  return ref.watch(registrarRepositoryProvider).fetchRolledOverStudentIds(schoolYear);
 });

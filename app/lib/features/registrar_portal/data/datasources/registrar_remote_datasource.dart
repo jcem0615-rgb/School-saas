@@ -265,4 +265,54 @@ class RegistrarRemoteDataSource {
       throw ServerException(e.message ?? 'Failed to update the balance.');
     }
   }
+
+  // ---- Year-end rollover ----
+
+  /// Every mark posted for one section, so the rollover can compute a
+  /// year's grades for a whole class in one read.
+  ///
+  /// A section at a time rather than the whole school. It is how a
+  /// registrar works -- through class lists they recognise -- and it
+  /// keeps both the read and the review list a human size. A screen
+  /// asking somebody to check nine hundred rows in one sitting is a
+  /// screen that gets scrolled past.
+  Future<List<GradeModel>> fetchGradesForSection(String section) async {
+    final snap = await _firestore
+        .collection(FirestorePaths.grades(_actingUser.schoolId))
+        .where('section', isEqualTo: section)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('submittedAt', descending: true)
+        .get();
+    return snap.docs.map((d) => GradeModel.fromFirestore(d.id, d.data())).toList();
+  }
+
+  /// The students already moved for this year, so the screen can show
+  /// what is done rather than offering to do it again.
+  Future<Set<String>> fetchRolledOverStudentIds(String schoolYear) async {
+    final snap = await _firestore
+        .collection(FirestorePaths.promotions(_actingUser.schoolId))
+        .where('schoolYear', isEqualTo: schoolYear)
+        .get();
+    return {
+      for (final doc in snap.docs)
+        if (doc.data()['studentId'] is String) doc.data()['studentId'] as String,
+    };
+  }
+
+  Future<Map<String, dynamic>> runYearEndRollover({
+    required String schoolYear,
+    required List<Map<String, dynamic>> decisions,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('runYearEndRollover');
+      final response = await callable.call({
+        'schoolId': _actingUser.schoolId,
+        'schoolYear': schoolYear,
+        'decisions': decisions,
+      });
+      return Map<String, dynamic>.from(response.data as Map);
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'The rollover did not finish.');
+    }
+  }
 }

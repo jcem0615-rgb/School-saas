@@ -5,6 +5,7 @@ import '../../../../core/errors/result.dart';
 import '../../../faculty_portal/domain/entities/grade.dart';
 import '../../domain/entities/document_release.dart';
 import '../../domain/entities/student_summary.dart';
+import '../../domain/entities/promotion.dart';
 import '../../domain/repositories/registrar_repository.dart';
 import '../datasources/registrar_remote_datasource.dart';
 
@@ -178,6 +179,36 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
         remarks: remarks,
       );
       return const Success(null);
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<List<Grade>> fetchGradesForSection(String section) =>
+      _remote.fetchGradesForSection(section);
+
+  @override
+  Future<Set<String>> fetchRolledOverStudentIds(String schoolYear) =>
+      _remote.fetchRolledOverStudentIds(schoolYear);
+
+  @override
+  Future<Result<RolloverOutcome>> runYearEndRollover({
+    required String schoolYear,
+    required List<PromotionDecision> decisions,
+  }) async {
+    try {
+      final result = await _remote.runYearEndRollover(
+        schoolYear: schoolYear,
+        decisions: [for (final d in decisions) d.toMap()],
+      );
+      return Success(RolloverOutcome(
+        applied: (result['applied'] as num?)?.toInt() ?? 0,
+        skipped: (result['skipped'] as num?)?.toInt() ?? 0,
+        schoolYear: result['schoolYear'] as String? ?? schoolYear,
+      ));
     } on ServerException catch (e) {
       return Error(ServerFailure(e.message));
     } catch (_) {

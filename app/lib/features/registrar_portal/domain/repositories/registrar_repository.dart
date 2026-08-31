@@ -2,6 +2,7 @@ import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/result.dart';
 import '../../../faculty_portal/domain/entities/grade.dart';
 import '../entities/document_release.dart';
+import '../entities/promotion.dart';
 import '../entities/student_summary.dart';
 
 class RegisterStudentOutcome {
@@ -96,5 +97,42 @@ abstract class RegistrarRepository {
     required String studentId,
     required double balance,
     required String remarks,
+  });
+
+  // ---- Year-end rollover ----
+
+  /// Every mark posted for one section, for building a rollover plan.
+  Future<List<Grade>> fetchGradesForSection(String section);
+
+  /// Who has already been moved for this school year.
+  Future<Set<String>> fetchRolledOverStudentIds(String schoolYear);
+
+  /// Applies one page of decisions. Returns how many were moved and how
+  /// many were skipped as already done.
+  ///
+  /// Safe to call again with the same students: the server writes each
+  /// promotion at an id built from the year and the student, so somebody
+  /// already moved is skipped rather than moved twice.
+  Future<Result<RolloverOutcome>> runYearEndRollover({
+    required String schoolYear,
+    required List<PromotionDecision> decisions,
+  });
+}
+
+/// What one page of a rollover did.
+class RolloverOutcome {
+  final int applied;
+
+  /// Students the server found already moved for this year. Not an
+  /// error: it is what a second run of an interrupted rollover looks
+  /// like, and the screen says so rather than reporting a failure.
+  final int skipped;
+
+  final String schoolYear;
+
+  const RolloverOutcome({
+    required this.applied,
+    required this.skipped,
+    required this.schoolYear,
   });
 }

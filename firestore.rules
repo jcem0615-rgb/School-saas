@@ -872,6 +872,41 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ---- promotions and schoolYears ----
+      // What happened to each student at the end of a year, and the
+      // record of the run itself.
+      //
+      // Client writes are denied outright. A rollover is the least
+      // reversible thing in this system -- a promotion record written
+      // from a client would be a way of moving a child up a year with
+      // nothing checking that the year they are going to exists, and a
+      // record deleted from a client would be a way of running the
+      // rollover twice, since the record's existence is what stops that.
+      // Both are written only by runYearEndRollover, through the Admin
+      // SDK, which these rules do not apply to.
+      //
+      // Read is the roles that hold the academic record, plus the
+      // student and their parents: "was I promoted" is a question the
+      // family is entitled to the answer to, from the record rather
+      // than by asking at the counter.
+      match /promotions/{promotionId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin', 'principal', 'registrar'])
+                        || get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.studentId)).data.userId == request.auth.uid
+                        || (claims().role == 'parent'
+                            && resource.data.studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+        allow write: if false;
+      }
+
+      match /schoolYears/{schoolYearId} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow write: if false;
+      }
+
       // ---- documentReleases ----
       // The log of TORs and Form 137s handed over the counter.
       //

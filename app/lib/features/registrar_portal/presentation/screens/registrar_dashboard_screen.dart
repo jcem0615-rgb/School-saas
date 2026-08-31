@@ -6,6 +6,7 @@ import '../../../data_protection/presentation/screens/data_requests_screen.dart'
 
 import '../../../payments/presentation/screens/payment_review_screen.dart';
 import '../../../faculty_portal/presentation/screens/grading_scheme_screen.dart';
+import 'year_end_rollover_screen.dart';
 import '../../../payments/presentation/screens/payment_settings_screen.dart';
 import 'student_list_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
@@ -89,6 +90,17 @@ class RegistrarDashboardScreen extends StatelessWidget {
                   label: 'Payment Setup',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const PaymentSettingsScreen())),
+                ),
+                // Run once a year, and the one operation here with no
+                // undo. On the dashboard rather than buried in a menu
+                // because a registrar looking for it in June should not
+                // have to hunt, and because a screen nobody can find is
+                // a school year rolled over in a spreadsheet instead.
+                GlassTile(
+                  icon: Icons.upgrade_outlined,
+                  label: 'Year-End Rollover',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const YearEndRolloverScreen())),
                 ),
                 // The registrar signs the report cards, so the scheme
                 // they are computed from is reachable from here too.
