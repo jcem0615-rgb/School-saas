@@ -6,6 +6,7 @@ import '../features/auth/domain/entities/app_user.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart' show authStateProvider;
 import 'demo_overrides.dart';
 import 'demo_store.dart';
+import 'demo_tour.dart';
 
 /// Floating "Demo accounts" control layered over the whole app.
 ///
@@ -138,7 +139,7 @@ class _DemoSwitcherState extends ConsumerState<DemoSwitcher> {
       borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 340, maxHeight: 480),
+        constraints: const BoxConstraints(maxWidth: 360, maxHeight: 560),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -158,7 +159,12 @@ class _DemoSwitcherState extends ConsumerState<DemoSwitcher> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'In-memory data, no Firebase. Tap a role to sign in as them. '
+                    demoTourIntro,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
                     'Password for all accounts: ${DemoStore.password}',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
@@ -193,11 +199,30 @@ class _DemoSwitcherState extends ConsumerState<DemoSwitcher> {
                         ),
                       ),
                     ),
+                    isThreeLine: demoTourNotes[user.role] != null,
                     title: Text(user.role.displayName),
-                    subtitle: Text(
-                      '${user.fullName} · ${user.email}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    // The name, then what is worth opening once you are
+                    // there. Without the second line this is a list of
+                    // logins and every portal looks like a grid of icons
+                    // with no point to it -- which is exactly how a demo
+                    // gets clicked through without anybody seeing the
+                    // thing it was built to show.
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.fullName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (demoTourNotes[user.role] != null)
+                          Text(
+                            demoTourNotes[user.role]!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
                     ),
                     trailing: isCurrent ? const Icon(Icons.check, size: 18) : null,
                     onTap: () => _signInAs(user),
@@ -211,11 +236,31 @@ class _DemoSwitcherState extends ConsumerState<DemoSwitcher> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    current == null
-                        ? 'Signed out'
-                        : 'Signed in as ${current.role.displayName}',
-                    style: theme.textTheme.bodySmall,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          current == null
+                              ? 'Signed out'
+                              : 'Signed in as ${current.role.displayName}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        // The question anybody demonstrating this asks
+                        // second. There is no reset button because the
+                        // store lives in memory for the life of the tab,
+                        // so reloading already is one -- and a button
+                        // that tore down and rebuilt every stream mid-
+                        // session would be a worse answer to a question
+                        // the browser already answers.
+                        Text(
+                          'Reload the page to put the data back.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   TextButton.icon(
                     onPressed: current == null ? null : _signOut,
