@@ -9,24 +9,63 @@ you can create, so this is the list of steps that are yours.
 
 ## 1. Create the Firebase project
 
-In the Firebase console, create a project and enable:
+console.firebase.google.com → **Create a project**. Analytics is
+optional and nothing here uses it.
 
-- **Authentication** → Email/Password provider
-- **Cloud Firestore**
-- **Cloud Storage**
-- **Cloud Functions** (needs the Blaze plan; the free tier does not run
-  functions)
+Then, in order:
 
-Register an app per platform you intend to ship — Android, iOS, Web —
-and keep the config values from each.
+**Upgrade to Blaze.** Project settings → Usage and billing → Modify
+plan. Cloud Functions will not deploy on the free Spark plan, and this
+app is thirty-seven callables and triggers. Blaze is pay-as-you-go with
+the free tier still applied underneath — a school of a thousand students
+costs a few dollars a month — but it wants a card before it will run a
+single function. Set a budget alert while you are on that page.
+
+**Authentication** → Get started → **Email/Password**. Enable it.
+Nothing else: no Google sign-in, no anonymous. The app provisions
+accounts server-side (`provisionUser`), so a provider that lets somebody
+sign themselves up is a hole in the role model rather than a
+convenience.
+
+**Cloud Firestore** → Create database → **Native mode**, location
+**asia-southeast1 (Singapore)**.
+
+> The location is permanent. It cannot be changed afterwards without
+> creating a new project and moving the data, and every one of this
+> app's functions is deployed to `asia-southeast1` — a Philippine user
+> base reaching a database in Iowa pays for it on every screen. This is
+> the one choice on this page you cannot take back.
+
+Start in **production mode** if it offers the choice. The real rules go
+up in step 2 and replace whatever it starts with; what you must not do
+is leave it in test mode, which is world-readable and expires after
+thirty days into world-*nothing*. The preflight in
+[Module 21](21-system-check.md) checks for exactly this.
+
+**Cloud Storage** → Get started, same region.
+
+**Register a Web app.** Project settings → General → Your apps → Web
+(`</>`). Give it a nickname; skip Firebase Hosting, the app is on
+Vercel. The `firebaseConfig` block it shows you is what step 5 needs —
+`apiKey`, `appId`, `projectId`, `messagingSenderId`, `storageBucket`,
+`authDomain`. That panel is always there; you are not losing anything by
+closing it.
+
+Register Android and iOS apps too if you intend to ship those, and keep
+`google-services.json` / `GoogleService-Info.plist`.
 
 ## 2. Deploy the rules and functions
 
 ```sh
-firebase deploy --only firestore:rules,storage:rules
+firebase deploy --only firestore:rules,firestore:indexes,storage:rules
 cd functions && npm install && npm run build
 firebase deploy --only functions
 ```
+
+The indexes are not optional and are easy to skip, because a missing one
+does not fail at deploy time and does not fail in testing on a small
+collection: Firestore serves a short collection without one and starts
+refusing as the school grows. The preflight probes for each of them.
 
 The functions are deployed to `asia-southeast1`. That is set per-function
 in the source; changing it means editing every `onCall` region.
@@ -64,6 +103,39 @@ deny every client write to it.
 The Firebase values arrive as `--dart-define` rather than a generated
 `firebase_options.dart`, so the repository still compiles for anyone who
 only wants the demo. See `app/lib/firebase_config.dart`.
+
+### The web app, which deploys itself
+
+Set them as **repository variables**, and the next push to `main` is the
+real thing. Settings → Secrets and variables → Actions → **Variables**:
+
+| Variable | From |
+| --- | --- |
+| `DEMO_MODE` | `false` |
+| `FIREBASE_API_KEY` | the `firebaseConfig` block from step 1 |
+| `FIREBASE_APP_ID` | same |
+| `FIREBASE_PROJECT_ID` | same |
+| `FIREBASE_MESSAGING_SENDER_ID` | same |
+| `FIREBASE_STORAGE_BUCKET` | same, optional |
+| `FIREBASE_AUTH_DOMAIN` | same, optional — web sign-in wants it |
+
+Variables and not secrets. These are client identifiers: they ship
+inside every build, Firebase expects them to be public, and what
+protects the data is `firestore.rules` and the callables' own checks.
+Keeping them readable means anybody debugging a deploy can see which
+project a site was built against, which is the first thing worth knowing
+when one comes up pointed at the wrong one.
+
+Set `DEMO_MODE=false` without the four required values and the build
+stops, naming what is missing, and the previous deployment keeps
+serving. That is the intended failure — better than a live site that
+loads and then dies at sign-in.
+
+**Do steps 2 to 4 first.** A site pointed at a project with no rules and
+no functions deployed signs in and then denies every read, which looks
+far more broken than the demo it replaced.
+
+### Android and iOS, which are built by hand
 
 ```sh
 flutter build apk --release \
