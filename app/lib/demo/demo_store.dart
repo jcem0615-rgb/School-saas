@@ -52,6 +52,7 @@ import '../features/payments/domain/entities/payment_submission.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
+import '../features/inventory/domain/entities/inventory_item.dart';
 import '../features/payroll/domain/entities/contribution_scheme.dart';
 import '../features/payroll/domain/entities/payslip.dart';
 import '../features/registrar_portal/domain/entities/promotion.dart';
@@ -204,6 +205,45 @@ class DemoStore {
   late final courseworkSubmissions =
       BehaviorSubject<List<CourseworkSubmission>>.seeded(_seedCourseworkSubmissions());
   late final grades = BehaviorSubject<List<Grade>>.seeded(_seedGrades());
+
+  /// The stock room, part-used.
+  ///
+  /// One item already below its reorder level and one projector out on
+  /// issue, because the two questions this module answers are "what is
+  /// running out" and "where is the good projector" -- and a demo where
+  /// both answers are empty demonstrates neither.
+  late final inventory = BehaviorSubject<List<InventoryItem>>.seeded(const [
+    InventoryItem(
+      id: 'inv_001',
+      name: 'Bond paper A4',
+      category: 'Office supplies',
+      unit: 'ream',
+      quantityOnHand: 3,
+      reorderLevel: 10,
+      location: 'Stock room',
+    ),
+    InventoryItem(
+      id: 'inv_002',
+      name: 'Whiteboard marker',
+      category: 'Classroom supplies',
+      unit: 'box',
+      quantityOnHand: 24,
+      reorderLevel: 6,
+      location: 'Stock room',
+    ),
+    InventoryItem(
+      id: 'inv_003',
+      name: 'Projector',
+      category: 'Equipment',
+      unit: 'unit',
+      quantityOnHand: 2,
+      reorderLevel: 0,
+      location: 'AV cabinet',
+    ),
+  ]);
+
+  late final inventoryMovements =
+      BehaviorSubject<List<InventoryMovement>>.seeded(_seedMovements());
 
   /// What the demo school pays its staff.
   ///
@@ -660,6 +700,7 @@ class DemoStore {
       currentUser, schools, revenue, invoices, students, employees,
       assignments, programs, payments, attendance, coursework, grades, gradingScheme,
       promotions, applicants, compensation, contributionScheme, payslips,
+      inventory, inventoryMovements,
       courseworkSubmissions, answerKeys, emergencyContacts, emergencyAlerts,
       announcements, meetings, approvals, expenses, checklist,
       dailyReports, guidanceRecords, summonses, auditLog, notifications,
@@ -1812,6 +1853,53 @@ class DemoStore {
   /// yet, which is the case the whole "an ungraded component is not a
   /// zero" rule exists for, and the demo should show it rather than
   /// describe it.
+  /// Enough movement that the log reads like a stock room's.
+  List<InventoryMovement> _seedMovements() => [
+        InventoryMovement(
+          id: 'mv_001',
+          itemId: 'inv_003',
+          itemName: 'Projector',
+          kind: MovementKind.issued,
+          quantity: 1,
+          issuedTo: 'Maria Santos',
+          reference: 'Request AR-0042',
+          recordedByName: 'Ricardo Aquino',
+          recordedAt: _daysAgo(3),
+        ),
+        InventoryMovement(
+          id: 'mv_002',
+          itemId: 'inv_001',
+          itemName: 'Bond paper A4',
+          kind: MovementKind.issued,
+          quantity: 7,
+          issuedTo: "Registrar's Office",
+          recordedByName: 'Ricardo Aquino',
+          recordedAt: _daysAgo(5),
+        ),
+        InventoryMovement(
+          id: 'mv_003',
+          itemId: 'inv_001',
+          itemName: 'Bond paper A4',
+          kind: MovementKind.received,
+          quantity: 10,
+          reference: 'DR-88213',
+          recordedByName: 'Ricardo Aquino',
+          recordedAt: _daysAgo(20),
+        ),
+        // A stock count that disagreed with the books, which is the one
+        // movement whose quantity carries its own sign.
+        InventoryMovement(
+          id: 'mv_004',
+          itemId: 'inv_002',
+          itemName: 'Whiteboard marker',
+          kind: MovementKind.adjusted,
+          quantity: -2,
+          note: 'Counted 24, books said 26.',
+          recordedByName: 'Ricardo Aquino',
+          recordedAt: _daysAgo(9),
+        ),
+      ];
+
   /// Families at every stage of the pipeline.
   ///
   /// Two of them have been sitting still for well over a week, so the

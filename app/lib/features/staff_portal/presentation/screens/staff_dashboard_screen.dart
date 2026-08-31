@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../faculty_portal/presentation/screens/material_requests_screen.dart';
+import '../../../inventory/presentation/screens/inventory_screen.dart';
 import 'checklist_screen.dart';
 import 'daily_reports_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
@@ -67,6 +68,15 @@ class StaffDashboardScreen extends StatelessWidget {
                   label: 'Daily Reports',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const DailyReportsScreen())),
+                ),
+                // The stock those requests draw down. Next to them on
+                // purpose: the person deciding a material request is the
+                // person who knows whether there is any left.
+                GlassTile(
+                  icon: Icons.warehouse_outlined,
+                  label: 'Inventory',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const InventoryScreen())),
                 ),
                 GlassTile(
                   icon: Icons.inventory_2_outlined,

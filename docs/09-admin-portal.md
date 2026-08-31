@@ -148,3 +148,12 @@ list a student sees during a fire cannot drift from the list an admin
 maintains. Reading is unscoped for the same reason — a number a student
 cannot reach is not a safety feature — and nothing in the collection is
 personal data.
+
+## Inventory, no longer deferred
+
+This document said Inventory was explicitly deferred, and it was, for
+three modules. It exists now: [Module 36](36-inventory.md). The stock
+room, the movement log that the quantity on every item is derived from,
+and the reorder list — reachable from the Admin dashboard and from
+Staff's, next to the material requests it supplies.
+

@@ -71,6 +71,8 @@ import '../features/qr_attendance/domain/entities/qr_scan_result.dart';
 import '../features/qr_attendance/domain/repositories/qr_attendance_repository.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
+import '../features/inventory/domain/entities/inventory_item.dart';
+import '../features/inventory/domain/repositories/inventory_repository.dart';
 import '../features/payroll/domain/entities/contribution_scheme.dart';
 import '../features/payroll/domain/entities/payslip.dart';
 import '../features/payroll/domain/repositories/payroll_repository.dart';
@@ -1164,6 +1166,150 @@ class DemoAdminRepository implements AdminRepository {
 // ---------------------------------------------------------------------------
 // Registrar
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Inventory
+// ---------------------------------------------------------------------------
+
+class DemoInventoryRepository implements InventoryRepository {
+  final DemoStore _store;
+  DemoInventoryRepository(this._store);
+
+  @override
+  Stream<List<InventoryItem>> watchItems() => _store.inventory.stream;
+
+  @override
+  Stream<List<InventoryMovement>> watchMovements({String? itemId, int limit = 100}) =>
+      _store.inventoryMovements.stream.map((all) {
+        final rows = itemId == null
+            ? all
+            : all.where((m) => m.itemId == itemId).toList();
+        return rows.length <= limit ? rows : rows.sublist(0, limit);
+      });
+
+  @override
+  Future<Result<String>> saveItem({
+    String? itemId,
+    required String name,
+    required String category,
+    required String unit,
+    required double reorderLevel,
+    String? location,
+    String? note,
+  }) async {
+    await _latency();
+    if (itemId != null) {
+      _store.update<InventoryItem>(
+        _store.inventory,
+        (i) => i.id == itemId,
+        (i) => InventoryItem(
+          id: i.id,
+          name: name,
+          category: category,
+          unit: unit,
+          // Not touched by an edit. The quantity moves when a movement
+          // is recorded, which is what makes it traceable.
+          quantityOnHand: i.quantityOnHand,
+          reorderLevel: reorderLevel,
+          location: location,
+          note: note,
+        ),
+      );
+      return Success(itemId);
+    }
+
+    final id = _store.nextId('inv');
+    _store.prepend(
+      _store.inventory,
+      InventoryItem(
+        id: id,
+        name: name,
+        category: category,
+        unit: unit,
+        quantityOnHand: 0,
+        reorderLevel: reorderLevel,
+        location: location,
+        note: note,
+      ),
+    );
+    _store.audit(
+      module: 'inventory',
+      action: 'create',
+      targetCollection: 'inventory',
+      targetId: id,
+      newValue: {'name': name},
+    );
+    return Success(id);
+  }
+
+  @override
+  Future<Result<void>> recordMovement({
+    required InventoryItem item,
+    required MovementKind kind,
+    required double quantity,
+    String? issuedTo,
+    String? reference,
+    String? note,
+  }) async {
+    await _latency();
+    final effect = kind == MovementKind.adjusted ? quantity : quantity * kind.direction;
+
+    _store.prepend(
+      _store.inventoryMovements,
+      InventoryMovement(
+        id: _store.nextId('mv'),
+        itemId: item.id,
+        itemName: item.name,
+        kind: kind,
+        quantity: quantity,
+        issuedTo: issuedTo,
+        reference: reference,
+        note: note,
+        recordedByName: _store.requireUser.fullName,
+        recordedAt: DateTime.now(),
+      ),
+    );
+
+    // The total moves with the movement, never on its own -- the same
+    // invariant the real transaction holds.
+    _store.update<InventoryItem>(
+      _store.inventory,
+      (i) => i.id == item.id,
+      (i) => InventoryItem(
+        id: i.id,
+        name: i.name,
+        category: i.category,
+        unit: i.unit,
+        quantityOnHand: i.quantityOnHand + effect,
+        reorderLevel: i.reorderLevel,
+        location: i.location,
+        note: i.note,
+      ),
+    );
+
+    _store.audit(
+      module: 'inventory',
+      action: 'update',
+      targetCollection: 'inventoryTransactions',
+      targetId: item.id,
+      newValue: {'kind': kind.value, 'quantity': quantity},
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> deleteItem(String itemId) async {
+    await _latency();
+    _store.softDelete<InventoryItem>(_store.inventory, (i) => i.id == itemId);
+    _store.audit(
+      module: 'inventory',
+      action: 'delete',
+      targetCollection: 'inventory',
+      targetId: itemId,
+    );
+    return const Success(null);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Payroll

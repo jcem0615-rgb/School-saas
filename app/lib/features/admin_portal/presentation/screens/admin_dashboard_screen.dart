@@ -9,6 +9,7 @@ import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
 import '../../../admissions/presentation/screens/admissions_screen.dart';
+import '../../../inventory/presentation/screens/inventory_screen.dart';
 import '../../../payroll/presentation/screens/payroll_run_screen.dart';
 import '../../../faculty_portal/presentation/screens/grading_scheme_screen.dart';
 import '../../../data_protection/presentation/screens/data_requests_screen.dart';
@@ -28,8 +29,9 @@ import '../../../../core/widgets/glass_tile.dart';
 /// Announcements is a direct link into the screen already built for
 /// Director Portal (rules already permit admin), and Attendance
 /// Monitoring reuses AttendanceHistoryScreen from QR Attendance per
-/// employee. Inventory, Schedules, and Monthly Reports are explicitly
-/// deferred -- see docs/09-admin-portal.md.
+/// employee. Schedules and Monthly Reports landed later in their own
+/// modules; Inventory, deferred here for three modules, is
+/// docs/36-inventory.md.
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
@@ -148,6 +150,12 @@ class AdminDashboardScreen extends StatelessWidget {
                   label: 'Fee Schedules',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const FeeStructuresScreen())),
+                ),
+                GlassTile(
+                  icon: Icons.warehouse_outlined,
+                  label: 'Inventory',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const InventoryScreen())),
                 ),
                 // The school's second-biggest money flow after
                 // tuition, and the one that happens twice a month

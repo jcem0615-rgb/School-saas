@@ -872,6 +872,32 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ---- inventory ----
+      // The stock room, and the log of everything in and out of it.
+      //
+      // Readable tenant-wide: a teacher wanting to know whether there is
+      // chalk before walking down there is the point, and there is
+      // nothing sensitive in "forty reams of bond paper". Writable by
+      // the roles that actually keep it -- Staff run the stock room,
+      // Director and Admin own what the school buys.
+      //
+      // The movement log is append-only. The quantity on an item is a
+      // running total maintained alongside the movement that changed it,
+      // so a log that could be edited afterwards would leave a figure
+      // nobody can trace -- which is the spreadsheet this replaces.
+      match /inventory/{itemId} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow write: if hasRole(schoolId, ['director', 'admin', 'staff'])
+                       && schoolIsAccessible(schoolId);
+      }
+
+      match /inventoryTransactions/{movementId} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow create: if hasRole(schoolId, ['director', 'admin', 'staff'])
+                        && schoolIsAccessible(schoolId);
+        allow update, delete: if false;
+      }
+
       // ---- payroll ----
       // What people are paid, and what was taken out of it.
       //
