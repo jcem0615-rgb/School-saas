@@ -149,7 +149,51 @@ jobs:
       # instead of gstatic, and --pwa-strategy=none, so no service worker
       # serves a stale asset list after a redeploy. Both were learned the
       # hard way; see the comments in the script.
+      #
+      # ## Demo mode, and turning it off
+      #
+      # The build script defaults to the demo -- an in-memory school with
+      # no Firebase behind it -- and that is what this workflow published
+      # for its first twenty-four runs. Turning it off is a repository
+      # variable rather than an edit here, so going live is not a commit:
+      #
+      #   Settings -> Secrets and variables -> Actions -> Variables tab
+      #
+      #     DEMO_MODE                       false
+      #     FIREBASE_API_KEY                from the Firebase console,
+      #     FIREBASE_APP_ID                 Project settings -> General
+      #     FIREBASE_PROJECT_ID             -> Your apps -> Web app
+      #     FIREBASE_MESSAGING_SENDER_ID
+      #     FIREBASE_STORAGE_BUCKET         optional
+      #     FIREBASE_AUTH_DOMAIN            optional, web sign-in needs it
+      #
+      # Variables and not secrets, deliberately. These are client
+      # identifiers: they ship inside every build, Firebase expects them
+      # to be public, and what protects the data is firestore.rules and
+      # the callables' own checks -- never the obscurity of these
+      # strings. See app/lib/firebase_config.dart. Putting them in
+      # Variables means anybody debugging a deploy can read the project
+      # id that was built against, which is the first thing you want to
+      # know when a site comes up pointed at the wrong project.
+      #
+      # Set DEMO_MODE=false without the four required keys and the build
+      # stops at the script's own check, naming what is missing. That is
+      # the intended failure: a red run and the previous deployment still
+      # serving beats a live site that loads and then dies at sign-in.
+      #
+      # Vercel's own project environment variables no longer reach this.
+      # The build happens here now, not in Vercel's container, so values
+      # set over there are read by nothing -- worth knowing, because that
+      # is where the script's comments used to send people.
       - name: Build the web app
+        env:
+          DEMO_MODE: ${{ vars.DEMO_MODE || 'true' }}
+          FIREBASE_API_KEY: ${{ vars.FIREBASE_API_KEY }}
+          FIREBASE_APP_ID: ${{ vars.FIREBASE_APP_ID }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ vars.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ vars.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_AUTH_DOMAIN: ${{ vars.FIREBASE_AUTH_DOMAIN }}
         run: bash scripts/vercel-build.sh
 
       # Deploying built files rather than sources, so Vercel has nothing

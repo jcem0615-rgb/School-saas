@@ -8,9 +8,15 @@ git config --global --add safe.directory "$PWD/_flutter" || true
 
 cd app
 
-# Demo mode unless the deployment says otherwise. Set DEMO_MODE=false in
-# the Vercel project's environment variables, along with the FIREBASE_*
-# values below, and the next deploy is the real thing -- no code change.
+# Demo mode unless the deployment says otherwise. Set DEMO_MODE=false
+# along with the FIREBASE_* values below and the next deploy is the real
+# thing -- no code change.
+#
+# Where to set them moved. This script once ran inside Vercel's build
+# container, so the answer was "the Vercel project's environment
+# variables"; the build happens in GitHub Actions now, and values set in
+# Vercel are read by nothing. They go in the repository's Actions
+# Variables, which .github/workflows/deploy-web.yml passes in.
 DEMO_MODE="${DEMO_MODE:-true}"
 
 DEFINES=( --dart-define=DEMO_MODE="$DEMO_MODE" )
@@ -28,7 +34,9 @@ if [ "$DEMO_MODE" = "false" ]; then
   if [ ${#MISSING[@]} -gt 0 ]; then
     echo "DEMO_MODE=false needs the Firebase project settings." >&2
     echo "Missing: ${MISSING[*]}" >&2
-    echo "Add them as environment variables in the Vercel project." >&2
+    echo "Add them under Settings -> Secrets and variables -> Actions" >&2
+    echo "-> Variables, on the repository. They are client identifiers," >&2
+    echo "not secrets -- see app/lib/firebase_config.dart." >&2
     exit 1
   fi
 
