@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../../core/constants/firestore_paths.dart';
-import '../../../../core/constants/user_roles.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../models/employee_summary_model.dart';
 import '../models/program_model.dart';

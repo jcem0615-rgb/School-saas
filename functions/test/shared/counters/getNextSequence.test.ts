@@ -32,7 +32,11 @@ describe("getNextSequence", () => {
     );
     const unique = new Set(results);
     expect(unique.size).toBe(20);
-  });
+    // Twenty transactions contending for one document serialise, and each
+    // loser retries. That is the point of the test, and it takes the
+    // emulator around seven seconds - past Jest's five-second default, so
+    // this test could never pass without saying so.
+  }, 60_000);
 
   it("keeps separate schools' counters independent", async () => {
     const a = await getNextSequence("school_a", "shared_counter_name");

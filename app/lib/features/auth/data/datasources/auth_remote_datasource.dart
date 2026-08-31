@@ -44,7 +44,13 @@ class AuthRemoteDataSource {
       if (user == null) {
         throw const AuthException('unknown', 'Sign-in returned no user.');
       }
-      return _hydrateUser(user);
+      // `await`, not a bare return: hydrating forces an ID-token refresh,
+      // which is a second network call and throws FirebaseAuthException
+      // in its own right. Returning the future unawaited hands that
+      // exception past the catch below, and the friendly message for
+      // `network-request-failed` -- the likeliest failure on a phone --
+      // is replaced by a generic one.
+      return await _hydrateUser(user);
     } on fb_auth.FirebaseAuthException catch (e) {
       throw AuthException(e.code, _mapAuthErrorMessage(e.code));
     }

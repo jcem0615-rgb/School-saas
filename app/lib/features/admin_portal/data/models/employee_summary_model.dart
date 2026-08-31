@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/education_level.dart';
 import '../../../../core/constants/user_roles.dart';

@@ -234,6 +234,106 @@ void main() {
     expect(find.byType(Scaffold), findsWidgets);
   });
 
+  testWidgets('every remaining router route opens for a role that may reach it',
+      (tester) async {
+    // The test above walks the routes any signed-in person can reach. This
+    // one walks what is left, so that between them every GoRoute in
+    // app_router.dart has been opened at least once. A screen nobody ever
+    // navigates to in a test is a screen whose first render is being
+    // checked for the first time by whoever is holding the laptop.
+    final container = ProviderContainer(overrides: demoOverrides());
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const LogicClassApp()),
+    );
+    await tester.pumpAndSettle();
+
+    final router = container.read(goRouterProvider);
+    final uids = {for (final account in DemoStore.demoAccounts) account.uid};
+    container.read(demoStoreProvider).acknowledgedPrivacy.add(uids);
+    container.read(demoStoreProvider).acceptedTerms.add(uids);
+
+    // Director reaches the three guarded surfaces; the scanner and the
+    // privacy notice are open to everybody, and are checked as the
+    // registrar because that is who stands at a scanner all morning.
+    const byEmail = <String, List<String>>{
+      'director@demo.ph': [
+        AppRoutes.auditTrail,
+        AppRoutes.reports,
+        AppRoutes.systemCheck,
+      ],
+      'registrar@demo.ph': [
+        AppRoutes.scanAttendance,
+        AppRoutes.privacy,
+      ],
+    };
+
+    for (final entry in byEmail.entries) {
+      demoSignInAs(
+        container.read(demoAuthRepositoryProvider),
+        router,
+        DemoStore.demoAccounts.firstWhere((a) => a.email == entry.key),
+      );
+      await tester.pumpAndSettle();
+
+      for (final route in entry.value) {
+        router.go(route);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: '$route threw on open');
+        expect(
+          router.routerDelegate.currentConfiguration.uri.path,
+          route,
+          reason: '$route redirected away from ${entry.key}, who should reach it',
+        );
+        expect(find.byType(Scaffold), findsWidgets, reason: '$route rendered nothing');
+      }
+    }
+  });
+
+  testWidgets('the three Director and Admin surfaces turn everybody else away',
+      (tester) async {
+    // The guard in app_router.dart, asserted from the outside. It is a
+    // convenience rather than the security boundary -- the rules refuse
+    // the underlying queries per document, which is what the rules suite
+    // proves - but a role that reached one of these screens would sit in
+    // front of a wall of permission errors, and conclude the app is
+    // broken rather than that they were somewhere they should not be.
+    final container = ProviderContainer(overrides: demoOverrides());
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const LogicClassApp()),
+    );
+    await tester.pumpAndSettle();
+
+    final router = container.read(goRouterProvider);
+    final uids = {for (final account in DemoStore.demoAccounts) account.uid};
+    container.read(demoStoreProvider).acknowledgedPrivacy.add(uids);
+    container.read(demoStoreProvider).acceptedTerms.add(uids);
+
+    const guarded = [AppRoutes.auditTrail, AppRoutes.reports, AppRoutes.systemCheck];
+    final turnedAway = DemoStore.demoAccounts.where(
+      (a) => a.role != UserRole.director && a.role != UserRole.admin,
+    );
+
+    for (final account in turnedAway) {
+      demoSignInAs(container.read(demoAuthRepositoryProvider), router, account);
+      await tester.pumpAndSettle();
+
+      for (final route in guarded) {
+        router.go(route);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: '$route threw for ${account.role.displayName}');
+        expect(
+          router.routerDelegate.currentConfiguration.uri.path,
+          AppRoutes.homeFor(account.role),
+          reason: '${account.role.displayName} reached $route and should not have',
+        );
+      }
+    }
+  });
+
   testWidgets('signing out returns to the login screen', (tester) async {
     final container = ProviderContainer(overrides: demoOverrides());
     addTearDown(container.dispose);

@@ -6,7 +6,6 @@ import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
 import 'package:logicclass/features/payments/domain/entities/bank_account.dart';
 import 'package:logicclass/features/payments/domain/entities/payment.dart';
-import 'package:logicclass/features/payments/domain/entities/payment_settings.dart';
 import 'package:logicclass/features/payments/presentation/controllers/payment_controller.dart';
 
 /// Paying the school by bank transfer.

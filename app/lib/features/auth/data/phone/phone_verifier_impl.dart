@@ -65,7 +65,7 @@ class PhoneVerifierImpl implements PhoneVerifier {
           if (!completer.isCompleted) completer.complete(Success(verificationId));
         },
       );
-      return completer.future;
+      return await completer.future;
     } on FirebaseAuthException catch (e) {
       return Error(AuthFailure(e.code, e.message ?? 'That number could not be verified.'));
     } catch (_) {

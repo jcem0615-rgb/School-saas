@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:logicclass/core/constants/user_roles.dart';
 import 'package:logicclass/demo/demo_store.dart';
 import 'package:logicclass/demo/demo_tour.dart';
 import 'package:logicclass/features/admissions/domain/entities/applicant.dart';

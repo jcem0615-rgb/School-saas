@@ -2535,8 +2535,6 @@ class DemoStore {
         ),
       ];
 
-  List<GuidanceRecord> get _extraSectionRecord => [];
-
   /// The demo conversation id, in the same shape the callable derives:
   /// one thread per teacher, parent and child.
   static const _demoConversationId = 'u_faculty__u_parent__stu_001';

@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:logicclass/core/errors/result.dart';
 import 'package:logicclass/core/storage/upload_repository.dart';
 import 'package:logicclass/core/theme/app_theme.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
 import 'package:logicclass/features/admin_portal/presentation/controllers/admin_controller.dart';
 import 'package:logicclass/features/qr_attendance/presentation/screens/e_id_screen.dart';
-import 'package:logicclass/features/registrar_portal/domain/entities/student_summary.dart';
 import 'package:logicclass/features/registrar_portal/presentation/controllers/registrar_controller.dart';
 
 /// A photo and a signature are the two things that make an ID card an ID

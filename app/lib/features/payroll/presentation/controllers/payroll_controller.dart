@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/result.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart'
     show authStateProvider, firestoreProvider;
-import '../../../timekeeping/domain/entities/timesheet.dart';
 import '../../../timekeeping/presentation/controllers/timekeeping_controller.dart'
     show TimesheetQuery, timesheetProvider;
 import '../../data/datasources/payroll_remote_datasource.dart';

@@ -10,7 +10,6 @@ import '../../../../core/storage/upload_providers.dart';
 import '../../../../core/storage/upload_repository.dart';
 import '../../domain/entities/bank_account.dart';
 import '../../domain/entities/payment.dart';
-import '../../domain/entities/payment_settings.dart';
 import '../controllers/payment_controller.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');

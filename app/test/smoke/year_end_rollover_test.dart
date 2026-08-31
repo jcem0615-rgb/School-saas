@@ -9,7 +9,6 @@ import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
 import 'package:logicclass/features/registrar_portal/domain/entities/promotion.dart';
 import 'package:logicclass/features/registrar_portal/domain/repositories/registrar_repository.dart';
-import 'package:logicclass/features/registrar_portal/domain/entities/student_summary.dart';
 import 'package:logicclass/features/registrar_portal/presentation/controllers/registrar_controller.dart';
 import 'package:logicclass/features/registrar_portal/presentation/screens/year_end_rollover_screen.dart';
 
