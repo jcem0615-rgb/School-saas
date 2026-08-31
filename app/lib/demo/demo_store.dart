@@ -43,6 +43,7 @@ import '../features/payments/domain/entities/bank_account.dart';
 import '../features/payments/domain/entities/fee_structure.dart';
 import '../features/payments/domain/entities/discount.dart';
 import '../features/payments/domain/entities/installment.dart';
+import '../features/payments/domain/entities/subsidy.dart';
 import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
 import '../features/payments/domain/entities/payment_submission.dart';
@@ -851,7 +852,7 @@ class DemoStore {
           programName: 'Science, Technology, Engineering and Mathematics',
           department: 'Academic',
           status: StudentStatus.enrolled,
-          balance: 11600,
+          balance: 5100,
           enrollmentDate: DateTime(now.year, 6, 3),
           birthDate: DateTime(now.year - 17, 9, 8),
           guardianContacts: const [
@@ -1256,10 +1257,11 @@ class DemoStore {
         updatedAt: _daysAgo(45),
         updatedByName: 'Grace Mendoza',
       ),
-      // Assessed to Trisha Mercado (stu_009): 12,500 in fees less a 900
-      // sibling discount, nothing paid yet, 11,600 outstanding. Her
-      // balance is seeded to match, so the breakdown reconciles rather
-      // than reporting 900 it cannot account for.
+      // Assessed to Trisha Mercado (stu_009): 12,500 in fees, less a 900
+      // sibling discount the school absorbs and a 6,500 SHS voucher it
+      // bills DepEd for. Nothing paid yet, so the family owes 5,100 and
+      // her balance is seeded to match -- otherwise the breakdown
+      // reports a remainder it cannot account for.
       FeeStructure(
         id: 'fee_0002',
         name: 'Senior High School - $sy',
@@ -1325,6 +1327,19 @@ class DemoStore {
             percentage: 10,
             appliesTo: FeeCategory.tuition,
             approvedByName: 'Grace Mendoza',
+          ),
+        ],
+        // Senior High, so she holds a voucher. It comes off her bill and
+        // the school bills DepEd for it -- 11,600 less 6,500 leaves the
+        // family 5,100. Seeded so the demo shows a discount and a
+        // subsidy on one assessment, which is what makes the difference
+        // between them legible.
+        subsidies: [
+          Subsidy(
+            programme: SubsidyProgramme.shsVoucher,
+            referenceNumber: 'QVR-2026-0099142',
+            amount: 6500,
+            recordedByName: 'Joel Bautista',
           ),
         ],
         assessedByName: 'Joel Bautista',

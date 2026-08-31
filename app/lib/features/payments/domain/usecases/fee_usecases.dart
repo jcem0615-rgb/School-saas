@@ -5,6 +5,7 @@ import '../entities/assessment.dart';
 import '../entities/fee_structure.dart';
 import '../entities/discount.dart';
 import '../entities/installment.dart';
+import '../entities/subsidy.dart';
 import '../repositories/payment_repository.dart';
 
 /// The school's published fee schedules.
@@ -107,7 +108,7 @@ ValidationFailure? checkInstallments(List<Installment> installments, double tota
           '"Upon enrolment", "October", whatever the letter home calls it.');
     }
     if (line.amount <= 0) {
-      return ValidationFailure('"\${line.label}" must be more than zero. '
+      return ValidationFailure('"${line.label}" must be more than zero. '
           'Remove the line instead.');
     }
   }
@@ -124,8 +125,8 @@ ValidationFailure? checkInstallments(List<Installment> installments, double tota
   final planned = installments.fold<double>(0, (sum, i) => sum + i.amount);
   if ((planned - total).abs() > 0.01) {
     return ValidationFailure(
-      'The payment plan adds up to \${planned.toStringAsFixed(2)} but the '
-      'fees come to \${total.toStringAsFixed(2)}. They have to match.',
+      'The payment plan adds up to ${planned.toStringAsFixed(2)} but the '
+      'fees come to ${total.toStringAsFixed(2)}. They have to match.',
     );
   }
   return null;
@@ -145,12 +146,12 @@ ValidationFailure? checkDiscounts(List<Discount> discounts, double grossTotal) {
           'reading the assessment has to know what was taken off and why.');
     }
     if (discount.amount <= 0) {
-      return ValidationFailure('"\${discount.label}" must take off more than '
+      return ValidationFailure('"${discount.label}" must take off more than '
           'zero. Remove the line instead.');
     }
     final rate = discount.percentage;
     if (rate != null && (rate <= 0 || rate > 100)) {
-      return ValidationFailure('"\${discount.label}" is \${rate}%. A discount '
+      return ValidationFailure('"${discount.label}" is ${rate}%. A discount '
           'is between 0 and 100 per cent.');
     }
   }
@@ -161,9 +162,53 @@ ValidationFailure? checkDiscounts(List<Discount> discounts, double grossTotal) {
   final given = totalDiscount(discounts);
   if (given > grossTotal + 0.005) {
     return ValidationFailure(
-      'The discounts come to \${given.toStringAsFixed(2)} against fees of '
-      '\${grossTotal.toStringAsFixed(2)}. A school can waive the whole amount, '
+      'The discounts come to ${given.toStringAsFixed(2)} against fees of '
+      '${grossTotal.toStringAsFixed(2)}. A school can waive the whole amount, '
       'but it cannot charge less than nothing.',
+    );
+  }
+  return null;
+}
+
+/// Checks the government subsidies before they are recorded.
+///
+/// [remainingAfterDiscounts] rather than the gross: a student on both a
+/// sibling discount and an ESC grant must not have the two together come
+/// to more than the fees, and checking the grant against the published
+/// figure alone would let them.
+ValidationFailure? checkSubsidies(List<Subsidy> subsidies, double remainingAfterDiscounts) {
+  if (subsidies.isEmpty) return null;
+
+  final seen = <String>{};
+  for (final subsidy in subsidies) {
+    final reference = subsidy.referenceNumber.trim();
+    if (reference.isEmpty) {
+      return ValidationFailure(
+        'The ${subsidy.programme.displayLabel.toLowerCase()} needs the '
+        'certificate or voucher number it will be claimed against. Without '
+        'one the school cannot bill for it, and the family has simply been '
+        'charged less.',
+      );
+    }
+    // One certificate is claimed once. PEAC rejects the second -- after
+    // the family has been charged as though both were coming.
+    final key = '${subsidy.programme.value}|${reference.toLowerCase()}';
+    if (!seen.add(key)) {
+      return ValidationFailure('$reference appears twice on this assessment. '
+          'One certificate is claimed once.');
+    }
+    if (subsidy.amount <= 0) {
+      return ValidationFailure('The subsidy against $reference must be more '
+          'than zero.');
+    }
+  }
+
+  final granted = totalSubsidy(subsidies);
+  if (granted > remainingAfterDiscounts + 0.005) {
+    return ValidationFailure(
+      'The subsidies come to ${granted.toStringAsFixed(2)} against '
+      '${remainingAfterDiscounts.toStringAsFixed(2)} still chargeable after '
+      'discounts. A grant can cover the whole of what is left and no more.',
     );
   }
   return null;
@@ -192,6 +237,7 @@ class AssessStudentFeesUseCase {
     required List<FeeItem> items,
     List<Installment> installments = const [],
     List<Discount> discounts = const [],
+    List<Subsidy> subsidies = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -222,9 +268,15 @@ class AssessStudentFeesUseCase {
     final discountProblem = checkDiscounts(discounts, gross);
     if (discountProblem != null) return Future.value(Error(discountProblem));
 
+    final afterDiscounts = gross - totalDiscount(discounts);
+    final subsidyProblem = checkSubsidies(subsidies, afterDiscounts);
+    if (subsidyProblem != null) return Future.value(Error(subsidyProblem));
+
     // Against the net, because that is what the family owes and what the
-    // server will check. A discounted family still gets a payment plan.
-    final planProblem = checkInstallments(installments, gross - totalDiscount(discounts));
+    // server will check. A discounted or subsidised family still gets a
+    // payment plan, for their own share of it.
+    final planProblem =
+        checkInstallments(installments, afterDiscounts - totalSubsidy(subsidies));
     if (planProblem != null) return Future.value(Error(planProblem));
 
     return _repository.assessStudentFees(
@@ -233,6 +285,7 @@ class AssessStudentFeesUseCase {
       items: items,
       installments: installments,
       discounts: discounts,
+      subsidies: subsidies,
       sourceStructureId: sourceStructureId,
       sourceStructureName: sourceStructureName,
       remarks: remarks?.trim().isEmpty ?? true ? null : remarks!.trim(),

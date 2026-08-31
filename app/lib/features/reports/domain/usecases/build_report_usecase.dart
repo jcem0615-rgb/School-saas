@@ -9,6 +9,7 @@ import 'enrollment_report.dart';
 import 'grade_distribution_report.dart';
 import 'discounts_report.dart';
 import 'overdue_report.dart';
+import 'subsidy_claims_report.dart';
 
 /// Fetches what a report needs and hands back the finished table.
 ///
@@ -42,6 +43,11 @@ class BuildReportUseCase {
                 assessments: value.assessments,
               ),
             ReportKind.discounts => DiscountsReport.build(
+                period: period,
+                students: value.students,
+                assessments: value.assessments,
+              ),
+            ReportKind.subsidyClaims => SubsidyClaimsReport.build(
                 period: period,
                 students: value.students,
                 assessments: value.assessments,

@@ -9,9 +9,11 @@ import '../../domain/entities/fee_structure.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider;
 import '../../domain/entities/discount.dart';
 import '../../domain/entities/installment.dart';
+import '../../domain/entities/subsidy.dart';
 import '../controllers/payment_controller.dart';
 import '../widgets/discount_editor.dart';
 import '../widgets/fee_item_editor.dart';
+import '../widgets/subsidy_editor.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
 final _dateFormat = DateFormat.yMMMd();
@@ -55,6 +57,8 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
   final List<FeeItemDraft> _items = [];
   final List<DiscountDraft> _discounts = [];
   final List<DiscountDraft> _discardedDiscounts = [];
+  final List<SubsidyDraft> _subsidies = [];
+  final List<SubsidyDraft> _discardedSubsidies = [];
   final List<FeeItemDraft> _discarded = [];
   bool _yearSeeded = false;
 
@@ -74,6 +78,9 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
     for (final discount in [..._discounts, ..._discardedDiscounts]) {
       discount.dispose();
     }
+    for (final subsidy in [..._subsidies, ..._discardedSubsidies]) {
+      subsidy.dispose();
+    }
     super.dispose();
   }
 
@@ -87,10 +94,23 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
             draft.toDiscount(_feeItems, _approverName),
       ];
 
-  /// What the family is actually charged, which is what the payment plan
-  /// has to add up to and what moves the balance.
+  List<Subsidy> get _recordedSubsidies => [
+        for (final draft in _subsidies)
+          if (draft.isComplete) draft.toSubsidy(_approverName),
+      ];
+
+  /// What is left to charge somebody once the school's own discounts are
+  /// off. The grants are checked against this, not against the fees.
+  double get _afterDiscounts {
+    final left = _gross - totalDiscount(_grantedDiscounts);
+    return left < 0 ? 0 : left;
+  }
+
+  /// What the *family* is actually charged, which is what the payment
+  /// plan has to add up to and what moves the balance. A grant the school
+  /// will bill DepEd for is not the family's debt.
   double get _total {
-    final net = _gross - totalDiscount(_grantedDiscounts);
+    final net = _afterDiscounts - totalSubsidy(_recordedSubsidies);
     return net < 0 ? 0 : net;
   }
 
@@ -133,6 +153,8 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
       // gets a scholarship.
       _discardedDiscounts.addAll(_discounts);
       _discounts.clear();
+      _discardedSubsidies.addAll(_subsidies);
+      _subsidies.clear();
       _source = structure;
       if (structure != null && structure.schoolYear.trim().isNotEmpty) {
         _yearController.text = structure.schoolYear.trim();
@@ -200,6 +222,7 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
           items: _feeItems,
           installments: _plan,
           discounts: _grantedDiscounts,
+          subsidies: _recordedSubsidies,
           sourceStructureId: _source?.id,
           sourceStructureName: _source?.name,
           remarks: _remarksController.text,
@@ -419,6 +442,15 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
                 setState(() => _discardedDiscounts.add(_discounts.removeAt(i))),
             onChanged: () => setState(() {}),
           ),
+          const Divider(height: 32),
+          SubsidyEditor(
+            drafts: _subsidies,
+            chargeableAfterDiscounts: _afterDiscounts,
+            onAdd: () => setState(() => _subsidies.add(SubsidyDraft.blank())),
+            onRemove: (i) =>
+                setState(() => _discardedSubsidies.add(_subsidies.removeAt(i))),
+            onChanged: () => setState(() {}),
+          ),
           const SizedBox(height: 12),
           if (_source?.installments.isNotEmpty ?? false) _PlanNotice(
             plan: _plan,
@@ -600,8 +632,8 @@ class _PlanNotice extends StatelessWidget {
                       'back to match the schedule, or edit the plan on the '
                       'schedule itself.'
                   : plan
-                      .map((i) => '\${i.label} \${dueFormat.format(i.dueDate)} '
-                          '\${_currencyFormat.format(i.amount)}')
+                      .map((i) => '${i.label} ${dueFormat.format(i.dueDate)} '
+                          '${_currencyFormat.format(i.amount)}')
                       .join(' · '),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: dropped ? theme.colorScheme.onErrorContainer : null,

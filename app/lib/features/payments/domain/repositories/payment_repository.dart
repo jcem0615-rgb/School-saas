@@ -5,6 +5,7 @@ import '../entities/assessment.dart';
 import '../entities/fee_structure.dart';
 import '../entities/discount.dart';
 import '../entities/installment.dart';
+import '../entities/subsidy.dart';
 import '../entities/payment.dart';
 import '../entities/payment_settings.dart';
 import '../entities/payment_submission.dart';
@@ -70,6 +71,7 @@ abstract class PaymentRepository {
     required List<FeeItem> items,
     List<Installment> installments,
     List<Discount> discounts,
+    List<Subsidy> subsidies,
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,

@@ -323,6 +323,68 @@ not mistaken for a broad policy, and shows each as a share of the fees
 assessed. Voided assessments are excluded -- they granted nothing in the
 end.
 
+## ESC grants and SHS vouchers
+
+The one thing on this list that only exists for private schools. DepEd,
+through PEAC, pays part of a qualified student's tuition: an **ESC**
+grant in junior high, a **voucher** in senior high. The family is charged
+less and the school bills the government for the difference.
+
+### Why this is not a `DiscountKind`
+
+Because they are opposites. A discount is money the school gave away and
+will never see. A subsidy is money the school is **owed** and has to
+produce a claim for. Folding them together makes both year-end figures
+wrong at once: the discounts report overstates what the school absorbed
+by the whole of its ESC intake, and the claim -- which needs a list --
+has nowhere to come from.
+
+So `Subsidy` is its own record on the assessment, with its own report,
+and `Assessment` carries `grossTotal`, `discountTotal`, `subsidyTotal`
+and `total` as four distinct figures.
+
+### The certificate number is required
+
+A grant with no certificate is a grant the school cannot bill for, so a
+family charged less on the strength of one is a family the school has
+quietly given money to -- the same mistake discounts guard against,
+arrived at from the other side. The field label follows the programme
+(`ESC certificate no.` / `QVR / voucher no.`) because a bursar is copying
+from whichever form is in front of them.
+
+One certificate is claimed once: a duplicate on the same assessment is
+refused, case-insensitively. PEAC rejects the second claim, and by then
+the family has been charged as though both were coming.
+
+The same number under two *different* programmes is allowed — grantors
+number independently and a collision is coincidence.
+
+### The ceiling is what is left, not the gross
+
+Grants are checked against what remains **after** discounts. A student
+with a 2,000 sibling discount has 22,000 chargeable, not 24,000, and
+checking the grant against the published fees would let a discount and a
+grant together exceed them.
+
+### The claims report is the deliverable
+
+**ESC and Voucher Claims** lists every grant with its student, class,
+certificate and amount, sorted by programme then by name -- the order a
+billing form is filled in.
+
+This is the report that replaces a spreadsheet. A private school running
+ESC keeps a parallel ledger in Excel because the PEAC billing needs a
+list and no school system produced one, and reconciling that spreadsheet
+against actual enrolment is where money gets lost: a student who
+transferred out in September is still on the claim, or a grantee enrolled
+in July never made it on. Here the list *is* the enrolment -- every line
+comes from an assessment that actually charged a student -- so it cannot
+include somebody who was never assessed, nor omit somebody who was.
+
+One row per grant, not per student: the school bills per certificate, and
+a student holding both an ESC grant and a city scholarship is two claims
+to two grantors.
+
 ## Billing in instalments
 
 A private school does not charge once. It charges on enrolment and then
@@ -443,6 +505,8 @@ remains until Registrar Portal defines the real create/update rules.
 | Widget | `payment_plan_test.dart` | what the family is told, and the Overdue report's rows and caveat |
 | Domain | `discount_test.dart` | percentage bases, netting, the full-waiver edge, what is refused, how the line reads |
 | Functions | `discounts.test.ts` | over-granting (singly and in combination), the approver stamp, unknown kinds |
+| Domain | `subsidy_test.dart` | netting apart from discounts, the required certificate, duplicate claims, and that neither report double-counts the other's money |
+| Functions | `subsidies.test.ts` | the certificate requirement, case-insensitive duplicates, the post-discount ceiling |
 
 ## Known gap flagged for QA
 
@@ -470,6 +534,14 @@ a narrower, less-traveled path than ordinary list queries.
   scholarship that renews each year, with conditions attached (a grade
   average to maintain, a review date), is a record of its own and is not
   built. The registrar re-grants it when they assess.
+- **Whether a claim was actually paid.** The report is the claim, not
+  the receipt. Tracking a billing run to PEAC and reconciling what came
+  back is a batch of its own and is not built; the school still does
+  that half in its own records.
+- **Eligibility over time.** A grantee who loses ESC mid-year is handled
+  by not recording the grant on the next assessment. Nothing tracks the
+  entitlement itself, or warns that last year's grantee has no grant
+  this year.
 - **An approval threshold.** Anybody who may assess fees may grant any
   discount up to the full amount. A school wanting "over 20% needs the
   director" would need a second decision step; today the control is that

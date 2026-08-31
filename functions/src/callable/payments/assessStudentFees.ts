@@ -6,6 +6,7 @@ import {FirestorePaths} from "../../shared/firestore-paths";
 import {applyAssessment} from "../../shared/payments/balanceMath";
 import {InstallmentData, validateInstallments} from "../../shared/payments/billingSchedule";
 import {DiscountData, validateDiscounts} from "../../shared/payments/discounts";
+import {SubsidyData, validateSubsidies} from "../../shared/payments/subsidies";
 
 interface FeeItemData {
   label: string;
@@ -29,6 +30,11 @@ interface AssessStudentFeesData {
    * not in here -- it comes from the caller's own token.
    */
   discounts?: DiscountData[];
+  /**
+   * What a government programme is paying, and the certificate it will
+   * be claimed against.
+   */
+  subsidies?: SubsidyData[];
   /** The structure these came from, or absent for an ad-hoc charge. */
   sourceStructureId?: string;
   sourceStructureName?: string;
@@ -74,6 +80,7 @@ export const assessStudentFees = onCall(
       items,
       installments,
       discounts,
+      subsidies,
       sourceStructureId,
       sourceStructureName,
       remarks,
@@ -126,8 +133,18 @@ export const assessStudentFees = onCall(
       (request.auth!.token.name as string) ?? "Unknown"
     );
 
+    // Checked against what is left after discounts rather than against
+    // the gross: a student with a sibling discount and an ESC grant must
+    // not have the two together come to more than the fees.
+    const {subsidies: cleanSubsidies, subsidyTotal} = validateSubsidies(
+      subsidies,
+      Math.round((grossTotal - discountTotal) * 100) / 100,
+      (request.auth!.token.name as string) ?? "Unknown"
+    );
+
     // What the family is actually charged, and what moves the balance.
-    total = Math.round((grossTotal - discountTotal) * 100) / 100;
+    // The school's own receivable from DepEd is not the family's debt.
+    total = Math.round((grossTotal - discountTotal - subsidyTotal) * 100) / 100;
 
     // Checked against the net, not the gross, and this is the join
     // between the two features: a family granted a 10% sibling discount
@@ -183,11 +200,13 @@ export const assessStudentFees = onCall(
         items: cleanItems,
         installments: cleanInstallments,
         discounts: cleanDiscounts,
+        subsidies: cleanSubsidies,
         // Both stored. `total` is what moved the balance and what every
         // reader means; `grossTotal` and `discountTotal` are what the
         // discounts report sums without re-deriving them from an array.
         grossTotal,
         discountTotal,
+        subsidyTotal,
         total,
         assessedBy: request.auth!.uid,
         assessedByName: (request.auth!.token.name as string) ?? "Unknown",
@@ -235,6 +254,7 @@ export const assessStudentFees = onCall(
       total,
       grossTotal,
       discountTotal,
+      subsidyTotal,
       installments: cleanInstallments.length,
       previousBalance: result.previousBalance,
       balance: result.newBalance,

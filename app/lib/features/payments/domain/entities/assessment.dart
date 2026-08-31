@@ -1,6 +1,7 @@
 import 'discount.dart';
 import 'fee_structure.dart';
 import 'installment.dart';
+import 'subsidy.dart';
 
 /// One occasion on which fees were charged to one student.
 ///
@@ -52,6 +53,11 @@ class Assessment {
   /// granted in June.
   final List<Discount> discounts;
 
+  /// What a government programme is paying, and against which
+  /// certificate. Reduces the family's share like a discount and is
+  /// counted as the opposite of one -- see [Subsidy].
+  final List<Subsidy> subsidies;
+
   final String assessedByName;
   final DateTime assessedAt;
   final String? remarks;
@@ -74,6 +80,7 @@ class Assessment {
     required this.assessedAt,
     this.installments = const [],
     this.discounts = const [],
+    this.subsidies = const [],
     this.sourceStructureId,
     this.sourceStructureName,
     this.remarks,
@@ -87,6 +94,11 @@ class Assessment {
   double get grossTotal => items.fold(0, (sum, item) => sum + item.amount);
 
   double get discountTotal => totalDiscount(discounts);
+
+  /// What somebody other than the family is paying. Kept apart from
+  /// [discountTotal] throughout: one is money the school gave away, the
+  /// other is money the school is owed.
+  double get subsidyTotal => totalSubsidy(subsidies);
 
   /// What this family was actually charged, and what moved the balance.
   ///
@@ -102,7 +114,7 @@ class Assessment {
   /// is granted; clamping here as well means a hand-edited document
   /// cannot produce a charge that pays a family to enrol.
   double get total {
-    final net = grossTotal - discountTotal;
+    final net = grossTotal - discountTotal - subsidyTotal;
     return net < 0 ? 0 : (net * 100).roundToDouble() / 100;
   }
 

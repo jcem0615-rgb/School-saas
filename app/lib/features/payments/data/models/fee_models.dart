@@ -5,6 +5,7 @@ import '../../domain/entities/assessment.dart';
 import '../../domain/entities/discount.dart';
 import '../../domain/entities/fee_structure.dart';
 import '../../domain/entities/installment.dart';
+import '../../domain/entities/subsidy.dart';
 
 /// Reads a payment plan out of a stored document.
 ///
@@ -102,6 +103,7 @@ class AssessmentModel extends Assessment {
     required super.assessedAt,
     super.installments,
     super.discounts,
+    super.subsidies,
     super.sourceStructureId,
     super.sourceStructureName,
     super.remarks,
@@ -129,6 +131,11 @@ class AssessmentModel extends Assessment {
           // finish. Printing "Sibling discount -0.00" on an assessment
           // reads as a mistake, because it is one.
           .where((d) => d.amount > 0)
+          .toList(),
+      subsidies: (data['subsidies'] as List<dynamic>? ?? [])
+          .whereType<Map<dynamic, dynamic>>()
+          .map((e) => Subsidy.fromMap(Map<String, dynamic>.from(e)))
+          .where((s) => s.amount > 0)
           .toList(),
       assessedByName: data['assessedByName'] as String? ?? 'Unknown',
       // The write sets this from the server clock, so it is null in the

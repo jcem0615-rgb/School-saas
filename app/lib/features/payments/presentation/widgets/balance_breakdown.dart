@@ -228,6 +228,34 @@ class _AssessmentTile extends StatelessWidget {
             ),
           ),
         ],
+        // Named as a grant, not as a discount. A family whose ESC came
+        // through has been told by the school that DepEd is paying part
+        // of their tuition, and seeing it called a discount here is how
+        // they come to believe the school gave it to them.
+        if (assessment.subsidies.isNotEmpty) ...[
+          const Divider(height: 12),
+          for (final subsidy in assessment.subsidies)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      subsidy.displayLine,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.tertiary),
+                    ),
+                  ),
+                  Text(
+                    '-${_currency.format(subsidy.amount)}',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.tertiary),
+                  ),
+                ],
+              ),
+            ),
+        ],
         if (assessment.remarks != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),

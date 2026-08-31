@@ -15,6 +15,7 @@ import '../../domain/entities/assessment.dart';
 import '../../domain/entities/fee_structure.dart';
 import '../../domain/entities/discount.dart';
 import '../../domain/entities/installment.dart';
+import '../../domain/entities/subsidy.dart';
 import '../../domain/repositories/payment_repository.dart';
 import '../../domain/usecases/fee_usecases.dart';
 import '../../domain/usecases/record_payment_usecase.dart';
@@ -157,6 +158,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
     required List<FeeItem> items,
     List<Installment> installments = const [],
     List<Discount> discounts = const [],
+    List<Subsidy> subsidies = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -168,6 +170,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
       items: items,
       installments: installments,
       discounts: discounts,
+      subsidies: subsidies,
       sourceStructureId: sourceStructureId,
       sourceStructureName: sourceStructureName,
       remarks: remarks,

@@ -7,6 +7,7 @@ import '../../../../core/constants/education_level.dart';
 import '../../domain/entities/fee_structure.dart';
 import '../../domain/entities/discount.dart';
 import '../../domain/entities/installment.dart';
+import '../../domain/entities/subsidy.dart';
 import '../models/fee_models.dart';
 import '../models/payment_model.dart';
 import '../models/payment_settings_model.dart';
@@ -115,6 +116,7 @@ class PaymentRemoteDataSource {
     required List<FeeItem> items,
     List<Installment> installments = const [],
     List<Discount> discounts = const [],
+    List<Subsidy> subsidies = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -128,6 +130,7 @@ class PaymentRemoteDataSource {
         'items': items.map((i) => i.toMap()).toList(),
         'installments': installments.map((i) => i.toMap()).toList(),
         'discounts': discounts.map((d) => d.toMap()).toList(),
+        'subsidies': subsidies.map((s) => s.toMap()).toList(),
         'sourceStructureId': sourceStructureId,
         'sourceStructureName': sourceStructureName,
         'remarks': remarks,

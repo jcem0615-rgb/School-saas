@@ -35,6 +35,12 @@ enum ReportKind {
     needsStudents: true,
     needsAssessments: true,
   ),
+  subsidyClaims(
+    'ESC and Voucher Claims',
+    'Every government grant the school can bill for, with its certificate.',
+    needsStudents: true,
+    needsAssessments: true,
+  ),
   attendance(
     'Attendance Rate by Section',
     'Present, late and absent by section, with the rate.',

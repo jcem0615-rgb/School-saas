@@ -58,6 +58,7 @@ import '../features/payments/domain/entities/assessment.dart';
 import '../features/payments/domain/entities/fee_structure.dart';
 import '../features/payments/domain/entities/discount.dart';
 import '../features/payments/domain/entities/installment.dart';
+import '../features/payments/domain/entities/subsidy.dart';
 import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
 import '../features/payments/domain/entities/payment_submission.dart';
@@ -1950,6 +1951,7 @@ class DemoPaymentRepository implements PaymentRepository {
     required List<FeeItem> items,
     List<Installment> installments = const [],
     List<Discount> discounts = const [],
+    List<Subsidy> subsidies = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -1974,7 +1976,7 @@ class DemoPaymentRepository implements PaymentRepository {
     }
 
     final gross = items.fold<double>(0, (sum, i) => sum + i.amount);
-    final total = _round2(gross - totalDiscount(discounts));
+    final total = _round2(gross - totalDiscount(discounts) - totalSubsidy(subsidies));
     final id = _store.nextId('asmt');
     _store.prepend(
       _store.assessments,
@@ -1988,6 +1990,7 @@ class DemoPaymentRepository implements PaymentRepository {
         items: items,
         installments: installments,
         discounts: discounts,
+        subsidies: subsidies,
         assessedByName: _store.requireUser.fullName,
         assessedAt: DateTime.now(),
         remarks: remarks,
