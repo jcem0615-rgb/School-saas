@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../../registrar_portal/presentation/controllers/registrar_controller.dart';
 import '../../domain/entities/payment.dart';
+import '../../domain/entities/receipt_booklet.dart';
+import '../../domain/entities/receipt_series.dart';
 import '../controllers/payment_controller.dart';
 import 'receipt_screen.dart';
 
@@ -35,6 +37,12 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   late final TextEditingController _studentIdController;
   final _amountController = TextEditingController();
   final _referenceController = TextEditingController();
+
+  /// The number pre-printed on the OR the cashier is about to hand over.
+  /// Pre-filled with what the series says comes next, and editable --
+  /// booklets get used out of order and the paper is the truth.
+  final _receiptController = TextEditingController();
+  bool _receiptSeeded = false;
   PaymentMethod _method = PaymentMethod.cash;
   PaymentPurpose _purpose = PaymentPurpose.tuition;
 
@@ -68,7 +76,48 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
     _studentIdController.dispose();
     _amountController.dispose();
     _referenceController.dispose();
+    _receiptController.dispose();
     super.dispose();
+  }
+
+  /// The OR field, and the running hint of what number is expected.
+  ///
+  /// Seeded rather than forced: the expected number is a very good guess
+  /// and occasionally wrong -- a booklet used out of order, a receipt
+  /// spoiled and skipped -- and the number on the paper the family is
+  /// holding wins over the number the system predicted.
+  List<Widget>? _officialReceiptField() {
+    final booklets = ref.watch(receiptBookletsProvider).valueOrNull ?? const [];
+    final active = booklets.where((b) => b.isActive).toList();
+    if (active.length != 1) return null;
+    final booklet = active.single;
+
+    final payments = ref.watch(allPaymentsForSeriesProvider).valueOrNull ?? const [];
+    final series = reconcileSeries(booklet: booklet, payments: payments);
+    final expected = series.nextExpected;
+
+    if (!_receiptSeeded && expected != null) {
+      _receiptSeeded = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _receiptController.text.isEmpty) {
+          _receiptController.text = booklet.format(expected);
+        }
+      });
+    }
+
+    return [
+      const SizedBox(height: 12),
+      TextField(
+        controller: _receiptController,
+        decoration: InputDecoration(
+          labelText: 'Official receipt no.',
+          helperText: expected == null
+              ? 'This booklet is full. Register the next one.'
+              : 'Booklet ${booklet.rangeLabel}. Next expected '
+                  '${booklet.format(expected)}.',
+        ),
+      ),
+    ];
   }
 
   bool get _referenceRequired =>
@@ -85,6 +134,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           method: _method,
           purpose: _purpose,
           referenceNumber: _referenceController.text,
+          officialReceiptNo: ReceiptBooklet.parseNumber(_receiptController.text),
         );
 
     if (outcome != null && mounted) {
@@ -174,6 +224,10 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                   decoration: const InputDecoration(labelText: 'Reference Number'),
                 ),
               ],
+              // Only when the school has registered a booklet. A school
+              // not issuing official receipts must not be shown a field
+              // it has no answer for.
+              ...?_officialReceiptField(),
               const SizedBox(height: 24),
               FilledButton(
                 // Disabled until the id names somebody. Recording a

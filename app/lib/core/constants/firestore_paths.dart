@@ -39,6 +39,13 @@ class FirestorePaths {
 
   static String attendance(String schoolId) => '${school(schoolId)}/attendance';
 
+  /// The BIR-registered booklets a school issues official receipts from,
+  /// and one claim document per number used. The claim's id is the
+  /// number itself -- see officialReceipt.ts for why.
+  static String receiptBooklets(String schoolId) => '${school(schoolId)}/receiptBooklets';
+  static String receiptClaims(String schoolId, String bookletId) =>
+      '${receiptBooklets(schoolId)}/$bookletId/claims';
+
   static String payments(String schoolId) => '${school(schoolId)}/payments';
 
   /// Claims of online payment awaiting a cashier's verification. Separate

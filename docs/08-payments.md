@@ -536,6 +536,73 @@ approvals query is deliberately **not** filtered by the report period:
 a note approved in August still covers an examination in October, and a
 note filtered out of the read is a student wrongly turned away.
 
+## Official receipts
+
+A private school is a business. It issues Official Receipts from booklets
+printed under an Authority to Print, each with a serial range, and it has
+to account for every number in that range -- issued, cancelled, or
+unused. The end of that accounting is not the school's convenience; it is
+what an examiner asks for.
+
+### What this is not
+
+**Not a BIR-accredited Computerised Accounting System.** It does not
+print an OR and does not claim the number it holds was machine-generated.
+The number recorded is the one pre-printed on the paper the family was
+handed. Saying otherwise in the UI would put a school in front of an
+examiner with software claiming to be something it has no permit to be,
+so the settings screen says so in as many words.
+
+What it does do is know which booklet is in use and what number should
+come next, so a mis-keyed number is caught at the counter rather than in
+October of the following year.
+
+### Two numbers, on purpose
+
+`Payment.receiptNumber` (`RC-2026-000042`) is the system's own sequential
+id and is unchanged. `Payment.officialReceiptNo` is an integer: the
+serial on the BIR paper. They are different things -- one a record id
+this system generated, the other a serial printed under a government
+permit -- and a school issuing no ORs leaves the second null with nothing
+else changing.
+
+### Uniqueness is a document id, not a query
+
+`claimOfficialReceipt` runs **inside** the payment transaction and writes
+a claim document whose id *is* the number. Two cashiers typing 0042 at
+the same moment: the second `create` fails and that cashier is told,
+rather than both payments filing against one receipt and the discrepancy
+surfacing at month end. A query could not do this -- two concurrent
+transactions would both pass it.
+
+The claim and the payment commit together or neither does, so a failed
+payment never burns a number.
+
+### No booklet, no change
+
+A school with no booklet registered records payments exactly as before.
+Sending a number anyway is refused rather than dropped: it means the
+cashier is recording something the school has not told the system about,
+and silently discarding the one field they cared about is worse than
+saying no. Two active booklets is also refused -- which series a receipt
+belongs to would be a guess.
+
+### The reconciliation
+
+**Receipt Series** in Reports lists every number up to the highest one
+used, with what became of it, and leads with the figure nobody has today:
+**Unaccounted**.
+
+Numbers above the highest used are blank paper in a drawer and are not
+listed -- five hundred rows of "unaccounted" would drown the one that is
+actually a question. A gap *inside* what has been used is the question:
+a receipt written and not recorded, or one recorded against a different
+booklet.
+
+A refund does not consume a number: the school issues its own document
+for those, and counting the refund against the original's number would
+make the series say one receipt was used twice.
+
 ## Firestore collections touched
 
 ```
@@ -570,6 +637,8 @@ remains until Registrar Portal defines the real create/update rules.
 | Functions | `discounts.test.ts` | over-granting (singly and in combination), the approver stamp, unknown kinds |
 | Domain | `subsidy_test.dart` | netting apart from discounts, the required certificate, duplicate claims, and that neither report double-counts the other's money |
 | Functions | `subsidies.test.ts` | the certificate requirement, case-insensitive duplicates, the post-discount ceiling |
+| Domain | `receipt_series_test.dart` | gap detection, cancelled numbers closing a gap, refunds and foreign booklets excluded, duplicates counted once |
+| Rules | `receipt-booklets.rules.test.ts` | Director/Admin register, registrar reads only, claims are server-written |
 | Domain | `clearance_test.dart` | partial cover, expiry on and after the date, undated notes, and reading notes out of the approvals queue |
 
 ## Known gap flagged for QA
@@ -606,6 +675,10 @@ a narrower, less-traveled path than ordinary list queries.
   by not recording the grant on the next assessment. Nothing tracks the
   entitlement itself, or warns that last year's grantee has no grant
   this year.
+- **Recording a spoiled receipt.** `reconcileSeries` takes cancellations
+  and the tests cover them, but there is no screen or callable to file
+  one yet -- so today a torn receipt shows as a gap. That is the honest
+  state and the next thing to build here.
 - **An approval threshold.** Anybody who may assess fees may grant any
   discount up to the full amount. A school wanting "over 20% needs the
   director" would need a second decision step; today the control is that

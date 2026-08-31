@@ -1136,6 +1136,34 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // ---- receiptBooklets (the BIR-registered OR series) ----
+      // Readable by anyone who may collect money -- the cashier's screen
+      // shows which booklet is in use and what number comes next.
+      // Registered by Director/Admin only: a booklet's range is a
+      // statement about a government permit, not a preference.
+      match /receiptBooklets/{bookletId} {
+        allow read: if hasRole(schoolId, ['director', 'admin', 'registrar'])
+                      && schoolIsAccessible(schoolId);
+        allow create, update: if hasRole(schoolId, ['director', 'admin'])
+                                && schoolIsAccessible(schoolId);
+        // Closed by setting isActive, never removed: every payment citing
+        // one of its numbers has to stay explainable to an examiner.
+        allow delete: if false;
+
+        // One document per number used, and its id IS the number.
+        //
+        // Server-written only. A client that could create one could
+        // reserve a receipt number without a payment behind it, and a
+        // client that could delete one could free a number that has
+        // already been handed to a family -- which is the same series
+        // appearing twice on two different receipts.
+        match /claims/{number} {
+          allow read: if hasRole(schoolId, ['director', 'admin', 'registrar'])
+                        && schoolIsAccessible(schoolId);
+          allow write: if false;
+        }
+      }
+
       // ---- feeStructures (the school's published fee schedules) ----
       // Readable tenant-wide, like programs: a fee schedule is
       // institutional configuration a family is entitled to see, and the

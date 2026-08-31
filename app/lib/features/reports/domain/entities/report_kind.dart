@@ -55,6 +55,17 @@ enum ReportKind {
     // keep, and a date picker beside it would promise one.
     usesPeriod: false,
   ),
+  receiptSeries(
+    'Receipt Series',
+    'Every official receipt number in the booklet, and any gap in it.',
+    needsStudents: true,
+    needsPayments: true,
+    needsReceiptBooklets: true,
+    // Not filtered by a period. A gap is a gap whenever it happened, and
+    // a reconciliation that only covered last month would report every
+    // receipt issued before it as unaccounted for.
+    usesPeriod: false,
+  ),
   attendance(
     'Attendance Rate by Section',
     'Present, late and absent by section, with the rate.',
@@ -75,6 +86,7 @@ enum ReportKind {
   final bool needsAttendance;
   final bool needsGrades;
   final bool needsApprovals;
+  final bool needsReceiptBooklets;
 
   /// Whether the date range means anything here. Enrollment is a head
   /// count taken today; offering a date picker beside it would promise a
@@ -90,6 +102,7 @@ enum ReportKind {
     this.needsAttendance = false,
     this.needsGrades = false,
     this.needsApprovals = false,
+    this.needsReceiptBooklets = false,
     this.usesPeriod = true,
   });
 }

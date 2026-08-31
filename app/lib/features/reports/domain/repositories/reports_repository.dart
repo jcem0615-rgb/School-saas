@@ -3,6 +3,7 @@ import '../../../director_portal/domain/entities/approval_request.dart';
 import '../../../faculty_portal/domain/entities/grade.dart';
 import '../../../payments/domain/entities/assessment.dart';
 import '../../../payments/domain/entities/payment.dart';
+import '../../../payments/domain/entities/receipt_booklet.dart';
 import '../../../qr_attendance/domain/entities/attendance_record.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../entities/report_kind.dart';
@@ -27,6 +28,10 @@ class ReportData {
   /// already agreed to let sit the exam.
   final List<ApprovalRequest> approvals;
 
+  /// The registered official-receipt booklets. Only the series
+  /// reconciliation needs them.
+  final List<ReceiptBooklet> receiptBooklets;
+
   /// Collections that came back at their read limit, and so may be
   /// missing rows.
   ///
@@ -42,6 +47,7 @@ class ReportData {
     this.attendance = const [],
     this.grades = const [],
     this.approvals = const [],
+    this.receiptBooklets = const [],
     this.truncated = const {},
   });
 }

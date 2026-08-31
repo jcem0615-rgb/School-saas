@@ -43,6 +43,7 @@ import '../features/payments/domain/entities/bank_account.dart';
 import '../features/payments/domain/entities/fee_structure.dart';
 import '../features/payments/domain/entities/discount.dart';
 import '../features/payments/domain/entities/installment.dart';
+import '../features/payments/domain/entities/receipt_booklet.dart';
 import '../features/payments/domain/entities/subsidy.dart';
 import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
@@ -203,6 +204,22 @@ class DemoStore {
   late final announcements = BehaviorSubject<List<Announcement>>.seeded(_seedAnnouncements());
   late final meetings = BehaviorSubject<List<Meeting>>.seeded(_seedMeetings());
   late final approvals = BehaviorSubject<List<ApprovalRequest>>.seeded(_seedApprovals());
+
+  /// One registered booklet, part-used, so the series reconciliation has
+  /// something to reconcile and the "next expected number" on the
+  /// cashier's screen is not the first one.
+  late final receiptBooklets = BehaviorSubject<List<ReceiptBooklet>>.seeded([
+    ReceiptBooklet(
+      id: 'bklt_001',
+      prefix: 'OR-',
+      firstNumber: 1,
+      lastNumber: 500,
+      digits: 4,
+      atpNumber: 'OCN 3AU0000123456',
+      registeredOn: _daysAgo(60),
+      registeredByName: 'Grace Mendoza',
+    ),
+  ]);
   late final expenses = BehaviorSubject<List<Expense>>.seeded(_seedExpenses());
   late final checklist = BehaviorSubject<List<ChecklistItem>>.seeded(_seedChecklist());
   late final dailyReports = BehaviorSubject<List<DailyReport>>.seeded(_seedDailyReports());

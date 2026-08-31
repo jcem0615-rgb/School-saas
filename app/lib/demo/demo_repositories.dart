@@ -58,6 +58,7 @@ import '../features/payments/domain/entities/assessment.dart';
 import '../features/payments/domain/entities/fee_structure.dart';
 import '../features/payments/domain/entities/discount.dart';
 import '../features/payments/domain/entities/installment.dart';
+import '../features/payments/domain/entities/receipt_booklet.dart';
 import '../features/payments/domain/entities/subsidy.dart';
 import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
@@ -2070,12 +2071,46 @@ class DemoPaymentRepository implements PaymentRepository {
   }
 
   @override
+  Stream<List<Payment>> watchAllPayments() => _store.payments.stream;
+
+  @override
+  Stream<List<ReceiptBooklet>> watchReceiptBooklets() =>
+      _store.receiptBooklets.stream;
+
+  @override
+  Future<Result<void>> saveReceiptBooklet({
+    String? bookletId,
+    required ReceiptBooklet booklet,
+  }) async {
+    await _latency(400);
+    final saved = ReceiptBooklet(
+      id: bookletId ?? _store.nextId('bklt'),
+      prefix: booklet.prefix,
+      firstNumber: booklet.firstNumber,
+      lastNumber: booklet.lastNumber,
+      digits: booklet.digits,
+      atpNumber: booklet.atpNumber,
+      isActive: booklet.isActive,
+      registeredOn: DateTime.now(),
+      registeredByName: _store.requireUser.fullName,
+    );
+    if (bookletId == null) {
+      _store.prepend(_store.receiptBooklets, saved);
+    } else {
+      _store.update<ReceiptBooklet>(
+          _store.receiptBooklets, (b) => b.id == bookletId, (_) => saved);
+    }
+    return const Success(null);
+  }
+
+  @override
   Future<Result<RecordPaymentOutcome>> recordPayment({
     required String studentId,
     required double amount,
     required PaymentMethod method,
     required PaymentPurpose purpose,
     String? referenceNumber,
+    int? officialReceiptNo,
   }) async {
     await _latency(600);
     if (amount <= 0) {
@@ -2108,6 +2143,7 @@ class DemoPaymentRepository implements PaymentRepository {
         method: method,
         referenceNumber: referenceNumber,
         receiptNumber: receiptNumber,
+        officialReceiptNo: officialReceiptNo,
         collectedByName: _store.requireUser.fullName,
         purpose: purpose,
         status: PaymentStatus.completed,
@@ -3208,6 +3244,8 @@ class DemoReportsRepository implements ReportsRepository {
           : const [],
       // Not filtered by the period, matching the real datasource: a note
       // approved in August still covers an examination in October.
+      receiptBooklets:
+          kind.needsReceiptBooklets ? _store.receiptBooklets.value : const [],
       approvals: kind.needsApprovals
           ? _store.approvals.value
               .where((a) => a.type == 'promissory_note')

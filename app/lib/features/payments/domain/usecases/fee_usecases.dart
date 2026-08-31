@@ -5,6 +5,7 @@ import '../entities/assessment.dart';
 import '../entities/fee_structure.dart';
 import '../entities/discount.dart';
 import '../entities/installment.dart';
+import '../entities/receipt_booklet.dart';
 import '../entities/subsidy.dart';
 import '../repositories/payment_repository.dart';
 
@@ -212,6 +213,39 @@ ValidationFailure? checkSubsidies(List<Subsidy> subsidies, double remainingAfter
     );
   }
   return null;
+}
+
+/// Registers or closes an official-receipt booklet.
+///
+/// The range is checked here as well as by the editor, because a booklet
+/// whose last number is below its first would make the whole series
+/// unreconcilable: every number in it would read as outside the range.
+class SaveReceiptBookletUseCase {
+  final PaymentRepository _repository;
+  const SaveReceiptBookletUseCase(this._repository);
+
+  Future<Result<void>> call({String? bookletId, required ReceiptBooklet booklet}) {
+    if (booklet.firstNumber <= 0) {
+      return Future.value(const Error(
+          ValidationFailure('A booklet starts at a number above zero.')));
+    }
+    if (booklet.lastNumber < booklet.firstNumber) {
+      return Future.value(Error(ValidationFailure(
+        'The booklet ends at ${booklet.lastNumber} and starts at '
+        '${booklet.firstNumber}. The last number has to be at least the first.',
+      )));
+    }
+    // A booklet of a hundred thousand is a typo -- somebody pasted a
+    // permit number into the range -- and reconciling it would build a
+    // hundred thousand rows.
+    if (booklet.capacity > 10000) {
+      return Future.value(const Error(ValidationFailure(
+        'That range covers more than ten thousand receipts. Check the first '
+        'and last numbers against the booklet.',
+      )));
+    }
+    return _repository.saveReceiptBooklet(bookletId: bookletId, booklet: booklet);
+  }
 }
 
 /// What one student has been charged.

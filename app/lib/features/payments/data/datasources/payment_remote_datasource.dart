@@ -7,6 +7,8 @@ import '../../../../core/constants/education_level.dart';
 import '../../domain/entities/fee_structure.dart';
 import '../../domain/entities/discount.dart';
 import '../../domain/entities/installment.dart';
+import '../../domain/entities/payment.dart';
+import '../../domain/entities/receipt_booklet.dart';
 import '../../domain/entities/subsidy.dart';
 import '../models/fee_models.dart';
 import '../models/payment_model.dart';
@@ -172,12 +174,66 @@ class PaymentRemoteDataSource {
         .map((snap) => (snap.data()?['balance'] as num?)?.toDouble() ?? 0.0);
   }
 
+  /// Every payment in the school, newest first.
+  ///
+  /// Unfiltered by date on purpose: a receipt number issued in June is
+  /// used whenever the series is reconciled, and a query that missed it
+  /// would report the number as unaccounted for.
+  Stream<List<Payment>> watchAllPayments() {
+    return _firestore
+        .collection(FirestorePaths.payments(_schoolId))
+        .where('isDeleted', isEqualTo: false)
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => PaymentModel.fromFirestore(d.id, d.data())).toList());
+  }
+
+  /// The booklets the school issues official receipts from. Only the
+  /// active one matters at the counter; the retired ones are what a
+  /// series reconciliation reads.
+  Stream<List<ReceiptBooklet>> watchReceiptBooklets() {
+    return _firestore
+        .collection(FirestorePaths.receiptBooklets(_schoolId))
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => ReceiptBooklet.fromMap(
+                  d.id,
+                  d.data(),
+                  registeredOn:
+                      (d.data()['registeredOn'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                  registeredByName: d.data()['registeredByName'] as String? ?? 'Unknown',
+                ))
+            .toList()
+          ..sort((a, b) => b.registeredOn.compareTo(a.registeredOn)));
+  }
+
+  Future<void> saveReceiptBooklet({
+    String? bookletId,
+    required ReceiptBooklet booklet,
+  }) async {
+    final ref = bookletId == null
+        ? _firestore.collection(FirestorePaths.receiptBooklets(_schoolId)).doc()
+        : _firestore.collection(FirestorePaths.receiptBooklets(_schoolId)).doc(bookletId);
+    await ref.set({
+      ...booklet.toMap(),
+      'id': ref.id,
+      'schoolId': _schoolId,
+      'isDeleted': false,
+      if (bookletId == null) 'registeredOn': FieldValue.serverTimestamp(),
+      if (bookletId == null) 'registeredBy': _actingUser.uid,
+      if (bookletId == null) 'registeredByName': _actingUser.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedBy': _actingUser.uid,
+    }, SetOptions(merge: bookletId != null));
+  }
+
   Future<Map<String, dynamic>> recordPayment({
     required String studentId,
     required double amount,
     required String method,
     required String purpose,
     String? referenceNumber,
+    int? officialReceiptNo,
   }) async {
     try {
       final callable = _functions.httpsCallable('recordPayment');
@@ -188,6 +244,7 @@ class PaymentRemoteDataSource {
         'method': method,
         'purpose': purpose,
         'referenceNumber': referenceNumber,
+        'officialReceiptNo': officialReceiptNo,
       });
       return Map<String, dynamic>.from(response.data as Map);
     } on FirebaseFunctionsException catch (e) {

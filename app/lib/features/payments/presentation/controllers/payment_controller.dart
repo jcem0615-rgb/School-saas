@@ -15,6 +15,7 @@ import '../../domain/entities/assessment.dart';
 import '../../domain/entities/fee_structure.dart';
 import '../../domain/entities/discount.dart';
 import '../../domain/entities/installment.dart';
+import '../../domain/entities/receipt_booklet.dart';
 import '../../domain/entities/subsidy.dart';
 import '../../domain/repositories/payment_repository.dart';
 import '../../domain/usecases/fee_usecases.dart';
@@ -80,6 +81,22 @@ final mySubmissionsProvider =
 /// The school's published fee schedules. Not autoDispose: the assessment
 /// screen and the fee-structure screen both read it, and it is a handful
 /// of documents that change a few times a year.
+/// The registered official-receipt booklets.
+final receiptBookletsProvider = StreamProvider<List<ReceiptBooklet>>((ref) {
+  return ref.watch(paymentRepositoryProvider).watchReceiptBooklets();
+});
+
+/// Every payment in the school, for working out which receipt numbers
+/// have been used.
+///
+/// A read of the whole collection, which is why it is its own provider
+/// and not folded into the cashier's screen: it exists to answer one
+/// question -- what number comes next -- and a school that never
+/// registers a booklet never subscribes to it.
+final allPaymentsForSeriesProvider = StreamProvider<List<Payment>>((ref) {
+  return ref.watch(paymentRepositoryProvider).watchAllPayments();
+});
+
 final feeStructuresProvider = StreamProvider<List<FeeStructure>>((ref) {
   return WatchFeeStructuresUseCase(ref.watch(paymentRepositoryProvider))();
 });
@@ -106,6 +123,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
   final SaveFeeStructureUseCase _saveFeeStructure;
   final AssessStudentFeesUseCase _assessStudentFees;
   final VoidAssessmentUseCase _voidAssessment;
+  final SaveReceiptBookletUseCase _saveReceiptBooklet;
 
   PaymentActionController({
     required RecordPaymentUseCase recordPayment,
@@ -116,6 +134,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
     required SaveFeeStructureUseCase saveFeeStructure,
     required AssessStudentFeesUseCase assessStudentFees,
     required VoidAssessmentUseCase voidAssessment,
+    required SaveReceiptBookletUseCase saveReceiptBooklet,
   })  : _recordPayment = recordPayment,
         _recordRefund = recordRefund,
         _submitOnlinePayment = submitOnlinePayment,
@@ -124,6 +143,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
         _saveFeeStructure = saveFeeStructure,
         _assessStudentFees = assessStudentFees,
         _voidAssessment = voidAssessment,
+        _saveReceiptBooklet = saveReceiptBooklet,
         super(const AsyncData(null));
 
   Future<bool> saveFeeStructure({
@@ -181,6 +201,17 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
     };
   }
 
+  Future<bool> saveReceiptBooklet({
+    String? bookletId,
+    required ReceiptBooklet booklet,
+  }) async {
+    if (mounted) state = const AsyncLoading();
+    return _boolFrom(await _saveReceiptBooklet(
+      bookletId: bookletId,
+      booklet: booklet,
+    ));
+  }
+
   Future<bool> voidAssessment({
     required String assessmentId,
     required String reason,
@@ -223,6 +254,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
     required PaymentMethod method,
     required PaymentPurpose purpose,
     String? referenceNumber,
+    int? officialReceiptNo,
   }) async {
     if (mounted) state = const AsyncLoading();
     final result = await _recordPayment(
@@ -231,6 +263,7 @@ class PaymentActionController extends StateNotifier<AsyncValue<void>> {
       method: method,
       purpose: purpose,
       referenceNumber: referenceNumber,
+      officialReceiptNo: officialReceiptNo,
     );
     return switch (result) {
       Success(:final value) => _succeed(value),
@@ -363,6 +396,7 @@ final paymentActionControllerProvider =
     decideSubmission: DecideSubmissionUseCase(repo),
     updatePaymentSettings: UpdatePaymentSettingsUseCase(repo),
     saveFeeStructure: SaveFeeStructureUseCase(repo),
+    saveReceiptBooklet: SaveReceiptBookletUseCase(repo),
     assessStudentFees: AssessStudentFeesUseCase(repo),
     voidAssessment: VoidAssessmentUseCase(repo),
   );

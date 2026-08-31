@@ -5,6 +5,7 @@ import '../entities/assessment.dart';
 import '../entities/fee_structure.dart';
 import '../entities/discount.dart';
 import '../entities/installment.dart';
+import '../entities/receipt_booklet.dart';
 import '../entities/subsidy.dart';
 import '../entities/payment.dart';
 import '../entities/payment_settings.dart';
@@ -93,6 +94,21 @@ abstract class PaymentRepository {
     required PaymentMethod method,
     required PaymentPurpose purpose,
     String? referenceNumber,
+    int? officialReceiptNo,
+  });
+
+  /// Every payment in the school. Read by the receipt-series
+  /// reconciliation only -- everything else reads one student's.
+  Stream<List<Payment>> watchAllPayments();
+
+  /// The BIR-registered booklets this school issues receipts from.
+  Stream<List<ReceiptBooklet>> watchReceiptBooklets();
+
+  /// Registers a new booklet, or edits one. Director/Admin only in
+  /// firestore.rules -- a range is a statement about a permit.
+  Future<Result<void>> saveReceiptBooklet({
+    String? bookletId,
+    required ReceiptBooklet booklet,
   });
 
   Future<Result<void>> recordRefund({required String paymentId, required String reason});

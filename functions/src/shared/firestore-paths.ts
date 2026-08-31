@@ -60,6 +60,16 @@ export const FirestorePaths = {
   subjectAttendanceDoc: (schoolId: string, markId: string) =>
     `schools/${schoolId}/subjectAttendance/${markId}`,
 
+  // The BIR-registered booklets a school issues official receipts from,
+  // and one claim document per number used. The claim's id IS the
+  // number, which is what makes "one receipt, issued once" a guarantee
+  // rather than a query two concurrent cashiers could both pass.
+  receiptBooklets: (schoolId: string) => `schools/${schoolId}/receiptBooklets`,
+  receiptClaims: (schoolId: string, bookletId: string) =>
+    `schools/${schoolId}/receiptBooklets/${bookletId}/claims`,
+  receiptClaimDoc: (schoolId: string, bookletId: string, number: string) =>
+    `schools/${schoolId}/receiptBooklets/${bookletId}/claims/${number}`,
+
   payments: (schoolId: string) => `schools/${schoolId}/payments`,
   paymentDoc: (schoolId: string, paymentId: string) => `schools/${schoolId}/payments/${paymentId}`,
   // Claims of online payment awaiting a cashier's verification. Kept apart

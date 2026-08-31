@@ -5,6 +5,7 @@ import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
 import {getNextSequence} from "../../shared/counters/getNextSequence";
 import {applyPayment, formatReceiptNumber} from "../../shared/payments/balanceMath";
+import {claimOfficialReceipt} from "../../shared/payments/officialReceipt";
 
 interface RecordPaymentData {
   schoolId: string;
@@ -13,6 +14,12 @@ interface RecordPaymentData {
   method: "cash" | "gcash" | "bank_transfer" | "online";
   referenceNumber?: string;
   purpose: "tuition" | "misc_fee" | "other";
+  /**
+   * The number pre-printed on the BIR official receipt handed over.
+   * Required when the school has a booklet registered, ignored -- and
+   * refused if sent -- when it has not.
+   */
+  officialReceiptNo?: number;
 }
 
 // Roles that may collect/record a payment. Faculty/Staff/Guidance have no
@@ -46,7 +53,8 @@ export const recordPayment = onCall(
   async (request: CallableRequest<RecordPaymentData>) => {
     const callerClaims = requireCallerClaims(request);
 
-    const {schoolId, studentId, amount, method, referenceNumber, purpose} = request.data;
+    const {schoolId, studentId, amount, method, referenceNumber, purpose, officialReceiptNo} =
+      request.data;
     if (!schoolId || !studentId || !amount || amount <= 0 || !method || !purpose) {
       throw new HttpsError("invalid-argument", "Missing or invalid payment details.");
     }
@@ -80,11 +88,22 @@ export const recordPayment = onCall(
     // The snapshot above is still worth having: it fails a bad student id
     // before a receipt number is burned from the counter.
     let newBalance = 0;
+    let claimedReceipt: {number: number; formatted: string} | null = null;
     await db.runTransaction(async (tx) => {
       const fresh = await tx.get(studentRef);
       if (!fresh.exists) {
         throw new HttpsError("not-found", "Student record not found.");
       }
+      // Inside the transaction, before the payment is written: the number
+      // and the payment that cites it are committed together or neither
+      // is. Claiming it outside would burn a number on a payment that
+      // then failed to write.
+      claimedReceipt = await claimOfficialReceipt(
+        tx,
+        schoolId,
+        officialReceiptNo,
+        paymentRef.id
+      );
       newBalance = applyPayment((fresh.data()?.balance as number) ?? 0, amount);
 
       tx.set(paymentRef, {
@@ -95,6 +114,7 @@ export const recordPayment = onCall(
         method,
         referenceNumber: referenceNumber ?? null,
         receiptNumber,
+        officialReceiptNo: claimedReceipt ? claimedReceipt.number : null,
         collectedBy: request.auth!.uid,
         collectedByName: (request.auth!.token.name as string) ?? "Unknown",
         purpose,
@@ -124,13 +144,20 @@ export const recordPayment = onCall(
       action: "payment_recorded",
       targetCollection: FirestorePaths.payments(schoolId),
       targetId: paymentRef.id,
-      newValue: {studentId, amount, method, receiptNumber},
+      newValue: {
+        studentId,
+        amount,
+        method,
+        receiptNumber,
+        officialReceiptNo: claimedReceipt ? (claimedReceipt as {formatted: string}).formatted : null,
+      },
       success: true,
     });
 
     return {
       paymentId: paymentRef.id,
       receiptNumber,
+      officialReceiptNo: claimedReceipt ? (claimedReceipt as {formatted: string}).formatted : null,
       newBalance,
     };
   }

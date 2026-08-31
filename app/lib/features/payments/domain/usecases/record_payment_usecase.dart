@@ -13,6 +13,7 @@ class RecordPaymentUseCase {
     required PaymentMethod method,
     required PaymentPurpose purpose,
     String? referenceNumber,
+    int? officialReceiptNo,
   }) {
     if (studentId.trim().isEmpty) {
       return Future.value(const Error(ValidationFailure('A student must be selected.')));
@@ -32,6 +33,7 @@ class RecordPaymentUseCase {
       method: method,
       purpose: purpose,
       referenceNumber: referenceNumber?.trim(),
+      officialReceiptNo: officialReceiptNo,
     );
   }
 }

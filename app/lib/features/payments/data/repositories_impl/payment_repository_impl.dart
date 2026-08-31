@@ -7,6 +7,7 @@ import '../../domain/entities/assessment.dart';
 import '../../domain/entities/fee_structure.dart';
 import '../../domain/entities/discount.dart';
 import '../../domain/entities/installment.dart';
+import '../../domain/entities/receipt_booklet.dart';
 import '../../domain/entities/subsidy.dart';
 import '../../domain/entities/payment.dart';
 import '../../domain/entities/payment_settings.dart';
@@ -120,6 +121,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
     required PaymentMethod method,
     required PaymentPurpose purpose,
     String? referenceNumber,
+    int? officialReceiptNo,
   }) async {
     try {
       final data = await _remote.recordPayment(
@@ -128,12 +130,34 @@ class PaymentRepositoryImpl implements PaymentRepository {
         method: method.value,
         purpose: purpose.value,
         referenceNumber: referenceNumber,
+        officialReceiptNo: officialReceiptNo,
       );
       return Success(RecordPaymentOutcome(
         paymentId: data['paymentId'] as String,
         receiptNumber: data['receiptNumber'] as String,
         newBalance: (data['newBalance'] as num).toDouble(),
       ));
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Stream<List<Payment>> watchAllPayments() => _remote.watchAllPayments();
+
+  @override
+  Stream<List<ReceiptBooklet>> watchReceiptBooklets() => _remote.watchReceiptBooklets();
+
+  @override
+  Future<Result<void>> saveReceiptBooklet({
+    String? bookletId,
+    required ReceiptBooklet booklet,
+  }) async {
+    try {
+      await _remote.saveReceiptBooklet(bookletId: bookletId, booklet: booklet);
+      return const Success(null);
     } on ServerException catch (e) {
       return Error(ServerFailure(e.message));
     } catch (_) {

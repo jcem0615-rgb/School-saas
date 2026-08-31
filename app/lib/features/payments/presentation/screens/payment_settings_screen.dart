@@ -6,6 +6,7 @@ import '../../../../core/errors/result.dart';
 import '../../../../core/storage/upload_providers.dart';
 import '../../../../core/storage/upload_repository.dart';
 import '../../domain/entities/bank_account.dart';
+import '../../domain/entities/receipt_booklet.dart';
 import '../controllers/payment_controller.dart';
 
 /// Where the registrar publishes the school's e-wallet QR.
@@ -299,6 +300,8 @@ class _PaymentSettingsScreenState extends ConsumerState<PaymentSettingsScreen> {
                     style: theme.textTheme.bodySmall,
                   ),
                 ),
+              const Divider(height: 40),
+              const _ReceiptBookletSection(),
             ],
           );
         },
@@ -420,5 +423,214 @@ class _BankAccountSheetState extends State<_BankAccountSheet> {
         ),
       ),
     );
+  }
+}
+
+
+/// The BIR-registered official receipt booklet in use.
+///
+/// Here rather than on a screen of its own because it is set up once a
+/// booklet -- perhaps twice a year -- and a whole screen for it would be
+/// a screen nobody could find when the booklet finally ran out.
+class _ReceiptBookletSection extends ConsumerWidget {
+  const _ReceiptBookletSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final booklets = ref.watch(receiptBookletsProvider).valueOrNull ?? const [];
+    final active = booklets.where((b) => b.isActive).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Official receipts', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          // Said plainly, because a school reading otherwise would be
+          // reading a claim this software has no permit to make.
+          'The BIR booklet receipts are issued from. This records the numbers '
+          'the school writes on its own pre-printed receipts and checks them '
+          'against the range; it does not print an official receipt and is '
+          'not a BIR-accredited system.',
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        if (active.isEmpty)
+          Text(
+            'No booklet registered. Payments are recorded without an official '
+            'receipt number until one is.',
+            style: theme.textTheme.bodyMedium,
+          )
+        else
+          for (final booklet in active)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: Text(booklet.rangeLabel),
+              subtitle: Text(
+                booklet.atpNumber == null
+                    ? 'Registered by ${booklet.registeredByName}'
+                    : 'ATP ${booklet.atpNumber} · '
+                        'registered by ${booklet.registeredByName}',
+              ),
+              trailing: TextButton(
+                onPressed: () => _close(context, ref, booklet),
+                child: const Text('Close'),
+              ),
+            ),
+        const SizedBox(height: 4),
+        OutlinedButton.icon(
+          onPressed: active.length >= 1
+              ? null
+              : () => _register(context, ref),
+          icon: const Icon(Icons.add),
+          label: const Text('Register a booklet'),
+        ),
+        if (active.length >= 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              // Refused rather than allowed and warned about: with two
+              // ranges open, which series a receipt belongs to is a
+              // guess, and the reconciliation cannot be trusted.
+              'Close the current booklet before registering the next one. '
+              'Two open ranges make the series ambiguous.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _close(BuildContext context, WidgetRef ref, ReceiptBooklet booklet) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Close this booklet?'),
+        content: Text(
+          'Receipts ${booklet.rangeLabel} will stop being offered at the '
+          'counter. The booklet is kept: every payment that cites one of its '
+          'numbers has to stay explainable.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Close booklet')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(paymentActionControllerProvider.notifier).saveReceiptBooklet(
+          bookletId: booklet.id,
+          booklet: ReceiptBooklet(
+            id: booklet.id,
+            prefix: booklet.prefix,
+            firstNumber: booklet.firstNumber,
+            lastNumber: booklet.lastNumber,
+            digits: booklet.digits,
+            atpNumber: booklet.atpNumber,
+            isActive: false,
+            registeredOn: booklet.registeredOn,
+            registeredByName: booklet.registeredByName,
+          ),
+        );
+  }
+
+  Future<void> _register(BuildContext context, WidgetRef ref) async {
+    final prefix = TextEditingController(text: 'OR-');
+    final first = TextEditingController();
+    final last = TextEditingController();
+    final atp = TextEditingController();
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Register a receipt booklet'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: prefix,
+                decoration: const InputDecoration(
+                  labelText: 'Prefix',
+                  helperText: 'Whatever is printed before the number, if anything',
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: first,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'First number'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: last,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Last number'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: atp,
+                decoration: const InputDecoration(
+                  labelText: 'Authority to Print no.',
+                  helperText: 'As printed on the cover',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Register')),
+        ],
+      ),
+    );
+
+    if (saved != true) return;
+    final from = int.tryParse(first.text.trim()) ?? 0;
+    final to = int.tryParse(last.text.trim()) ?? 0;
+    if (from <= 0 || to < from) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(
+            content: Text('The last number has to be at least the first.'),
+          ));
+      }
+      return;
+    }
+
+    await ref.read(paymentActionControllerProvider.notifier).saveReceiptBooklet(
+          booklet: ReceiptBooklet(
+            id: '',
+            prefix: prefix.text.trim(),
+            firstNumber: from,
+            lastNumber: to,
+            // Taken from how the last number is written, so a booklet
+            // entered as 0001-0500 prints four digits and one entered as
+            // 000001-000500 prints six.
+            digits: last.text.trim().length.clamp(1, 12),
+            atpNumber: atp.text.trim().isEmpty ? null : atp.text.trim(),
+            registeredOn: DateTime.now(),
+            registeredByName: '',
+          ),
+        );
   }
 }

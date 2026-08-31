@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/constants/firestore_paths.dart';
 import '../../../faculty_portal/data/models/grade_model.dart';
 import '../../../payments/data/models/fee_models.dart';
+import '../../../payments/domain/entities/receipt_booklet.dart';
 import '../../../director_portal/data/models/approval_request_model.dart';
 import '../../../payments/data/models/payment_model.dart';
 import '../../../qr_attendance/data/models/attendance_record_model.dart';
@@ -100,6 +101,11 @@ class ReportsRemoteDataSource {
             .where('type', isEqualTo: 'promissory_note'),
       ),
       run(
+        kind.needsReceiptBooklets,
+        'receiptBooklets',
+        _firestore.collection(FirestorePaths.receiptBooklets(_schoolId)),
+      ),
+      run(
         kind.needsGrades,
         'grades',
         _firestore
@@ -131,8 +137,18 @@ class ReportsRemoteDataSource {
         for (final doc in results[4]?.docs ?? const [])
           ApprovalRequestModel.fromFirestore(doc.id, doc.data())
       ],
-      grades: [
+      receiptBooklets: [
         for (final doc in results[5]?.docs ?? const [])
+          ReceiptBooklet.fromMap(
+            doc.id,
+            doc.data(),
+            registeredOn:
+                (doc.data()['registeredOn'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            registeredByName: doc.data()['registeredByName'] as String? ?? 'Unknown',
+          )
+      ],
+      grades: [
+        for (final doc in results[6]?.docs ?? const [])
           GradeModel.fromFirestore(doc.id, doc.data())
       ],
       truncated: truncated,

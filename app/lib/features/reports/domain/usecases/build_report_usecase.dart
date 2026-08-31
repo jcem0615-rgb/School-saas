@@ -10,6 +10,7 @@ import 'grade_distribution_report.dart';
 import 'discounts_report.dart';
 import 'exam_permits_report.dart';
 import 'overdue_report.dart';
+import 'receipt_series_report.dart';
 import 'subsidy_claims_report.dart';
 
 /// Fetches what a report needs and hands back the finished table.
@@ -58,6 +59,11 @@ class BuildReportUseCase {
                 payments: value.payments,
                 assessments: value.assessments,
                 approvals: value.approvals,
+              ),
+            ReportKind.receiptSeries => ReceiptSeriesReport.build(
+                students: value.students,
+                payments: value.payments,
+                booklets: value.receiptBooklets,
               ),
             ReportKind.attendance => AttendanceReport.build(
                 period: period,

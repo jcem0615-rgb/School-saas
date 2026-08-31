@@ -58,7 +58,19 @@ class Payment {
   final double amount;
   final PaymentMethod method;
   final String? referenceNumber;
+  /// The system's own sequential number, e.g. RC-2026-000042. Always
+  /// present, and the key everything internal refers to.
   final String receiptNumber;
+
+  /// The number pre-printed on the BIR-registered Official Receipt the
+  /// family was actually handed, if the school issues them.
+  ///
+  /// Separate from [receiptNumber] rather than replacing it, because they
+  /// are different things: one is a record id this system generated, the
+  /// other is a serial on a piece of paper printed under an Authority to
+  /// Print. A school not issuing ORs leaves this null and nothing
+  /// changes.
+  final int? officialReceiptNo;
   final String collectedByName;
   final PaymentPurpose purpose;
   final PaymentStatus status;
@@ -71,6 +83,7 @@ class Payment {
     required this.amount,
     required this.method,
     required this.receiptNumber,
+    this.officialReceiptNo,
     required this.collectedByName,
     required this.purpose,
     required this.status,
