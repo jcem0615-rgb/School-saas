@@ -21,6 +21,19 @@ the free tier still applied underneath — a school of a thousand students
 costs a few dollars a month — but it wants a card before it will run a
 single function. Set a budget alert while you are on that page.
 
+> **If you have no card yet**, everything else on this page can still be
+> done on the free Spark plan: create the project, enable Email/Password,
+> create Firestore in the right region, turn on Storage, register the
+> web app. Only `firebase deploy --only functions` needs Blaze.
+>
+> What you cannot do is go live in the meantime. Signing in, creating any
+> account, recording a payment, running the rollover and enrolling an
+> applicant are all callables, so an app pointed at a project with no
+> functions is a login screen and nothing behind it. **Leave `DEMO_MODE`
+> unset until the functions are deployed** — the demo is a complete
+> school with twelve accounts and needs no billing at all, which is the
+> right thing to be showing anybody until then.
+
 **Authentication** → Get started → **Email/Password**. Enable it.
 Nothing else: no Google sign-in, no anonymous. The app provisions
 accounts server-side (`provisionUser`), so a provider that lets somebody
