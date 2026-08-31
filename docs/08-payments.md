@@ -248,6 +248,81 @@ bank account with no number rather than offering it) and
 closing accounts without disturbing the QR, and a family's transfer
 recording its destination and crediting nothing until approved).
 
+## Discounts and scholarships
+
+Before this, a waiver was hint text. `assess_fees_screen.dart` suggested
+typing *"Tuition waived under academic scholarship"* into the remarks
+box, and that was the entire feature. A remark cannot be summed, so
+**"how much did we give away in discounts this year"** -- a question a
+private school's board asks every single year -- had no answer in the
+system at all.
+
+A `Discount` is now a line on the assessment: a kind from a closed list
+(sibling, early payment, employee's child, alumni, academic scholarship,
+financial assistance, other), a label in the school's own words, an
+amount, optionally the rate that produced it, and who approved it.
+
+### Gross, discount, net
+
+`Assessment.total` **nets** the discounts, rather than a `netTotal`
+sitting beside a gross `total`. Every existing caller -- the balance, the
+breakdown, the collections report -- means *"what does this family owe
+for this"*, and every one of them would have been wrong by the discount
+had the netting been opt-in. `grossTotal` and `discountTotal` are there
+for the reports that need to distinguish them.
+
+### The amount is stored, not just the rate
+
+A 10% discount stores 2,000 **and** 10. Storing only the rate would mean
+recomputing it later against fee items that can be edited afterwards, so
+a discount granted on tuition of 20,000 could quietly become a discount
+on 24,000 -- and the printed assessment in a family's hand would stop
+matching the record. The rate is kept beside the amount so the line still
+reads "Sibling discount (10% of tuition)", which is what makes it
+checkable.
+
+### It defaults to tuition, not to everything
+
+Most PH private schools discount tuition and not the miscellaneous
+fees, because the miscellaneous bundle is largely money passed through to
+third parties. `appliesTo` carries that, and the editor defaults to
+tuition. A percentage that quietly included the laboratory fee is a
+school giving away more than it decided to.
+
+### What is refused
+
+A school may waive up to the whole of what it is charging and not a
+centavo more -- past that the charge goes negative and the school is
+paying a family to enrol, which the balance arithmetic would carry
+without complaint. Checked in the editor, the use case and
+`validateDiscounts` server-side, and the entity clamps `total` at zero as
+well so a hand-corrected document cannot produce one either.
+
+Two discounts that are each fine but together exceed the fees are the
+case that slips through when only individual lines are checked; there is
+a test for exactly that.
+
+### The approver comes from the token
+
+`approvedByName` is stamped from the caller's own ID token and never read
+from the payload. A client that could name its own approver could grant a
+scholarship in the director's name.
+
+### Where it meets the payment plan
+
+A discounted family's instalment plan must add up to the **net**, not to
+the published fees. Validating against the gross would refuse every
+discounted family a payment plan at all. `assessStudentFees` computes the
+net first and passes that to `validateInstallments`.
+
+### The report
+
+**Discounts and Scholarships** groups by kind, with the number of
+students behind each figure so a large total from three board grants is
+not mistaken for a broad policy, and shows each as a share of the fees
+assessed. Voided assessments are excluded -- they granted nothing in the
+end.
+
 ## Billing in instalments
 
 A private school does not charge once. It charges on enrolment and then
@@ -366,6 +441,8 @@ remains until Registrar Portal defines the real create/update rules.
 | Domain | `billing_schedule_test.dart` | due-by arithmetic, oldest-first settlement, paying ahead, thirds that do not divide, combining plans across assessments |
 | Functions | `billingSchedule.test.ts` | plan-must-match-charge, malformed plans, the centavo tolerance |
 | Widget | `payment_plan_test.dart` | what the family is told, and the Overdue report's rows and caveat |
+| Domain | `discount_test.dart` | percentage bases, netting, the full-waiver edge, what is refused, how the line reads |
+| Functions | `discounts.test.ts` | over-granting (singly and in combination), the approver stamp, unknown kinds |
 
 ## Known gap flagged for QA
 
@@ -389,6 +466,14 @@ a narrower, less-traveled path than ordinary list queries.
   separate record and does not move the plan.
 - **Late fees.** Nothing charges interest or a penalty on an overdue
   instalment. That is a policy decision per school, not arithmetic.
+- **Standing scholarships.** A discount is granted per assessment. A
+  scholarship that renews each year, with conditions attached (a grade
+  average to maintain, a review date), is a record of its own and is not
+  built. The registrar re-grants it when they assess.
+- **An approval threshold.** Anybody who may assess fees may grant any
+  discount up to the full amount. A school wanting "over 20% needs the
+  director" would need a second decision step; today the control is that
+  the approver is named and the audit trail records it.
 
 - Online payment gateway integration (e.g. PayMongo) — architecture leaves
   a clean seam (`PaymentMethod.online` already exists in the schema); wiring

@@ -5,6 +5,7 @@ import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
 import {applyAssessment} from "../../shared/payments/balanceMath";
 import {InstallmentData, validateInstallments} from "../../shared/payments/billingSchedule";
+import {DiscountData, validateDiscounts} from "../../shared/payments/discounts";
 
 interface FeeItemData {
   label: string;
@@ -23,6 +24,11 @@ interface AssessStudentFeesData {
    * assessment written before this field existed meant.
    */
   installments?: InstallmentData[];
+  /**
+   * What is being taken off the published fees, and why. The approver is
+   * not in here -- it comes from the caller's own token.
+   */
+  discounts?: DiscountData[];
   /** The structure these came from, or absent for an ad-hoc charge. */
   sourceStructureId?: string;
   sourceStructureName?: string;
@@ -67,6 +73,7 @@ export const assessStudentFees = onCall(
       schoolYear,
       items,
       installments,
+      discounts,
       sourceStructureId,
       sourceStructureName,
       remarks,
@@ -108,14 +115,25 @@ export const assessStudentFees = onCall(
       return {label, amount: Math.round(amount * 100) / 100, category};
     });
 
-    total = Math.round(total * 100) / 100;
-    if (total > 10_000_000) {
+    const grossTotal = Math.round(total * 100) / 100;
+    if (grossTotal > 10_000_000) {
       throw new HttpsError("invalid-argument", "The assessment total is out of range.");
     }
 
-    // After the total is final, because the plan is checked against it:
-    // a schedule that does not add up to the charge is the one way this
-    // feature can lie to a family.
+    const {discounts: cleanDiscounts, discountTotal} = validateDiscounts(
+      discounts,
+      grossTotal,
+      (request.auth!.token.name as string) ?? "Unknown"
+    );
+
+    // What the family is actually charged, and what moves the balance.
+    total = Math.round((grossTotal - discountTotal) * 100) / 100;
+
+    // Checked against the net, not the gross, and this is the join
+    // between the two features: a family granted a 10% sibling discount
+    // is on a plan for what they owe, not for what the schedule
+    // publishes. Validating against the gross would refuse every
+    // discounted family a payment plan.
     const cleanInstallments = validateInstallments(installments, total);
 
     const db = admin.firestore();
@@ -164,6 +182,12 @@ export const assessStudentFees = onCall(
         sourceStructureName: sourceStructureName ?? null,
         items: cleanItems,
         installments: cleanInstallments,
+        discounts: cleanDiscounts,
+        // Both stored. `total` is what moved the balance and what every
+        // reader means; `grossTotal` and `discountTotal` are what the
+        // discounts report sums without re-deriving them from an array.
+        grossTotal,
+        discountTotal,
         total,
         assessedBy: request.auth!.uid,
         assessedByName: (request.auth!.token.name as string) ?? "Unknown",
@@ -209,6 +233,8 @@ export const assessStudentFees = onCall(
     return {
       assessmentId: assessmentRef.id,
       total,
+      grossTotal,
+      discountTotal,
       installments: cleanInstallments.length,
       previousBalance: result.previousBalance,
       balance: result.newBalance,

@@ -5,6 +5,7 @@ import '../../../../core/constants/firestore_paths.dart';
 import '../../../../core/errors/app_exceptions.dart';
 import '../../../../core/constants/education_level.dart';
 import '../../domain/entities/fee_structure.dart';
+import '../../domain/entities/discount.dart';
 import '../../domain/entities/installment.dart';
 import '../models/fee_models.dart';
 import '../models/payment_model.dart';
@@ -113,6 +114,7 @@ class PaymentRemoteDataSource {
     required String schoolYear,
     required List<FeeItem> items,
     List<Installment> installments = const [],
+    List<Discount> discounts = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -125,6 +127,7 @@ class PaymentRemoteDataSource {
         'schoolYear': schoolYear,
         'items': items.map((i) => i.toMap()).toList(),
         'installments': installments.map((i) => i.toMap()).toList(),
+        'discounts': discounts.map((d) => d.toMap()).toList(),
         'sourceStructureId': sourceStructureId,
         'sourceStructureName': sourceStructureName,
         'remarks': remarks,

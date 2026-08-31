@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/education_level.dart';
 import '../../domain/entities/assessment.dart';
+import '../../domain/entities/discount.dart';
 import '../../domain/entities/fee_structure.dart';
 import '../../domain/entities/installment.dart';
 
@@ -100,6 +101,7 @@ class AssessmentModel extends Assessment {
     required super.assessedByName,
     required super.assessedAt,
     super.installments,
+    super.discounts,
     super.sourceStructureId,
     super.sourceStructureName,
     super.remarks,
@@ -120,6 +122,14 @@ class AssessmentModel extends Assessment {
           .map((e) => FeeItem.fromMap(Map<String, dynamic>.from(e as Map)))
           .toList(),
       installments: _installmentsFrom(data['installments']),
+      discounts: (data['discounts'] as List<dynamic>? ?? [])
+          .whereType<Map<dynamic, dynamic>>()
+          .map((e) => Discount.fromMap(Map<String, dynamic>.from(e)))
+          // A zero-value discount is a line somebody started and did not
+          // finish. Printing "Sibling discount -0.00" on an assessment
+          // reads as a mistake, because it is one.
+          .where((d) => d.amount > 0)
+          .toList(),
       assessedByName: data['assessedByName'] as String? ?? 'Unknown',
       // The write sets this from the server clock, so it is null in the
       // local echo of a document that has not round-tripped yet.

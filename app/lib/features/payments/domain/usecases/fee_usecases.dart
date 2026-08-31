@@ -3,6 +3,7 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../entities/assessment.dart';
 import '../entities/fee_structure.dart';
+import '../entities/discount.dart';
 import '../entities/installment.dart';
 import '../repositories/payment_repository.dart';
 
@@ -130,6 +131,44 @@ ValidationFailure? checkInstallments(List<Installment> installments, double tota
   return null;
 }
 
+/// Checks the discounts before they are granted.
+///
+/// Returns the complaint, or null when they are sound. The server checks
+/// the same things; this exists so a registrar finds out with the line
+/// named, before the round trip.
+ValidationFailure? checkDiscounts(List<Discount> discounts, double grossTotal) {
+  if (discounts.isEmpty) return null;
+
+  for (final discount in discounts) {
+    if (discount.label.trim().isEmpty) {
+      return const ValidationFailure('Every discount needs a name. A family '
+          'reading the assessment has to know what was taken off and why.');
+    }
+    if (discount.amount <= 0) {
+      return ValidationFailure('"\${discount.label}" must take off more than '
+          'zero. Remove the line instead.');
+    }
+    final rate = discount.percentage;
+    if (rate != null && (rate <= 0 || rate > 100)) {
+      return ValidationFailure('"\${discount.label}" is \${rate}%. A discount '
+          'is between 0 and 100 per cent.');
+    }
+  }
+
+  // A school may waive the whole amount and not a centavo more. Past
+  // that the charge goes negative and the school is paying a family to
+  // enrol -- which the balance arithmetic would carry without complaint.
+  final given = totalDiscount(discounts);
+  if (given > grossTotal + 0.005) {
+    return ValidationFailure(
+      'The discounts come to \${given.toStringAsFixed(2)} against fees of '
+      '\${grossTotal.toStringAsFixed(2)}. A school can waive the whole amount, '
+      'but it cannot charge less than nothing.',
+    );
+  }
+  return null;
+}
+
 /// What one student has been charged.
 class WatchAssessmentsUseCase {
   final PaymentRepository _repository;
@@ -152,6 +191,7 @@ class AssessStudentFeesUseCase {
     required String schoolYear,
     required List<FeeItem> items,
     List<Installment> installments = const [],
+    List<Discount> discounts = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -178,10 +218,13 @@ class AssessStudentFeesUseCase {
       }
     }
 
-    final planProblem = checkInstallments(
-      installments,
-      items.fold<double>(0, (sum, i) => sum + i.amount),
-    );
+    final gross = items.fold<double>(0, (sum, i) => sum + i.amount);
+    final discountProblem = checkDiscounts(discounts, gross);
+    if (discountProblem != null) return Future.value(Error(discountProblem));
+
+    // Against the net, because that is what the family owes and what the
+    // server will check. A discounted family still gets a payment plan.
+    final planProblem = checkInstallments(installments, gross - totalDiscount(discounts));
     if (planProblem != null) return Future.value(Error(planProblem));
 
     return _repository.assessStudentFees(
@@ -189,6 +232,7 @@ class AssessStudentFeesUseCase {
       schoolYear: schoolYear.trim(),
       items: items,
       installments: installments,
+      discounts: discounts,
       sourceStructureId: sourceStructureId,
       sourceStructureName: sourceStructureName,
       remarks: remarks?.trim().isEmpty ?? true ? null : remarks!.trim(),

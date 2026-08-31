@@ -41,6 +41,7 @@ import '../features/owner_portal/domain/entities/school_summary.dart';
 import '../features/payments/domain/entities/assessment.dart';
 import '../features/payments/domain/entities/bank_account.dart';
 import '../features/payments/domain/entities/fee_structure.dart';
+import '../features/payments/domain/entities/discount.dart';
 import '../features/payments/domain/entities/installment.dart';
 import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
@@ -850,7 +851,7 @@ class DemoStore {
           programName: 'Science, Technology, Engineering and Mathematics',
           department: 'Academic',
           status: StudentStatus.enrolled,
-          balance: 12500,
+          balance: 11600,
           enrollmentDate: DateTime(now.year, 6, 3),
           birthDate: DateTime(now.year - 17, 9, 8),
           guardianContacts: const [
@@ -1255,8 +1256,10 @@ class DemoStore {
         updatedAt: _daysAgo(45),
         updatedByName: 'Grace Mendoza',
       ),
-      // Assessed to Trisha Mercado (stu_009): 12,500 charged, nothing
-      // paid yet, 12,500 outstanding.
+      // Assessed to Trisha Mercado (stu_009): 12,500 in fees less a 900
+      // sibling discount, nothing paid yet, 11,600 outstanding. Her
+      // balance is seeded to match, so the breakdown reconciles rather
+      // than reporting 900 it cannot account for.
       FeeStructure(
         id: 'fee_0002',
         name: 'Senior High School - $sy',
@@ -1310,6 +1313,19 @@ class DemoStore {
           FeeItem(label: 'Tuition Fee', amount: 9000, category: FeeCategory.tuition),
           FeeItem(label: 'Miscellaneous Fee', amount: 2500, category: FeeCategory.miscellaneous),
           FeeItem(label: 'Immersion Fee', amount: 1000, category: FeeCategory.other),
+        ],
+        // 10% of tuition, which is 900 -- so she is charged 11,600 rather
+        // than 12,500. Here so the demo has a discounted family, and so
+        // the Discounts and Scholarships report is not an empty table.
+        discounts: [
+          Discount(
+            kind: DiscountKind.sibling,
+            label: DiscountKind.sibling.displayLabel,
+            amount: 900,
+            percentage: 10,
+            appliesTo: FeeCategory.tuition,
+            approvedByName: 'Grace Mendoza',
+          ),
         ],
         assessedByName: 'Joel Bautista',
         assessedAt: _daysAgo(38),
@@ -2209,6 +2225,11 @@ class DemoStore {
         .where((b) => b.section == 'Grade 10 - Rizal')
         .toList();
 
+    // How many lessons of each subject this student has already had
+    // seeded, counting back from yesterday. The Science story below is
+    // told in lessons rather than in days, and this is what counts them.
+    final lessonsBack = <String, int>{};
+
     // Yesterday backwards, so nothing is seeded for today: today is what
     // the teacher is about to take, and a register already filled in
     // before anyone pressed Time In would be the wrong first impression.
@@ -2224,10 +2245,14 @@ class DemoStore {
 
         final sessionMarks = <SubjectAttendanceMark>[];
         for (final student in roster) {
+          final key = '${student.id}|${block.subject}';
+          final nth = (lessonsBack[key] ?? 0) + 1;
+          lessonsBack[key] = nth;
           final status = _seededMark(
             studentId: student.id,
             subject: block.subject,
             daysAgo: daysAgo,
+            lessonsBack: nth,
           );
           final wasThere = status == AttendanceStatus.present ||
               status == AttendanceStatus.late;
@@ -2276,14 +2301,24 @@ class DemoStore {
     required String studentId,
     required String subject,
     required int daysAgo,
+    required int lessonsBack,
   }) {
     if (studentId == 'stu_001' && subject == 'Science') {
       // The record a parent is called in about: away for most of a
       // fortnight, once with a note.
-      if (daysAgo <= 4) return AttendanceStatus.absent;
-      if (daysAgo == 6) return AttendanceStatus.excused;
-      if (daysAgo == 8) return AttendanceStatus.late;
-      if (daysAgo <= 12) return AttendanceStatus.absent;
+      //
+      // Counted in *lessons* rather than in days, and that is a fix
+      // rather than a preference. Science runs Monday, Wednesday and
+      // Friday, so keying the story on "six days ago" meant it landed on
+      // a Science lesson only when today happened to be a Sunday,
+      // Tuesday or Thursday. On the other four days of the week the
+      // excused mark -- the whole point of the story, the one absence
+      // with a note -- simply did not exist, and the test that asserts
+      // it failed depending on what day it was run.
+      if (lessonsBack <= 2) return AttendanceStatus.absent;
+      if (lessonsBack == 3) return AttendanceStatus.excused;
+      if (lessonsBack == 4) return AttendanceStatus.late;
+      if (lessonsBack <= 6) return AttendanceStatus.absent;
       return AttendanceStatus.present;
     }
     if (studentId == 'stu_001' && daysAgo == 9) return AttendanceStatus.late;

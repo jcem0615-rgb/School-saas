@@ -190,6 +190,44 @@ class _AssessmentTile extends StatelessWidget {
               ],
             ),
           ),
+        // What was taken off, itemised, in the school's own words. The
+        // trailing figure above is the net, so without these lines a
+        // family holding a printed schedule of fees sees a smaller number
+        // here with nothing explaining the difference -- which reads as
+        // the system being wrong rather than as a discount being granted.
+        if (assessment.discounts.isNotEmpty) ...[
+          const Divider(height: 12),
+          for (final discount in assessment.discounts)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      discount.displayLine,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.primary),
+                    ),
+                  ),
+                  Text(
+                    '-${_currency.format(discount.amount)}',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.primary),
+                  ),
+                ],
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Fees ${_currency.format(assessment.grossTotal)}, '
+              'less ${_currency.format(assessment.discountTotal)} '
+              'granted by ${assessment.discounts.first.approvedByName}.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ],
         if (assessment.remarks != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),

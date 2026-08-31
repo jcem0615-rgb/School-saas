@@ -5,6 +5,7 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../../domain/entities/assessment.dart';
 import '../../domain/entities/fee_structure.dart';
+import '../../domain/entities/discount.dart';
 import '../../domain/entities/installment.dart';
 import '../../domain/entities/payment.dart';
 import '../../domain/entities/payment_settings.dart';
@@ -66,6 +67,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
     required String schoolYear,
     required List<FeeItem> items,
     List<Installment> installments = const [],
+    List<Discount> discounts = const [],
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
@@ -76,6 +78,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
         schoolYear: schoolYear,
         items: items,
         installments: installments,
+        discounts: discounts,
         sourceStructureId: sourceStructureId,
         sourceStructureName: sourceStructureName,
         remarks: remarks,

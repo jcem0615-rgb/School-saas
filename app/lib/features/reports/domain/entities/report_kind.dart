@@ -29,6 +29,12 @@ enum ReportKind {
     // date range beside it would promise one.
     usesPeriod: false,
   ),
+  discounts(
+    'Discounts and Scholarships',
+    'What the school gave away, by kind, and to how many students.',
+    needsStudents: true,
+    needsAssessments: true,
+  ),
   attendance(
     'Attendance Rate by Section',
     'Present, late and absent by section, with the rate.',

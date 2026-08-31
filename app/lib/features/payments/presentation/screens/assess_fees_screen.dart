@@ -6,8 +6,11 @@ import '../../../../core/constants/education_level.dart';
 import '../../../admin_portal/presentation/controllers/admin_controller.dart' show brandingProvider;
 import '../../domain/entities/assessment.dart';
 import '../../domain/entities/fee_structure.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider;
+import '../../domain/entities/discount.dart';
 import '../../domain/entities/installment.dart';
 import '../controllers/payment_controller.dart';
+import '../widgets/discount_editor.dart';
 import '../widgets/fee_item_editor.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
@@ -50,6 +53,8 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
   /// is also what the server's duplicate check keys on.
   FeeStructure? _source;
   final List<FeeItemDraft> _items = [];
+  final List<DiscountDraft> _discounts = [];
+  final List<DiscountDraft> _discardedDiscounts = [];
   final List<FeeItemDraft> _discarded = [];
   bool _yearSeeded = false;
 
@@ -66,10 +71,34 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
     for (final item in [..._items, ..._discarded]) {
       item.dispose();
     }
+    for (final discount in [..._discounts, ..._discardedDiscounts]) {
+      discount.dispose();
+    }
     super.dispose();
   }
 
-  double get _total => draftTotal(_items);
+  double get _gross => draftTotal(_items);
+
+  List<FeeItem> get _feeItems => [for (final draft in _items) draft.toItem()];
+
+  List<Discount> get _grantedDiscounts => [
+        for (final draft in _discounts)
+          if (draft.amountAgainst(_feeItems) > 0)
+            draft.toDiscount(_feeItems, _approverName),
+      ];
+
+  /// What the family is actually charged, which is what the payment plan
+  /// has to add up to and what moves the balance.
+  double get _total {
+    final net = _gross - totalDiscount(_grantedDiscounts);
+    return net < 0 ? 0 : net;
+  }
+
+  /// Only for the on-screen preview -- the server stamps the approver
+  /// from the caller's own token, so a client cannot grant a scholarship
+  /// in somebody else's name.
+  String get _approverName =>
+      ref.read(authStateProvider).valueOrNull?.fullName ?? 'Unknown';
 
   /// Fills the school year in from the branding record once it arrives.
   ///
@@ -98,6 +127,12 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
           for (final item in structure?.items ?? const <FeeItem>[]) FeeItemDraft.from(item),
         ]);
       if (_items.isEmpty) _items.add(FeeItemDraft.blank());
+      // Cleared with the rest of the draft. A discount granted to the
+      // last student is not a discount granted to this one, and leaving
+      // it on screen after a successful charge is how the wrong family
+      // gets a scholarship.
+      _discardedDiscounts.addAll(_discounts);
+      _discounts.clear();
       _source = structure;
       if (structure != null && structure.schoolYear.trim().isNotEmpty) {
         _yearController.text = structure.schoolYear.trim();
@@ -162,8 +197,9 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
     final outcome = await ref.read(paymentActionControllerProvider.notifier).assessStudentFees(
           studentId: widget.studentId,
           schoolYear: _yearController.text,
-          items: [for (final draft in _items) draft.toItem()],
+          items: _feeItems,
           installments: _plan,
+          discounts: _grantedDiscounts,
           sourceStructureId: _source?.id,
           sourceStructureName: _source?.name,
           remarks: _remarksController.text,
@@ -373,6 +409,15 @@ class _AssessFeesScreenState extends ConsumerState<AssessFeesScreen> {
             onPressed: () => setState(() => _items.add(FeeItemDraft.blank())),
             icon: const Icon(Icons.add),
             label: const Text('Add fee'),
+          ),
+          const Divider(height: 32),
+          DiscountEditor(
+            drafts: _discounts,
+            items: _feeItems,
+            onAdd: () => setState(() => _discounts.add(DiscountDraft.blank())),
+            onRemove: (i) =>
+                setState(() => _discardedDiscounts.add(_discounts.removeAt(i))),
+            onChanged: () => setState(() {}),
           ),
           const SizedBox(height: 12),
           if (_source?.installments.isNotEmpty ?? false) _PlanNotice(

@@ -1,3 +1,4 @@
+import 'discount.dart';
 import 'fee_structure.dart';
 import 'installment.dart';
 
@@ -44,6 +45,13 @@ class Assessment {
   /// written before this field existed meant.
   final List<Installment> installments;
 
+  /// What was taken off the published fees, and why.
+  ///
+  /// Copied in like everything else here: a school that changes its
+  /// sibling policy in January must not rewrite what a family was
+  /// granted in June.
+  final List<Discount> discounts;
+
   final String assessedByName;
   final DateTime assessedAt;
   final String? remarks;
@@ -65,6 +73,7 @@ class Assessment {
     required this.assessedByName,
     required this.assessedAt,
     this.installments = const [],
+    this.discounts = const [],
     this.sourceStructureId,
     this.sourceStructureName,
     this.remarks,
@@ -73,7 +82,29 @@ class Assessment {
     this.voidReason,
   });
 
-  double get total => items.fold(0, (sum, item) => sum + item.amount);
+  /// The published fees, before anything was taken off. What the school
+  /// charges everybody.
+  double get grossTotal => items.fold(0, (sum, item) => sum + item.amount);
+
+  double get discountTotal => totalDiscount(discounts);
+
+  /// What this family was actually charged, and what moved the balance.
+  ///
+  /// `total` nets the discounts rather than a separate `netTotal` sitting
+  /// beside a gross `total`, deliberately: every existing caller -- the
+  /// balance, the breakdown, the collections report -- means "what does
+  /// this family owe for this", and every one of them would have been
+  /// wrong by the discount if the netting had been opt-in. An assessment
+  /// with no discounts is unchanged, which is every assessment written
+  /// before this existed.
+  ///
+  /// Never below zero. A discount larger than the fees is refused when it
+  /// is granted; clamping here as well means a hand-edited document
+  /// cannot produce a charge that pays a family to enrol.
+  double get total {
+    final net = grossTotal - discountTotal;
+    return net < 0 ? 0 : (net * 100).roundToDouble() / 100;
+  }
 
   double totalFor(FeeCategory category) =>
       items.where((i) => i.category == category).fold(0, (sum, i) => sum + i.amount);

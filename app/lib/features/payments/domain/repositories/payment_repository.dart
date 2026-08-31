@@ -3,6 +3,7 @@ import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/result.dart';
 import '../entities/assessment.dart';
 import '../entities/fee_structure.dart';
+import '../entities/discount.dart';
 import '../entities/installment.dart';
 import '../entities/payment.dart';
 import '../entities/payment_settings.dart';
@@ -68,6 +69,7 @@ abstract class PaymentRepository {
     required String schoolYear,
     required List<FeeItem> items,
     List<Installment> installments,
+    List<Discount> discounts,
     String? sourceStructureId,
     String? sourceStructureName,
     String? remarks,
