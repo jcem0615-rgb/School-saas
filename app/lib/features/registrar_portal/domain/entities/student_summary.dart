@@ -58,6 +58,25 @@ class StudentSummary {
   /// Printed on the student's ID card. Optional: a record with no birth
   /// date on file is still a valid enrolment.
   final DateTime? birthDate;
+
+  /// The student's own address, and what their portal account is created
+  /// against. Null for the many students who have none -- a Grade 1 pupil
+  /// has no email, and a school that could not enrol that child until
+  /// somebody invented one would end up with an invented one on file.
+  final String? email;
+
+  /// The student's own mobile number, as the office wrote it down.
+  ///
+  /// Two jobs. It is how the school reaches this student directly rather
+  /// than through a guardian, and it is what a password reset by phone
+  /// matches against -- so a student with none on file has no way back
+  /// into their account except the counter.
+  ///
+  /// Stored as typed rather than normalised: `+63 917 555 0100` is what
+  /// somebody reads out loud, and `639175550100` is not. The server
+  /// checks it is a shape the matcher can read before storing it.
+  final String? phone;
+
   final List<GuardianContact> guardianContacts;
 
   const StudentSummary({
@@ -78,6 +97,8 @@ class StudentSummary {
     this.userId,
     this.photoUrl,
     this.birthDate,
+    this.email,
+    this.phone,
     this.guardianContacts = const [],
   });
 
@@ -106,4 +127,34 @@ class StudentSummary {
 
   bool get hasPortalAccount => userId != null;
   bool get isCollege => educationLevel == EducationLevel.college;
+
+  /// Whether a portal account could be created for this student without
+  /// the registrar having to go and find an address first.
+  bool get canProvisionAccount => email?.trim().isNotEmpty ?? false;
+
+  /// Somewhere to reach this family, in the order the school would try.
+  ///
+  /// The student's own number first, then the first guardian's. A student
+  /// with neither is one the school cannot contact in an emergency, and
+  /// that is worth being able to ask about.
+  String? get reachablePhone {
+    final own = phone?.trim();
+    if (own != null && own.isNotEmpty) return own;
+    for (final g in guardianContacts) {
+      final p = g.phone.trim();
+      if (p.isNotEmpty) return p;
+    }
+    return null;
+  }
+
+  /// An address to write to, the student's own before a guardian's.
+  String? get reachableEmail {
+    final own = email?.trim();
+    if (own != null && own.isNotEmpty) return own;
+    for (final g in guardianContacts) {
+      final e = g.email?.trim();
+      if (e != null && e.isNotEmpty) return e;
+    }
+    return null;
+  }
 }

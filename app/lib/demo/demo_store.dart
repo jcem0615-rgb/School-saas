@@ -956,6 +956,8 @@ class DemoStore {
           userId: 'u_student',
           enrollmentDate: DateTime(now.year, 6, 3),
           birthDate: DateTime(now.year - 16, 3, 14),
+          email: 'student@demo.ph',
+          phone: '0917 555 0188',
           guardianContacts: const [
             GuardianContact(
               name: 'Rosario Torres',
@@ -977,6 +979,9 @@ class DemoStore {
           balance: 0,
           enrollmentDate: DateTime(now.year, 6, 3),
           birthDate: DateTime(now.year - 10, 11, 2),
+          // A Grade 4 pupil has neither. Reached through her mother, and
+          // the reason the form does not insist on an address somebody
+          // would otherwise have to invent.
           guardianContacts: const [
             GuardianContact(
               name: 'Rosario Torres',
@@ -998,6 +1003,11 @@ class DemoStore {
           balance: 12750,
           enrollmentDate: DateTime(now.year, 6, 5),
           birthDate: DateTime(now.year - 16, 7, 29),
+          // An address and a number on file but no portal account yet:
+          // open her record and the Create button is ready to go, with
+          // the address it will use printed above it.
+          email: 'andrea.villanueva@student.demo.ph',
+          phone: '+63 918 555 0143',
         ),
         StudentSummary(
           id: 'stu_004',
@@ -1028,6 +1038,8 @@ class DemoStore {
           balance: 5100,
           enrollmentDate: DateTime(now.year, 6, 3),
           birthDate: DateTime(now.year - 17, 9, 8),
+          email: 'trisha.mercado@student.demo.ph',
+          phone: '09175550166',
           guardianContacts: const [
             GuardianContact(
               name: 'Elena Mercado',

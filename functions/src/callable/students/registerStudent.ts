@@ -6,6 +6,7 @@ import {FirestorePaths} from "../../shared/firestore-paths";
 import {getNextSequence} from "../../shared/counters/getNextSequence";
 import {formatStudentNumber} from "../../shared/students/studentNumber";
 import {isValidEducationLevel, usesProgramCatalogue} from "../../shared/education/educationLevel";
+import {validateContactDetails, ContactDetailsError} from "../../shared/students/contactDetails";
 
 interface GuardianContact {
   name: string;
@@ -25,6 +26,10 @@ interface RegisterStudentData {
   programId?: string; // required when educationLevel === 'college'
   enrollmentDate?: string; // ISO date, defaults to now
   birthDate?: string; // ISO date; required to register, printed on the ID card
+  /** The student's own address. Becomes their sign-in when a portal account is provisioned. */
+  email?: string;
+  /** The student's own mobile. What resetPasswordByPhone matches against. */
+  phone?: string;
   guardianContacts?: GuardianContact[];
 }
 
@@ -49,6 +54,8 @@ export const registerStudent = onCall(
       programId,
       enrollmentDate,
       birthDate,
+      email,
+      phone,
       guardianContacts,
     } = request.data;
 
@@ -64,6 +71,20 @@ export const registerStudent = onCall(
     }
     if (parsedBirthDate.getTime() > Date.now()) {
       throw new HttpsError("invalid-argument", "A birthday cannot be in the future.");
+    }
+    // Both optional -- a Grade 1 pupil has neither -- but a value that IS
+    // given has to be usable, because the email becomes the account the
+    // student signs in with and the number is what recovers it. The only
+    // cheap moment to catch a typo is now; after this it is found by a
+    // family who cannot get in, on the day they need to.
+    let contact;
+    try {
+      contact = validateContactDetails({email, phone});
+    } catch (err) {
+      if (err instanceof ContactDetailsError) {
+        throw new HttpsError("invalid-argument", err.message);
+      }
+      throw err;
     }
     if (!isValidEducationLevel(educationLevel)) {
       throw new HttpsError(
@@ -137,6 +158,8 @@ export const registerStudent = onCall(
         enrollmentDate ? new Date(enrollmentDate) : new Date()
       ),
       birthDate: admin.firestore.Timestamp.fromDate(parsedBirthDate),
+      email: contact.email,
+      phone: contact.phone,
       guardianContacts: guardianContacts ?? [],
       balance: 0,
       photoUrl: null,

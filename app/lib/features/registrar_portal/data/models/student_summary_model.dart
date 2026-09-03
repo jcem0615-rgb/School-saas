@@ -22,6 +22,8 @@ class StudentSummaryModel extends StudentSummary {
     super.userId,
     super.photoUrl,
     super.birthDate,
+    super.email,
+    super.phone,
     super.guardianContacts,
   });
 
@@ -48,6 +50,11 @@ class StudentSummaryModel extends StudentSummary {
       photoUrl: data['photoUrl'] as String?,
       enrollmentDate: (data['enrollmentDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       birthDate: (data['birthDate'] as Timestamp?)?.toDate(),
+      // Absent on every record written before these fields existed, and
+      // null rather than '' when the office has none -- so "who has no
+      // number on file?" stays an answerable question.
+      email: _trimmedOrNull(data['email']),
+      phone: _trimmedOrNull(data['phone']),
       guardianContacts: rawGuardians.map((raw) {
         final g = raw as Map<String, dynamic>;
         return GuardianContact(
@@ -58,5 +65,11 @@ class StudentSummaryModel extends StudentSummary {
         );
       }).toList(),
     );
+  }
+
+  static String? _trimmedOrNull(Object? raw) {
+    if (raw is! String) return null;
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 }

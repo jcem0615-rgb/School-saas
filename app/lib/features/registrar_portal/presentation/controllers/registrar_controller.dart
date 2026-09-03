@@ -229,6 +229,8 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     required String section,
     String? programId,
     DateTime? birthDate,
+    String? email,
+    String? phone,
     List<GuardianContact> guardianContacts = const [],
   }) async {
     if (mounted) state = const AsyncLoading();
@@ -241,6 +243,8 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
       section: section,
       programId: programId,
       birthDate: birthDate,
+      email: email,
+      phone: phone,
       guardianContacts: guardianContacts,
     );
     if (result case Success(:final value)) {
@@ -260,6 +264,8 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     required String section,
     required StudentStatus status,
     DateTime? birthDate,
+    String? email,
+    String? phone,
   }) async {
     if (mounted) state = const AsyncLoading();
     final result = await _updateStudent(
@@ -270,6 +276,8 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
       section: section,
       status: status,
       birthDate: birthDate,
+      email: email,
+      phone: phone,
     );
     if (result case Success()) {
       if (mounted) state = const AsyncData(null);
@@ -285,6 +293,7 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     required String firstName,
     required String lastName,
     required String email,
+    String? phone,
   }) async {
     if (mounted) state = const AsyncLoading();
     final result = await _provisionStudentAccount(
@@ -292,6 +301,7 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
       firstName: firstName,
       lastName: lastName,
       email: email,
+      phone: phone,
     );
     if (result case Success(:final value)) {
       if (mounted) state = const AsyncData(null);

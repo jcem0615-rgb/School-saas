@@ -156,6 +156,8 @@ class RegistrarRemoteDataSource {
     required String section,
     String? programId,
     DateTime? birthDate,
+    String? email,
+    String? phone,
     required List<Map<String, dynamic>> guardianContacts,
   }) async {
     try {
@@ -170,6 +172,8 @@ class RegistrarRemoteDataSource {
         'section': section,
         'programId': programId,
         'birthDate': birthDate?.toIso8601String(),
+        'email': email,
+        'phone': phone,
         'guardianContacts': guardianContacts,
       });
       return Map<String, dynamic>.from(response.data as Map);
@@ -186,12 +190,21 @@ class RegistrarRemoteDataSource {
     required String section,
     required String status,
     DateTime? birthDate,
+    String? email,
+    String? phone,
   }) async {
     await _firestore.doc(FirestorePaths.studentDoc(_actingUser.schoolId, studentId)).update({
       // Omitted rather than written as null when unset -- an edit that
       // leaves the field blank should not erase a birth date the
       // registrar entered earlier.
       if (birthDate != null) 'birthDate': Timestamp.fromDate(birthDate),
+      // Written unconditionally, unlike the birth date above, and null
+      // when blank. The difference is deliberate: the edit screen is the
+      // only caller and it always sends what is in the two fields, so a
+      // registrar who clears a wrong number means to clear it. A birth
+      // date has no such screen path to empty it.
+      'email': _blankToNull(email),
+      'phone': _blankToNull(phone),
       'firstName': firstName,
       'lastName': lastName,
       'gradeLevel': gradeLevel,
@@ -227,6 +240,7 @@ class RegistrarRemoteDataSource {
     required String email,
     required String firstName,
     required String lastName,
+    String? phone,
   }) async {
     try {
       final callable = _functions.httpsCallable('provisionUser');
@@ -236,6 +250,12 @@ class RegistrarRemoteDataSource {
         'firstName': firstName,
         'lastName': lastName,
         'email': email,
+        // Carried onto the user document so a password reset by phone can
+        // find this account. Without it the only way a number ever gets
+        // there is the person editing their own profile -- which needs a
+        // sign-in, and needing a sign-in is the situation phone recovery
+        // exists for.
+        'phone': phone,
         'linkedStudentId': studentId,
       });
       return Map<String, dynamic>.from(response.data as Map);
@@ -314,5 +334,13 @@ class RegistrarRemoteDataSource {
     } on FirebaseFunctionsException catch (e) {
       throw ServerException(e.message ?? 'The rollover did not finish.');
     }
+  }
+
+  /// An empty field means "there is none", which is null on the record --
+  /// not an empty string. Mixing the two makes "which students have no
+  /// number on file?" a question nobody can answer with one query.
+  static String? _blankToNull(String? value) {
+    final trimmed = value?.trim();
+    return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
   }
 }

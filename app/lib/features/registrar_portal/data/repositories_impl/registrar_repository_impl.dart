@@ -90,6 +90,8 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
     required String section,
     String? programId,
     DateTime? birthDate,
+    String? email,
+    String? phone,
     required List<GuardianContact> guardianContacts,
   }) async {
     try {
@@ -102,6 +104,8 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
         section: section,
         programId: programId,
         birthDate: birthDate,
+        email: email,
+        phone: phone,
         guardianContacts: guardianContacts.map(_guardianToMap).toList(),
       );
       return Success(RegisterStudentOutcome(
@@ -124,6 +128,8 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
     required String section,
     required StudentStatus status,
     DateTime? birthDate,
+    String? email,
+    String? phone,
   }) async {
     try {
       await _remote.updateStudent(
@@ -134,6 +140,8 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
         section: section,
         status: status.value,
         birthDate: birthDate,
+        email: email,
+        phone: phone,
       );
       return const Success(null);
     } catch (_) {
@@ -147,6 +155,7 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
     required String firstName,
     required String lastName,
     required String email,
+    String? phone,
   }) async {
     try {
       final data = await _remote.provisionStudentAccount(
@@ -154,6 +163,7 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
         firstName: firstName,
         lastName: lastName,
         email: email,
+        phone: phone,
       );
       return Success(ProvisionStudentAccountOutcome(
         uid: data['uid'] as String,

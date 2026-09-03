@@ -1,6 +1,7 @@
 import '../../../../core/constants/education_level.dart';
 import '../../../../core/data_transfer/csv.dart' show ImportIssue;
 import '../../../../core/data_transfer/sheet_values.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../admin_portal/domain/entities/program.dart';
 import '../../domain/entities/student_summary.dart';
 
@@ -35,8 +36,11 @@ class StudentImport {
     final section = row[5].trim();
     final programText = row[6].trim();
     final birthdayText = row[7].trim();
-    final guardianName = row[8].trim();
-    final guardianPhone = row[9].trim();
+    final email = row[8].trim();
+    final phone = row[9].trim();
+    final guardianName = row[10].trim();
+    final guardianPhone = row[11].trim();
+    final guardianEmail = row.length > 12 ? row[12].trim() : '';
 
     if (firstName.isEmpty || lastName.isEmpty) {
       return ImportIssue(rowNumber, 'First and last name are required.');
@@ -120,6 +124,27 @@ class StudentImport {
     // same student. That is the strict reading, and the right one: an
     // import cannot tell them apart, so it should stop and let a person
     // decide rather than quietly enrol a duplicate.
+    // The same two checks the New Student form makes, for the same
+    // reason: an address with a typo becomes a sign-in nobody can reach,
+    // and a number the matcher cannot read recovers nothing. Refusing the
+    // row names the student and the column; accepting it hands the school
+    // a record that looks complete and is not.
+    final emailError = Validators.optionalEmail(email);
+    if (emailError != null) {
+      return ImportIssue(rowNumber, 'Email for $firstName $lastName: $emailError');
+    }
+    final phoneError = Validators.optionalPhilippineMobile(phone);
+    if (phoneError != null) {
+      return ImportIssue(rowNumber, 'Mobile number for $firstName $lastName: $phoneError');
+    }
+    final guardianEmailError = Validators.optionalEmail(guardianEmail);
+    if (guardianEmailError != null) {
+      return ImportIssue(
+        rowNumber,
+        'Guardian email for $firstName $lastName: $guardianEmailError',
+      );
+    }
+
     final stamp = birthDate == null ? '' : isoDate(birthDate);
     final key = '${firstName.toLowerCase()}|${lastName.toLowerCase()}|$stamp';
     if (existing.any((s) =>
@@ -141,6 +166,8 @@ class StudentImport {
       section: section,
       programId: programId,
       birthDate: birthDate,
+      email: email.isEmpty ? null : email,
+      phone: phone.isEmpty ? null : phone,
       guardianContacts: guardianName.isEmpty
           ? const []
           : [
@@ -148,6 +175,7 @@ class StudentImport {
                 name: guardianName,
                 relationship: 'Guardian',
                 phone: guardianPhone,
+                email: guardianEmail.isEmpty ? null : guardianEmail,
               ),
             ],
     );
@@ -189,6 +217,8 @@ class StudentImportRow {
   final String section;
   final String? programId;
   final DateTime? birthDate;
+  final String? email;
+  final String? phone;
   final List<GuardianContact> guardianContacts;
 
   const StudentImportRow({
@@ -200,6 +230,8 @@ class StudentImportRow {
     required this.section,
     required this.programId,
     required this.birthDate,
+    required this.email,
+    required this.phone,
     required this.guardianContacts,
   });
 }

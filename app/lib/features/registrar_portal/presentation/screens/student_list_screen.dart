@@ -258,8 +258,11 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
         'Section',
         'Program',
         'Birthday',
+        'Email',
+        'Mobile Number',
         'Guardian Name',
         'Guardian Phone',
+        'Guardian Email',
         'Status',
         'Balance',
       ],
@@ -272,8 +275,11 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
         'Section',
         'Program',
         'Birthday',
+        'Email',
+        'Mobile Number',
         'Guardian Name',
         'Guardian Phone',
+        'Guardian Email',
       ],
       importNote:
           'Student numbers are assigned by the system as each row is '
@@ -281,7 +287,11 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           'zero balance — those three columns are ignored if your file has '
           'them. Division must be Elementary, Junior High School, Senior '
           'High School or College. Birthday is optional: leave the cell '
-          'empty if you do not have it, or write it as 2012-03-07.',
+          'empty if you do not have it, or write it as 2012-03-07. Email '
+          'and mobile number are optional too, but a value that is there '
+          'has to be usable — the email becomes the sign-in and the number '
+          'is what a password reset looks for, so a row with a typo in '
+          'either is refused rather than half-imported.',
       rows: () => students
           .map((s) => [
                 s.studentNumber,
@@ -293,8 +303,11 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 s.section,
                 s.programName ?? '',
                 s.birthDate == null ? '' : StudentImport.isoDate(s.birthDate!),
+                s.email ?? '',
+                s.phone ?? '',
                 s.guardianContacts.firstOrNull?.name ?? '',
                 s.guardianContacts.firstOrNull?.phone ?? '',
+                s.guardianContacts.firstOrNull?.email ?? '',
                 s.status.displayLabel,
                 s.balance.toStringAsFixed(2),
               ])
@@ -324,6 +337,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
             section: r.section,
             programId: r.programId,
             birthDate: r.birthDate,
+            email: r.email,
+            phone: r.phone,
             guardianContacts: r.guardianContacts,
           );
           if (outcome != null) created++;
@@ -341,8 +356,11 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     final middleNameController = TextEditingController();
     final gradeController = TextEditingController();
     final sectionController = TextEditingController();
+    final emailController = TextEditingController();
+    final phoneController = TextEditingController();
     final guardianNameController = TextEditingController();
     final guardianPhoneController = TextEditingController();
+    final guardianEmailController = TextEditingController();
     EducationLevel? educationLevel;
     Program? selectedProgram;
     DateTime? birthDate;
@@ -493,6 +511,36 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
+                Text("The student's own contact",
+                    style: Theme.of(sheetContext).textTheme.labelLarge),
+                const SizedBox(height: 4),
+                Text(
+                  'Both optional -- a Grade 1 pupil has neither. The email '
+                  'becomes their sign-in if you give them a portal account, '
+                  'and the number is what a password reset by phone looks '
+                  'for, so a wrong one locks them out of both.',
+                  style: Theme.of(sheetContext).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Email (optional)',
+                    hintText: 'juan.delacruz@student.school.edu.ph',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Mobile Number (optional)',
+                    hintText: '09171234567',
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Text('Guardian Contact', style: Theme.of(sheetContext).textTheme.labelLarge),
                 const SizedBox(height: 8),
                 TextField(
@@ -502,7 +550,18 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: guardianPhoneController,
+                  keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(labelText: 'Guardian Phone'),
+                ),
+                const SizedBox(height: 12),
+                // The record has always had somewhere to put this; the
+                // form simply never asked. For a younger pupil the
+                // guardian's address is the only one the school has.
+                TextField(
+                  controller: guardianEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  decoration: const InputDecoration(labelText: 'Guardian Email (optional)'),
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
@@ -514,6 +573,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                       return;
                     }
                     final navigator = Navigator.of(sheetContext);
+                    final guardianEmail = guardianEmailController.text.trim();
                     final guardians = guardianNameController.text.trim().isEmpty
                         ? <GuardianContact>[]
                         : [
@@ -521,6 +581,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                               name: guardianNameController.text,
                               relationship: 'Guardian',
                               phone: guardianPhoneController.text,
+                              email: guardianEmail.isEmpty ? null : guardianEmail,
                             ),
                           ];
                     final outcome = await ref.read(registrarActionControllerProvider.notifier).registerStudent(
@@ -532,6 +593,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                           section: sectionController.text,
                           programId: selectedProgram?.id,
                           birthDate: birthDate,
+                          email: emailController.text,
+                          phone: phoneController.text,
                           guardianContacts: guardians,
                         );
                     if (outcome != null) {

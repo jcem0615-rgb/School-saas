@@ -35,6 +35,8 @@ class StudentDetailScreen extends ConsumerStatefulWidget {
 class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
   late final TextEditingController _gradeController;
   late final TextEditingController _sectionController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
   late StudentStatus _status;
   bool _saving = false;
   bool _uploadingPhoto = false;
@@ -44,6 +46,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
     super.initState();
     _gradeController = TextEditingController(text: widget.student.gradeLevel);
     _sectionController = TextEditingController(text: widget.student.section);
+    _emailController = TextEditingController(text: widget.student.email ?? '');
+    _phoneController = TextEditingController(text: widget.student.phone ?? '');
     _status = widget.student.status;
   }
 
@@ -51,6 +55,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
   void dispose() {
     _gradeController.dispose();
     _sectionController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -63,6 +69,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
           gradeLevel: _gradeController.text,
           section: _sectionController.text,
           status: _status,
+          email: _emailController.text,
+          phone: _phoneController.text,
         );
     if (!mounted) return;
     setState(() => _saving = false);
@@ -72,15 +80,36 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
   }
 
   Future<void> _provisionAccount() async {
-    final emailController = TextEditingController();
+    // Pre-filled from the record rather than typed from scratch. It used
+    // to be blank, which meant the address a student signs in with lived
+    // only in Firebase Auth -- the office could not look up what they had
+    // issued, and a second registrar would happily create a different
+    // one. Still editable: a record can carry an address the family has
+    // since changed.
+    final emailController = TextEditingController(text: widget.student.email ?? '');
     final email = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Create Student Portal Account'),
-        content: TextField(
-          controller: emailController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(labelText: 'Email'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              widget.student.phone == null
+                  ? 'No mobile number on this record, so this account will '
+                      'not be recoverable by phone.'
+                  : 'Recoverable by phone at ${widget.student.phone}.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
@@ -98,6 +127,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
           firstName: widget.student.firstName,
           lastName: widget.student.lastName,
           email: email,
+          phone: widget.student.phone,
         );
     if (!mounted) return;
     if (outcome != null) {
@@ -396,6 +426,31 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                 .toList(),
             onChanged: (v) => setState(() => _status = v ?? _status),
           ),
+          const SizedBox(height: 20),
+          Text('Contact', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(
+            'Clearing a field here removes it from the record. That is the '
+            'point — a wrong number is worse than none, because the school '
+            'believes it can reach this student.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            decoration: const InputDecoration(labelText: 'Email'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: 'Mobile Number',
+              helperText: 'Used by a password reset by phone.',
+            ),
+          ),
           const SizedBox(height: 12),
           OutlinedButton(
             onPressed: _saving ? null : _saveChanges,
@@ -406,12 +461,25 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
           const SizedBox(height: 12),
           if (s.hasPortalAccount)
             const Text('This student already has a portal account.')
-          else
+          else ...[
+            Text(
+              s.canProvisionAccount
+                  ? 'Signs in with ${s.email}. The mobile number on the '
+                      'record goes onto the account too, so a password '
+                      'reset by phone can find them.'
+                  : 'No email on this record yet. Add one above and save, '
+                      'then come back — the address the account is created '
+                      'against should be the one the school has on file, '
+                      'not one typed once and never written down.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
             FilledButton.icon(
-              onPressed: _provisionAccount,
+              onPressed: s.canProvisionAccount ? _provisionAccount : null,
               icon: const Icon(Icons.person_add_alt),
               label: const Text('Create Student Portal Account'),
             ),
+          ],
         ],
       ),
     );

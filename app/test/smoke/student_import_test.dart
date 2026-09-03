@@ -28,8 +28,11 @@ void main() {
     'Section',
     'Program',
     'Birthday',
+    'Email',
+    'Mobile Number',
     'Guardian Name',
     'Guardian Phone',
+    'Guardian Email',
   ];
 
   final programs = [
@@ -58,10 +61,16 @@ void main() {
     String section = 'Sampaguita',
     String program = '',
     String birthday = '2015-03-07',
+    String email = '',
+    String mobile = '',
     String guardian = 'Ana Dela Cruz',
     String phone = '09171234567',
+    String guardianEmail = '',
   }) =>
-      [last, first, middle, division, grade, section, program, birthday, guardian, phone];
+      [
+        last, first, middle, division, grade, section, program, birthday,
+        email, mobile, guardian, phone, guardianEmail,
+      ];
 
   Object? parse(List<String> r, {List<StudentSummary> existing = const [], Set<String>? seen}) =>
       StudentImport.parseRow(
@@ -279,6 +288,68 @@ void main() {
     });
   });
 
+  group('contact details', () {
+    test('a student with neither is still registrable', () {
+      // Most of them. A Grade 1 pupil has no address and no handset, and
+      // an import that refused those rows would be an import a school
+      // works around by typing something into the cell.
+      final parsed = parse(row(email: '', mobile: '')) as StudentImportRow;
+      expect(parsed.email, isNull);
+      expect(parsed.phone, isNull);
+    });
+
+    test('an address and a number come through as given', () {
+      final parsed = parse(row(
+        email: 'juan.delacruz@student.school.edu.ph',
+        mobile: '+63 917 555 0100',
+      )) as StudentImportRow;
+      expect(parsed.email, 'juan.delacruz@student.school.edu.ph');
+      // Kept in the shape it was written. The office reads this out loud.
+      expect(parsed.phone, '+63 917 555 0100');
+    });
+
+    test('a bad address is refused, because it becomes the sign-in', () {
+      // Three hundred rows is exactly where a typo goes unnoticed, and
+      // the address here is what a portal account gets created against.
+      final issue = parse(row(email: 'juan@gmailcom')) as ImportIssue;
+      expect(issue.message, contains('Email'));
+      expect(issue.message, contains('Maria'));
+    });
+
+    test('a number the password reset could never match is refused', () {
+      final issue = parse(row(mobile: '5550100')) as ImportIssue;
+      expect(issue.message, contains('Mobile number'));
+      expect(issue.message, contains('09171234567'));
+    });
+
+    test('a bad guardian address is refused too', () {
+      final issue = parse(row(guardianEmail: 'not an address')) as ImportIssue;
+      expect(issue.message, contains('Guardian email'));
+    });
+
+    test('every shape a Philippine number is written in is accepted', () {
+      for (final shape in [
+        '09171234567',
+        '+639171234567',
+        '9171234567',
+        '0917 123 4567',
+        '(0917) 123-4567',
+      ]) {
+        expect(parse(row(mobile: shape)), isA<StudentImportRow>(), reason: shape);
+      }
+    });
+
+    test('a file with no guardian email column at all still imports', () {
+      // The column is last, and a school re-importing a file exported
+      // before this change has twelve cells rather than thirteen. That
+      // file was valid when it was written and stays valid.
+      final short = row()..removeLast();
+      expect(short.length, 12);
+      final parsed = parse(short) as StudentImportRow;
+      expect(parsed.guardianContacts.single.email, isNull);
+    });
+  });
+
   group('a full round trip through a workbook', () {
     test('what this app exports, this app can import', () {
       // The end-to-end claim: export a roster, hand the file to another
@@ -295,8 +366,11 @@ void main() {
         'Section',
         'Program',
         'Birthday',
+        'Email',
+        'Mobile Number',
         'Guardian Name',
         'Guardian Phone',
+        'Guardian Email',
         'Status',
         'Balance',
       ];
@@ -311,8 +385,11 @@ void main() {
           'BSCS 3-A',
           'BS Computer Science',
           '2005-11-02',
+          'karla.munoz@student.demo.edu.ph',
+          '+63 917 555 0100',
           'Rosa Muñoz',
           '09181234567',
+          'rosa.munoz@gmail.com',
           'Enrolled',
           '1500.00',
         ],
@@ -335,7 +412,14 @@ void main() {
       expect(parsed.section, 'BSCS 3-A');
       expect(parsed.programId, 'prog_cs');
       expect(parsed.birthDate, DateTime(2005, 11, 2));
+      // The point of the round trip, for the two new columns: a student
+      // transferring between schools arrives with the contact details the
+      // first school held, rather than the receiving registrar having to
+      // ring the family to ask for them again.
+      expect(parsed.email, 'karla.munoz@student.demo.edu.ph');
+      expect(parsed.phone, '+63 917 555 0100');
       expect(parsed.guardianContacts.single.phone, '09181234567');
+      expect(parsed.guardianContacts.single.email, 'rosa.munoz@gmail.com');
     });
   });
 

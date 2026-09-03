@@ -38,6 +38,8 @@ abstract class RegistrarRepository {
     required String section,
     String? programId,
     DateTime? birthDate,
+    String? email,
+    String? phone,
     required List<GuardianContact> guardianContacts,
   });
 
@@ -49,6 +51,8 @@ abstract class RegistrarRepository {
     required String section,
     required StudentStatus status,
     DateTime? birthDate,
+    String? email,
+    String? phone,
   });
 
   /// Sets the student's ID photo to an already-uploaded [photoUrl].
@@ -68,6 +72,7 @@ abstract class RegistrarRepository {
     required String firstName,
     required String lastName,
     required String email,
+    String? phone,
   });
 
   /// Every mark this student has, for building a transcript. Unbounded

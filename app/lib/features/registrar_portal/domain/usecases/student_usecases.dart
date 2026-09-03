@@ -125,6 +125,8 @@ class RegisterStudentUseCase {
     required String section,
     String? programId,
     DateTime? birthDate,
+    String? email,
+    String? phone,
     List<GuardianContact> guardianContacts = const [],
   }) {
     final firstNameError = Validators.required(firstName, fieldName: 'First name');
@@ -148,6 +150,16 @@ class RegisterStudentUseCase {
     if (birthDate.isAfter(DateTime.now())) {
       return Future.value(const Error(ValidationFailure('A birthday cannot be in the future.')));
     }
+
+    // Both optional. A typo in either is only ever discovered by the
+    // person who cannot use it -- the student who cannot sign in, or the
+    // family whose password reset finds nothing -- so it is worth
+    // refusing here, where a registrar is still looking at the form.
+    final emailError = Validators.optionalEmail(email);
+    if (emailError != null) return Future.value(Error(ValidationFailure(emailError)));
+
+    final phoneError = Validators.optionalPhilippineMobile(phone);
+    if (phoneError != null) return Future.value(Error(ValidationFailure(phoneError)));
 
     // The explicit ask: every student declares Elementary/High School/
     // College, and a College student must also declare which program --
@@ -176,9 +188,19 @@ class RegisterStudentUseCase {
       section: section.trim(),
       programId: educationLevel.usesProgramCatalogue ? programId!.trim() : null,
       birthDate: birthDate,
+      email: _blankToNull(email),
+      phone: _blankToNull(phone),
       guardianContacts: guardianContacts,
     );
   }
+}
+
+/// An empty field means "there is none", which is null on the record --
+/// never an empty string, so a school can still ask which students have
+/// no way to be contacted.
+String? _blankToNull(String? value) {
+  final trimmed = value?.trim();
+  return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
 }
 
 class UpdateStudentUseCase {
@@ -193,12 +215,23 @@ class UpdateStudentUseCase {
     required String section,
     required StudentStatus status,
     DateTime? birthDate,
+    String? email,
+    String? phone,
   }) {
     final firstNameError = Validators.required(firstName, fieldName: 'First name');
     if (firstNameError != null) return Future.value(Error(ValidationFailure(firstNameError)));
 
     final lastNameError = Validators.required(lastName, fieldName: 'Last name');
     if (lastNameError != null) return Future.value(Error(ValidationFailure(lastNameError)));
+
+    // Same two checks as registration. An edit is the other way a bad
+    // address gets onto a record, and it is the more likely one: the
+    // number being corrected is usually the one that already failed.
+    final emailError = Validators.optionalEmail(email);
+    if (emailError != null) return Future.value(Error(ValidationFailure(emailError)));
+
+    final phoneError = Validators.optionalPhilippineMobile(phone);
+    if (phoneError != null) return Future.value(Error(ValidationFailure(phoneError)));
 
     return _repository.updateStudent(
       studentId: studentId,
@@ -208,6 +241,8 @@ class UpdateStudentUseCase {
       section: section.trim(),
       status: status,
       birthDate: birthDate,
+      email: _blankToNull(email),
+      phone: _blankToNull(phone),
     );
   }
 }
@@ -221,15 +256,24 @@ class ProvisionStudentAccountUseCase {
     required String firstName,
     required String lastName,
     required String email,
+    String? phone,
   }) {
     final emailError = Validators.email(email);
     if (emailError != null) return Future.value(Error(ValidationFailure(emailError)));
+
+    // Optional here in a way it is not on the student record: an account
+    // works without a number, it just cannot be recovered by phone. Worth
+    // passing when the record has one, because provisioning is the only
+    // moment the office has it and the person does not yet have a way in.
+    final phoneError = Validators.optionalPhilippineMobile(phone);
+    if (phoneError != null) return Future.value(Error(ValidationFailure(phoneError)));
 
     return _repository.provisionStudentAccount(
       studentId: studentId,
       firstName: firstName,
       lastName: lastName,
       email: email.trim(),
+      phone: _blankToNull(phone),
     );
   }
 }

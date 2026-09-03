@@ -39,6 +39,64 @@ See `test-rules/registrar-portal.rules.test.ts` for tests pinning down
 exactly this boundary — editable fields succeed, protected fields fail,
 even for a Registrar who can otherwise edit the record.
 
+## The student's own email and mobile number
+
+Added after the fact, because their absence had a consequence nobody
+would have found by reading the registration screen.
+
+The form asked for a guardian's name and phone and nothing else. A
+student's own contact details lived nowhere on the record, which meant
+three things:
+
+1. **Creating a portal account meant typing an address into a dialog.**
+   That address went to Firebase Auth and no further, so afterwards the
+   office could not say what sign-in it had issued — and a second
+   registrar, looking at the same blank dialog, would happily create a
+   different one.
+2. **The school could not reach a student directly**, only a guardian who
+   may be at work when the message matters.
+3. **Password reset by phone could not work for anybody who needed it.**
+   `resetPasswordByPhone.ts` matches against `users/{uid}.phone`, and
+   nothing ever wrote that field except a person editing their own
+   profile — which requires signing in, which is the thing they cannot
+   do. The feature was live and unreachable.
+
+Both fields are **optional and validated**. Optional because a Grade 1
+pupil has neither, and a form that refuses to save that child is a form
+whose registrar invents an address. Validated because a value that IS
+given has a job: the email becomes the sign-in, the number is what a
+reset matches, and a typo in either is only ever discovered by the person
+who cannot use it, on the day they need it.
+
+- `functions/src/shared/students/contactDetails.ts` holds the checks;
+  `validateContactDetails` returns `null` rather than `''` for an absent
+  value, so "which students have no number on file?" stays answerable.
+- The phone is stored **as typed**, not normalised: `+63 917 555 0100` is
+  what the office reads out loud to a parent. What is checked is that
+  `normalizePhone` *can* read it, so the stored form and the matched form
+  can never disagree.
+- `Validators.optionalEmail` / `optionalPhilippineMobile` mirror the
+  server exactly, including the `*.edu.ph` multi-label domain case. The
+  Dart normaliser is a port of `normalizePhone`; the two agreeing matters
+  more than either being clever, and
+  `test/smoke/student_contact_test.dart` pins one shared imperfection
+  (a landline with a mashed-in extension passes both) so a future fix is
+  made in both places at once.
+- `provisionUser.ts` now takes a `phone` and writes it onto the user
+  document. This is the fix for (3): provisioning is the one moment the
+  office has the number in front of them and the person has no way in.
+- The bulk import gained **Email**, **Mobile Number** and **Guardian
+  Email** columns, refusing a row rather than half-importing it. A file
+  exported before this change still imports: the guardian email is last
+  and its absence is tolerated.
+- On the record screen, clearing a field clears it. That direction
+  matters more than adding one — a number the school believes it can
+  reach a family on, and cannot, is worse than no number, because nobody
+  goes looking for a better one.
+- The **Create Student Portal Account** button is disabled until the
+  record carries an address, and says so. The dialog is pre-filled from
+  the record rather than blank.
+
 ## Student Portal account provisioning
 
 `provisionUser.ts` (Module 4) is extended two ways this module:

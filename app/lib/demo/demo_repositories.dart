@@ -1887,6 +1887,8 @@ class DemoRegistrarRepository implements RegistrarRepository {
     required String section,
     String? programId,
     DateTime? birthDate,
+    String? email,
+    String? phone,
     required List<GuardianContact> guardianContacts,
   }) async {
     await _latency(600);
@@ -1917,6 +1919,8 @@ class DemoRegistrarRepository implements RegistrarRepository {
         balance: 0,
         enrollmentDate: DateTime.now(),
         birthDate: birthDate,
+        email: email,
+        phone: phone,
         guardianContacts: guardianContacts,
       ),
     );
@@ -1939,6 +1943,8 @@ class DemoRegistrarRepository implements RegistrarRepository {
     required String section,
     required StudentStatus status,
     DateTime? birthDate,
+    String? email,
+    String? phone,
   }) async {
     await _latency();
     _store.update<StudentSummary>(
@@ -1952,6 +1958,9 @@ class DemoRegistrarRepository implements RegistrarRepository {
         section: section,
         status: status,
         birthDate: birthDate,
+        setContact: true,
+        email: email,
+        phone: phone,
       ),
     );
     _store.audit(
@@ -1993,6 +2002,7 @@ class DemoRegistrarRepository implements RegistrarRepository {
     required String firstName,
     required String lastName,
     required String email,
+    String? phone,
   }) async {
     await _latency(600);
     final uid = _store.nextId('u');
@@ -2006,7 +2016,7 @@ class DemoRegistrarRepository implements RegistrarRepository {
       action: 'provision_account',
       targetCollection: 'users',
       targetId: uid,
-      newValue: {'email': email, 'linkedStudentId': studentId},
+      newValue: {'email': email, 'phone': phone, 'linkedStudentId': studentId},
     );
     final n = DateTime.now().millisecondsSinceEpoch % 10000;
     return Success(ProvisionStudentAccountOutcome(
@@ -2029,6 +2039,15 @@ StudentSummary _copyStudent(
   String? userId,
   DateTime? birthDate,
   String? photoUrl,
+  // The contact pair cannot use the `?? s.x` idiom the rest of this
+  // helper uses. Null there means "leave it alone", and clearing a wrong
+  // number is a thing the edit screen must be able to do -- a number the
+  // school believes it can reach a family on, and cannot, is worse than
+  // no number at all. So the caller says explicitly that it is setting
+  // them, and null then means null.
+  bool setContact = false,
+  String? email,
+  String? phone,
 }) {
   return StudentSummary(
     id: s.id,
@@ -2048,6 +2067,8 @@ StudentSummary _copyStudent(
     photoUrl: photoUrl ?? s.photoUrl,
     enrollmentDate: s.enrollmentDate,
     birthDate: birthDate ?? s.birthDate,
+    email: setContact ? email : s.email,
+    phone: setContact ? phone : s.phone,
     guardianContacts: s.guardianContacts,
   );
 }

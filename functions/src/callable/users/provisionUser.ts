@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import {randomBytes} from "crypto";
 import {setUserClaims, requireCallerClaims} from "../../shared/auth/claims";
+import {validateContactDetails, ContactDetailsError} from "../../shared/students/contactDetails";
 import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
 import {isValidEducationLevel} from "../../shared/education/educationLevel";
@@ -30,6 +31,16 @@ interface ProvisionUserData {
   firstName: string;
   lastName: string;
   email: string;
+  /**
+   * The account's mobile number, written onto the user document.
+   *
+   * This is what resetPasswordByPhone matches against. Without it the
+   * only way a number ever reaches a user document is the person editing
+   * their own profile -- which they can only do once signed in, and the
+   * whole point of phone recovery is that they cannot. Provisioning is
+   * the one moment the office has the number in front of them.
+   */
+  phone?: string;
   employeeInfo?: EmployeeInfo;
   /** For role === 'student': links this new portal account to an existing students/{id} academic record. */
   linkedStudentId?: string;
@@ -69,11 +80,26 @@ export const provisionUser = onCall(
   {region: "asia-southeast1"},
   async (request: CallableRequest<ProvisionUserData>) => {
     const callerClaims = requireCallerClaims(request);
-    const {schoolId, role, firstName, lastName, email, employeeInfo, linkedStudentId, linkedStudentIds} =
+    const {schoolId, role, firstName, lastName, email, phone, employeeInfo, linkedStudentId, linkedStudentIds} =
       request.data;
 
     if (!schoolId || !role || !firstName || !lastName || !email) {
       throw new HttpsError("invalid-argument", "Missing required fields.");
+    }
+
+    // The number is optional, but one that is given has to be in a shape
+    // resetPasswordByPhone can match, or it recovers nothing. The email
+    // goes through the same check for its own reason: Firebase Auth would
+    // reject a malformed one anyway, and doing it here means the caller
+    // gets the same sentence a registrar reads on the student form.
+    let contact;
+    try {
+      contact = validateContactDetails({email, phone});
+    } catch (err) {
+      if (err instanceof ContactDetailsError) {
+        throw new HttpsError("invalid-argument", err.message);
+      }
+      throw err;
     }
 
     if (UNPROVISIONABLE_ROLES.includes(role)) {
@@ -166,6 +192,7 @@ export const provisionUser = onCall(
       firstName,
       lastName,
       email,
+      phone: contact.phone,
       status: "active",
       mustChangePassword: true,
       qrCode,
