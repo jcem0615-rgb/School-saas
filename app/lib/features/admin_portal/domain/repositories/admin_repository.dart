@@ -20,6 +20,7 @@ abstract class AdminRepository {
     required String firstName,
     required String lastName,
     required String email,
+    String? phone,
     EmployeeInfo? employeeInfo,
   });
 

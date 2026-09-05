@@ -137,6 +137,16 @@ class _EmployeeDetailScreenState extends ConsumerState<EmployeeDetailScreen> {
                   children: [
                     Text(e.fullName, style: Theme.of(context).textTheme.titleLarge),
                     Text('${e.role.displayName} · ${e.email}'),
+                    // The number the office rings on a morning a class has
+                    // nobody in front of it, and the one a password reset
+                    // by phone matches. Said plainly when it is missing,
+                    // because that is the state worth noticing.
+                    Text(
+                      e.phone ?? 'No mobile number on file',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontStyle: e.phone == null ? FontStyle.italic : null,
+                          ),
+                    ),
                   ],
                 ),
               ),

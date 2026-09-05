@@ -75,6 +75,40 @@ abstract class RegistrarRepository {
     String? phone,
   });
 
+  /// The parent accounts that can see this student.
+  ///
+  /// Read from `linkedStudentIds`, which is the array every parent rule
+  /// resolves against -- so this is the school's answer to "who can see
+  /// this child's record?", not a separate list that could drift from it.
+  Stream<List<LinkedParent>> watchLinkedParents(String studentId);
+
+  /// Creates a Parent Portal login and links it to this student in one
+  /// step. The family's own contact details, so it is normally opened
+  /// pre-filled from the guardian already written on the record.
+  Future<Result<ProvisionStudentAccountOutcome>> provisionParentAccount({
+    required String studentId,
+    required String firstName,
+    required String lastName,
+    required String email,
+    String? phone,
+  });
+
+  /// An existing parent account at this school with this address, if
+  /// there is one. What makes a second child linkable to a parent who
+  /// already has a login rather than needing a second account.
+  Future<Result<LinkedParent?>> findParentByEmail(String email);
+
+  /// Gives [parentUid] access to [studentId], or takes it away.
+  ///
+  /// Goes through `setParentLink`: `linkedStudentIds` is the parent's
+  /// access, firestore.rules refuses it on every client path, and a grant
+  /// that nothing recorded is a grant nobody can review.
+  Future<Result<void>> setParentLink({
+    required String parentUid,
+    required String studentId,
+    required bool linked,
+  });
+
   /// Every mark this student has, for building a transcript. Unbounded
   /// on purpose -- see the datasource.
   Stream<List<Grade>> watchStudentGrades(String studentId);

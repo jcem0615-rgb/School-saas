@@ -264,6 +264,85 @@ class RegistrarRemoteDataSource {
     }
   }
 
+  /// Parent accounts that can see this student.
+  ///
+  /// Queried on `linkedStudentIds` rather than on any separate list, so
+  /// what this returns is exactly what the security rules resolve against
+  /// -- there is no second source of truth to drift from it.
+  Stream<List<Map<String, dynamic>>> watchLinkedParents(String studentId) {
+    return _firestore
+        .collection(FirestorePaths.users(_actingUser.schoolId))
+        .where('role', isEqualTo: 'parent')
+        .where('linkedStudentIds', arrayContains: studentId)
+        .snapshots()
+        .map((snap) => snap.docs
+            .where((d) => d.data()['isDeleted'] != true)
+            .map((d) => {...d.data(), 'id': d.id})
+            .toList());
+  }
+
+  Future<Map<String, dynamic>> provisionParentAccount({
+    required String studentId,
+    required String email,
+    required String firstName,
+    required String lastName,
+    String? phone,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('provisionUser');
+      final response = await callable.call({
+        'schoolId': _actingUser.schoolId,
+        'role': 'parent',
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        'phone': phone,
+        // The account is created already able to see this child. A parent
+        // account with no children can sign in and read nothing, which
+        // looks broken and generates a phone call to the office.
+        'linkedStudentIds': [studentId],
+      });
+      return Map<String, dynamic>.from(response.data as Map);
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Failed to create parent portal account.');
+    }
+  }
+
+  /// The parent account at this school with this address, if any.
+  ///
+  /// Matched lower-cased, because that is how provisionUser stores it and
+  /// how a person types it inconsistently. Without this a mother with two
+  /// children at the school gets told her address is already taken, and
+  /// the office ends up inventing a second one for the same person.
+  Future<Map<String, dynamic>?> findParentByEmail(String email) async {
+    final snap = await _firestore
+        .collection(FirestorePaths.users(_actingUser.schoolId))
+        .where('role', isEqualTo: 'parent')
+        .where('email', isEqualTo: email.trim().toLowerCase())
+        .limit(1)
+        .get();
+    final doc = snap.docs.where((d) => d.data()['isDeleted'] != true).firstOrNull;
+    return doc == null ? null : {...doc.data(), 'id': doc.id};
+  }
+
+  Future<void> setParentLink({
+    required String parentUid,
+    required String studentId,
+    required bool linked,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('setParentLink');
+      await callable.call({
+        'schoolId': _actingUser.schoolId,
+        'parentUid': parentUid,
+        'studentId': studentId,
+        'linked': linked,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Failed to change this parent\'s access.');
+    }
+  }
+
   /// Goes through a callable rather than writing the field directly:
   /// firestore.rules rejects any client update that touches `balance`, so
   /// the payment transactions stay its only other writer and every manual

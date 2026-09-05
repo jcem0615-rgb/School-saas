@@ -34,6 +34,7 @@ class CreateEmployeeUseCase {
     required String firstName,
     required String lastName,
     required String email,
+    String? phone,
     EmployeeInfo? employeeInfo,
   }) {
     final firstNameError = Validators.required(firstName, fieldName: 'First name');
@@ -45,11 +46,21 @@ class CreateEmployeeUseCase {
     final emailError = Validators.email(email);
     if (emailError != null) return Future.value(Error(ValidationFailure(emailError)));
 
+    // Optional, and checked when present. An employee account works
+    // without a number -- it just cannot be recovered by phone, and the
+    // office cannot ring this person when a class has nobody in front
+    // of it. Provisioning is the moment the number is on the form in
+    // front of them, so it is the moment worth asking.
+    final phoneError = Validators.optionalPhilippineMobile(phone);
+    if (phoneError != null) return Future.value(Error(ValidationFailure(phoneError)));
+
+    final trimmedPhone = phone?.trim();
     return _repository.createEmployee(
       role: role,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
+      phone: (trimmedPhone == null || trimmedPhone.isEmpty) ? null : trimmedPhone,
       employeeInfo: employeeInfo,
     );
   }

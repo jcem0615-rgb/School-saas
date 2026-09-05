@@ -170,6 +170,40 @@ class DemoStore {
   late final revenue = BehaviorSubject<RevenueSummary>.seeded(_seedRevenue());
   late final invoices = BehaviorSubject<List<Invoice>>.seeded(_seedInvoices());
   late final students = BehaviorSubject<List<StudentSummary>>.seeded(_seedStudents());
+
+  /// Parent portal accounts, and which children each one can see.
+  ///
+  /// Two subjects rather than one object with a list inside it, mirroring
+  /// how the real thing is shaped: the account is a user document, and
+  /// `linkedStudentIds` on it is the access. Keeping them apart here
+  /// means the demo cannot accidentally show a tidier model than the one
+  /// the security rules actually enforce.
+  late final parentAccounts =
+      BehaviorSubject<List<DemoParentAccount>>.seeded(_seedParentAccounts());
+  late final parentLinks =
+      BehaviorSubject<Map<String, List<String>>>.seeded(_seedParentLinks());
+
+  /// Grants or removes one parent's access to one child.
+  ///
+  /// Mirrors setParentLink.ts, including the part that matters: linking
+  /// somebody already linked changes nothing rather than growing the
+  /// array, and unlinking the last child leaves an empty list rather than
+  /// removing the entry -- an account that sees nothing is a real state.
+  void setParentLink({
+    required String parentUid,
+    required String studentId,
+    required bool linked,
+  }) {
+    final next = Map<String, List<String>>.from(parentLinks.value);
+    final current = List<String>.from(next[parentUid] ?? const []);
+    if (linked) {
+      if (!current.contains(studentId)) current.add(studentId);
+    } else {
+      current.remove(studentId);
+    }
+    next[parentUid] = current;
+    parentLinks.add(next);
+  }
   late final employees = BehaviorSubject<List<EmployeeSummary>>.seeded(_seedEmployees());
   late final assignments = BehaviorSubject<List<TeacherAssignment>>.seeded(_seedAssignments());
   late final programs = BehaviorSubject<List<Program>>.seeded(_seedPrograms());
@@ -941,6 +975,24 @@ class DemoStore {
     ];
   }
 
+  /// Rosario Torres has two children at the school, which is the case
+  /// that makes linking interesting: her account is created once and
+  /// linked twice, rather than the office inventing a second address for
+  /// the same mother.
+  List<DemoParentAccount> _seedParentAccounts() => const [
+        DemoParentAccount(
+          uid: 'u_parent',
+          firstName: 'Rosario',
+          lastName: 'Torres',
+          email: 'parent@demo.ph',
+          phone: '0917 555 0142',
+        ),
+      ];
+
+  Map<String, List<String>> _seedParentLinks() => {
+        'u_parent': ['stu_001', 'stu_002'],
+      };
+
   List<StudentSummary> _seedStudents() => [
         StudentSummary(
           id: 'stu_001',
@@ -1114,6 +1166,10 @@ class DemoStore {
             firstName: u.firstName,
             lastName: u.lastName,
             email: u.email,
+            // Every seeded employee carries one: the demo should show a
+            // staff list the office could ring, and a Reset by phone that
+            // finds somebody.
+            phone: '0917 555 01${(10 + u.uid.hashCode.abs() % 80).toString().padLeft(2, '0')}',
             role: u.role,
             status: u.status,
             employeeInfo: EmployeeInfo(
@@ -1135,6 +1191,7 @@ class DemoStore {
           firstName: 'Dennis',
           lastName: 'Pascual',
           email: 'dpascual@demo.ph',
+          phone: '0918 555 0121',
           role: UserRole.faculty,
           status: UserAccountStatus.active,
           employeeInfo: EmployeeInfo(
@@ -1150,6 +1207,9 @@ class DemoStore {
           firstName: 'Tess',
           lastName: 'Aguilar',
           email: 'taguilar@demo.ph',
+          // Deliberately without one: a staff member the office cannot
+          // ring and who cannot reset her own password. The empty state
+          // is worth being able to see.
           role: UserRole.staff,
           status: UserAccountStatus.suspended,
           employeeInfo: EmployeeInfo(
@@ -3083,4 +3143,29 @@ class DemoPromotion {
     required this.decidedByName,
     required this.decidedAt,
   });
+}
+
+/// A parent portal account in the demo.
+///
+/// Which children it can see is deliberately NOT a field here -- that
+/// lives in [DemoStore.parentLinks], the way `linkedStudentIds` lives on
+/// the user document rather than inside some richer "family" object. The
+/// separation is the point: access is a list somebody at the school
+/// granted, one child at a time, and each grant is in the audit trail.
+class DemoParentAccount {
+  final String uid;
+  final String firstName;
+  final String lastName;
+  final String email;
+  final String? phone;
+
+  const DemoParentAccount({
+    required this.uid,
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    this.phone,
+  });
+
+  String get fullName => '$firstName $lastName';
 }

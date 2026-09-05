@@ -61,6 +61,7 @@ class AdminRemoteDataSource {
     required String firstName,
     required String lastName,
     required String email,
+    String? phone,
     Map<String, dynamic>? employeeInfo,
   }) async {
     try {
@@ -71,6 +72,10 @@ class AdminRemoteDataSource {
         'firstName': firstName,
         'lastName': lastName,
         'email': email,
+        // Written onto the user document, which is what
+        // resetPasswordByPhone matches against. Provisioning is the only
+        // moment the office has the number and the person has no way in.
+        'phone': phone,
         'employeeInfo': employeeInfo,
       });
       return Map<String, dynamic>.from(response.data as Map);

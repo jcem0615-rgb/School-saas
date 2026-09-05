@@ -278,6 +278,81 @@ class ProvisionStudentAccountUseCase {
   }
 }
 
+/// Who can see this child's record.
+class WatchLinkedParentsUseCase {
+  final RegistrarRepository _repository;
+  const WatchLinkedParentsUseCase(this._repository);
+
+  Stream<List<LinkedParent>> call(String studentId) =>
+      _repository.watchLinkedParents(studentId);
+}
+
+class ProvisionParentAccountUseCase {
+  final RegistrarRepository _repository;
+  const ProvisionParentAccountUseCase(this._repository);
+
+  Future<Result<ProvisionStudentAccountOutcome>> call({
+    required String studentId,
+    required String firstName,
+    required String lastName,
+    required String email,
+    String? phone,
+  }) {
+    final firstNameError = Validators.required(firstName, fieldName: 'First name');
+    if (firstNameError != null) return Future.value(Error(ValidationFailure(firstNameError)));
+
+    final lastNameError = Validators.required(lastName, fieldName: 'Last name');
+    if (lastNameError != null) return Future.value(Error(ValidationFailure(lastNameError)));
+
+    final emailError = Validators.email(email);
+    if (emailError != null) return Future.value(Error(ValidationFailure(emailError)));
+
+    final phoneError = Validators.optionalPhilippineMobile(phone);
+    if (phoneError != null) return Future.value(Error(ValidationFailure(phoneError)));
+
+    return _repository.provisionParentAccount(
+      studentId: studentId,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.trim(),
+      phone: _blankToNull(phone),
+    );
+  }
+}
+
+class FindParentByEmailUseCase {
+  final RegistrarRepository _repository;
+  const FindParentByEmailUseCase(this._repository);
+
+  Future<Result<LinkedParent?>> call(String email) {
+    final emailError = Validators.email(email);
+    if (emailError != null) return Future.value(Error(ValidationFailure(emailError)));
+    return _repository.findParentByEmail(email.trim());
+  }
+}
+
+class SetParentLinkUseCase {
+  final RegistrarRepository _repository;
+  const SetParentLinkUseCase(this._repository);
+
+  Future<Result<void>> call({
+    required String parentUid,
+    required String studentId,
+    required bool linked,
+  }) {
+    if (parentUid.trim().isEmpty || studentId.trim().isEmpty) {
+      return Future.value(const Error(ValidationFailure(
+        'A parent and a student are both needed.',
+      )));
+    }
+    return _repository.setParentLink(
+      parentUid: parentUid,
+      studentId: studentId,
+      linked: linked,
+    );
+  }
+}
+
 class SetStudentBalanceUseCase {
   final RegistrarRepository _repository;
   const SetStudentBalanceUseCase(this._repository);

@@ -157,3 +157,21 @@ room, the movement log that the quantity on every item is derived from,
 and the reorder list — reachable from the Admin dashboard and from
 Staff's, next to the material requests it supplies.
 
+## Employee mobile numbers
+
+`EmployeeSummary` carried an email and no phone, so `users/{uid}.phone`
+was never set for staff either — which meant password reset by phone
+could not work for a teacher any more than it could for a student, and
+the office had no number to ring on a morning a class had nobody in front
+of it.
+
+Optional and validated, the same rule as the student record: an account
+works without a number, it just cannot be recovered by phone. The New
+Employee form asks for it, the employee detail screen shows it (and says
+plainly when it is missing), and the import gained a **Mobile Number**
+column that refuses a row rather than half-importing it.
+
+One thing worth knowing about the demo repository: `updateEmployeeInfo`
+and `setUserStatus` rebuild the whole `EmployeeSummary` rather than
+copying it, so a field left off either is a field an ordinary HR edit
+silently erases. Both carry `phone` through explicitly now.

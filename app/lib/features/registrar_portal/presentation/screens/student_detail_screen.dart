@@ -480,8 +480,358 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
               label: const Text('Create Student Portal Account'),
             ),
           ],
+          const Divider(height: 40),
+          _FamilyAccess(student: s),
         ],
       ),
+    );
+  }
+}
+
+/// Who can see this child's record, and the two ways to change that.
+///
+/// The list is read from `linkedStudentIds` -- the array every parent
+/// rule resolves against -- so this is the school's actual answer to "who
+/// can read my child's marks?", not a second list that could drift.
+///
+/// Two paths on purpose. A family new to the school gets an account
+/// created from the guardian already written on the record. A mother
+/// whose second child is enrolling is FOUND by her address and linked,
+/// because the alternative -- being told the email is taken -- is what
+/// makes an office invent a second address for one person, and then
+/// neither account shows her both children.
+class _FamilyAccess extends ConsumerStatefulWidget {
+  final StudentSummary student;
+  const _FamilyAccess({required this.student});
+
+  @override
+  ConsumerState<_FamilyAccess> createState() => _FamilyAccessState();
+}
+
+class _FamilyAccessState extends ConsumerState<_FamilyAccess> {
+  bool _busy = false;
+
+  Future<void> _run(Future<void> Function() action) async {
+    setState(() => _busy = true);
+    await action();
+    if (mounted) setState(() => _busy = false);
+  }
+
+  void _say(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showTempPassword(String name, String tempPassword) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Account created for $name'),
+        content: SelectableText(
+          'Temporary password:\n$tempPassword\n\n'
+          'Share this securely -- it will not be shown again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Creates a parent account, pre-filled from the guardian on the record.
+  Future<void> _createParent() async {
+    final guardian = widget.student.guardianContacts.firstOrNull;
+    final parts = (guardian?.name ?? '').trim().split(RegExp(r'\s+'));
+    final firstController = TextEditingController(text: parts.isEmpty ? '' : parts.first);
+    final lastController =
+        TextEditingController(text: parts.length > 1 ? parts.sublist(1).join(' ') : '');
+    final emailController = TextEditingController(text: guardian?.email ?? '');
+    final phoneController = TextEditingController(text: guardian?.phone ?? '');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Create Parent Portal Account'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'They will be able to see ${widget.student.fullName}: '
+                'attendance, grades, the statement of account, and a '
+                'message thread with their teachers.',
+                style: Theme.of(dialogContext).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: firstController,
+                decoration: const InputDecoration(labelText: 'First Name'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: lastController,
+                decoration: const InputDecoration(labelText: 'Last Name'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Mobile Number (optional)',
+                  helperText: 'Lets them reset their own password by phone.',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final notifier = ref.read(registrarActionControllerProvider.notifier);
+    await _run(() async {
+      // Checked first, because "that email is taken" is a dead end and
+      // "she already has an account, link this child to it" is not.
+      final existing = await notifier.findParentByEmail(emailController.text);
+      if (existing != null) {
+        _say('${existing.fullName} already has an account. '
+            'Use "Link an existing parent" instead.');
+        return;
+      }
+      final outcome = await notifier.provisionParentAccount(
+        studentId: widget.student.id,
+        firstName: firstController.text,
+        lastName: lastController.text,
+        email: emailController.text,
+        phone: phoneController.text,
+      );
+      if (outcome == null) {
+        final state = ref.read(registrarActionControllerProvider);
+        if (state case AsyncError(:final error)) _say(error.toString());
+        return;
+      }
+      if (mounted) {
+        _showTempPassword(
+          '${firstController.text} ${lastController.text}'.trim(),
+          outcome.tempPassword,
+        );
+      }
+    });
+  }
+
+  /// Links a parent who already has an account -- the second-child case.
+  Future<void> _linkExisting() async {
+    final emailController = TextEditingController();
+    final email = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Link an existing parent'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'For a parent who already has a login because another of '
+              'their children is enrolled here.',
+              style: Theme.of(dialogContext).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
+              decoration: const InputDecoration(labelText: 'Their email'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(emailController.text),
+            child: const Text('Find'),
+          ),
+        ],
+      ),
+    );
+    if (email == null || email.trim().isEmpty || !mounted) return;
+
+    final notifier = ref.read(registrarActionControllerProvider.notifier);
+    await _run(() async {
+      final found = await notifier.findParentByEmail(email);
+      if (found == null) {
+        _say('No parent account at this school uses that address.');
+        return;
+      }
+      if (!mounted) return;
+      // Named before confirming. Linking the wrong account hands one
+      // family another family's child, and an address alone is not enough
+      // for a person to catch that.
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Link this parent?'),
+          content: Text(
+            '${found.fullName} (${found.email}) will be able to see '
+            '${widget.student.fullName}: attendance, grades, the statement '
+            'of account, and a message thread with their teachers.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Link'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      final ok = await notifier.setParentLink(
+        parentUid: found.uid,
+        studentId: widget.student.id,
+        linked: true,
+      );
+      _say(ok ? '${found.fullName} can now see ${widget.student.fullName}.'
+              : 'Could not link that parent.');
+    });
+  }
+
+  Future<void> _unlink(LinkedParent parent) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Remove ${parent.fullName}?'),
+        content: Text(
+          parent.seesOtherChildren
+              ? 'They will stop seeing ${widget.student.fullName}. Their '
+                  'other ${parent.childCount - 1} child'
+                  '${parent.childCount - 1 == 1 ? '' : 'ren'} are unaffected.'
+              : 'This is their only child here, so their account will be '
+                  'able to sign in and see nothing.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final notifier = ref.read(registrarActionControllerProvider.notifier);
+    await _run(() async {
+      final ok = await notifier.setParentLink(
+        parentUid: parent.uid,
+        studentId: widget.student.id,
+        linked: false,
+      );
+      _say(ok
+          ? '${parent.fullName} no longer sees ${widget.student.fullName}.'
+          : 'Could not remove that parent.');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final parentsAsync = ref.watch(linkedParentsStreamProvider(widget.student.id));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Family Portal Access', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          'Parent accounts that can see this student. A guardian written on '
+          'the record above is a contact; this is a login.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        parentsAsync.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (err, _) => Text('Could not load family access: $err'),
+          data: (parents) => parents.isEmpty
+              ? Text(
+                  'Nobody. No parent can see this student yet.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(fontStyle: FontStyle.italic),
+                )
+              : Column(
+                  children: [
+                    for (final p in parents)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const CircleAvatar(child: Icon(Icons.family_restroom)),
+                        title: Text(p.fullName),
+                        subtitle: Text(
+                          [
+                            p.email,
+                            if (p.phone != null) p.phone!,
+                            if (p.seesOtherChildren)
+                              'also sees ${p.childCount - 1} other '
+                                  'child${p.childCount - 1 == 1 ? '' : 'ren'}',
+                          ].join(' · '),
+                        ),
+                        trailing: IconButton(
+                          tooltip: 'Remove access',
+                          icon: const Icon(Icons.link_off),
+                          onPressed: _busy ? null : () => _unlink(p),
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.icon(
+              onPressed: _busy ? null : _createParent,
+              icon: const Icon(Icons.person_add_alt),
+              label: const Text('Create Parent Portal Account'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _linkExisting,
+              icon: const Icon(Icons.link),
+              label: const Text('Link an existing parent'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -20,6 +20,45 @@ enum StudentStatus {
       };
 }
 
+/// A parent portal account attached to a student's record.
+///
+/// Distinct from [GuardianContact], and the difference is the whole
+/// point: a guardian contact is a name and a number written on the
+/// record, which is information. A [LinkedParent] is an account that can
+/// sign in and read this child's marks, attendance, balance and guidance
+/// summons, which is access.
+///
+/// A school will have far more of the first than the second. Most
+/// families never get a login; the ones that do got one because somebody
+/// at the office decided to give it to them, and that decision is in the
+/// audit trail.
+class LinkedParent {
+  final String uid;
+  final String firstName;
+  final String lastName;
+  final String email;
+  final String? phone;
+
+  /// How many children this account sees in total, this one included.
+  ///
+  /// Shown because unlinking the only child leaves an account that can
+  /// sign in and see nothing, and the person doing the unlinking should
+  /// know that is what they are about to do.
+  final int childCount;
+
+  const LinkedParent({
+    required this.uid,
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    required this.childCount,
+    this.phone,
+  });
+
+  String get fullName => '$firstName $lastName';
+  bool get seesOtherChildren => childCount > 1;
+}
+
 class GuardianContact {
   final String name;
   final String relationship;

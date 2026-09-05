@@ -85,12 +85,21 @@ class EmployeeListScreen extends ConsumerWidget {
     showExportImportSheet(
       context: context,
       label: 'Employees',
-      headers: const ['Last Name', 'First Name', 'Email', 'Role', 'Department', 'Position'],
+      headers: const [
+        'Last Name',
+        'First Name',
+        'Email',
+        'Mobile Number',
+        'Role',
+        'Department',
+        'Position',
+      ],
       rows: () => employees
           .map((e) => [
                 e.lastName,
                 e.firstName,
                 e.email,
+                e.phone ?? '',
                 e.role.value,
                 e.employeeInfo?.department ?? '',
                 e.employeeInfo?.position ?? '',
@@ -100,7 +109,8 @@ class EmployeeListScreen extends ConsumerWidget {
         final lastName = row[0].trim();
         final firstName = row[1].trim();
         final email = row[2].trim();
-        final roleValue = row[3].trim().toLowerCase();
+        final phone = row[3].trim();
+        final roleValue = row[4].trim().toLowerCase();
 
         if (lastName.isEmpty || firstName.isEmpty) {
           return ImportIssue(rowNumber, 'First and last name are required.');
@@ -109,6 +119,14 @@ class EmployeeListScreen extends ConsumerWidget {
         // accounts the UI would have refused.
         final emailError = Validators.email(email);
         if (emailError != null) return ImportIssue(rowNumber, emailError);
+
+        // Optional, and refused when present and unusable -- a number the
+        // password reset cannot match recovers nothing, and a file of
+        // three hundred staff is exactly where that goes unnoticed.
+        final phoneError = Validators.optionalPhilippineMobile(phone);
+        if (phoneError != null) {
+          return ImportIssue(rowNumber, 'Mobile number for $firstName $lastName: $phoneError');
+        }
 
         final role = UserRole.values.where((r) => r.value == roleValue).firstOrNull;
         if (role == null) return ImportIssue(rowNumber, 'Unknown role "$roleValue".');
@@ -122,9 +140,10 @@ class EmployeeListScreen extends ConsumerWidget {
           firstName: firstName,
           lastName: lastName,
           email: email,
+          phone: phone.isEmpty ? null : phone,
           role: role,
-          department: row.length > 4 ? row[4].trim() : '',
-          position: row.length > 5 ? row[5].trim() : '',
+          department: row.length > 5 ? row[5].trim() : '',
+          position: row.length > 6 ? row[6].trim() : '',
         );
       },
       onImport: (records) async {
@@ -141,6 +160,7 @@ class EmployeeListScreen extends ConsumerWidget {
             firstName: r.firstName,
             lastName: r.lastName,
             email: r.email,
+            phone: r.phone,
             employeeInfo: r.department.isEmpty && r.position.isEmpty
                 ? null
                 : EmployeeInfo(
@@ -160,6 +180,7 @@ class EmployeeListScreen extends ConsumerWidget {
     final firstNameController = TextEditingController();
     final lastNameController = TextEditingController();
     final emailController = TextEditingController();
+    final phoneController = TextEditingController();
     final departmentController = TextEditingController();
     final positionController = TextEditingController();
     final assignedDepartmentController = TextEditingController();
@@ -211,6 +232,17 @@ class EmployeeListScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Mobile Number (optional)',
+                    hintText: '09171234567',
+                    helperText: 'Lets them reset their own password by phone, '
+                        'and lets the office ring them.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
                   controller: departmentController,
                   decoration: const InputDecoration(labelText: 'Department (optional)'),
                 ),
@@ -258,6 +290,7 @@ class EmployeeListScreen extends ConsumerWidget {
                       firstName: firstNameController.text,
                       lastName: lastNameController.text,
                       email: emailController.text,
+                      phone: phoneController.text,
                       employeeInfo: !hasEmployeeInfo
                           ? null
                           : EmployeeInfo(
@@ -314,6 +347,7 @@ class _EmployeeImportRow {
   final String firstName;
   final String lastName;
   final String email;
+  final String? phone;
   final UserRole role;
   final String department;
   final String position;
@@ -322,6 +356,7 @@ class _EmployeeImportRow {
     required this.firstName,
     required this.lastName,
     required this.email,
+    required this.phone,
     required this.role,
     required this.department,
     required this.position,

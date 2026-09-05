@@ -13,6 +13,7 @@ export {resetPasswordAdmin} from "./callable/users/resetPasswordAdmin";
 export {resetPasswordByPhone} from "./callable/users/resetPasswordByPhone";
 export {clearForcePasswordChangeFlag} from "./callable/users/clearForcePasswordChangeFlag";
 export {setUserStatus} from "./callable/users/setUserStatus";
+export {setParentLink} from "./callable/users/setParentLink";
 
 // ---------------------------------------------------------------------------
 // Module: Owner Portal / Subscription Billing

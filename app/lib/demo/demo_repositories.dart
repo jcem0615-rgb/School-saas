@@ -848,6 +848,7 @@ class DemoAdminRepository implements AdminRepository {
     required String firstName,
     required String lastName,
     required String email,
+    String? phone,
     EmployeeInfo? employeeInfo,
   }) async {
     await _latency(600);
@@ -862,6 +863,7 @@ class DemoAdminRepository implements AdminRepository {
         firstName: firstName,
         lastName: lastName,
         email: email,
+        phone: phone,
         role: role,
         status: UserAccountStatus.active,
         employeeInfo: employeeInfo,
@@ -872,7 +874,7 @@ class DemoAdminRepository implements AdminRepository {
       action: 'create',
       targetCollection: 'users',
       targetId: uid,
-      newValue: {'role': role.value, 'email': email},
+      newValue: {'role': role.value, 'email': email, 'phone': phone},
     );
     return Success(CreateEmployeeOutcome(uid: uid, tempPassword: _tempPassword()));
   }
@@ -891,6 +893,12 @@ class DemoAdminRepository implements AdminRepository {
         firstName: e.firstName,
         lastName: e.lastName,
         email: e.email,
+        // Carried through explicitly. This rebuilds the whole record
+        // rather than copying it, so a field left off here is a field an
+        // HR edit silently erases -- and losing the number would be
+        // noticed only by the person who could no longer reset their own
+        // password.
+        phone: e.phone,
         role: e.role,
         status: e.status,
         photoUrl: e.photoUrl,
@@ -918,6 +926,7 @@ class DemoAdminRepository implements AdminRepository {
         firstName: e.firstName,
         lastName: e.lastName,
         email: e.email,
+        phone: e.phone,
         role: e.role,
         status: active ? UserAccountStatus.active : UserAccountStatus.suspended,
         photoUrl: e.photoUrl,
@@ -2023,6 +2032,106 @@ class DemoRegistrarRepository implements RegistrarRepository {
       uid: uid,
       tempPassword: 'Temp${n.toString().padLeft(4, '0')}',
     ));
+  }
+
+  @override
+  Stream<List<LinkedParent>> watchLinkedParents(String studentId) {
+    return _store.parentLinks.stream.map((links) {
+      final uids = links.entries
+          .where((e) => e.value.contains(studentId))
+          .map((e) => e.key)
+          .toSet();
+      return _store.parentAccounts.value
+          .where((p) => uids.contains(p.uid))
+          .map((p) => LinkedParent(
+                uid: p.uid,
+                firstName: p.firstName,
+                lastName: p.lastName,
+                email: p.email,
+                phone: p.phone,
+                childCount: links[p.uid]?.length ?? 0,
+              ))
+          .toList()
+        ..sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+    });
+  }
+
+  @override
+  Future<Result<ProvisionStudentAccountOutcome>> provisionParentAccount({
+    required String studentId,
+    required String firstName,
+    required String lastName,
+    required String email,
+    String? phone,
+  }) async {
+    await _latency(600);
+    final existing = _store.parentAccounts.value
+        .where((p) => p.email.toLowerCase() == email.trim().toLowerCase())
+        .firstOrNull;
+    if (existing != null) {
+      // The same refusal provisionUser gives, and the reason the screen
+      // offers to link an existing parent before it offers to create one.
+      return const Error(ValidationFailure('An account with this email already exists.'));
+    }
+    final uid = _store.nextId('u');
+    _store.prepend(
+      _store.parentAccounts,
+      DemoParentAccount(
+        uid: uid,
+        firstName: firstName,
+        lastName: lastName,
+        email: email.trim(),
+        phone: phone,
+      ),
+    );
+    _store.setParentLink(parentUid: uid, studentId: studentId, linked: true);
+    _store.audit(
+      module: 'users',
+      action: 'create',
+      targetCollection: 'users',
+      targetId: uid,
+      newValue: {'role': 'parent', 'email': email, 'linkedStudentIds': [studentId]},
+    );
+    final n = DateTime.now().millisecondsSinceEpoch % 10000;
+    return Success(ProvisionStudentAccountOutcome(
+      uid: uid,
+      tempPassword: 'Temp${n.toString().padLeft(4, '0')}',
+    ));
+  }
+
+  @override
+  Future<Result<LinkedParent?>> findParentByEmail(String email) async {
+    await _latency();
+    final wanted = email.trim().toLowerCase();
+    final match =
+        _store.parentAccounts.value.where((p) => p.email.toLowerCase() == wanted).firstOrNull;
+    if (match == null) return const Success(null);
+    return Success(LinkedParent(
+      uid: match.uid,
+      firstName: match.firstName,
+      lastName: match.lastName,
+      email: match.email,
+      phone: match.phone,
+      childCount: _store.parentLinks.value[match.uid]?.length ?? 0,
+    ));
+  }
+
+  @override
+  Future<Result<void>> setParentLink({
+    required String parentUid,
+    required String studentId,
+    required bool linked,
+  }) async {
+    await _latency();
+    _store.setParentLink(parentUid: parentUid, studentId: studentId, linked: linked);
+    _store.audit(
+      module: 'users',
+      action: linked ? 'link_parent' : 'unlink_parent',
+      targetCollection: 'users',
+      targetId: parentUid,
+      newValue: {'studentId': studentId},
+    );
+    return const Success(null);
   }
 }
 

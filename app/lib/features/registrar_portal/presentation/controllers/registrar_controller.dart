@@ -81,6 +81,16 @@ final studentGradesStreamProvider =
   return WatchStudentGradesUseCase(ref.watch(registrarRepositoryProvider))(studentId);
 });
 
+/// The parent accounts that can see one student.
+///
+/// Read straight from `linkedStudentIds` -- the array every parent rule
+/// resolves against -- so the screen shows who can actually read this
+/// child's record, not a list that could drift from it.
+final linkedParentsStreamProvider =
+    StreamProvider.autoDispose.family<List<LinkedParent>, String>((ref, studentId) {
+  return WatchLinkedParentsUseCase(ref.watch(registrarRepositoryProvider))(studentId);
+});
+
 /// What has already been handed out for one student, newest first.
 final documentReleasesStreamProvider =
     StreamProvider.autoDispose.family<List<DocumentRelease>, String>((ref, studentId) {
@@ -97,6 +107,9 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
   final RegisterStudentUseCase _registerStudent;
   final UpdateStudentUseCase _updateStudent;
   final ProvisionStudentAccountUseCase _provisionStudentAccount;
+  final ProvisionParentAccountUseCase _provisionParentAccount;
+  final FindParentByEmailUseCase _findParentByEmail;
+  final SetParentLinkUseCase _setParentLink;
   final SetStudentBalanceUseCase _setStudentBalance;
   final SetStudentPhotoUseCase _setStudentPhoto;
   final RecordDocumentReleaseUseCase _recordDocumentRelease;
@@ -106,6 +119,9 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     required RegisterStudentUseCase registerStudent,
     required UpdateStudentUseCase updateStudent,
     required ProvisionStudentAccountUseCase provisionStudentAccount,
+    required ProvisionParentAccountUseCase provisionParentAccount,
+    required FindParentByEmailUseCase findParentByEmail,
+    required SetParentLinkUseCase setParentLink,
     required SetStudentBalanceUseCase setStudentBalance,
     required SetStudentPhotoUseCase setStudentPhoto,
     required RecordDocumentReleaseUseCase recordDocumentRelease,
@@ -113,6 +129,9 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
   })  : _registerStudent = registerStudent,
         _updateStudent = updateStudent,
         _provisionStudentAccount = provisionStudentAccount,
+        _provisionParentAccount = provisionParentAccount,
+        _findParentByEmail = findParentByEmail,
+        _setParentLink = setParentLink,
         _setStudentBalance = setStudentBalance,
         _setStudentPhoto = setStudentPhoto,
         _recordDocumentRelease = recordDocumentRelease,
@@ -256,6 +275,68 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     return null;
   }
 
+  Future<ProvisionStudentAccountOutcome?> provisionParentAccount({
+    required String studentId,
+    required String firstName,
+    required String lastName,
+    required String email,
+    String? phone,
+  }) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _provisionParentAccount(
+      studentId: studentId,
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      phone: phone,
+    );
+    if (result case Success(:final value)) {
+      if (mounted) state = const AsyncData(null);
+      return value;
+    } else if (result case Error(:final failure)) {
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
+    }
+    return null;
+  }
+
+  /// Whether a parent account with this address already exists.
+  ///
+  /// Returns the account rather than a bare bool so the screen can name
+  /// who it found. "Rosario Torres already has an account -- link this
+  /// child to it?" is answerable; "that email is taken" is not, and is
+  /// what makes an office create a second account for one mother.
+  Future<LinkedParent?> findParentByEmail(String email) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _findParentByEmail(email);
+    if (result case Success(:final value)) {
+      if (mounted) state = const AsyncData(null);
+      return value;
+    } else if (result case Error(:final failure)) {
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
+    }
+    return null;
+  }
+
+  Future<bool> setParentLink({
+    required String parentUid,
+    required String studentId,
+    required bool linked,
+  }) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _setParentLink(
+      parentUid: parentUid,
+      studentId: studentId,
+      linked: linked,
+    );
+    if (result case Success()) {
+      if (mounted) state = const AsyncData(null);
+      return true;
+    } else if (result case Error(:final failure)) {
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
+    }
+    return false;
+  }
+
   Future<bool> updateStudent({
     required String studentId,
     required String firstName,
@@ -320,6 +401,9 @@ final registrarActionControllerProvider =
     registerStudent: RegisterStudentUseCase(repo),
     updateStudent: UpdateStudentUseCase(repo),
     provisionStudentAccount: ProvisionStudentAccountUseCase(repo),
+    provisionParentAccount: ProvisionParentAccountUseCase(repo),
+    findParentByEmail: FindParentByEmailUseCase(repo),
+    setParentLink: SetParentLinkUseCase(repo),
     setStudentBalance: SetStudentBalanceUseCase(repo),
     setStudentPhoto: SetStudentPhotoUseCase(repo),
     recordDocumentRelease: RecordDocumentReleaseUseCase(repo),

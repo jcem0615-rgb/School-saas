@@ -9,6 +9,7 @@ class EmployeeSummaryModel extends EmployeeSummary {
     required super.firstName,
     required super.lastName,
     required super.email,
+    super.phone,
     required super.role,
     required super.status,
     super.photoUrl,
@@ -23,6 +24,13 @@ class EmployeeSummaryModel extends EmployeeSummary {
       firstName: data['firstName'] as String? ?? '',
       lastName: data['lastName'] as String? ?? '',
       email: data['email'] as String? ?? '',
+      // Absent on every account provisioned before this field existed,
+      // and null rather than '' when the office has none -- so "which
+      // staff cannot recover their own account?" stays answerable.
+      phone: switch (data['phone']) {
+        final String p when p.trim().isNotEmpty => p.trim(),
+        _ => null,
+      },
       role: UserRole.fromString(data['role'] as String),
       status: UserAccountStatus.fromString(data['status'] as String? ?? 'active'),
       photoUrl: data['photoUrl'] as String?,

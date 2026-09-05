@@ -226,11 +226,22 @@ service cloud.firestore {
         // security-sensitive fields (role, status, mustChangePassword,
         // schoolId) are still excluded here too -- those require the
         // dedicated callable functions so every role change is audited.
+        //
+        // linkedStudentIds is on that list for the same reason and is the
+        // least obvious member of it. On a parent account that array IS
+        // the access: every parent read below -- grades, attendance, the
+        // statement, guidance summons, emergency alerts, the messaging
+        // thread -- resolves to "is this studentId in it?". Adding an id
+        // hands one family sight of another family's child, and nothing
+        // on either screen looks unusual afterwards. setParentLink.ts is
+        // the only writer, so the change is checked and lands in the
+        // audit trail with a name against it.
         allow update: if hasRole(schoolId, ['director', 'admin'])
                         && schoolIsAccessible(schoolId)
                         && !request.resource.data.diff(resource.data)
                               .affectedKeys()
-                              .hasAny(['role', 'schoolId', 'status', 'mustChangePassword']);
+                              .hasAny(['role', 'schoolId', 'status',
+                                       'mustChangePassword', 'linkedStudentIds']);
 
         // Creation and hard security-field changes only via Admin SDK
         // (provisionUser, resetPasswordAdmin, clearForcePasswordChangeFlag).

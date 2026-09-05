@@ -44,6 +44,7 @@ class AdminRepositoryImpl implements AdminRepository {
     required String firstName,
     required String lastName,
     required String email,
+    String? phone,
     EmployeeInfo? employeeInfo,
   }) async {
     try {
@@ -52,6 +53,7 @@ class AdminRepositoryImpl implements AdminRepository {
         firstName: firstName,
         lastName: lastName,
         email: email,
+        phone: phone,
         employeeInfo: employeeInfo == null ? null : _employeeInfoToMap(employeeInfo),
       );
       return Success(CreateEmployeeOutcome(

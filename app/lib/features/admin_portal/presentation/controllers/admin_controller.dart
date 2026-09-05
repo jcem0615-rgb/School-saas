@@ -107,6 +107,7 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
     required String firstName,
     required String lastName,
     required String email,
+    String? phone,
     EmployeeInfo? employeeInfo,
   }) async {
     if (mounted) state = const AsyncLoading();
@@ -115,6 +116,7 @@ class AdminActionController extends StateNotifier<AsyncValue<CreateEmployeeOutco
       firstName: firstName,
       lastName: lastName,
       email: email,
+      phone: phone,
       employeeInfo: employeeInfo,
     );
     if (mounted) state = switch (result) {

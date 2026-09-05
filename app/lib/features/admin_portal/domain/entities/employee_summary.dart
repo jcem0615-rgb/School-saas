@@ -40,6 +40,18 @@ class EmployeeSummary {
   final String firstName;
   final String lastName;
   final String email;
+
+  /// The employee's mobile number, as the office wrote it down.
+  ///
+  /// Optional, but the thing that makes a staff account recoverable: a
+  /// password reset by phone matches against this. Without it the only
+  /// way back into a locked-out teacher's account is an administrator
+  /// resetting it by hand.
+  ///
+  /// Also the number the school rings on a day a class has no teacher in
+  /// front of it, which is the more common use and the one people notice.
+  final String? phone;
+
   final UserRole role;
   final UserAccountStatus status;
   final String? photoUrl;
@@ -50,6 +62,7 @@ class EmployeeSummary {
     required this.firstName,
     required this.lastName,
     required this.email,
+    this.phone,
     required this.role,
     required this.status,
     this.photoUrl,
