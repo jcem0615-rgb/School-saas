@@ -197,6 +197,24 @@ could make that grant with a client write that nothing recorded.
 one worth stating: an admin cannot smuggle the field through inside an
 edit that is otherwise allowed.
 
+Two suites cover the callable itself:
+
+- `functions/test/shared/users/parentLinks.test.ts` — the array
+  arithmetic, pure. Order, duplicates, blanks, and the inverse property.
+- `functions/test/shared/users-emulator/setParentLink.test.ts` — the
+  callable against a real Firestore, wrapped with `firebase-functions-test`.
+  Everything the pure function cannot see: who may call, what the records
+  must look like first, what actually lands in the document, and what the
+  audit trail ends up holding. It needs the emulator, so it runs under
+  `npm run test:emulator`, not `npm test`.
+
+The emulator suite passed on its first run, so each assertion was checked
+by mutating the source and confirming the failure: removing the role gate
+fails 2, removing the same-school check fails 1, removing the no-op
+short-circuit fails 3, removing the parent-role check fails 2, and
+ignoring `isDeleted` on the student fails 1. A test that has never been
+seen to fail is a test nobody should believe.
+
 ## Contact details
 
 Parent accounts carry a `phone` like every other account now, written by
