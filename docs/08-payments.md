@@ -691,3 +691,39 @@ a narrower, less-traveled path than ordinary list queries.
 - Payment/refund reporting and PDF/Excel export — Reports & Documents modules.
 - Statement of Account view for Parents — reuses `PaymentHistoryScreen`
   directly; wired up when the Parent Portal module is built.
+
+## Tests behind the money
+
+`balance` is server-owned: every callable that moves it re-reads the
+student inside a transaction and recomputes from what it finds. The client
+never supplies the figure. That is the guarantee the whole module rests
+on, and until now nothing tested it against a real database.
+
+- `functions/test/shared/payments/` — the arithmetic, pure. Balance math,
+  billing schedules, discounts, subsidies.
+- `functions/test/shared/payments-emulator/officialReceipt.test.ts` — the
+  BIR serial claim under contention.
+- `functions/test/shared/payments-emulator/moneyCallables.test.ts` — the
+  four callables that move a balance (`recordPayment`, `recordRefund`,
+  `assessStudentFees`, `voidAssessment`) against a real Firestore. 27
+  tests.
+
+The two that matter most are the ones a mock cannot express, because both
+are silent failures — nothing errors, both screens look right, and the
+discrepancy surfaces weeks later when a family is charged for a payment
+they made:
+
+- **five cashiers taking a payment at once** must leave the balance down
+  by all five amounts, not by whichever wrote last;
+- **one refund clicked four times** must return the money once.
+
+There is also an end-to-end assertion that the ledger and the balance
+agree after a mixed run — two charges, two payments, a refund and a void
+— because those four are the only things that touch the balance and any
+pair of them getting out of step is invisible until somebody asks.
+
+Mutation-checked rather than trusted: moving the balance read from inside
+the transaction to the snapshot taken before it fails exactly one test,
+"two cashiers at once take both amounts off" — which is the test that
+exists for it. Removing the in-transaction already-refunded guard fails
+the double-refund test.
