@@ -139,6 +139,20 @@ class Applicant {
   final String guardianPhone;
   final String? guardianEmail;
 
+  /// The applicant's own address and number.
+  ///
+  /// Both optional, because a Grade 1 applicant has neither and a form
+  /// that insists gets an invented answer. A Senior High or College
+  /// applicant has both, and they are the person the school is actually
+  /// talking to.
+  ///
+  /// They are also the only route by which a student who arrived through
+  /// admissions ever gets contact details: `enrolApplicant` copies these
+  /// onto the student record, and a student with no email on file cannot
+  /// be given a portal account at all.
+  final String? email;
+  final String? phone;
+
   /// Where they heard about the school. The single most useful field on
   /// this record for a school deciding where to spend next year's
   /// advertising, and the one nobody records anywhere today.
@@ -186,6 +200,8 @@ class Applicant {
     this.programId,
     this.programName,
     this.guardianEmail,
+    this.email,
+    this.phone,
     this.source,
     this.examScheduledFor,
     this.examScore,

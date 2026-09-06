@@ -1435,6 +1435,8 @@ class DemoAdmissionsRepository implements AdmissionsRepository {
     required String guardianName,
     required String guardianPhone,
     String? guardianEmail,
+    String? email,
+    String? phone,
     String? source,
     String? notes,
   }) async {
@@ -1455,6 +1457,9 @@ class DemoAdmissionsRepository implements AdmissionsRepository {
           guardianName: guardianName,
           guardianPhone: guardianPhone,
           guardianEmail: guardianEmail,
+          setContact: true,
+          email: email,
+          phone: phone,
           source: source,
           notes: notes,
         ),
@@ -1487,6 +1492,8 @@ class DemoAdmissionsRepository implements AdmissionsRepository {
         guardianName: guardianName,
         guardianPhone: guardianPhone,
         guardianEmail: guardianEmail,
+        email: email,
+        phone: phone,
         source: source,
         notes: notes,
         stage: AdmissionStage.inquiry,
@@ -1607,6 +1614,12 @@ class DemoAdmissionsRepository implements AdmissionsRepository {
         balance: applicant.reservationFeePaid > 0 ? -applicant.reservationFeePaid : 0,
         enrollmentDate: DateTime.now(),
         birthDate: birthDate,
+        // Carried across from the enquiry, the same as the real
+        // enrolApplicant does. Dropping them here would make the demo
+        // show a tidier outcome than the product delivers -- an enrolled
+        // student who looks contactable and is not.
+        email: applicant.email,
+        phone: applicant.phone,
         guardianContacts: [
           GuardianContact(
             name: applicant.guardianName,
@@ -1656,6 +1669,13 @@ Applicant _copyApplicant(
   String? guardianName,
   String? guardianPhone,
   String? guardianEmail,
+  // The contact pair cannot use the `?? a.x` idiom the rest of this
+  // helper uses. Null there means "leave it alone", and clearing a wrong
+  // address is a thing the edit screen must be able to do. So the caller
+  // says explicitly that it is setting them, and null then means null.
+  bool setContact = false,
+  String? email,
+  String? phone,
   String? source,
   String? notes,
   AdmissionStage? stage,
@@ -1681,6 +1701,8 @@ Applicant _copyApplicant(
       guardianName: guardianName ?? a.guardianName,
       guardianPhone: guardianPhone ?? a.guardianPhone,
       guardianEmail: guardianEmail ?? a.guardianEmail,
+      email: setContact ? email : a.email,
+      phone: setContact ? phone : a.phone,
       source: source ?? a.source,
       stage: stage ?? a.stage,
       inquiredAt: a.inquiredAt,

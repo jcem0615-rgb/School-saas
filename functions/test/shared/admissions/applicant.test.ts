@@ -110,6 +110,64 @@ describe("validateApplicant", () => {
       .toThrow(/not a lead/);
   });
 
+  it("insists the number is one that could actually be rung", () => {
+    // The field was mandatory but unchecked, so "0" satisfied it. The
+    // whole justification for making it mandatory is that somebody can
+    // be rung back, and a row with "0" in it is the row this validator
+    // exists to refuse, wearing a disguise.
+    for (const bad of ["0", "12", "asdf", "555-0100", "n/a"]) {
+      expect(() => validateApplicant({...enquiry, guardianPhone: bad}))
+        .toThrow(/not a mobile number this system can read/);
+    }
+  });
+
+  it("accepts every shape a Philippine number is written in", () => {
+    for (const shape of [
+      "09171234567",
+      "+639171234567",
+      "9171234567",
+      "0917 123 4567",
+      "(0917) 123-4567",
+    ]) {
+      const saved = validateApplicant({...enquiry, guardianPhone: shape});
+      // Stored as typed. The office reads this back to a family.
+      expect(saved.guardianPhone).toBe(shape);
+    }
+  });
+
+  it("refuses a guardian address that would be copied onto a student", () => {
+    // At enrolment this lands on the student record as a guardian
+    // contact. An address accepted here is one the student form and the
+    // student import would both have refused -- admissions was the back
+    // door around them.
+    expect(() => validateApplicant({...enquiry, guardianEmail: "alma@gmailcom"}))
+      .toThrow(/not a valid email address for the guardian/);
+    expect(validateApplicant({...enquiry, guardianEmail: "  Alma@Gmail.com "}).guardianEmail)
+      .toBe("alma@gmail.com");
+  });
+
+  it("takes the applicant's own email and number, and refuses a bad one", () => {
+    // A Grade 1 applicant has neither, which is why they are optional. A
+    // Senior High applicant has both, and they are the person the school
+    // is actually talking to.
+    const none = validateApplicant(enquiry);
+    expect(none.email).toBeNull();
+    expect(none.phone).toBeNull();
+
+    const both = validateApplicant({
+      ...enquiry,
+      email: "Bea.Marquez@student.school.edu.ph",
+      phone: "+63 918 555 0100",
+    });
+    expect(both.email).toBe("bea.marquez@student.school.edu.ph");
+    expect(both.phone).toBe("+63 918 555 0100");
+
+    expect(() => validateApplicant({...enquiry, email: "bea@gmailcom"}))
+      .toThrow(/not a valid email address for the applicant/);
+    expect(() => validateApplicant({...enquiry, phone: "12"}))
+      .toThrow(/not a mobile number this system can read/);
+  });
+
   it("insists on which year they are applying into", () => {
     expect(() => validateApplicant({...enquiry, gradeLevel: ""}))
       .toThrow(/year they are applying into/);

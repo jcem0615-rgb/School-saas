@@ -182,6 +182,14 @@ export const enrolApplicant = onCall(
         status: "enrolled",
         enrollmentDate: admin.firestore.FieldValue.serverTimestamp(),
         birthDate: admin.firestore.Timestamp.fromDate(birthDate),
+        // Carried across from the enquiry. Without these two the student
+        // record arrives blank in exactly the fields the school spent the
+        // whole admissions process collecting -- and a student with no
+        // email on file cannot be given a portal account at all, because
+        // the Registrar screen refuses to create one against an address
+        // nobody wrote down.
+        email: (applicant.email as string | null) ?? null,
+        phone: (applicant.phone as string | null) ?? null,
         guardianContacts: applicant.guardianName ?
           [
             {

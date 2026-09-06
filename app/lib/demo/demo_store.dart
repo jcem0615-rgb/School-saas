@@ -1995,6 +1995,12 @@ class DemoStore {
       double? examMaxScore,
       double reservationPaid = 0,
       String? studentId,
+      String? guardianEmail,
+      // The applicant's own. A Grade 7 enquiry usually has neither; a
+      // Senior High one usually has both, and at enrolment they become
+      // the student's own contact details.
+      String? email,
+      String? phone,
     }) =>
         Applicant(
           id: id,
@@ -2005,6 +2011,9 @@ class DemoStore {
           gradeLevel: gradeLevel,
           guardianName: guardian,
           guardianPhone: '0917${1000000 + id.hashCode.abs() % 8999999}',
+          guardianEmail: guardianEmail,
+          email: email,
+          phone: phone,
           source: source,
           stage: stage,
           inquiredAt: _daysAgo(inquiredDaysAgo),
@@ -2057,6 +2066,12 @@ class DemoStore {
         stageDaysAgo: 12,
         source: 'Referral from a parent',
         guardian: 'Nestor Reyes',
+        guardianEmail: 'nestor.reyes@gmail.com',
+        // Senior High: old enough to have her own, and the reason the
+        // fields exist. Enrol her in the demo and the student record
+        // arrives contactable.
+        email: 'lian.reyes@student.demo.ph',
+        phone: '0918 555 0134',
       ),
       one(
         id: 'app_004',

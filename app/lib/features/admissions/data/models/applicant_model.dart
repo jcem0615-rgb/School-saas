@@ -20,6 +20,8 @@ class ApplicantModel extends Applicant {
     super.programId,
     super.programName,
     super.guardianEmail,
+    super.email,
+    super.phone,
     super.source,
     super.examScheduledFor,
     super.examScore,
@@ -53,7 +55,12 @@ class ApplicantModel extends Applicant {
       programName: data['programName'] as String?,
       guardianName: data['guardianName'] as String? ?? '',
       guardianPhone: data['guardianPhone'] as String? ?? '',
-      guardianEmail: data['guardianEmail'] as String?,
+      guardianEmail: _trimmedOrNull(data['guardianEmail']),
+      // Absent on every enquiry taken before these fields existed, and
+      // null rather than '' when the family gave none -- so "which
+      // applicants have no way to be reached?" stays answerable.
+      email: _trimmedOrNull(data['email']),
+      phone: _trimmedOrNull(data['phone']),
       source: data['source'] as String?,
       stage: AdmissionStage.fromString(data['stage'] as String? ?? ''),
       inquiredAt: inquired,
@@ -69,4 +76,11 @@ class ApplicantModel extends Applicant {
       lastUpdatedByName: data['lastUpdatedByName'] as String?,
     );
   }
+
+  static String? _trimmedOrNull(Object? raw) {
+    if (raw is! String) return null;
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
 }

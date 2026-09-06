@@ -146,3 +146,53 @@ would be the tidier move and is not done here: `registerStudent` has no
 server-side tests behind it, and refactoring the one path every student
 record in the system goes through, to save a dozen lines, is not a trade
 worth making.
+
+## Contact details, and what enrolment carries across
+
+Two problems, checked for after the student record grew its own `email`
+and `phone`. The second was created by that change.
+
+**The guardian's number was mandatory and unchecked.** `validateApplicant`
+required it to be non-empty and nothing more, so `"0"` satisfied it — and
+the only justification for making the field mandatory is that somebody can
+be rung back. It now goes through the same `normalizePhone` the password
+reset matches against, so a number that is accepted is a number that
+works. The guardian's email was not checked either, which mattered more
+than it looks: at enrolment it is copied onto the student record as a
+guardian contact, so admissions was the back door around the validation on
+the student form and the student import.
+
+**The applicant had no email or phone of their own**, and
+`enrolApplicant` therefore wrote a student with neither. A school that had
+been talking to a family for six weeks produced a student record with no
+way to reach them — and, because the Registrar screen refuses to create a
+portal account against an address nobody wrote down, a student who could
+not be given a login at all. Both are on the applicant now, both optional
+(a Grade 1 applicant has neither; a Senior High applicant has both), both
+validated, and both carried onto the student record at enrolment.
+
+`enrolApplicant` writes `null` rather than leaving the fields absent when
+the family gave none, so "no contact on file" reads the same whether the
+student arrived through admissions or through the registration form.
+
+## Tests
+
+- `functions/test/shared/admissions/applicant.test.ts` — the stage
+  arithmetic and the field validation, pure. 26 tests.
+- `functions/test/shared/admissions-emulator/applicantFlow.test.ts` — the
+  three callables against a real Firestore, wrapped with
+  `firebase-functions-test`. 24 tests: who may call, what the records must
+  look like first, what lands in the document, and the case the module is
+  shaped around — five simultaneous clicks on Enrol producing one student
+  record rather than two ledgers and two report cards for one child. Needs
+  the emulator, so it runs under `npm run test:emulator`.
+- `app/test/smoke/applicant_contact_test.dart` — the client half, end to
+  end through the demo repositories.
+
+The emulator suite passed on its first run, so each claim was checked by
+mutating the source: removing the contact carry in `enrolApplicant` fails
+2, removing the guardian-phone check fails 1, and removing the
+in-transaction `studentId` guard fails 1. The Dart suite earned its place
+differently — it caught a real wiring bug the analyzer could not see, with
+the controller accepting `email` and `phone` and silently never forwarding
+them to the use case.

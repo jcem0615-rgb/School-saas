@@ -1,4 +1,6 @@
 import {HttpsError} from "firebase-functions/v2/https";
+import {normalizeEmail} from "../students/contactDetails";
+import {normalizePhone} from "../auth/phone";
 
 export const ADMISSION_STAGES = [
   "inquiry",
@@ -110,6 +112,18 @@ export interface ApplicantData {
   guardianName?: string;
   guardianPhone?: string;
   guardianEmail?: string;
+  /**
+   * The applicant's own address and number.
+   *
+   * Both optional, because a Grade 1 applicant has neither. A Senior High
+   * or College applicant has both, and they are the person the school
+   * will actually be talking to -- and at enrolment these become the
+   * student record's own contact details, which is the only route by
+   * which a student who arrived through admissions can ever be given a
+   * portal account or recover it by phone.
+   */
+  email?: string;
+  phone?: string;
   source?: string;
   notes?: string;
 }
@@ -124,7 +138,10 @@ export interface ApplicantData {
  * exists to stop.
  *
  * What it does insist on is a name and a way to ring them back. An
- * applicant nobody can contact is not a lead, it is a row.
+ * applicant nobody can contact is not a lead, it is a row -- and a number
+ * that is not a number is the same row wearing a disguise, which is why
+ * the guardian's phone is checked against the same matcher the rest of
+ * the system uses rather than merely checked for being non-empty.
  */
 export function validateApplicant(data: ApplicantData): Record<string, unknown> {
   const firstName = String(data.firstName ?? "").trim();
@@ -140,6 +157,50 @@ export function validateApplicant(data: ApplicantData): Record<string, unknown> 
       "invalid-argument",
       "A parent or guardian and a number to ring them on are required. An " +
         "applicant nobody can contact is not a lead."
+    );
+  }
+  // Required AND usable. "0" satisfies non-empty and rings nobody, and
+  // the whole justification for making this field mandatory is that
+  // somebody can be rung back -- so the check has to mean it.
+  if (!normalizePhone(guardianPhone)) {
+    throw new HttpsError(
+      "invalid-argument",
+      `"${guardianPhone}" is not a mobile number this system can read. Use ` +
+        "09171234567, +639171234567, or 9171234567."
+    );
+  }
+
+  // Optional, and checked when given. This one goes further than the
+  // record: at enrolment it is copied onto the student as a guardian
+  // contact, so an address accepted here is an address the student form
+  // and the student import would both have refused.
+  const rawGuardianEmail = String(data.guardianEmail ?? "").trim();
+  const guardianEmail = rawGuardianEmail ? normalizeEmail(rawGuardianEmail) : null;
+  if (rawGuardianEmail && !guardianEmail) {
+    throw new HttpsError(
+      "invalid-argument",
+      `"${rawGuardianEmail}" is not a valid email address for the guardian.`
+    );
+  }
+
+  // The applicant's own. Becomes the student's at enrolment, and the
+  // student's email is what a portal account gets created against.
+  const rawEmail = String(data.email ?? "").trim();
+  const email = rawEmail ? normalizeEmail(rawEmail) : null;
+  if (rawEmail && !email) {
+    throw new HttpsError(
+      "invalid-argument",
+      `"${rawEmail}" is not a valid email address for the applicant. This ` +
+        "becomes their sign-in if they enrol."
+    );
+  }
+
+  const phone = String(data.phone ?? "").trim();
+  if (phone && !normalizePhone(phone)) {
+    throw new HttpsError(
+      "invalid-argument",
+      `"${phone}" is not a mobile number this system can read. Use ` +
+        "09171234567, +639171234567, or 9171234567."
     );
   }
 
@@ -161,7 +222,12 @@ export function validateApplicant(data: ApplicantData): Record<string, unknown> 
     programName: String(data.programName ?? "").trim() || null,
     guardianName,
     guardianPhone,
-    guardianEmail: String(data.guardianEmail ?? "").trim() || null,
+    guardianEmail,
+    email,
+    // Kept as typed, not normalised: "+63 917 555 0100" is what the
+    // office reads back to a family. What is checked is that the matcher
+    // can read it, so the stored form and the matched form agree.
+    phone: phone || null,
     source: String(data.source ?? "").trim() || null,
     notes: String(data.notes ?? "").trim() || null,
   };

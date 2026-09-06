@@ -37,6 +37,8 @@ class _ApplicantDetailScreenState extends ConsumerState<ApplicantDetailScreen> {
       TextEditingController(text: widget.applicant?.guardianPhone ?? '');
   late final _guardianEmail =
       TextEditingController(text: widget.applicant?.guardianEmail ?? '');
+  late final _email = TextEditingController(text: widget.applicant?.email ?? '');
+  late final _phone = TextEditingController(text: widget.applicant?.phone ?? '');
   late final _source = TextEditingController(text: widget.applicant?.source ?? '');
   late final _notes = TextEditingController(text: widget.applicant?.notes ?? '');
 
@@ -62,7 +64,7 @@ class _ApplicantDetailScreenState extends ConsumerState<ApplicantDetailScreen> {
   void dispose() {
     for (final c in [
       _firstName, _lastName, _middleName, _gradeLevel,
-      _guardianName, _guardianPhone, _guardianEmail, _source, _notes,
+      _guardianName, _guardianPhone, _guardianEmail, _email, _phone, _source, _notes,
     ]) {
       c.dispose();
     }
@@ -88,6 +90,8 @@ class _ApplicantDetailScreenState extends ConsumerState<ApplicantDetailScreen> {
           guardianName: _guardianName.text,
           guardianPhone: _guardianPhone.text,
           guardianEmail: _guardianEmail.text,
+          email: _email.text,
+          phone: _phone.text,
           source: _source.text,
           notes: _notes.text,
         );
@@ -439,7 +443,38 @@ class _ApplicantDetailScreenState extends ConsumerState<ApplicantDetailScreen> {
           TextField(
             controller: _guardianEmail,
             keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
             decoration: const InputDecoration(labelText: 'Email (optional)'),
+          ),
+
+          const SizedBox(height: 20),
+          Text('The applicant themselves', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Both optional — a Grade 1 applicant has neither. A Senior High '
+            'or College applicant usually has both, and if they enrol these '
+            'become the student record\'s own contact details. A student '
+            'with no email on file cannot be given a portal account.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            decoration: const InputDecoration(
+              labelText: 'Their email (optional)',
+              hintText: 'bea.marquez@student.school.edu.ph',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _phone,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(
+              labelText: 'Their mobile number (optional)',
+              hintText: '09171234567',
+            ),
           ),
           const SizedBox(height: 12),
           // The single most useful field on this record for a school

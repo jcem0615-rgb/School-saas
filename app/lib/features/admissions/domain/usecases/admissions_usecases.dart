@@ -2,6 +2,7 @@ import '../../../../core/constants/education_level.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../entities/applicant.dart';
+import '../../../../core/utils/validators.dart';
 import '../repositories/admissions_repository.dart';
 
 class WatchApplicantsUseCase {
@@ -32,6 +33,8 @@ class SaveApplicantUseCase {
     required String guardianName,
     required String guardianPhone,
     String? guardianEmail,
+    String? email,
+    String? phone,
     String? source,
     String? notes,
   }) {
@@ -45,6 +48,25 @@ class SaveApplicantUseCase {
         'A parent or guardian and a number to ring them on are required. An '
         'applicant nobody can contact is not a lead.',
       )));
+    }
+    // Required AND usable. The field was mandatory and unchecked, so "0"
+    // satisfied it -- and the whole reason for making it mandatory is
+    // that somebody can be rung back.
+    final guardianPhoneError = Validators.optionalPhilippineMobile(guardianPhone);
+    if (guardianPhoneError != null) {
+      return Future.value(Error(ValidationFailure(guardianPhoneError)));
+    }
+    // Optional, and checked when given. The guardian's address is copied
+    // onto the student record at enrolment, so one accepted here is one
+    // the student form and the student import would both have refused --
+    // admissions was the back door around them.
+    for (final address in [guardianEmail, email]) {
+      final error = Validators.optionalEmail(address);
+      if (error != null) return Future.value(Error(ValidationFailure(error)));
+    }
+    final phoneError = Validators.optionalPhilippineMobile(phone);
+    if (phoneError != null) {
+      return Future.value(Error(ValidationFailure(phoneError)));
     }
     if (gradeLevel.trim().isEmpty) {
       return Future.value(const Error(
@@ -69,11 +91,21 @@ class SaveApplicantUseCase {
       programId: programId?.trim(),
       guardianName: guardianName.trim(),
       guardianPhone: guardianPhone.trim(),
-      guardianEmail: guardianEmail?.trim(),
+      guardianEmail: _blankToNull(guardianEmail),
+      email: _blankToNull(email),
+      phone: _blankToNull(phone),
       source: source?.trim(),
       notes: notes?.trim(),
     );
   }
+}
+
+/// An empty field means "there is none", which is null on the record --
+/// never an empty string, so a school can still ask which applicants have
+/// no way to be reached.
+String? _blankToNull(String? value) {
+  final trimmed = value?.trim();
+  return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
 }
 
 /// Moves a family one step, with the evidence that step produced.

@@ -40,6 +40,8 @@ abstract class AdmissionsRepository {
     required String guardianName,
     required String guardianPhone,
     String? guardianEmail,
+    String? email,
+    String? phone,
     String? source,
     String? notes,
   });

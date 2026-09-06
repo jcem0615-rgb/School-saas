@@ -25,6 +25,8 @@ class AdmissionsRepositoryImpl implements AdmissionsRepository {
     required String guardianName,
     required String guardianPhone,
     String? guardianEmail,
+    String? email,
+    String? phone,
     String? source,
     String? notes,
   }) async {
@@ -40,6 +42,8 @@ class AdmissionsRepositoryImpl implements AdmissionsRepository {
         'guardianName': guardianName,
         'guardianPhone': guardianPhone,
         'guardianEmail': guardianEmail,
+        'email': email,
+        'phone': phone,
         'source': source,
         'notes': notes,
       });
