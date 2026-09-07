@@ -173,13 +173,42 @@ List<InventoryItem> lowStock(Iterable<InventoryItem> items) {
   return low;
 }
 
+/// One person, one item, and how many of it they still hold.
+class OutstandingIssue {
+  final String holder;
+  final String itemId;
+  final String itemName;
+  final double quantity;
+
+  const OutstandingIssue({
+    required this.holder,
+    required this.itemId,
+    required this.itemName,
+    required this.quantity,
+  });
+}
+
 /// What is out on issue, and to whom.
 ///
 /// Netted per recipient per item, so somebody who took three chairs and
 /// brought two back shows as holding one rather than as two rows that
 /// have to be read together.
-Map<String, double> outstandingIssues(Iterable<InventoryMovement> movements) {
-  final held = <String, double>{};
+///
+/// Keyed on the item's id rather than its name. Renaming "Projector" to
+/// "Projector (Epson)" used to split whoever was holding one across two
+/// rows that each looked like a different loan -- and a recipient whose
+/// name happened to contain the separator collided with somebody else
+/// entirely.
+List<OutstandingIssue> outstandingIssues(Iterable<InventoryMovement> movements) {
+  final quantities = <String, double>{};
+  final holders = <String, String>{};
+  final itemIds = <String, String>{};
+  // The name as it stood at the most recent movement, tracked by time
+  // rather than by arrival order -- the log is read newest-first today,
+  // and a list whose labels depend on that would go stale the day
+  // somebody sorts it the other way.
+  final names = <String, ({String name, DateTime at})>{};
+
   for (final movement in movements) {
     final who = movement.issuedTo?.trim();
     if (who == null || who.isEmpty) continue;
@@ -187,13 +216,33 @@ Map<String, double> outstandingIssues(Iterable<InventoryMovement> movements) {
         movement.kind != MovementKind.returned) {
       continue;
     }
-    final key = '$who|${movement.itemName}';
-    held[key] = (held[key] ?? 0) +
+    final key = '${movement.itemId}\u0000$who';
+    quantities[key] = (quantities[key] ?? 0) +
         (movement.kind == MovementKind.issued ? movement.quantity : -movement.quantity);
+    holders[key] = who;
+    itemIds[key] = movement.itemId;
+    final seen = names[key];
+    if (seen == null || movement.recordedAt.isAfter(seen.at)) {
+      names[key] = (name: movement.itemName, at: movement.recordedAt);
+    }
   }
+
   // A recipient who has returned everything is not holding anything, and
   // a list that still names them is a list somebody has to mentally
   // filter every time they read it.
-  held.removeWhere((_, quantity) => quantity <= 0);
+  final held = [
+    for (final entry in quantities.entries)
+      if (entry.value > 0)
+        OutstandingIssue(
+          holder: holders[entry.key]!,
+          itemId: itemIds[entry.key]!,
+          itemName: names[entry.key]!.name,
+          quantity: entry.value,
+        ),
+  ];
+  held.sort((a, b) {
+    final byHolder = a.holder.compareTo(b.holder);
+    return byHolder != 0 ? byHolder : a.itemName.compareTo(b.itemName);
+  });
   return held;
 }

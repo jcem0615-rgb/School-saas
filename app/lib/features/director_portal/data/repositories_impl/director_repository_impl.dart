@@ -168,6 +168,7 @@ class DirectorRepositoryImpl implements DirectorRepository {
     required double amount,
     required DateTime date,
     String? receiptUrl,
+    String? receiptFileName,
   }) {
     return _guard(() => _remote.createExpense(
           category: category,
@@ -175,6 +176,7 @@ class DirectorRepositoryImpl implements DirectorRepository {
           amount: amount,
           date: date,
           receiptUrl: receiptUrl,
+          receiptFileName: receiptFileName,
         ));
   }
 
@@ -186,6 +188,7 @@ class DirectorRepositoryImpl implements DirectorRepository {
     required double amount,
     required DateTime date,
     String? receiptUrl,
+    String? receiptFileName,
   }) {
     return _guard(() => _remote.updateExpense(
           expenseId: expenseId,
@@ -194,6 +197,7 @@ class DirectorRepositoryImpl implements DirectorRepository {
           amount: amount,
           date: date,
           receiptUrl: receiptUrl,
+          receiptFileName: receiptFileName,
         ));
   }
 

@@ -73,6 +73,16 @@ export {enrolApplicant} from "./callable/admissions/enrolApplicant";
 export {setStudentBalance} from "./callable/students/setStudentBalance";
 
 // ---------------------------------------------------------------------------
+// Module: Inventory
+//
+// A movement and the item's running total move together or not at all,
+// and the below-zero check runs inside the transaction against what is
+// on file -- not on the device, against the copy a screen was holding
+// when two people reached for the last projector at once.
+// ---------------------------------------------------------------------------
+export {recordInventoryMovement} from "./callable/inventory/recordInventoryMovement";
+
+// ---------------------------------------------------------------------------
 // Module: Payroll
 //
 // What a person is paid is computed here, from the pay rates, the

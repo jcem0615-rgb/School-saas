@@ -302,6 +302,7 @@ class DirectorRemoteDataSource {
     required double amount,
     required DateTime date,
     String? receiptUrl,
+    String? receiptFileName,
   }) async {
     final ref = _firestore.collection(FirestorePaths.expenses(_actingUser.schoolId)).doc();
     await ref.set({
@@ -311,6 +312,7 @@ class DirectorRemoteDataSource {
       'amount': amount,
       'date': Timestamp.fromDate(date),
       'receiptUrl': receiptUrl,
+      'receiptFileName': receiptFileName,
       'recordedByName': _actingUser.name,
       ..._baseFields(),
     });
@@ -322,7 +324,11 @@ class DirectorRemoteDataSource {
     required String description,
     required double amount,
     required DateTime date,
+    // Written whatever it is, including null. That is only correct
+    // because the editor now always sends the receipt it is showing --
+    // it did not, and every edit silently detached the receipt.
     String? receiptUrl,
+    String? receiptFileName,
   }) async {
     await _firestore
         .collection(FirestorePaths.expenses(_actingUser.schoolId))
@@ -333,6 +339,7 @@ class DirectorRemoteDataSource {
       'amount': amount,
       'date': Timestamp.fromDate(date),
       'receiptUrl': receiptUrl,
+      'receiptFileName': receiptFileName,
       ..._editFields(),
     });
   }

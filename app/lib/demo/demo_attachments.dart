@@ -13,6 +13,47 @@
 class DemoAttachments {
   DemoAttachments._();
 
+  /// The electricity bill behind the demo's largest expense.
+  ///
+  /// A real one-page PDF for the same reason the coursework ones are:
+  /// the receipt button on an expense row has to open something, and a
+  /// dead link reads as a broken app rather than as a demo with no
+  /// bucket behind it. It says on its face that it is a demo document,
+  /// because a plausible-looking receipt for a payment nobody made is
+  /// not a thing to leave lying in a school's files.
+  static const meralcoOctoberReceipt =
+      'data:application/pdf;base64,'
+      'JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYm'
+      'oKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5'
+      'cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb2'
+      '50IDw8IC9GMSA1IDAgUiA+PiA+PiAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0'
+      'aCAxMzQwID4+CnN0cmVhbQpCVAovRjEgMTYgVGYKNjAgNzYwIFRkCihPRkZJQ0lBTCBSRUNFSVBUKSBUagovRj'
+      'EgMTEgVGYKMCAtMTYgVGQKKCkgVGoKMCAtMTYgVGQKKE1FUkFMQ08gLSBNYW5pbGEgRWxlY3RyaWMgQ29tcGFu'
+      'eSkgVGoKMCAtMTYgVGQKKExvcGV6IEJ1aWxkaW5nLCBPcnRpZ2FzIEF2ZW51ZSwgUGFzaWcgQ2l0eSkgVGoKMC'
+      'AtMTYgVGQKKFZBVCBSZWcuIFRJTiAwMDAtMTAxLTUyOC0wMDApIFRqCjAgLTE2IFRkCigpIFRqCjAgLTE2IFRk'
+      'CihPUiBOby4gICAgICAgICAgICAyMDI2LTEwMDQtODgzMTcpIFRqCjAgLTE2IFRkCihEYXRlICAgICAgICAgIC'
+      'AgICAwNCBPY3RvYmVyIDIwMjYpIFRqCjAgLTE2IFRkCihSZWNlaXZlZCBmcm9tICAgICBEZW1vIEFjYWRlbXkg'
+      'b2YgQnVsYWNhbikgVGoKMCAtMTYgVGQKKEFkZHJlc3MgICAgICAgICAgIE1hbG9sb3MsIEJ1bGFjYW4pIFRqCj'
+      'AgLTE2IFRkCihBY2NvdW50IE5vLiAgICAgICA5LTEyMzQtNTY3OC05MCkgVGoKMCAtMTYgVGQKKFNlcnZpY2Ug'
+      'cGVyaW9kICAgIDAxIFNlcCAyMDI2IC0gMzAgU2VwIDIwMjYpIFRqCjAgLTE2IFRkCigpIFRqCjAgLTE2IFRkCi'
+      'hFbmVyZ3kgY2hhcmdlICAgICAgICAgICAgICAgICAgICAgICAgICAgIDQ4LDEyMC4wMCkgVGoKMCAtMTYgVGQK'
+      'KERpc3RyaWJ1dGlvbiBhbmQgbWV0ZXJpbmcgICAgICAgICAgICAgICAgIDksNjQwLjAwKSBUagowIC0xNiBUZA'
+      'ooVHJhbnNtaXNzaW9uIGNoYXJnZSAgICAgICAgICAgICAgICAgICAgICAgMywxMTAuMDApIFRqCjAgLTE2IFRk'
+      'CihTeXN0ZW0gbG9zcyBjaGFyZ2UgICAgICAgICAgICAgICAgICAgICAgICAyLDIyMC4wMCkgVGoKMCAtMTYgVG'
+      'QKKEdvdmVybm1lbnQgdGF4ZXMgYW5kIHVuaXZlcnNhbCBjaGFyZ2VzICAgIDUsMzEwLjAwKSBUagowIC0xNiBU'
+      'ZAooLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLSkgVGoKL0YxIDEyIF'
+      'RmCjAgLTE2IFRkCihUT1RBTCBBTU9VTlQgUEFJRCAgICAgICAgICAgICAgICAgICAgICAgIDY4LDQwMC4wMCkg'
+      'VGoKL0YxIDExIFRmCjAgLTE2IFRkCigpIFRqCjAgLTE2IFRkCihSZWNlaXZlZCBieTogICAgICBBLiBSYW1pcm'
+      'V6LCBDYXNoaWVyKSBUagowIC0xNiBUZAooKSBUagovRjEgOSBUZgowIC0xNiBUZAooVGhpcyBpcyBhIGRlbW8g'
+      'ZG9jdW1lbnQuIEl0IGlzIG5vdCBhIHJlYWwgcmVjZWlwdCBhbmQgbm8gc3VjaCkgVGoKMCAtMTYgVGQKKHBheW'
+      '1lbnQgd2FzIG1hZGUuIEF0dGFjaGVkIHRvIHRoZSBzZWVkZWQgVXRpbGl0aWVzIGV4cGVuc2Ugc28pIFRqCjAg'
+      'LTE2IFRkCih0aGUgcmVjZWlwdCBidXR0b24gb24gdGhhdCByb3cgb3BlbnMgc29tZXRoaW5nIHJlYWwuKSBUag'
+      'pFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNl'
+      'Rm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMD'
+      'kgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAw'
+      'MDAgbiAKMDAwMDAwMTYzMyAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3Rhcn'
+      'R4cmVmCjE3MDMKJSVFT0YK';
+
   /// Ten quadratic-equation items, the assignment a Grade 10 class is
   /// actually working on in this demo.
   static const problemSet4 =

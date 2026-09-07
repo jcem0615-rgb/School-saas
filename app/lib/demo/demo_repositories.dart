@@ -759,6 +759,7 @@ class DemoDirectorRepository implements DirectorRepository {
     required double amount,
     required DateTime date,
     String? receiptUrl,
+    String? receiptFileName,
   }) async {
     await _latency();
     final id = _store.nextId('exp');
@@ -772,6 +773,7 @@ class DemoDirectorRepository implements DirectorRepository {
         date: date,
         recordedByName: _store.requireUser.fullName,
         receiptUrl: receiptUrl,
+        receiptFileName: receiptFileName,
       ),
     );
     _store.audit(
@@ -792,6 +794,7 @@ class DemoDirectorRepository implements DirectorRepository {
     required double amount,
     required DateTime date,
     String? receiptUrl,
+    String? receiptFileName,
   }) async {
     await _latency();
     _store.update<Expense>(
@@ -804,7 +807,13 @@ class DemoDirectorRepository implements DirectorRepository {
         amount: amount,
         date: date,
         recordedByName: e.recordedByName,
-        receiptUrl: receiptUrl ?? e.receiptUrl,
+        // What the editor sent, and not `?? e.receiptUrl`. That fallback
+        // made a receipt impossible to remove here while the real data
+        // source wrote the field unconditionally and removed it on every
+        // edit -- the two behaved differently, and the demo was the one
+        // telling the nicer story.
+        receiptUrl: receiptUrl,
+        receiptFileName: receiptFileName,
       ),
     );
     _store.audit(

@@ -55,7 +55,7 @@ void main() {
     test('Staff: a projector really is out with somebody', () {
       final held = outstandingIssues(store.inventoryMovements.value);
       expect(
-        held.keys.where((k) => k.endsWith('|Projector')),
+        held.where((i) => i.itemName.contains('Projector')),
         isNotEmpty,
       );
     });

@@ -21,10 +21,21 @@ class CreateExpenseUseCase {
     required double amount,
     required DateTime date,
     String? receiptUrl,
+    String? receiptFileName,
   }) {
     final categoryError = Validators.required(category, fieldName: 'Category');
     if (categoryError != null) return Future.value(Error(ValidationFailure(categoryError)));
 
+    // Checked before the comparison, because the comparison is what lets
+    // it through: `NaN <= 0` is false, and `double.tryParse('NaN')`
+    // returns NaN for one word typed into the amount box. `1e400` parses
+    // to Infinity and is no better. Either one reaches the ledger and
+    // every total that includes the row reads NaN from then on.
+    if (!amount.isFinite) {
+      return Future.value(const Error(ValidationFailure(
+        'An amount has to be a number.',
+      )));
+    }
     if (amount <= 0) {
       return Future.value(const Error(ValidationFailure('Amount must be greater than zero.')));
     }
@@ -35,6 +46,7 @@ class CreateExpenseUseCase {
       amount: amount,
       date: date,
       receiptUrl: receiptUrl,
+      receiptFileName: receiptFileName,
     );
   }
 }
@@ -50,6 +62,7 @@ class UpdateExpenseUseCase {
     required double amount,
     required DateTime date,
     String? receiptUrl,
+    String? receiptFileName,
   }) {
     if (expenseId.trim().isEmpty) {
       return Future.value(const Error(ValidationFailure('Missing expense.')));
@@ -58,6 +71,16 @@ class UpdateExpenseUseCase {
     final categoryError = Validators.required(category, fieldName: 'Category');
     if (categoryError != null) return Future.value(Error(ValidationFailure(categoryError)));
 
+    // Checked before the comparison, because the comparison is what lets
+    // it through: `NaN <= 0` is false, and `double.tryParse('NaN')`
+    // returns NaN for one word typed into the amount box. `1e400` parses
+    // to Infinity and is no better. Either one reaches the ledger and
+    // every total that includes the row reads NaN from then on.
+    if (!amount.isFinite) {
+      return Future.value(const Error(ValidationFailure(
+        'An amount has to be a number.',
+      )));
+    }
     if (amount <= 0) {
       return Future.value(const Error(ValidationFailure('Amount must be greater than zero.')));
     }
@@ -69,6 +92,7 @@ class UpdateExpenseUseCase {
       amount: amount,
       date: date,
       receiptUrl: receiptUrl,
+      receiptFileName: receiptFileName,
     );
   }
 }

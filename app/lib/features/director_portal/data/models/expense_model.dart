@@ -11,6 +11,7 @@ class ExpenseModel extends Expense {
     required super.date,
     required super.recordedByName,
     super.receiptUrl,
+    super.receiptFileName,
   });
 
   factory ExpenseModel.fromFirestore(String id, Map<String, dynamic> data) {
@@ -22,6 +23,7 @@ class ExpenseModel extends Expense {
       date: (data['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
       recordedByName: data['recordedByName'] as String? ?? 'Unknown',
       receiptUrl: data['receiptUrl'] as String?,
+      receiptFileName: data['receiptFileName'] as String?,
     );
   }
 }

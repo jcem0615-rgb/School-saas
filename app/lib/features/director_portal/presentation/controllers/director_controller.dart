@@ -310,12 +310,14 @@ class DirectorActionController extends StateNotifier<AsyncValue<void>> {
     required double amount,
     required DateTime date,
     String? receiptUrl,
+    String? receiptFileName,
   }) => _run(() => _createExpense(
         category: category,
         description: description,
         amount: amount,
         date: date,
         receiptUrl: receiptUrl,
+        receiptFileName: receiptFileName,
       ));
 
   Future<bool> updateExpense({
@@ -325,6 +327,7 @@ class DirectorActionController extends StateNotifier<AsyncValue<void>> {
     required double amount,
     required DateTime date,
     String? receiptUrl,
+    String? receiptFileName,
   }) => _run(() => _updateExpense(
         expenseId: expenseId,
         category: category,
@@ -332,6 +335,7 @@ class DirectorActionController extends StateNotifier<AsyncValue<void>> {
         amount: amount,
         date: date,
         receiptUrl: receiptUrl,
+        receiptFileName: receiptFileName,
       ));
 
   Future<bool> deleteExpense(String expenseId) => _run(() => _deleteExpense(expenseId));

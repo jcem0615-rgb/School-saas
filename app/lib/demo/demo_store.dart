@@ -2555,6 +2555,11 @@ class DemoStore {
           amount: 68400,
           date: _daysAgo(5),
           recordedByName: 'Grace Mendoza',
+          // One of the three carries its receipt and two do not, which is
+          // the honest state of a school's books and is what makes the
+          // "No receipt" label on the other rows worth reading.
+          receiptUrl: DemoAttachments.meralcoOctoberReceipt,
+          receiptFileName: 'meralco-october-or.pdf',
         ),
         Expense(
           id: 'exp_002',

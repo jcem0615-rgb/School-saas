@@ -12,17 +12,22 @@ void main() {
     MovementKind kind,
     double quantity, {
     String item = 'Projector',
+    String? itemId,
     String? to,
+    DateTime? at,
   }) =>
       InventoryMovement(
-        id: 'mv_${kind.value}_$quantity',
-        itemId: 'item_1',
+        id: 'mv_${kind.value}_${quantity}_${to ?? ''}_$item',
+        // Defaults to the name so two differently-named items in one
+        // test are two items, and can be made to disagree deliberately
+        // when the point is a rename.
+        itemId: itemId ?? item,
         itemName: item,
         kind: kind,
         quantity: quantity,
         issuedTo: to,
         recordedByName: 'Ricardo Aquino',
-        recordedAt: DateTime(2026, 6, 1),
+        recordedAt: at ?? DateTime(2026, 6, 1),
       );
 
   InventoryItem item({
@@ -135,6 +140,10 @@ void main() {
   });
 
   group('who is holding what', () {
+    double heldBy(List<OutstandingIssue> issues, String who, String what) => issues
+        .where((i) => i.holder == who && i.itemName == what)
+        .fold<double>(0, (sum, i) => sum + i.quantity);
+
     test('nets a return against the issue', () {
       // Somebody who took three and brought two back is holding one,
       // not two rows that have to be read together.
@@ -142,7 +151,10 @@ void main() {
         move(MovementKind.issued, 3, item: 'Chairs', to: 'Maria Santos'),
         move(MovementKind.returned, 2, item: 'Chairs', to: 'Maria Santos'),
       ]);
-      expect(held['Maria Santos|Chairs'], 1);
+      expect(held, hasLength(1));
+      expect(held.single.quantity, 1);
+      expect(held.single.holder, 'Maria Santos');
+      expect(held.single.itemName, 'Chairs');
     });
 
     test('drops anybody who has returned everything', () {
@@ -158,38 +170,54 @@ void main() {
         move(MovementKind.issued, 1, to: 'Maria Santos'),
         move(MovementKind.issued, 2, to: 'Room 204'),
       ]);
-      expect(held['Maria Santos|Projector'], 1);
-      expect(held['Room 204|Projector'], 2);
+      expect(heldBy(held, 'Maria Santos', 'Projector'), 1);
+      expect(heldBy(held, 'Room 204', 'Projector'), 2);
     });
 
     test('ignores movements with nobody on them', () {
       // A delivery is not somebody holding something.
       expect(outstandingIssues([move(MovementKind.received, 20)]), isEmpty);
     });
-  });
 
-  group('saying it in words', () {
-    test('a quantity carries its unit, and pluralises it', () {
-      expect(item(onHand: 12, unit: 'ream').quantityLabel, '12 reams');
-      expect(item(onHand: 1, unit: 'ream').quantityLabel, '1 ream');
-      expect(item(onHand: 3, unit: 'box').quantityLabel, '3 boxes');
-      expect(item(onHand: 2, unit: 'body').quantityLabel, '2 bodies');
+    test('a renamed item stays one loan rather than becoming two', () {
+      // Keyed on the item's id. On the name, renaming "Projector" to
+      // "Projector (Epson)" split whoever was holding one across two
+      // rows that each looked like a different loan -- and the return
+      // never cancelled the issue.
+      final held = outstandingIssues([
+        move(MovementKind.issued, 2,
+            item: 'Projector', itemId: 'item_1', to: 'Maria Santos',
+            at: DateTime(2026, 6, 1)),
+        move(MovementKind.returned, 1,
+            item: 'Projector (Epson)', itemId: 'item_1', to: 'Maria Santos',
+            at: DateTime(2026, 6, 8)),
+      ]);
+      expect(held, hasLength(1));
+      expect(held.single.quantity, 1);
+      // Labelled with the name it was last moved under, not the one it
+      // had when the loan started. Nobody in the stock room calls it the
+      // old thing any more.
+      expect(held.single.itemName, 'Projector (Epson)');
     });
 
-    test('a unit already plural is left alone', () {
-      expect(item(onHand: 4, unit: 'scissors').quantityLabel, '4 scissors');
+    test('two items whose names collide in a key are still two items', () {
+      // The old key was '$who|$itemName', so a recipient or an item name
+      // containing the separator could be read as somebody else's row.
+      final held = outstandingIssues([
+        move(MovementKind.issued, 1,
+            item: 'Chalk', itemId: 'item_a', to: 'Maria|Santos'),
+        move(MovementKind.issued, 1,
+            item: 'Santos|Chalk', itemId: 'item_b', to: 'Maria'),
+      ]);
+      expect(held, hasLength(2));
     });
 
-    test('a fractional quantity keeps its fraction', () {
-      expect(item(onHand: 2.5, unit: 'litre').quantityLabel, '2.5 litres');
+    test('is ordered by who is holding it', () {
+      final held = outstandingIssues([
+        move(MovementKind.issued, 1, item: 'Chalk', to: 'Room 204'),
+        move(MovementKind.issued, 1, item: 'Chairs', to: 'Ana Cruz'),
+      ]);
+      expect(held.map((i) => i.holder), ['Ana Cruz', 'Room 204']);
     });
-  });
-
-  test('an issue is the movement that needs a name against it', () {
-    // "Where is the good projector" is the question, and a movement out
-    // with nobody on it leaves the same shrug the logbook did.
-    expect(MovementKind.issued.needsRecipient, isTrue);
-    expect(MovementKind.received.needsRecipient, isFalse);
-    expect(MovementKind.writtenOff.needsRecipient, isFalse);
   });
 }

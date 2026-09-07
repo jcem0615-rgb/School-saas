@@ -85,6 +85,7 @@ abstract class DirectorRepository {
     required double amount,
     required DateTime date,
     String? receiptUrl,
+    String? receiptFileName,
   });
   Future<Result<void>> updateExpense({
     required String expenseId,
@@ -93,6 +94,7 @@ abstract class DirectorRepository {
     required double amount,
     required DateTime date,
     String? receiptUrl,
+    String? receiptFileName,
   });
   Future<Result<void>> deleteExpense(String expenseId);
 }

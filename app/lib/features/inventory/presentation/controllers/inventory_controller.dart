@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/result.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart'
-    show authStateProvider, firestoreProvider;
+    show authStateProvider, firebaseFunctionsProvider, firestoreProvider;
 import '../../data/datasources/inventory_remote_datasource.dart';
 import '../../data/repositories_impl/inventory_repository_impl.dart';
 import '../../domain/entities/inventory_item.dart';
@@ -16,6 +16,7 @@ final inventoryRemoteDataSourceProvider = Provider<InventoryRemoteDataSource>((r
   }
   return InventoryRemoteDataSource(
     firestore: ref.watch(firestoreProvider),
+    functions: ref.watch(firebaseFunctionsProvider),
     actingUser: ActingInventoryUser(
       uid: user.uid,
       schoolId: user.schoolId!,
@@ -49,7 +50,7 @@ final lowStockProvider = Provider.autoDispose<List<InventoryItem>>((ref) {
 });
 
 /// Who is holding what, from the movement log.
-final outstandingIssuesProvider = Provider.autoDispose<Map<String, double>>((ref) {
+final outstandingIssuesProvider = Provider.autoDispose<List<OutstandingIssue>>((ref) {
   return outstandingIssues(
     ref.watch(inventoryMovementsProvider(null)).valueOrNull ??
         const <InventoryMovement>[],

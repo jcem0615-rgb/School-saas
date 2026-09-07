@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:file_picker/file_picker.dart';
+
 import '../../../../core/data_transfer/export_import_sheet.dart';
+import '../../../../core/data_transfer/open_attachment.dart';
+import '../../../../core/errors/result.dart';
+import '../../../../core/storage/upload_providers.dart';
+import '../../../../core/storage/upload_repository.dart';
 import '../../../../core/widgets/confirm_delete_dialog.dart';
 import '../../domain/entities/expense.dart';
 import '../import/expense_import.dart';
@@ -101,7 +107,41 @@ class ExpensesScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        subtitle: Text('${e.category} · ${_dateFormat.format(e.date)} · ${e.recordedByName}'),
+                        subtitle: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${e.category} · ${_dateFormat.format(e.date)} · ${e.recordedByName}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            // Said either way. An expense with no receipt
+                            // is a state the office needs to see, not one
+                            // to leave blank and hope somebody notices.
+                            if (e.hasReceipt)
+                              TextButton.icon(
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                onPressed: () => openAttachment(
+                                  context,
+                                  url: e.receiptUrl!,
+                                  fileName: e.receiptFileName,
+                                ),
+                                icon: const Icon(Icons.receipt_long, size: 16),
+                                label: const Text('Receipt'),
+                              )
+                            else
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  'No receipt',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                          ],
+                        ),
                         trailing: RowActionsMenu(
                           onEdit: () => _showEditor(context, ref, existing: e),
                           onDelete: () => _confirmDelete(context, ref, e),
@@ -183,6 +223,32 @@ class ExpensesScreen extends ConsumerWidget {
     await ref.read(directorActionControllerProvider.notifier).deleteExpense(e.id);
   }
 
+  /// Picks a receipt and uploads it, or returns null.
+  ///
+  /// Silent on a cancelled pick, loud on a failed upload: the first is
+  /// somebody changing their mind, the second is an expense about to be
+  /// saved with nothing behind it and no indication why.
+  Future<UploadedFile?> _pickReceipt(WidgetRef ref) async {
+    final picked = await FilePicker.pickFiles(
+      withData: true,
+      type: FileType.custom,
+      // Matches storage.rules, which accepts images and PDFs only.
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp', 'pdf'],
+    );
+    final file = picked?.files.singleOrNull;
+    if (file?.bytes == null) return null;
+
+    final result = await ref.read(uploadRepositoryProvider).upload(
+          folder: UploadFolder.expenseReceipts,
+          fileName: file!.name,
+          bytes: file.bytes!,
+          contentType:
+              file.extension == 'pdf' ? 'application/pdf' : 'image/${file.extension}',
+        );
+    if (result case Success<UploadedFile>(:final value)) return value;
+    return null;
+  }
+
   Future<void> _showEditor(BuildContext context, WidgetRef ref, {Expense? existing}) async {
     final isEdit = existing != null;
     final descriptionController = TextEditingController(text: existing?.description ?? '');
@@ -194,6 +260,13 @@ class ExpensesScreen extends ConsumerWidget {
         ? existing.category
         : _categories.first;
     DateTime date = existing?.date ?? DateTime.now();
+    // Seeded from the row being edited, and sent back on save whether or
+    // not anybody touched it. The update path writes this field
+    // unconditionally, so a dialog that did not carry it detached the
+    // receipt from every expense anybody ever corrected a typo on.
+    String? receiptUrl = existing?.receiptUrl;
+    String? receiptFileName = existing?.receiptFileName;
+    var uploading = false;
 
     await showDialog<void>(
       context: context,
@@ -237,6 +310,56 @@ class ExpensesScreen extends ConsumerWidget {
                     if (picked != null) setState(() => date = picked);
                   },
                 ),
+                const SizedBox(height: 8),
+                // The substantiation. An expense record with nothing
+                // behind it is the spreadsheet this replaces, and the
+                // receipt is the first thing anybody auditing the books
+                // asks to see.
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(receiptUrl == null
+                      ? Icons.receipt_long_outlined
+                      : Icons.receipt_long),
+                  title: Text(
+                    receiptUrl == null
+                        ? 'No receipt attached'
+                        : (receiptFileName ?? 'Receipt attached'),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: uploading ? const Text('Uploading...') : null,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (receiptUrl != null)
+                        IconButton(
+                          tooltip: 'Remove',
+                          icon: const Icon(Icons.close),
+                          onPressed: uploading
+                              ? null
+                              : () => setState(() {
+                                    receiptUrl = null;
+                                    receiptFileName = null;
+                                  }),
+                        ),
+                      TextButton(
+                        onPressed: uploading
+                            ? null
+                            : () async {
+                                setState(() => uploading = true);
+                                final picked = await _pickReceipt(ref);
+                                setState(() {
+                                  uploading = false;
+                                  if (picked != null) {
+                                    receiptUrl = picked.url;
+                                    receiptFileName = picked.fileName;
+                                  }
+                                });
+                              },
+                        child: Text(receiptUrl == null ? 'Attach' : 'Replace'),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -253,12 +376,16 @@ class ExpensesScreen extends ConsumerWidget {
                         description: descriptionController.text,
                         amount: amount,
                         date: date,
+                        receiptUrl: receiptUrl,
+                        receiptFileName: receiptFileName,
                       )
                     : await notifier.createExpense(
                         category: category,
                         description: descriptionController.text,
                         amount: amount,
                         date: date,
+                        receiptUrl: receiptUrl,
+                        receiptFileName: receiptFileName,
                       );
                 if (success && dialogContext.mounted) Navigator.of(dialogContext).pop();
               },

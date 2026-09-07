@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/widgets/combo_field.dart';
+import '../../data/datasources/inventory_remote_datasource.dart';
 import '../../domain/entities/inventory_item.dart';
 import '../controllers/inventory_controller.dart';
 
@@ -82,13 +83,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 // The answer to "where is the good projector", netted so
                 // somebody who took three and returned two shows as
                 // holding one.
-                for (final entry in held.entries)
+                for (final issue in held)
                   ListTile(
                     dense: true,
                     leading: const Icon(Icons.output_outlined),
-                    title: Text(entry.key.split('|').first),
-                    subtitle: Text(entry.key.split('|').last),
-                    trailing: Text('${_trim(entry.value)}'),
+                    title: Text(issue.holder),
+                    subtitle: Text(issue.itemName),
+                    trailing: Text(_trim(issue.quantity)),
                   ),
               ],
 
@@ -351,6 +352,48 @@ class _ItemTile extends ConsumerWidget {
               ],
             ),
           ),
+          // The reconciliation, which had a function and no screen. The
+          // running total is kept for the lists; the movements are the
+          // record it is supposed to be derivable from, and the two
+          // disagreeing is how a school finds out something wrote a
+          // quantity without writing a movement. It should now be
+          // impossible -- firestore.rules refuses a client write to the
+          // count -- and a check that can only ever pass is still worth
+          // showing, because it is the sentence that makes the figure
+          // above it trustworthy rather than asserted.
+          if (movements.isNotEmpty &&
+              movements.length < InventoryRemoteDataSource.movementPageSize)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Builder(builder: (context) {
+                final fromLog = stockFromMovements(movements);
+                final agrees = (fromLog - item.quantityOnHand).abs() < 0.001;
+                return Row(
+                  children: [
+                    Icon(
+                      agrees ? Icons.check_circle_outline : Icons.error_outline,
+                      size: 16,
+                      color: agrees ? null : theme.colorScheme.error,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        agrees
+                            ? 'The ${movements.length} movements below add up to '
+                                '${item.quantityLabel}.'
+                            : 'The movements below add up to ${_trim(fromLog)}, not '
+                                '${item.quantityLabel}. Something moved this count '
+                                'without recording why.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: agrees ? null : theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }),
+            ),
+
           if (movements.isEmpty)
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 12),

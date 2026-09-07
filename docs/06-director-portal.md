@@ -37,7 +37,7 @@ with actual server logic to run.
 schools/{schoolId}/announcements/{id}   -- title, body, audience, pinned
 schools/{schoolId}/meetings/{id}        -- title, start/end, location, attendeeRoles, status
 schools/{schoolId}/approvals/{id}       -- type, title, requestedByRole, status, decision fields
-schools/{schoolId}/expenses/{id}        -- category, description, amount, date
+schools/{schoolId}/expenses/{id}        -- category, description, amount, date, receiptUrl
 ```
 
 `approvals` is deliberately generic (a `type` field, not a separate
@@ -133,3 +133,29 @@ Amounts are read the way a spreadsheet writes them — "₱1,250.00",
 "1 250", "(250.00)" — because refusing those sends someone back to retype
 a column that was never wrong. Zero and negative amounts are refused: a
 refund is its own record, not a negative expense.
+
+## The receipt
+
+An expense record with nothing behind it is the spreadsheet this
+replaces, and the receipt is the first thing anybody auditing the books
+asks to see. It can be attached when the spending is recorded, replaced,
+or removed on purpose, and the row says either "Receipt" or "No receipt"
+rather than leaving a gap to interpret.
+
+This was `receiptUrl`: a field on the entity, in the model, through the
+repository and the data source and into the document, that **no screen
+ever set**. There was no way to attach one at all.
+
+The second half was worse and would have bitten first. `updateExpense`
+writes the field unconditionally, and the edit dialog did not carry it —
+so the day anything did populate a receipt, the first correction to a
+typo would have silently detached it. The demo hid that, because it fell
+back to `?? existing`: the two implementations disagreed, and the demo
+was the one telling the nicer story. Both now write what the editor is
+showing, which is what makes removing one possible and keeping one
+reliable.
+
+`amount` is checked with `isFinite` before it is compared to zero.
+`double.tryParse('NaN')` returns NaN for one word typed into the amount
+box, `NaN <= 0` is false, and a NaN in the ledger makes every total that
+includes the row read NaN.

@@ -11,6 +11,11 @@ enum UploadFolder {
   /// Proof-of-payment images a student or parent submits for review.
   paymentReceipts('payment-receipts'),
 
+  /// The school's own receipts for what it spent. An expense record with
+  /// no receipt behind it is the spreadsheet this replaces, and it is
+  /// the first thing an auditor asks to see.
+  expenseReceipts('expense-receipts'),
+
   /// The school's own e-wallet QR, shown to anyone paying online.
   paymentSettings('payment-settings'),
 

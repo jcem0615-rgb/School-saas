@@ -56,6 +56,19 @@ class RecordMovementUseCase {
     String? reference,
     String? note,
   }) {
+    // Checked before the comparisons, because the comparisons are what
+    // let it through: `NaN <= 0` and `NaN == 0` are both false, so every
+    // guard below waves it past -- and `double.tryParse('NaN')` returns
+    // NaN, which is one word typed into the quantity box. A NaN reaching
+    // the total is permanent: everything added to it stays NaN, and the
+    // item reads "NaN reams" until somebody rebuilds the document by
+    // hand. `1e400` parses to Infinity and is no better.
+    if (!quantity.isFinite) {
+      return Future.value(const Error(ValidationFailure(
+        'A quantity has to be a number.',
+      )));
+    }
+
     if (kind == MovementKind.adjusted) {
       if (quantity == 0) {
         return Future.value(const Error(ValidationFailure(
@@ -82,6 +95,13 @@ class RecordMovementUseCase {
     // negative stock figure is always wrong -- either the movement is a
     // mistake or the shelf was already wrong, and both want somebody to
     // stop and count rather than a number that cannot be true.
+    //
+    // This check is a courtesy and not the guarantee. It runs against
+    // [item], which is whatever the screen last received, and two people
+    // reaching for the last projector at once both pass it. The one that
+    // holds is inside `recordInventoryMovement`, against what is on file
+    // at the moment of the write. What this buys is a message before the
+    // round trip rather than after it.
     final effect = kind == MovementKind.adjusted ? quantity : quantity * kind.direction;
     if (item.quantityOnHand + effect < 0) {
       return Future.value(Error(ValidationFailure(

@@ -896,17 +896,38 @@ service cloud.firestore {
       // running total maintained alongside the movement that changed it,
       // so a log that could be edited afterwards would leave a figure
       // nobody can trace -- which is the spreadsheet this replaces.
+      // `allow write` used to cover all three verbs with no field guard,
+      // which made both of the paragraphs above false. Any of those
+      // roles could set `quantityOnHand` to whatever they liked with no
+      // movement behind it -- the running total was only traceable by
+      // convention -- and could hard-delete an item that the log still
+      // referred to, though the code that deletes has always soft-deleted
+      // and its comment said the rules denied the other kind.
+      //
+      // So: the office edits what an item *is* (its name, unit, reorder
+      // level, where it is kept), and the count moves only through
+      // `recordInventoryMovement`, which writes the movement and the new
+      // total in one transaction.
       match /inventory/{itemId} {
         allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
-        allow write: if hasRole(schoolId, ['director', 'admin', 'staff'])
-                       && schoolIsAccessible(schoolId);
+        allow create: if hasRole(schoolId, ['director', 'admin', 'staff'])
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.quantityOnHand == 0;
+        allow update: if hasRole(schoolId, ['director', 'admin', 'staff'])
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.quantityOnHand == resource.data.quantityOnHand;
+        // Soft delete only, which is an update above. An item with
+        // movements behind it must not vanish from the log's point of
+        // view.
+        allow delete: if false;
       }
 
       match /inventoryTransactions/{movementId} {
         allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
-        allow create: if hasRole(schoolId, ['director', 'admin', 'staff'])
-                        && schoolIsAccessible(schoolId);
-        allow update, delete: if false;
+        // Server-only. A movement and the total it moved are written
+        // together by the callable or not at all; a movement a client
+        // could write on its own is a log entry with nothing behind it.
+        allow create, update, delete: if false;
       }
 
       // ---- payroll ----

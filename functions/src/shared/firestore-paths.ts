@@ -99,6 +99,16 @@ export const FirestorePaths = {
   // The correct answers. Never readable by students -- see firestore.rules.
   courseworkAnswerKeys: (schoolId: string) => `schools/${schoolId}/courseworkAnswerKeys`,
 
+  // ---- Inventory ----
+  // The stock room, and the log of everything in and out of it. The
+  // quantity on an item is a running total; the transactions are the
+  // record it has to be derivable from.
+  inventory: (schoolId: string) => `schools/${schoolId}/inventory`,
+  inventoryDoc: (schoolId: string, itemId: string) =>
+    `schools/${schoolId}/inventory/${itemId}`,
+  inventoryTransactions: (schoolId: string) =>
+    `schools/${schoolId}/inventoryTransactions`,
+
   // ---- Payroll ----
   // What each employee is paid, keyed by their uid so a pay rate is
   // never two documents that disagree; the school's own contribution

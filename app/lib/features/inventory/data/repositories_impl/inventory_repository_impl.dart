@@ -1,3 +1,4 @@
+import '../../../../core/errors/app_exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../../domain/entities/inventory_item.dart';
@@ -52,7 +53,6 @@ class InventoryRepositoryImpl implements InventoryRepository {
     try {
       await _remote.recordMovement(
         itemId: item.id,
-        itemName: item.name,
         kind: kind,
         quantity: quantity,
         issuedTo: issuedTo,
@@ -60,7 +60,10 @@ class InventoryRepositoryImpl implements InventoryRepository {
         note: note,
       );
       return const Success(null);
-    } on StateError catch (e) {
+    } on ServerException catch (e) {
+      // Carried through rather than flattened to "something went wrong":
+      // the server's refusal names how many are actually on hand, and
+      // that is the only thing the person at the shelf can act on.
       return Error(ValidationFailure(e.message));
     } catch (_) {
       return const Error(UnknownFailure());
