@@ -204,7 +204,8 @@ npm run test:rules
 `test:emulator` covers what a stubbed database cannot show: receipt
 numbers claimed under contention, a payroll period issued twice, a parent
 linked to a student in one transaction, a second tap at the gate arriving
-before the first has been recorded. It runs the suites **serially**
+before the first has been recorded, a class announcement fanning out to
+the class rather than to nobody. It runs the suites **serially**
 (`--runInBand`) on purpose -- they share one emulator, and running them in
 parallel makes the deliberately-contended tests fail on the emulator's own
 transaction lock rather than on anything the code did.

@@ -56,7 +56,15 @@ class AnnouncementAudience {
   bool includes(UserRole role, {Iterable<String> viewerSections = const []}) {
     if (all || roles.contains(role.value)) return true;
     if (sections.isEmpty) return false;
-    return viewerSections.any(sections.contains);
+    // Compared case- and space-insensitively, because a section name is
+    // typed by hand on the student record and again on the teacher's
+    // assignment. "Grade 10 - Rizal" against "Grade 10 - rizal " must
+    // not decide whether a family sees the notice about tomorrow's trip,
+    // and the failure of an exact match is silent on both sides.
+    // Matches `normalizeSection` in functions/src/shared/sections.ts.
+    final addressed = sections.map(_normalizeSection).where((s) => s.isNotEmpty).toSet();
+    if (addressed.isEmpty) return false;
+    return viewerSections.any((s) => addressed.contains(_normalizeSection(s)));
   }
 
   /// How the targeting reads on a staff screen: "Everyone", or the roles
@@ -74,6 +82,9 @@ class AnnouncementAudience {
   /// somebody post from.
   bool get reachesNobody => !all && roles.isEmpty && sections.isEmpty;
 }
+
+String _normalizeSection(String section) =>
+    section.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
 
 class Announcement {
   final String id;

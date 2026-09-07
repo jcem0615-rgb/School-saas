@@ -7,6 +7,8 @@ import 'package:logicclass/core/theme/app_theme.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
 import 'package:logicclass/features/director_portal/domain/entities/announcement.dart';
+import 'package:logicclass/core/errors/result.dart';
+import 'package:logicclass/features/director_portal/domain/usecases/announcement_usecases.dart';
 import 'package:logicclass/features/director_portal/presentation/controllers/director_controller.dart';
 import 'package:logicclass/features/director_portal/presentation/screens/announcements_screen.dart';
 
@@ -192,6 +194,129 @@ void main() {
       await pumpAs(tester, 'faculty@demo.ph');
       expect(find.text(notice), findsOneWidget);
       expect(find.textContaining('Grade 10 - Rizal'), findsWidgets);
+    });
+  });
+
+  group('who a new notice tells', () {
+    // The list and the inbox are two different questions, and the app
+    // only ever answered the first. A class notice sat on the board and
+    // rang nothing at all, because the fan-out read a section-only
+    // audience as "addressed to nobody".
+    test('a class notice reaches that class, their families and its teachers',
+        () async {
+      final container = ProviderContainer(overrides: demoOverrides());
+      addTearDown(container.dispose);
+      container.read(demoAuthRepositoryProvider).signInAs(
+            DemoStore.demoAccounts.firstWhere((a) => a.email == 'faculty@demo.ph'),
+          );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      final store = container.read(demoStoreProvider);
+
+      final result = await CreateAnnouncementUseCase(
+        container.read(directorRepositoryProvider),
+      )(
+        title: 'Field trip moved',
+        body: 'We leave at seven, not eight.',
+        audience: AnnouncementAudience.forSections(['Grade 10 - Rizal']),
+      );
+      expect(result, isA<Success<void>>());
+
+      bool told(String uid) => (store.notifications.value[uid] ?? const [])
+          .any((n) => n.title == 'Field trip moved');
+
+      expect(told('u_student'), isTrue, reason: 'the student in the class');
+      expect(told('u_parent'), isTrue, reason: 'their parent');
+      expect(told('u_faculty'), isTrue, reason: 'a teacher of the class');
+      expect(told('u_registrar'), isFalse, reason: 'belongs to no class');
+      expect(told('u_admin'), isFalse);
+    });
+
+    test('a staff notice still tells the staff and nobody else', () async {
+      final container = ProviderContainer(overrides: demoOverrides());
+      addTearDown(container.dispose);
+      container.read(demoAuthRepositoryProvider).signInAs(
+            DemoStore.demoAccounts.firstWhere((a) => a.email == 'director@demo.ph'),
+          );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      final store = container.read(demoStoreProvider);
+
+      await CreateAnnouncementUseCase(container.read(directorRepositoryProvider))(
+        title: 'Payroll cut-off',
+        body: 'Timesheets by Thursday.',
+        audience: AnnouncementAudience.staffOnly,
+      );
+
+      bool told(String uid) => (store.notifications.value[uid] ?? const [])
+          .any((n) => n.title == 'Payroll cut-off');
+
+      expect(told('u_admin'), isTrue);
+      expect(told('u_student'), isFalse);
+      expect(told('u_parent'), isFalse);
+    });
+  });
+
+  group('posting to nobody', () {
+    // The editor disables Post in this state, and the notification
+    // trigger declines to fan out from it. Neither is the layer an
+    // import or a script goes through, and until this was checked here a
+    // notice addressed to no one could be written and would sit on the
+    // board looking posted.
+    Future<ProviderContainer> asDirector() async {
+      final container = ProviderContainer(overrides: demoOverrides());
+      addTearDown(container.dispose);
+      container.read(demoAuthRepositoryProvider).signInAs(
+            DemoStore.demoAccounts.firstWhere((a) => a.email == 'director@demo.ph'),
+          );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      return container;
+    }
+
+    test('a new announcement addressed to no one is refused', () async {
+      final container = await asDirector();
+      final before = container.read(demoStoreProvider).announcements.value.length;
+
+      final result = await CreateAnnouncementUseCase(
+        container.read(directorRepositoryProvider),
+      )(
+        title: 'Reminder',
+        body: 'Something important.',
+        audience: const AnnouncementAudience(all: false, roles: [], sections: []),
+      );
+
+      expect(result, isA<Error<void>>());
+      expect((result as Error<void>).failure.message, contains('who this is for'));
+      expect(container.read(demoStoreProvider).announcements.value.length, before,
+          reason: 'nothing was written');
+    });
+
+    test('an edit that empties the audience is refused too', () async {
+      final container = await asDirector();
+      final existing = container.read(demoStoreProvider).announcements.value.first;
+
+      final result = await UpdateAnnouncementUseCase(
+        container.read(directorRepositoryProvider),
+      )(
+        announcementId: existing.id,
+        title: existing.title,
+        body: existing.body,
+        audience: const AnnouncementAudience(all: false, roles: [], sections: []),
+      );
+
+      expect(result, isA<Error<void>>());
+      final after = container
+          .read(demoStoreProvider)
+          .announcements
+          .value
+          .firstWhere((a) => a.id == existing.id);
+      expect(after.audience.reachesNobody, isFalse,
+          reason: 'the notice on the board still reaches somebody');
+    });
+
+    test('a class notice is not "nobody", which is what the trigger used to read it as', () {
+      expect(
+        AnnouncementAudience.forSections(['Grade 10 - Rizal']).reachesNobody,
+        isFalse,
+      );
     });
   });
 }

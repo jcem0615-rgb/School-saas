@@ -485,6 +485,27 @@ class DemoDirectorRepository implements DirectorRepository {
         createdAt: DateTime.now(),
       ),
     );
+    // The inbox half of what onAnnouncementCreated.ts does. The demo had
+    // the list and not this, so a class notice posted in front of a
+    // prospect appeared on the board and rang nothing -- which is the
+    // behaviour the live trigger had too, and the reason it was found.
+    final sections = _store.sectionsByUid();
+    _store.notify(
+      recipientUids: [
+        for (final account in DemoStore.demoAccounts)
+          if (account.schoolId != null &&
+              account.status == UserAccountStatus.active &&
+              audience.includes(
+                account.role,
+                viewerSections: sections[account.uid] ?? const [],
+              ))
+            account.uid,
+      ],
+      kind: NotificationKind.announcement,
+      title: title,
+      body: body,
+      sourceId: id,
+    );
     _store.audit(
       module: 'announcements',
       action: 'create',
@@ -4874,8 +4895,12 @@ class DemoMessagingRepository implements MessagingRepository {
         final mine =
             all.where((c) => c.participantUids.contains(uid)).toList()
               ..sort((a, b) {
-                final at = a.lastMessageAt;
-                final bt = b.lastMessageAt;
+                // By `sortedAt`, so a thread somebody has just opened
+                // and not yet written in sits at the top where they left
+                // it, rather than under every conversation from last
+                // term. Same order the live datasource applies.
+                final at = a.sortedAt;
+                final bt = b.sortedAt;
                 if (at == null && bt == null) return 0;
                 if (at == null) return 1;
                 if (bt == null) return -1;
@@ -4965,6 +4990,7 @@ class DemoMessagingRepository implements MessagingRepository {
         studentName: student.fullName,
         section: student.section,
         unread: {teacherUid: 0, parentUid: 0},
+        createdAt: DateTime.now(),
       ),
     );
     return Success(id);

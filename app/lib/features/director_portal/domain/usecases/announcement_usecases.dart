@@ -38,6 +38,23 @@ class WatchAnnouncementsUseCase {
   Stream<List<Announcement>> unfiltered() => _repository.watchAnnouncements();
 }
 
+/// Refuses an audience nobody is in.
+///
+/// The editor disables Post in this state, and the notification trigger
+/// declines to fan out from it -- but the entity has carried
+/// [AnnouncementAudience.reachesNobody] since sections existed, described
+/// as "the state the editor must not let somebody post from", and until
+/// now nothing outside a test called it. A notice addressed to no one is
+/// not a draft: it is a row in the school's announcements that reads as
+/// posted and reaches nobody, and an import or a script would have
+/// written one without a word.
+Failure? _audienceProblem(AnnouncementAudience audience) {
+  if (!audience.reachesNobody) return null;
+  return const ValidationFailure(
+    'Choose who this is for -- everyone, some roles, or a class.',
+  );
+}
+
 class CreateAnnouncementUseCase {
   final DirectorRepository _repository;
   const CreateAnnouncementUseCase(this._repository);
@@ -53,6 +70,9 @@ class CreateAnnouncementUseCase {
 
     final bodyError = Validators.required(body, fieldName: 'Message');
     if (bodyError != null) return Future.value(Error(ValidationFailure(bodyError)));
+
+    final audienceProblem = _audienceProblem(audience);
+    if (audienceProblem != null) return Future.value(Error(audienceProblem));
 
     return _repository.createAnnouncement(
       title: title.trim(),
@@ -85,6 +105,12 @@ class UpdateAnnouncementUseCase {
 
     final bodyError = Validators.required(body, fieldName: 'Message');
     if (bodyError != null) return Future.value(Error(ValidationFailure(bodyError)));
+
+    // An edit that empties the audience is exactly as invalid as a
+    // create that never filled it -- and worse in one way: the notice is
+    // already on the board, and it would stay there addressed to no one.
+    final audienceProblem = _audienceProblem(audience);
+    if (audienceProblem != null) return Future.value(Error(audienceProblem));
 
     return _repository.updateAnnouncement(
       announcementId: announcementId,

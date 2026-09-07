@@ -35,6 +35,14 @@ class Conversation {
   /// the other person's.
   final Map<String, int> unread;
 
+  /// When the thread was opened.
+  ///
+  /// Kept because a thread nobody has written in yet has no
+  /// [lastMessageAt], and sorting on a null puts a conversation somebody
+  /// has just started at the very bottom of their list -- under threads
+  /// from last term. [sortedAt] is what the list actually orders by.
+  final DateTime? createdAt;
+
   const Conversation({
     required this.id,
     required this.participantUids,
@@ -49,7 +57,12 @@ class Conversation {
     this.lastMessage,
     this.lastMessageAt,
     this.lastSenderUid,
+    this.createdAt,
   });
+
+  /// What a conversation list is ordered by: when it was last spoken in,
+  /// or when it was opened if it has not been.
+  DateTime? get sortedAt => lastMessageAt ?? createdAt;
 
   /// The other person's name, from the point of view of [uid].
   String otherName(String uid) => uid == teacherUid ? parentName : teacherName;
@@ -63,6 +76,15 @@ class Conversation {
   /// line, because a blank row reads as a thread that failed to load.
   bool get isEmpty => lastMessageAt == null;
 }
+
+/// A message long enough to be a problem rather than a message.
+///
+/// Kept in step with `MAX_MESSAGE_LENGTH` in
+/// `functions/src/shared/messaging/conversation.ts` and with the cap in
+/// `firestore.rules`, which is the one that actually refuses. Checked
+/// here as well so a long paste is answered by the box it was pasted
+/// into rather than by a permission error from the server.
+const int maxMessageLength = 4000;
 
 /// One message. Never edited, never unsent.
 class Message {

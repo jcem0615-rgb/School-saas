@@ -121,7 +121,7 @@ const S = () => pres.addSlide();
     { icon: 'FiUserCheck', h: 'Teacher Assignment', b: 'Who teaches which subject in which section, and who advises it.' },
     { icon: 'FiAlertTriangle', h: 'Emergency Alerts', b: 'Live alerts raised in the school, with the power to resolve one.' },
     { icon: 'FiPhone', h: 'Emergency Numbers', b: 'The school\'s published numbers, one tap to dial.' },
-    { icon: 'FiBell', h: 'Announcements', b: 'Post school or division messages under their own name.' },
+    { icon: 'FiBell', h: 'Announcements', b: 'Post school or division messages under their own name, to a role or to one class.' },
     { icon: 'FiCalendar', h: 'Meeting Scheduler', b: 'Call a meeting and say who it is for.' },
     { icon: 'FiCheckSquare', h: 'Approvals', b: 'Decide the requests that reach a division head - and the decision is signed with their account.' },
   ], { cols: 4, y: 2.35, h: 2.14, vgap: 0.22 });
@@ -504,7 +504,7 @@ const S = () => pres.addSlide();
   heading(s, 'Nobody finds out too late', 'A push, and a record of it that is still there tomorrow',
     { lede: 'A push notification is gone the moment it is swiped away. Everything the school sends is also written to the person\'s own inbox.' });
   await rowList(s, [
-    { icon: 'FiBell', h: 'An announcement', b: 'Reaches every account it is addressed to - and only those. Whose phone rings is decided on the server, not by a filter on a list' },
+    { icon: 'FiBell', h: 'An announcement', b: 'Reaches every account it is addressed to - a role, or one class, and only those. Whose phone rings is decided on the server, not by a filter on a list' },
     { icon: 'FiUserX', h: 'A guidance summons', b: 'The student and every linked parent are told, and told again if the office calls it off. A family should not rearrange a day around an appointment that is not happening' },
     { icon: 'FiAlertTriangle', h: 'An emergency', b: 'The class adviser and the student\'s parents, at high priority, with the app closed' },
     { icon: 'FiCalendar', h: 'A leave decision', b: 'The employee who filed it. Somebody who never hears back either comes in when they should not have, or stays away when they were expected' },
@@ -662,7 +662,7 @@ const S = () => pres.addSlide();
     { icon: 'FiSmartphone', h: 'Android', b: 'Installed from an APK the school hands out itself. Camera scanning and push notifications, on the phones staff already carry.' },
     { icon: 'FiMonitor', h: 'Windows', b: 'A desktop build for the registrar\'s and cashier\'s counter, where the printing and the typing happen.' },
     { icon: 'FiGlobe', h: 'Web', b: 'Any browser, and installable to the home screen as a PWA - including iPhone, once added to the Home Screen.' },
-    { icon: 'FiBell', h: 'Notifications', b: 'An announcement reaches the phones of the roles it was addressed to, even with the app closed.' },
+    { icon: 'FiBell', h: 'Notifications', b: 'An announcement reaches the phones of the roles, or the class, it was addressed to, even with the app closed.' },
   ], { cols: 4, y: 2.5, h: 3.15, tint: C.ink, line: '3A4783', discColor: C.accent, glyph: '141B3D',
        headColor: C.paper, bodyColor: '9EABD6' });
   s.addText('One codebase means a fix reaches the registrar\'s desktop and the parent\'s phone together.', {

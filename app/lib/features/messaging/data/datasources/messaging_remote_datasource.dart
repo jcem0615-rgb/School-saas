@@ -44,14 +44,34 @@ class MessagingRemoteDataSource {
   /// Filtered to the signed-in account, which is also what makes the read
   /// rule satisfiable per document: an unfiltered query would return a
   /// conversation this person is not in, and the whole query would fail.
+  ///
+  /// Ordered again in memory. Firestore sorts nulls before everything
+  /// else, so a `lastMessageAt DESC` query puts a thread nobody has
+  /// written in yet at the very bottom -- under conversations from last
+  /// term. A parent who has just opened one to ask a question would have
+  /// to scroll past every old thread to find it. [Conversation.sortedAt]
+  /// falls back to when the thread was opened, which is the answer
+  /// somebody expects.
   Stream<List<Conversation>> watchMyConversations() {
     return _conversations
         .where('participantUids', arrayContains: _actingUser.uid)
         .orderBy('lastMessageAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => ConversationModel.fromFirestore(d.id, d.data()))
-            .toList());
+        .map((snap) {
+      final conversations = snap.docs
+          .map((d) => ConversationModel.fromFirestore(d.id, d.data()))
+          .toList();
+      conversations.sort((a, b) {
+        final left = a.sortedAt;
+        final right = b.sortedAt;
+        // A thread with no date at all sorts last rather than first: it
+        // is a document mid-write, not the newest thing in the list.
+        if (left == null) return right == null ? 0 : 1;
+        if (right == null) return -1;
+        return right.compareTo(left);
+      });
+      return conversations;
+    });
   }
 
   Stream<List<Message>> watchMessages(String conversationId) {

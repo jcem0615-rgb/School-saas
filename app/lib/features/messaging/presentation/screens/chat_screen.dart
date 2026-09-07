@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MaxLengthEnforcement;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -124,6 +125,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         return _Bubble(
                           message: message,
                           mine: message.senderUid == myUid,
+                          // From the conversation, which the callable
+                          // wrote from the two user records, rather than
+                          // from the message, whose sender put it there.
+                          senderName: conversation?.otherName(myUid) ?? '',
                         );
                       },
                     ),
@@ -141,6 +146,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       controller: _controller,
                       minLines: 1,
                       maxLines: 5,
+                      // The same limit the rules enforce. Reached here,
+                      // it is a counter under the box; reached there, it
+                      // is a permission error after the tap.
+                      maxLength: maxMessageLength,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                      buildCounter: (_, {required currentLength, required isFocused, maxLength}) =>
+                          currentLength < maxMessageLength - 200
+                              ? null
+                              : Text('$currentLength / $maxLength'),
                       textCapitalization: TextCapitalization.sentences,
                       decoration: const InputDecoration(
                         hintText: 'Write a message',
@@ -170,7 +184,15 @@ class _Bubble extends StatelessWidget {
   final Message message;
   final bool mine;
 
-  const _Bubble({required this.message, required this.mine});
+  /// The other person's name, taken from the conversation rather than
+  /// from the message. Only shown on their side of the thread.
+  final String senderName;
+
+  const _Bubble({
+    required this.message,
+    required this.mine,
+    required this.senderName,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -193,9 +215,9 @@ class _Bubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!mine)
+              if (!mine && senderName.isNotEmpty)
                 Text(
-                  message.senderName,
+                  senderName,
                   style: theme.textTheme.labelSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),

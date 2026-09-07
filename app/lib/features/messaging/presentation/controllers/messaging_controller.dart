@@ -232,10 +232,22 @@ class MessagingActionController extends StateNotifier<AsyncValue<void>> {
   Future<bool> send({required String conversationId, required String text}) async {
     // Refused here as well as in the rules: an empty bubble tells the
     // other person nothing and still rings their phone.
-    if (text.trim().isEmpty) return false;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return false;
+    if (trimmed.length > maxMessageLength) {
+      // The rules refuse this too, but a permission error is not
+      // something anybody can act on. Said in the length the person
+      // actually typed.
+      _set(AsyncValue.error(
+        'That message is ${trimmed.length} characters. '
+        'The limit is $maxMessageLength -- send it in two.',
+        StackTrace.current,
+      ));
+      return false;
+    }
     return _run(() => _repository().send(
           conversationId: conversationId,
-          text: text.trim(),
+          text: trimmed,
         ));
   }
 

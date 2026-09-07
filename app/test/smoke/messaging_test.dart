@@ -146,6 +146,38 @@ void main() {
       expect(store.messages.value[seeded]!.length, before);
     });
 
+    test('a message longer than the limit is refused, and says so', () async {
+      // The rules refuse it too, but a permission error at the end of a
+      // long paste is not something anybody can act on.
+      final container = await signedInAs(UserRole.parent);
+      final store = container.read(demoStoreProvider);
+      final before = store.messages.value[seeded]!.length;
+      final controller = actions(container);
+
+      expect(
+        await controller.send(
+          conversationId: seeded,
+          text: 'a' * (maxMessageLength + 1),
+        ),
+        isFalse,
+      );
+      expect(store.messages.value[seeded]!.length, before);
+      expect(controller.errorMessage, contains('$maxMessageLength'));
+    });
+
+    test('a message exactly at the limit still goes', () async {
+      final container = await signedInAs(UserRole.parent);
+      final store = container.read(demoStoreProvider);
+      final before = store.messages.value[seeded]!.length;
+
+      expect(
+        await actions(container)
+            .send(conversationId: seeded, text: 'a' * maxMessageLength),
+        isTrue,
+      );
+      expect(store.messages.value[seeded]!.length, before + 1);
+    });
+
     test('somebody outside the thread cannot send into it', () async {
       final container = await signedInAs(UserRole.registrar);
       final store = container.read(demoStoreProvider);
@@ -236,6 +268,46 @@ void main() {
       await container.read(myConversationsProvider.future);
 
       expect(container.read(unreadMessageCountProvider), 0);
+    });
+  });
+
+  group('the conversation list', () {
+    test('a thread nobody has written in yet sits at the top, not the bottom',
+        () async {
+      // Firestore sorts nulls before everything else, so ordering on
+      // `lastMessageAt` alone buried a thread somebody had just opened
+      // under every conversation from last term -- which is where they
+      // would least think to look for it. `sortedAt` falls back to when
+      // the thread was opened.
+      final container = await signedInAs(UserRole.faculty);
+      final store = container.read(demoStoreProvider);
+      final existing = thread(store, seeded);
+      expect(existing.lastMessageAt, isNotNull, reason: 'seed precondition');
+
+      // A thread opened a moment ago and not yet written in, exactly as
+      // startConversation leaves one.
+      store.prepend(
+        store.conversations,
+        Conversation(
+          id: 'u_faculty__u_parent__stu_002',
+          participantUids: const ['u_faculty', 'u_parent'],
+          teacherUid: 'u_faculty',
+          teacherName: 'Maria Santos',
+          parentUid: 'u_parent',
+          parentName: 'Rosario Torres',
+          studentId: 'stu_002',
+          studentName: 'Bea Torres',
+          section: 'Grade 4 - Sampaguita',
+          unread: const {'u_faculty': 0, 'u_parent': 0},
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      final listed = await container.read(myConversationsProvider.future);
+      expect(listed.first.id, 'u_faculty__u_parent__stu_002');
+      expect(listed.first.isEmpty, isTrue,
+          reason: 'still shown as a thread with nothing said in it');
+      expect(listed.map((c) => c.id), contains(seeded));
     });
   });
 }

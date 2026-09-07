@@ -42,6 +42,30 @@ void main() {
         expect(audience.includes(role), isFalse);
       }
     });
+
+    // Section names are typed by hand on the student record and again on
+    // the teacher's assignment, and an exact comparison fails silently:
+    // the family simply never sees the notice, and nothing anywhere says
+    // why. The server side normalises for the same reason.
+    test('a class is matched however the name was typed', () {
+      final audience = AnnouncementAudience.forSections(['Grade 10 - Rizal']);
+      expect(audience.includes(UserRole.student, viewerSections: ['grade 10 - rizal']), isTrue);
+      expect(
+        audience.includes(UserRole.parent, viewerSections: ['  Grade 10  -  Rizal ']),
+        isTrue,
+      );
+      expect(audience.includes(UserRole.faculty, viewerSections: ['GRADE 10 - RIZAL']), isTrue);
+    });
+
+    test('a blank section is not a class, on either side', () {
+      final audience = AnnouncementAudience.forSections(['Grade 10 - Rizal']);
+      expect(audience.includes(UserRole.student, viewerSections: ['', '  ']), isFalse);
+      expect(
+        AnnouncementAudience.forSections(['   '])
+            .includes(UserRole.student, viewerSections: ['Grade 10 - Rizal']),
+        isFalse,
+      );
+    });
   });
 
   group('label', () {

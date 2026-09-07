@@ -373,8 +373,22 @@ service cloud.firestore {
                           && request.auth.uid in
                              get(/databases/$(database)/documents/schools/$(schoolId)/conversations/$(conversationId)).data.participantUids
                           && request.resource.data.senderUid == request.auth.uid
+                          // `senderName` travels with the message and is
+                          // deliberately NOT pinned here: it is the
+                          // account's display name, which lives in two
+                          // places that a rename can leave disagreeing,
+                          // and a mismatch would refuse every message
+                          // rather than protect anything. Nothing trusts
+                          // it instead -- the bubble and the push both
+                          // read the name off the conversation, which
+                          // the callable wrote.
                           && request.resource.data.text is string
-                          && request.resource.data.text.size() > 0
+                          // Trimmed, because " " is not a message. The
+                          // app refuses one and the comment there said
+                          // the rules did too; they did not, and an
+                          // empty bubble still rang the other person's
+                          // phone.
+                          && request.resource.data.text.trim().size() > 0
                           && request.resource.data.text.size() <= 4000;
 
           // A message is not edited and not unsent. It is the record of
@@ -509,8 +523,23 @@ service cloud.firestore {
         // authorship after the fact. A teacher may edit only their own;
         // the three management roles may edit any, which is what lets a
         // director correct or retract a notice.
+        //
+        // Both halves of authorship are pinned, not just the uid. The
+        // name is what every reader sees under the notice, and pinning
+        // only `createdBy` left a teacher free to edit their own post
+        // and sign it "The Principal" -- the uid nobody looks at would
+        // still have said otherwise. Same defect the grades rule had
+        // with `submittedByName`, and the same fix.
+        //
+        // Through `.get(key, default)` on both sides, not a direct field
+        // read: the field is absent on every announcement posted before
+        // it existed, and reading a missing key throws in rules -- which
+        // would deny the whole update and make a school's older notices
+        // uneditable.
         allow update: if schoolIsAccessible(schoolId)
                         && request.resource.data.createdBy == resource.data.createdBy
+                        && request.resource.data.get('createdByName', '') ==
+                             resource.data.get('createdByName', '')
                         && (
                           hasRole(schoolId, ['director', 'principal', 'admin'])
                           || (hasRole(schoolId, ['faculty'])

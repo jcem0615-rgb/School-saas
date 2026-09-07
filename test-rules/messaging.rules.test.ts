@@ -190,6 +190,29 @@ describe("sending", () => {
     );
   });
 
+  it("a message of nothing but spaces is refused too", async () => {
+    // `size() > 0` let this through, while the app refused it and its
+    // comment said the rules did as well. An empty bubble tells the
+    // other person nothing and still rings their phone.
+    const db = contextAs("parent", "parent_a").firestore();
+    await assertFails(
+      setDoc(
+        doc(db, `schools/${SCHOOL}/conversations/${CONV}/messages/msg_blank`),
+        message({text: "   \n  "})
+      )
+    );
+  });
+
+  it("but a message with spaces around it is not", async () => {
+    const db = contextAs("parent", "parent_a").firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, `schools/${SCHOOL}/conversations/${CONV}/messages/msg_padded`),
+        message({text: "  Salamat po.  "})
+      )
+    );
+  });
+
   it("and one long enough to be a problem", async () => {
     const db = contextAs("parent", "parent_a").firestore();
     await assertFails(

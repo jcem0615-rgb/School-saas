@@ -254,7 +254,7 @@ add(
     + 'rather than from an overnight job.'),
   H2('4.1 The dashboard buttons'),
   featureTable([
-    ['Announcements', 'Announcements', 'Write a title and message, address it to everyone or pick the roles it is for, and pin one to the top. Posting it notifies the phones of the roles addressed.'],
+    ['Announcements', 'Announcements', 'Write a title and message, address it to everyone or pick the roles it is for, and pin one to the top. Posting it notifies the phones of everyone addressed.'],
     ['Meeting Scheduler', 'Meeting Scheduler', 'Schedule a meeting with a title, description, location, start and end, and the roles expected. Cancel one that is no longer happening.'],
     ['Approvals', 'Approvals', 'One inbox for every request filed anywhere in the school - material requests from faculty and staff, promissory notes from students. Filter by pending, approved, rejected or all; approve or reject with a reason. Each card carries the request\'s own details, and each decision records who made it. See 4.2.'],
     ['Class Schedule', 'Class Schedule', 'The week for every section. See section 17.'],
@@ -740,14 +740,20 @@ add(
   featureTable([
     ['Title and Message', 'Announcements', 'What is being said.'],
     ['Everyone / Choose roles', 'Announcements', 'Who it is addressed to. Choosing roles means only those roles see it - and only their phones ring.'],
+    ['Post to a class', 'Announcements', 'A teacher addresses one of their own sections instead of a role. It reaches that class\'s students, their parents and the section\'s other teachers - three different roles and one class - and nobody else.'],
     ['Pin to top', 'Announcements', 'Keeps one announcement at the top of the list for everyone who can see it.'],
     ['Announcements on this device', 'Profile', 'The reader\'s own switch for push notifications on that phone or computer.'],
   ], ['Control', 'Where', 'What it does']),
   H2('21.1 How a notification reaches a phone'),
-  P('Posting an announcement resolves its audience on the server, finds the active accounts in the school '
-    + 'whose role is addressed, and sends to the devices those accounts have registered. It arrives with '
-    + 'the app closed. The app is installable to a home screen as a progressive web app, which is what '
-    + 'makes this work on a phone without an app store install.'),
+  P('Posting an announcement resolves its audience on the server, finds the active accounts the notice is '
+    + 'addressed to, and sends to the devices those accounts have registered. It arrives with the app '
+    + 'closed. The app is installable to a home screen as a progressive web app, which is what makes this '
+    + 'work on a phone without an app store install.'),
+  P('A notice addressed to a class is resolved the same four ways a class is made up of people: the '
+    + 'students in that section, the parents of those students, and the teachers assigned to it. Section '
+    + 'names are matched however they were typed, because they are entered by hand on the student record '
+    + 'and again on the teacher\'s assignment, and an exact comparison fails in the direction where a '
+    + 'family simply never hears.'),
   P('Who a list shows and whose phone rings are decided by two separate pieces of code, kept deliberately '
     + 'apart and covered by the same table of test cases - so a change to one cannot quietly disagree with '
     + 'the other.'),
@@ -764,7 +770,7 @@ add(
   ], ['Control', 'Where', 'What it does']),
   H2('21.3 What raises one'),
   featureTable([
-    ['An announcement', 'Everyone it is addressed to'],
+    ['An announcement', 'Everyone it is addressed to - a role, or a class and its families'],
     ['A guidance summons', 'The student and every linked parent - and again if it is cancelled'],
     ['An emergency alert', 'The class adviser and the student\'s parents'],
     ['A leave decision', 'The employee who filed it'],

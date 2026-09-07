@@ -79,6 +79,16 @@ rewrite afterwards is worth nothing to either of them.
 client. Otherwise either side could put words in the other's mouth in a
 thread the school might one day be asked to produce.
 
+**But the sender's *name* is not pinned**, and nothing trusts it. It is
+the account's display name, which lives both on the user record and on
+the Firebase Auth account; a rename can leave those disagreeing, and a
+rule comparing them would refuse every message rather than protect
+anything. So the two places the name is actually read — the bubble on
+the other person's screen and the title of the push — take it from the
+**conversation**, which `startConversation` wrote out of the two user
+records. Before that, a parent could have sent a message whose lock-screen
+notification appeared to come from any name they typed.
+
 **Every message notifies**, through the same delivery path as everything
 else (Module 17), and the notification names the child — a teacher with
 thirty families and a parent with four teachers both need to know which
@@ -86,7 +96,22 @@ conversation rang before they open it.
 
 **Empty messages are refused** in three places: the send button, the
 controller, and the rules. An empty bubble tells the other person nothing
-and still rings their phone.
+and still rings their phone. The rules half of that was not true for a
+while: the check was `text.size() > 0`, which a message of three spaces
+passes, while the comment in the controller said the rules refused it
+too. It is `text.trim().size() > 0` now.
+
+**The length limit is enforced in both places, and only one of them can
+explain itself.** `firestore.rules` caps a message at 4000 characters and
+that is the cap that counts — but a long paste refused there arrives as a
+permission error at the end of the tap. The box carries the same limit as
+a counter, and the controller says how long the message actually is.
+
+**A thread nobody has written in yet sorts by when it was opened.**
+Firestore orders nulls before everything else, so `lastMessageAt DESC`
+put a conversation somebody had just started at the very bottom of their
+list, under threads from last term. `Conversation.sortedAt` falls back to
+`createdAt`, and both the live datasource and the demo order by it.
 
 ## Starting a thread
 
@@ -111,12 +136,17 @@ pickers are what make the screen usable; they are not what makes it safe.
   failing closed rather than opening every child in the school.
 * `test-rules/messaging.rules.test.ts` — only participants read a thread
   (an admin and a director are asserted *not* to), the sender pin, empty
-  and oversized messages, no edits and no unsends, and an unread count
-  that cannot be cleared on the other person's behalf.
+  and oversized messages, a message of nothing but spaces, one with
+  spaces around real words still going through, no edits and no unsends,
+  and an unread count that cannot be cleared on the other person's
+  behalf.
 * `app/test/smoke/messaging_test.dart` — the four refusals (wrong child,
   wrong teacher, wrong role, outsider sending), an existing thread being
   returned rather than duplicated, the unread count moving on one side
-  only, and the notification that follows a message.
+  only, the notification that follows a message, a message over the
+  limit refused with the length said out loud, one exactly at the limit
+  going through, and a thread with nothing said in it sorting to the top
+  rather than the bottom.
 * `app/test/smoke/portal_actions_test.dart` — the screen renders for
   both roles.
 

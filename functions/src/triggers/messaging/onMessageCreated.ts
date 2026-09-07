@@ -61,7 +61,15 @@ export const onMessageCreated = onDocumentCreated(
 
     if (recipients.length === 0) return;
 
-    const senderName = (message.senderName as string) ?? "Someone";
+    // From the conversation, not from the message. The conversation was
+    // written by the callable out of the two user records; the message
+    // carries whatever its sender put on it, and this name is the line
+    // that appears on somebody's lock screen as though the school had
+    // said it.
+    const senderName =
+      senderUid === conversation.teacherUid ?
+        ((conversation.teacherName as string) || "Your child's teacher") :
+        ((conversation.parentName as string) || "A parent");
     const about = (conversation.studentName as string) ?? "";
 
     await deliver({

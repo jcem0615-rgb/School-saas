@@ -22,6 +22,7 @@ class ConversationModel {
       lastMessage: data['lastMessage'] as String?,
       lastMessageAt: (data['lastMessageAt'] as Timestamp?)?.toDate(),
       lastSenderUid: data['lastSenderUid'] as String?,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       unread: {
         for (final entry in (data['unread'] as Map<dynamic, dynamic>? ?? const {}).entries)
           if (entry.key is String && entry.value is num)

@@ -52,12 +52,29 @@ the Director's one inbox, rather than needing N different approval UIs.
   it (`update`, and only from `pending` to `approved`/`rejected`). A rule
   also checks `request.resource.data.requestedByRole == claims().role` so
   a Staff account can't file a request claiming to be a Director.
+- **An audience nobody is in is refused before the write.** The editor
+  disables Post in that state and the notification trigger declines to
+  fan out from it, but neither is the layer an import or a script goes
+  through. `AnnouncementAudience.reachesNobody` had carried the note
+  "the state the editor must not let somebody post from" since sections
+  existed, and nothing outside a test called it; the create and update
+  use cases do now — the same place `SaveGradingSchemeUseCase` refuses
+  weights that do not total 100, and for the same reason.
 - **Expenses are financial data**: readable only by
   `owner/director/admin/registrar`, not the whole tenant the way
   Announcements/Meetings are.
 - **Immutable authorship**: update rules on announcements/meetings/expenses
   require `request.resource.data.createdBy == resource.data.createdBy` —
   editing content is fine, silently reassigning who created it is not.
+  On announcements this now pins `createdByName` as well. Pinning only
+  the uid protected the half nobody looks at: the name is what appears
+  under the notice, so a teacher could edit their own post and sign it
+  "The Principal" while the uid still said otherwise. Same defect the
+  `grades` rule had with `submittedByName`. Both sides are read with
+  `.get(key, default)` rather than directly, because the field is absent
+  on every announcement written before it existed and a direct read of a
+  missing key throws — which would make a school's older notices
+  uneditable rather than merely unsignable.
 - See `test-rules/director-portal.rules.test.ts`.
 
 ## Dashboard aggregates: why no rollup document
@@ -97,7 +114,9 @@ neither does anybody reading the record.
 | Layer | File | Covers |
 |---|---|---|
 | Domain | `director_usecases_test.dart` | announcement/meeting/approval/expense validation |
-| Rules | `director-portal.rules.test.ts` | approval role asymmetry, self-decision block, expense visibility |
+| Domain | `announcement_audience_test.dart` | who each audience reaches, including a class matched however its name was typed |
+| Demo | `section_announcement_test.dart` | a class notice reaching the class's list *and* their inbox; an audience of nobody refused at the use case |
+| Rules | `director-portal.rules.test.ts` | approval role asymmetry, self-decision block, expense visibility, and a teacher unable to re-sign their own notice |
 | Functions | `classifyAction.test.ts` | audit action classification (create/update/delete/soft_delete/restore) |
 
 ## Deferred to later modules

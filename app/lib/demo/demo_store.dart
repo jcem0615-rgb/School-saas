@@ -727,6 +727,46 @@ class DemoStore {
     notifications.add(inboxes);
   }
 
+  /// Which classes each account belongs to, however it belongs to one.
+  ///
+  /// The same four routes `viewerSectionsProvider` resolves on screen and
+  /// `sectionsByUid` resolves in onAnnouncementCreated.ts: a student's
+  /// own section, the sections of a parent's children, the sections a
+  /// teacher is assigned to, and nothing for anybody else.
+  Map<String, List<String>> sectionsByUid() {
+    final byUid = <String, List<String>>{};
+    void add(String? uid, String? section) {
+      if (uid == null || section == null || section.isEmpty) return;
+      (byUid[uid] ??= []).add(section);
+    }
+
+    final sectionOfStudent = <String, String>{};
+    for (final student in students.value) {
+      sectionOfStudent[student.id] = student.section;
+    }
+    for (final account in demoAccounts) {
+      switch (account.role) {
+        case UserRole.student:
+          // Through the student record's own `userId`, the same join the
+          // live rules and the student portal both make.
+          for (final student in students.value) {
+            if (student.userId == account.uid) add(account.uid, student.section);
+          }
+        case UserRole.parent:
+          for (final studentId in parentLinks.value[account.uid] ?? const <String>[]) {
+            add(account.uid, sectionOfStudent[studentId]);
+          }
+        case UserRole.faculty:
+          for (final assignment in assignments.value) {
+            if (assignment.teacherId == account.uid) add(account.uid, assignment.section);
+          }
+        default:
+          break;
+      }
+    }
+    return byUid;
+  }
+
   /// The student's own account and every parent linked to them --
   /// the same set familyOf() resolves in onSummonsWritten.ts.
   List<String> familyOf(String studentId) {

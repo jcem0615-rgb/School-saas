@@ -84,6 +84,46 @@ describe("announcements", () => {
     );
   });
 
+  test("a teacher cannot re-sign their own notice with somebody else's name", async () => {
+    // The rule pinned `createdBy` and left `createdByName` free -- and
+    // the name is the half every reader sees under the notice. Same
+    // defect the grades rule had with `submittedByName`.
+    await seedActiveSubscription();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/announcements/ann_own`), {
+        title: "Test",
+        body: "Body",
+        createdBy: "faculty_1",
+        createdByName: "Maria Santos",
+      });
+    });
+    const faculty = contextAs("faculty");
+    await assertFails(
+      updateDoc(doc(faculty.firestore(), `schools/${SCHOOL}/announcements/ann_own`), {
+        body: "Classes are suspended.",
+        createdByName: "The Principal",
+      })
+    );
+  });
+
+  test("but may still correct the notice it is signed with", async () => {
+    await seedActiveSubscription();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/announcements/ann_own2`), {
+        title: "Test",
+        body: "Body",
+        createdBy: "faculty_1",
+        createdByName: "Maria Santos",
+      });
+    });
+    const faculty = contextAs("faculty");
+    await assertSucceeds(
+      updateDoc(doc(faculty.firestore(), `schools/${SCHOOL}/announcements/ann_own2`), {
+        body: "Bring the permit slip on Friday instead.",
+      })
+    );
+  });
+
   test("any tenant member can read announcements", async () => {
     await seedActiveSubscription();
     await testEnv.withSecurityRulesDisabled(async (context) => {

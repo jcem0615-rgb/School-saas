@@ -106,6 +106,31 @@ that rearranged a working day around an appointment should not turn up to
 one that is off. A summons being *completed* is silent — the student was
 there.
 
+**A class notice reaches the class, not nobody.** This was wrong for as
+long as teachers have been able to post to their own section. The client
+learned about `audience.sections`; `readAudience` and the fan-out did
+not, and a section-only audience — `all: false`, no roles — matched the
+trigger's "addressed to nobody" guard exactly. So every class notice was
+written, appeared in the app's list, and rang nothing: no push, no inbox
+item, nothing a family would find without going to look. The failure was
+total and silent, and the comment above the module said the two
+implementations "have to stay identical" while the test table that was
+meant to keep them so had no section case in it.
+
+`sectionsByUid` in the trigger now resolves a section to people the same
+four ways `viewerSectionsProvider` does on screen: a student's own
+section, the sections of a parent's children, the sections a teacher is
+assigned to, and nothing for anybody else. It costs two extra collection
+reads and only runs when a section is actually targeted.
+
+**Sections are matched case- and space-insensitively.** A section name is
+typed by hand on the student record and again on the teacher's
+assignment, and an exact comparison between "Grade 10 - Rizal" and
+"Grade 10 - rizal " fails silently in the worst direction — the family
+never hears about the field trip. `shared/sections.ts` holds the one
+normaliser; messaging already had it, under the same reasoning, and
+announcements did not.
+
 **A malformed audience reaches nobody, not everybody.** `readAudience`
 fails closed on a missing, non-object, or non-array audience, and only
 accepts a literal `true` for `all`. A push cannot be unsent: reaching
@@ -165,6 +190,21 @@ only the push half is affected.
   student and their parent and not the registrar, cancelling notifies
   again, completing does not, and one account marking theirs read does
   not touch another's.
+* The audience table — `functions/test/shared/announcements/audience.test.ts`
+  and `app/test/unit/.../announcement_audience_test.dart`, which assert
+  the same cases on both implementations. The section cases are what the
+  table was missing.
+* The fan-out itself —
+  `functions/test/shared/announcements-emulator/announcementFanOut.test.ts`,
+  which runs `onAnnouncementCreated` against a real Firestore and reads
+  the inbox afterwards: a class notice reaches that class's student,
+  their parent and its teacher; it reaches nobody in another class and
+  nobody who is in no class; a school-wide notice still reaches everyone
+  active; a leaver is skipped; and an audience of nobody stays silent.
+* The demo — `app/test/smoke/section_announcement_test.dart` now checks
+  the inbox as well as the list. The demo repositories had the list half
+  only, so a class notice posted in front of a prospect rang nothing —
+  the same gap, in the surface a school is shown.
 
 ## What is not covered by tests
 

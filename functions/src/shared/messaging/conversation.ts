@@ -13,6 +13,13 @@
  * it produced -- which they can do, because by then the answer is a
  * field on a document.
  */
+import {normalizeSection} from "../sections";
+
+// Re-exported so callers that already reason about "is this the same
+// class" through this module keep doing so. The implementation moved to
+// `shared/sections` when announcements turned out to need it too.
+export {normalizeSection};
+
 
 /**
  * One thread per teacher, parent and child.
@@ -84,9 +91,7 @@ export function teachesSection(
   );
 }
 
-export function normalizeSection(section: string): string {
-  return section.trim().toLowerCase().replace(/\s+/g, " ");
-}
+
 
 /**
  * Whether this parent is linked to this student.
