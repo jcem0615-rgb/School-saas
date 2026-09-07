@@ -937,8 +937,16 @@ service cloud.firestore {
                         hasRole(schoolId, ['director', 'admin'])
                         || resource.data.employeeUid == request.auth.uid
                       );
-        allow create: if hasRole(schoolId, ['director', 'admin'])
-                        && schoolIsAccessible(schoolId);
+        // Server-only, like every other collection where money is the
+        // point. A payslip used to be computed on the clerk's device and
+        // written straight here, with these rules checking only that the
+        // clerk held the right role -- so anybody who could reach a
+        // console could have issued themselves a payslip for any figure
+        // they liked, and the school's own record would have agreed with
+        // them. `runPayroll` reads the pay rates, the contribution
+        // tables, the scans and the approved leave, and works the
+        // figures out itself.
+        allow create: if false;
         // A payslip is a statement of what was paid on a date. Editing
         // one after the fact turns the record of a payday into whatever
         // somebody needs it to have been, which is the opposite of what

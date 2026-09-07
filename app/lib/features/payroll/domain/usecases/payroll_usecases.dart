@@ -1,6 +1,7 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../entities/contribution_scheme.dart';
+import '../entities/payroll_run.dart';
 import '../entities/payslip.dart';
 import '../repositories/payroll_repository.dart';
 
@@ -84,27 +85,35 @@ class ConfirmContributionSchemeUseCase {
   }
 }
 
-class IssuePayslipsUseCase {
+class RunPayrollUseCase {
   final PayrollRepository _repository;
-  const IssuePayslipsUseCase(this._repository);
+  const RunPayrollUseCase(this._repository);
 
-  Future<Result<int>> call({
-    required List<Payslip> payslips,
-    required ContributionScheme scheme,
+  /// Previews or issues a period.
+  ///
+  /// The checks that used to live here -- nobody to pay, tables not
+  /// confirmed -- are the server's now, and deliberately only the
+  /// server's. They are the checks that decide whether somebody's
+  /// deductions are asserted without anybody having looked at a
+  /// circular, and a check the client can skip by not running it is not
+  /// a check. What is left here is the one thing the client is the
+  /// authority on: which dates it asked for.
+  Future<Result<PayrollRun>> call({
+    required DateTime periodFrom,
+    required DateTime periodTo,
+    required bool deductContributions,
+    required bool commit,
   }) {
-    if (payslips.isEmpty) {
-      return Future.value(const Error(ValidationFailure('Nobody to pay.')));
-    }
-    if (!scheme.canIssuePayslips) {
-      // The refusal that makes the confirmation mean something. These
-      // are somebody's deductions, and this software asserts nothing
-      // about what they should be until the school has said.
+    if (periodTo.isBefore(periodFrom)) {
       return Future.value(const Error(ValidationFailure(
-        'The contribution tables have not been confirmed. Somebody has to '
-        'check them against the current circulars on the Payroll Setup '
-        'screen before payslips can be issued.',
+        'A payroll period cannot end before it starts.',
       )));
     }
-    return _repository.issuePayslips(payslips);
+    return _repository.runPayroll(
+      periodFrom: periodFrom,
+      periodTo: periodTo,
+      deductContributions: deductContributions,
+      commit: commit,
+    );
   }
 }

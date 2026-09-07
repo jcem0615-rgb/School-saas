@@ -193,13 +193,20 @@ flutter test
 # 2. Cloud Functions unit tests (pure logic: billing math, claims guards, ...)
 cd functions
 npm test                # fast, no emulator needed
-npm run test:emulator   # the one counter test that needs Firestore (atomicity check)
+npm run test:emulator   # the suites that need a real Firestore
 
 # 3. Firestore Security Rules tests (the actual "no data leak" proof)
 # from the repo root:
 npm install
 npm run test:rules
 ```
+
+`test:emulator` covers what a stubbed database cannot show: receipt
+numbers claimed under contention, a payroll period issued twice, a parent
+linked to a student in one transaction. It runs the suites **serially**
+(`--runInBand`) on purpose -- they share one emulator, and running them in
+parallel makes the deliberately-contended tests fail on the emulator's own
+transaction lock rather than on anything the code did.
 
 `test:rules` needs the Firebase CLI. If you'd rather not install it, the
 suite runs against any Firestore emulator you point it at:

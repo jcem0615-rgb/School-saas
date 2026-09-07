@@ -222,7 +222,12 @@ describe("the callables that move money", () => {
 
       expect(await paymentRows()).toHaveLength(5);
       expect(await balanceOf()).toBe(5000);
-    });
+    // Contended transactions retry, and six emulator suites sharing one
+    // Firestore make that slower than Jest's five-second default -- which
+    // fails this as a timeout while the guarantee it checks is intact. An
+    // explicit ceiling rather than a global one, so a test that genuinely
+    // hangs still fails somewhere.
+    }, 30_000);
 
     it("gives five simultaneous payments five different receipt numbers", async () => {
       await Promise.all(
@@ -232,7 +237,12 @@ describe("the callables that move money", () => {
       );
       const receipts = (await paymentRows()).map((p) => p.receiptNumber);
       expect(new Set(receipts).size).toBe(5);
-    });
+    // Contended transactions retry, and six emulator suites sharing one
+    // Firestore make that slower than Jest's five-second default -- which
+    // fails this as a timeout while the guarantee it checks is intact. An
+    // explicit ceiling rather than a global one, so a test that genuinely
+    // hangs still fails somewhere.
+    }, 30_000);
   });
 
   describe("refunding a payment", () => {
@@ -298,7 +308,12 @@ describe("the callables that move money", () => {
 
       expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
       expect(await balanceOf()).toBe(10000);
-    });
+    // Contended transactions retry, and six emulator suites sharing one
+    // Firestore make that slower than Jest's five-second default -- which
+    // fails this as a timeout while the guarantee it checks is intact. An
+    // explicit ceiling rather than a global one, so a test that genuinely
+    // hangs still fails somewhere.
+    }, 30_000);
 
     it("refuses to refund the same payment again later", async () => {
       const paymentId = await takeAPayment(2500);

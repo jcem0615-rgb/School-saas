@@ -73,6 +73,17 @@ export {enrolApplicant} from "./callable/admissions/enrolApplicant";
 export {setStudentBalance} from "./callable/students/setStudentBalance";
 
 // ---------------------------------------------------------------------------
+// Module: Payroll
+//
+// What a person is paid is computed here, from the pay rates, the
+// contribution tables, the scans and the approved leave -- none of which
+// the caller supplies. The preview the office approves and the payslips
+// it then issues are the same call with `commit` flipped, so the figures
+// on the screen cannot disagree with the figures in the record.
+// ---------------------------------------------------------------------------
+export {runPayroll} from "./callable/payroll/runPayroll";
+
+// ---------------------------------------------------------------------------
 // Module: Announcements (push notifications)
 // ---------------------------------------------------------------------------
 export {onAnnouncementCreated} from "./triggers/announcements/onAnnouncementCreated";

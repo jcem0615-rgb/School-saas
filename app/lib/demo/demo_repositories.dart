@@ -74,6 +74,7 @@ import '../features/admissions/domain/entities/applicant.dart';
 import '../features/inventory/domain/entities/inventory_item.dart';
 import '../features/inventory/domain/repositories/inventory_repository.dart';
 import '../features/payroll/domain/entities/contribution_scheme.dart';
+import '../features/payroll/domain/entities/payroll_run.dart';
 import '../features/payroll/domain/entities/payslip.dart';
 import '../features/payroll/domain/repositories/payroll_repository.dart';
 import '../features/admissions/domain/repositories/admissions_repository.dart';
@@ -87,6 +88,7 @@ import '../features/messaging/domain/entities/conversation.dart';
 import '../features/messaging/domain/repositories/messaging_repository.dart';
 import '../features/notifications/domain/entities/app_notification.dart';
 import '../features/timekeeping/domain/entities/leave_request.dart';
+import '../features/timekeeping/domain/entities/timesheet.dart';
 import '../features/timekeeping/domain/repositories/timekeeping_repository.dart';
 import '../features/notifications/domain/repositories/notifications_repository.dart';
 import '../features/school_totals/domain/entities/school_totals.dart';
@@ -1390,25 +1392,102 @@ class DemoPayrollRepository implements PayrollRepository {
   }
 
   @override
-  Future<Result<int>> issuePayslips(List<Payslip> payslips) async {
+  Future<Result<PayrollRun>> runPayroll({
+    required DateTime periodFrom,
+    required DateTime periodTo,
+    required bool deductContributions,
+    required bool commit,
+  }) async {
     await _latency();
-    // Keyed the way the real one is, so running a period twice replaces
-    // rather than doubles.
-    final keyOf = (Payslip p) => '${p.periodFrom}_${p.periodTo}_${p.employeeUid}';
-    final existing = {for (final p in _store.payslips.value) keyOf(p): p};
-    for (final payslip in payslips) {
-      existing[keyOf(payslip)] = payslip;
+    // The demo has no server, so this is the one place the Dart
+    // `computePayslip` is still what a payslip comes out of. It follows
+    // `runPayroll` step for step -- the same order, the same refusals,
+    // the same derived key -- because a demo that issued a period twice
+    // where the real thing refuses would be selling a promise the
+    // product does not keep.
+    final scheme = _store.contributionScheme.value;
+    final blockers = <String>[];
+    if (!scheme.isComplete) {
+      blockers.add(
+        'These have no table yet: '
+        '${scheme.unconfiguredKinds.map((k) => k.displayLabel).join(', ')}. '
+        'A payslip that silently deducts nothing for an agency is one the '
+        'school under-remits on all year.',
+      );
+    } else if (!scheme.confirmedBySchool) {
+      blockers.add(
+        'The contribution tables have not been confirmed. Somebody has to '
+        'check them against the current circulars on the Payroll Setup '
+        'screen before payslips can be issued.',
+      );
     }
-    _store.payslips.add(existing.values.toList());
+
+    final payslips = <Payslip>[];
+    for (final person in _store.compensation.value.where((c) => c.rate > 0)) {
+      final timesheet = buildTimesheet(
+        employeeUid: person.employeeUid,
+        employeeName: person.employeeName,
+        from: periodFrom,
+        to: periodTo,
+        records: _store.attendance.value,
+        leaves: _store.leaveRequests.value,
+      );
+      payslips.add(computePayslip(
+        compensation: person,
+        timesheet: timesheet,
+        scheme: scheme,
+        monthlyBasisForContributions: monthlyBasisFor(person),
+        deductContributions: deductContributions,
+      ));
+    }
+    payslips.sort((a, b) => a.employeeName.compareTo(b.employeeName));
+
+    if (!commit) {
+      return Success(PayrollRun(
+        payslips: payslips,
+        committed: false,
+        issued: 0,
+        canIssue: scheme.canIssuePayslips,
+        blockers: blockers,
+      ));
+    }
+
+    if (payslips.isEmpty) {
+      return const Error(ValidationFailure('Nobody to pay.'));
+    }
+    if (!scheme.canIssuePayslips) {
+      return Error(ValidationFailure(blockers.first));
+    }
+
+    String keyOf(Payslip p) => '${p.periodFrom}_${p.periodTo}_${p.employeeUid}';
+    final onFile = {for (final p in _store.payslips.value) keyOf(p)};
+    final already = payslips
+        .where((p) => onFile.contains(keyOf(p)))
+        .map((p) => p.employeeName)
+        .toList();
+    if (already.isNotEmpty) {
+      return Error(ValidationFailure(
+        'This period has already been issued for ${already.join(', ')}. '
+        'A payslip cannot be edited afterwards, so a correction is a fresh '
+        'one for a different period rather than a second run of this one.',
+      ));
+    }
+    _store.payslips.add([..._store.payslips.value, ...payslips]);
 
     _store.audit(
       module: 'payroll',
       action: 'create',
       targetCollection: 'payslips',
-      targetId: payslips.first.periodTo,
+      targetId: '${payslips.first.periodFrom}_${payslips.first.periodTo}',
       newValue: {'count': payslips.length},
     );
-    return Success(payslips.length);
+    return Success(PayrollRun(
+      payslips: payslips,
+      committed: true,
+      issued: payslips.length,
+      canIssue: true,
+      blockers: blockers,
+    ));
   }
 }
 

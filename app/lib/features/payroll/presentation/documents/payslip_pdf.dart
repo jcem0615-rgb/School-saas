@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../../core/storage/pdf_image.dart';
 import '../../../admin_portal/domain/entities/school_branding.dart';
 import '../../domain/entities/payslip.dart';
 
@@ -18,6 +19,16 @@ final _amount = NumberFormat('#,##0.00');
 /// at 1,363.64", "SSS Circular 2025-006". A deduction an employee cannot
 /// trace is one they have to take on trust, and pay is the last place
 /// anybody should be asked to.
+///
+/// The school's logo is printed behind it, faint and full-bleed. A
+/// payslip leaves the office on its own and comes back months later
+/// attached to a loan application or a barangay clearance, and one that
+/// says only "PAYSLIP" and a name is a page anybody could have typed.
+/// Faint rather than decorative: the figures are what the document is
+/// for, and a watermark that competes with them has made the document
+/// worse. When there is no logo on file, or it will not load, the
+/// payslip prints without it -- a missing letterhead must never be the
+/// reason somebody is not handed their pay.
 ///
 /// ASCII punctuation only. The built-in Helvetica has no glyph for a
 /// peso sign or an em dash and drops them silently, which on a payslip
@@ -52,12 +63,19 @@ class PayslipPdf {
     final issued = on ?? DateTime.now();
     final document = pw.Document();
 
+    // Guarded, like every other document that carries branding: a logo
+    // that will not load must not stop a payslip printing.
+    final logo = branding.hasLogo ? await pdfImage(branding.logoUrl!) : null;
+
     document.addPage(
       pw.Page(
-        // A5 landscape: two of these fit a sheet of A4, which is how a
-        // school with forty staff actually prints them.
-        pageFormat: PdfPageFormat.a5.landscape,
-        margin: const pw.EdgeInsets.all(24),
+        pageTheme: pw.PageTheme(
+          // A5 landscape: two of these fit a sheet of A4, which is how a
+          // school with forty staff actually prints them.
+          pageFormat: PdfPageFormat.a5.landscape,
+          margin: const pw.EdgeInsets.all(24),
+          buildBackground: logo == null ? null : (context) => _watermark(logo),
+        ),
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -136,6 +154,22 @@ class PayslipPdf {
 
     return document.save();
   }
+
+  /// The school's logo behind the figures.
+  ///
+  /// Seven per cent, which is about as strong as it can be before the
+  /// deduction lines start reading over a shape. Centred and contained
+  /// rather than stretched: a logo squashed to the page ratio is worse
+  /// than no logo, and a school notices.
+  static pw.Widget _watermark(pw.MemoryImage logo) => pw.Center(
+        child: pw.Padding(
+          padding: const pw.EdgeInsets.all(24),
+          child: pw.Opacity(
+            opacity: 0.07,
+            child: pw.Image(logo, fit: pw.BoxFit.contain),
+          ),
+        ),
+      );
 
   static pw.Widget _column(String heading, List<PayslipLine> lines) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,

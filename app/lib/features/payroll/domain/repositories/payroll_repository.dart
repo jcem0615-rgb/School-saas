@@ -1,5 +1,6 @@
 import '../../../../core/errors/result.dart';
 import '../entities/contribution_scheme.dart';
+import '../entities/payroll_run.dart';
 import '../entities/payslip.dart';
 
 abstract class PayrollRepository {
@@ -23,6 +24,21 @@ abstract class PayrollRepository {
   /// employee sees their own, Director and Admin see everybody's.
   Stream<List<Payslip>> watchPayslips({String? employeeUid});
 
-  /// Writes a run's payslips. Append-only; a correction is a new one.
-  Future<Result<int>> issuePayslips(List<Payslip> payslips);
+  /// Runs payroll for a period, on the server.
+  ///
+  /// [commit] false previews and writes nothing; true issues. Both are
+  /// the same call, so the figures the office approved are the figures
+  /// that go into the record rather than a second computation that has
+  /// to be kept in step with the first.
+  ///
+  /// Nothing about the money is passed in. The pay rates, the
+  /// contribution tables, the scans and the approved leave are all read
+  /// server-side -- this side supplies a period and which cut-off it is,
+  /// which is all it is in a position to know.
+  Future<Result<PayrollRun>> runPayroll({
+    required DateTime periodFrom,
+    required DateTime periodTo,
+    required bool deductContributions,
+    required bool commit,
+  });
 }

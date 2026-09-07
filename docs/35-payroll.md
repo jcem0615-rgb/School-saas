@@ -105,17 +105,74 @@ only totalling. Computed from what was actually earned, not the monthly
 rate times twelve, so somebody who joined in August is owed a twelfth of
 what they earned rather than a twelfth of a year they were not here for.
 
+## Where the figures are computed
+
+**On the server, and only on the server.** `runPayroll` reads the pay
+rates, the contribution tables, the scans and the approved leave itself.
+The client sends a period and which cut-off it is, which is all it is in
+a position to know; it cannot send a rate, a day count or a deduction,
+and if it does they are ignored.
+
+This was not the original design and the original design was wrong. A
+payslip used to be computed on the clerk's device and written straight to
+Firestore, with the rules checking only that the clerk held the right
+role. Anybody who could reach a console could have issued themselves a
+payslip for any figure they liked, and the school's own record would have
+agreed with them. Everywhere else money moves in this system the server
+recomputes it — `recordPayment` re-reads a balance inside a transaction
+rather than trusting the amount the client did the arithmetic on. Payroll
+decides what a person is *paid*, and had no equivalent.
+
+It was also wrong for a duller reason. The run screen assembled its
+timesheets from two live streams, and a screen that had not finished
+loading somebody's scans would have paid them for a month of absences. An
+incomplete timesheet looks exactly like a damning one.
+
+### One call, two uses
+
+`runPayroll` takes a `commit` flag. `false` previews and writes nothing;
+`true` issues. Deliberately one callable rather than two: the figures the
+office approved on screen and the figures that went into the record are
+then the same computation, not two that have to be kept in step.
+
+The Dart `computePayslip` survives in `payroll/domain/entities/payslip.dart`
+for the demo, which has no server, and is a line-for-line copy of
+`functions/src/shared/payroll/payslip.ts`. Both are tested against the
+same cases, in both languages, for exactly that reason.
+
 ## Issuing
 
-A run is drafted in full before anything is written, and the numbers on
-screen are the numbers that get stored. Payslips are keyed
-`{from}_{to}_{employee}`, so running the same period twice cannot pay
-somebody twice — and since the rules deny `update`, a second run fails
-loudly rather than silently doubling the month.
+Payslips are keyed `{from}_{to}_{employee}` and written with `create`,
+not `set`. Running the same period twice cannot pay somebody twice: the
+second run is refused by name — *"already been issued for Maria
+Santos"* — and the `create` closes the window the name-checking read
+cannot, which is two clerks pressing Issue in the same second. One batch
+commits and the other is rejected whole.
 
 Staff with **no pay rate on file are named**, not silently skipped.
 Somebody missing from a payroll run is the failure nobody notices until
-payday.
+payday. Somebody with a rate of *zero* is skipped from the run itself —
+that is a half-finished compensation record, not somebody who works for
+nothing, and issuing them a payslip for nought would say the school had
+paid them.
+
+## Printing
+
+The payslip is A5 landscape, so two fit a sheet of A4 — which is how a
+school with forty staff actually prints them. Earnings left, deductions
+right, net pay boxed, and the basis of every line printed underneath it
+("3 days at 1363.64", "SSS Circular 2025-006"). A deduction an employee
+cannot trace is one they have to take on trust, and pay is the last place
+anybody should be asked to.
+
+The school's logo is printed behind it at 7% opacity, contained and
+centred. A payslip leaves the office on its own and comes back months
+later attached to a loan application or a barangay clearance, and one
+that says only "PAYSLIP" and a name is a page anybody could have typed.
+Faint rather than decorative: the figures are what the document is for.
+A school with no logo on file, or one that will not load, gets the
+payslip without it — a missing letterhead must never be the reason
+somebody is not handed their pay.
 
 ## Rules
 
@@ -130,29 +187,36 @@ The exception is somebody's **own payslip**, which they can read. They
 are handed it on paper anyway, and a system that will not show a person
 their own deductions just sends them to ask a person instead.
 
-Payslips are append-only: `create` for Director and Admin, `update` and
-`delete` denied to everyone. A payslip is a statement of what was paid on
-a date, and editing one turns the record of a payday into whatever
-somebody needs it to have been. A correction is a fresh payslip.
-
-Unlike payments, these are written from the client rather than through a
-callable. The precedent is `expenses`, and the reason is the same: a
-payslip is a record, not a mutation of another document. There is no
-cross-document invariant here for a transaction to protect — no balance
-to move, no serial number to claim — so the rules are the whole guard,
-and they are strict.
+Payslips are server-written and append-only: `create`, `update` and
+`delete` are all denied to every client. The only way one appears is
+`runPayroll`. A payslip is a statement of what was paid on a date, and
+editing one turns the record of a payday into whatever somebody needs it
+to have been. A correction is a fresh payslip.
 
 ## Where things are
 
 | Thing | File |
 | --- | --- |
-| Bracket shape, tables, the lookup | `payroll/domain/entities/contribution_scheme.dart` |
-| Pay bases, the payslip, 13th month | `payroll/domain/entities/payslip.dart` |
-| Validation | `payroll/domain/usecases/payroll_usecases.dart` |
+| **The run** | `functions/src/callable/payroll/runPayroll.ts` |
+| Bracket shape, tables, the lookup | `functions/src/shared/payroll/contributions.ts` |
+| Pay bases, the payslip, 13th month | `functions/src/shared/payroll/payslip.ts` |
+| The month, from scans and leave | `functions/src/shared/payroll/timesheet.ts` |
+| Same three, for the demo | `payroll/domain/entities/contribution_scheme.dart`, `payroll/domain/entities/payslip.dart`, `timekeeping/domain/entities/timesheet.dart` |
+| Table validation (overlaps, gaps) | `payroll/domain/usecases/payroll_usecases.dart` |
 | Setup screen | `payroll/presentation/screens/payroll_setup_screen.dart` |
-| The run | `payroll/presentation/screens/payroll_run_screen.dart` |
+| The run screen | `payroll/presentation/screens/payroll_run_screen.dart` |
 | The document | `payroll/presentation/documents/payslip_pdf.dart` |
 | Firestore | `schools/{id}/compensation/{uid}`, `settings/payroll`, `payslips/{id}` |
+
+Tests: `functions/test/shared/payroll/` (pure, both the arithmetic and
+the timesheet), `functions/test/shared/payroll-emulator/` (the callable,
+against a real Firestore — who may run it, where the figures come from,
+and that a period cannot be issued twice), `test-rules/payroll.rules.test.ts`
+(nobody writes a payslip), and the Dart copies under
+`app/test/unit/features/payroll/` and `app/test/unit/features/timekeeping/`.
+The two implementations are held to the same claims on purpose: a school
+seeing one figure on screen and being paid another is the defect this
+arrangement exists to make impossible.
 
 The demo seeds tables labelled *"Demo figures, not a real circular"*.
 Putting invented numbers there and calling them SSS would be the exact

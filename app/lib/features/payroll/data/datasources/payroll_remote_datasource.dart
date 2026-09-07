@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../../core/constants/firestore_paths.dart';
+import '../../../../core/errors/app_exceptions.dart';
 import '../../domain/entities/contribution_scheme.dart';
 import '../../domain/entities/payslip.dart';
 import '../models/payroll_models.dart';
@@ -18,12 +20,15 @@ class ActingPayrollUser {
 
 class PayrollRemoteDataSource {
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
   final ActingPayrollUser _actingUser;
 
   const PayrollRemoteDataSource({
     required FirebaseFirestore firestore,
+    required FirebaseFunctions functions,
     required ActingPayrollUser actingUser,
   })  : _firestore = firestore,
+        _functions = functions,
         _actingUser = actingUser;
 
   Stream<List<CompensationModel>> watchCompensation() => _firestore
@@ -92,29 +97,42 @@ class PayrollRemoteDataSource {
             snap.docs.map((d) => PayslipModel.fromFirestore(d.id, d.data())).toList());
   }
 
-  /// One document per payslip, at a derived id.
+  /// A payroll run, computed on the server.
   ///
-  /// `{period}_{employee}` rather than an auto-id, so running the same
-  /// period twice cannot pay somebody twice. The second run overwrites
-  /// the first rather than adding to it -- and the rules deny update, so
-  /// it fails loudly instead of silently doubling the month's payroll.
-  Future<int> issuePayslips(List<Payslip> payslips) async {
-    final batch = _firestore.batch();
-    for (final payslip in payslips) {
-      final id = '${payslip.periodFrom}_${payslip.periodTo}_${payslip.employeeUid}';
-      batch.set(
-        _firestore.collection(FirestorePaths.payslips(_actingUser.schoolId)).doc(id),
-        {
-          ...PayslipModel.toMap(payslip),
-          'id': id,
-          'schoolId': _actingUser.schoolId,
-          'issuedBy': _actingUser.uid,
-          'issuedByName': _actingUser.name,
-          'issuedAt': FieldValue.serverTimestamp(),
-        },
+  /// Nothing about the figures is sent from here -- not a pay rate, not
+  /// a day count, not a deduction. The period and the cut-off flag are
+  /// all this side is in a position to know; `runPayroll` reads the
+  /// rates, the contribution tables, the scans and the approved leave
+  /// and works the rest out itself.
+  ///
+  /// [commit] false previews and writes nothing. True issues, and fails
+  /// if the period has already been issued for anybody in it -- the
+  /// derived document id is what makes running the same period twice
+  /// impossible rather than merely discouraged.
+  Future<PayrollRunModel> runPayroll({
+    required String periodFrom,
+    required String periodTo,
+    required bool deductContributions,
+    required bool commit,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('runPayroll');
+      final response = await callable.call({
+        'schoolId': _actingUser.schoolId,
+        'periodFrom': periodFrom,
+        'periodTo': periodTo,
+        'deductContributions': deductContributions,
+        'commit': commit,
+      });
+      return PayrollRunModel.fromCallable(
+        (response.data as Map).cast<Object?, Object?>(),
       );
+    } on FirebaseFunctionsException catch (e) {
+      // The message rather than a generic one: the server's refusals
+      // here name who was already paid and which agency has no table,
+      // and a screen that swallowed those would leave the office with
+      // nothing to act on.
+      throw ServerException(e.message ?? 'Could not run payroll.');
     }
-    await batch.commit();
-    return payslips.length;
   }
 }

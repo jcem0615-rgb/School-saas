@@ -1,6 +1,9 @@
+import '../../../../core/errors/app_exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
+import '../../../timekeeping/domain/entities/timesheet.dart' show dateKeyOf;
 import '../../domain/entities/contribution_scheme.dart';
+import '../../domain/entities/payroll_run.dart';
 import '../../domain/entities/payslip.dart';
 import '../../domain/repositories/payroll_repository.dart';
 import '../datasources/payroll_remote_datasource.dart';
@@ -51,9 +54,25 @@ class PayrollRepositoryImpl implements PayrollRepository {
   }
 
   @override
-  Future<Result<int>> issuePayslips(List<Payslip> payslips) async {
+  Future<Result<PayrollRun>> runPayroll({
+    required DateTime periodFrom,
+    required DateTime periodTo,
+    required bool deductContributions,
+    required bool commit,
+  }) async {
     try {
-      return Success(await _remote.issuePayslips(payslips));
+      return Success(await _remote.runPayroll(
+        periodFrom: dateKeyOf(periodFrom),
+        periodTo: dateKeyOf(periodTo),
+        deductContributions: deductContributions,
+        commit: commit,
+      ));
+    } on ServerException catch (e) {
+      // Carried through rather than flattened to "something went wrong".
+      // The server's refusals name who has already been paid for this
+      // period and which agency still has no table, and those are the
+      // only things the office can act on.
+      return Error(ServerFailure(e.message));
     } catch (_) {
       return const Error(UnknownFailure());
     }

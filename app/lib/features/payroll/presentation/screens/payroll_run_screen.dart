@@ -6,7 +6,7 @@ import '../../../admin_portal/domain/entities/school_branding.dart';
 import '../../../admin_portal/presentation/controllers/admin_controller.dart'
     show brandingProvider, employeesStreamProvider;
 import '../../../admin_portal/domain/entities/employee_summary.dart';
-import '../../domain/entities/contribution_scheme.dart';
+import '../../domain/entities/payroll_run.dart';
 import '../../domain/entities/payslip.dart';
 import '../controllers/payroll_controller.dart';
 import '../documents/payslip_pdf.dart';
@@ -40,30 +40,27 @@ class _PayrollRunScreenState extends ConsumerState<PayrollRunScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _issue(List<Payslip> drafts, ContributionScheme scheme) async {
-    final total = drafts.fold<double>(0, (sum, p) => sum + p.netPay);
-    final incomplete = drafts.where((p) => p.hoursAreIncomplete).length;
-
+  Future<void> _issue(PayrollRun run, PayrollRunQuery query) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Issue ${drafts.length} payslips?'),
+        title: Text('Issue ${run.payslips.length} payslips?'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${_month.format(_period)} — net pay '
-                '${_amount.format(total)} in total.'),
+                '${_amount.format(run.totalNetPay)} in total.'),
             const SizedBox(height: 12),
             const Text(
               'A payslip cannot be edited afterwards. A correction is a fresh '
               'one, which is what makes the record worth keeping.',
             ),
-            if (incomplete > 0) ...[
+            if (run.incompleteHours > 0) ...[
               const SizedBox(height: 12),
               Text(
-                '$incomplete of these have days that were scanned in and never '
-                'out. Those hours are not known and are not paid.',
+                '${run.incompleteHours} of these have days that were scanned '
+                'in and never out. Those hours are not known and are not paid.',
               ),
             ],
           ],
@@ -83,18 +80,26 @@ class _PayrollRunScreenState extends ConsumerState<PayrollRunScreen> {
     if (confirmed != true || !mounted) return;
 
     setState(() => _working = true);
-    final issued = await ref
-        .read(payrollActionControllerProvider.notifier)
-        .issuePayslips(payslips: drafts, scheme: scheme);
+    final issued =
+        await ref.read(payrollActionControllerProvider.notifier).issuePayroll(query);
     if (!mounted) return;
     setState(() => _working = false);
-    if (issued != null) _say('$issued payslips issued.');
+    if (issued != null) {
+      // Re-run the preview against what is now on file. The next attempt
+      // at this period has to come back refused rather than offering to
+      // pay everybody a second time.
+      ref.invalidate(payrollPreviewProvider(query));
+      _say('$issued payslips issued.');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = ref.watch(contributionSchemeProvider).valueOrNull;
+    final query = PayrollRunQuery(
+      month: _period,
+      deductContributions: _deductContributions,
+    );
     final compensation =
         ref.watch(compensationStreamProvider).valueOrNull ?? const <Compensation>[];
     final employees =
@@ -106,15 +111,12 @@ class _PayrollRunScreenState extends ConsumerState<PayrollRunScreen> {
       if (next case AsyncError(:final error)) _say(error.toString());
     });
 
-    final drafts = <Payslip>[];
-    for (final person in compensation) {
-      final draft = ref.watch(payslipDraftProvider(PayrollDraftQuery(
-        compensation: person,
-        month: _period,
-        deductContributions: _deductContributions,
-      )));
-      if (draft != null) drafts.add(draft);
-    }
+    // The server's run. Not computed here and deliberately not: the
+    // figures on this screen are the figures that will be written,
+    // because they came out of the same call.
+    final preview = ref.watch(payrollPreviewProvider(query));
+    final run = preview.valueOrNull;
+    final drafts = run?.payslips ?? const <Payslip>[];
 
     final unpaid = employees
         .where((e) => !compensation.any((c) => c.employeeUid == e.uid))
@@ -133,17 +135,17 @@ class _PayrollRunScreenState extends ConsumerState<PayrollRunScreen> {
           ),
         ],
       ),
-      floatingActionButton: drafts.isEmpty || scheme == null
+      floatingActionButton: run == null || drafts.isEmpty
           ? null
           : FloatingActionButton.extended(
-              onPressed: _working ? null : () => _issue(drafts, scheme),
+              onPressed: _working || !run.canIssue ? null : () => _issue(run, query),
               icon: const Icon(Icons.receipt_long_outlined),
               label: Text('Issue ${drafts.length}'),
             ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
-          if (_working) const LinearProgressIndicator(),
+          if (_working || preview.isLoading) const LinearProgressIndicator(),
 
           Row(children: [
             Expanded(
@@ -175,23 +177,37 @@ class _PayrollRunScreenState extends ConsumerState<PayrollRunScreen> {
             ),
           ),
 
-          if (scheme != null && !scheme.canIssuePayslips)
+          // What stands between this run and being issued, in the words
+          // the server would refuse it with. Read off the run rather than
+          // computed here from the scheme: two places deciding whether a
+          // payslip may issue is two places that can disagree, and the
+          // one that matters is the one holding the write.
+          for (final blocker in run?.blockers ?? const <String>[])
             Card(
               color: theme.colorScheme.errorContainer,
               child: ListTile(
                 leading: const Icon(Icons.warning_amber_outlined),
-                title: const Text('The contribution tables are not confirmed'),
+                title: const Text('Nothing can be issued yet'),
                 subtitle: Text(
-                  scheme.isComplete
-                      ? 'They are filled in but nobody has confirmed them. '
-                          'Nothing will issue until somebody does.'
-                      : 'Still empty: '
-                          '${scheme.unconfiguredKinds.map((k) => k.displayLabel).join(', ')}.',
+                  blocker,
                   style: TextStyle(color: theme.colorScheme.onErrorContainer),
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const PayrollSetupScreen()),
+                ),
+              ),
+            ),
+
+          if (preview.hasError)
+            Card(
+              color: theme.colorScheme.errorContainer,
+              child: ListTile(
+                leading: const Icon(Icons.error_outline),
+                title: const Text('This run could not be computed'),
+                subtitle: Text(
+                  preview.error.toString(),
+                  style: TextStyle(color: theme.colorScheme.onErrorContainer),
                 ),
               ),
             ),
@@ -241,6 +257,11 @@ class _PayrollRunScreenState extends ConsumerState<PayrollRunScreen> {
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium,
               ),
+            )
+          else if (preview.isLoading && drafts.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
             )
           else
             for (final draft in drafts)

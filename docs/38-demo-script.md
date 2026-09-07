@@ -76,7 +76,12 @@ screens."
 
 **Show Payroll.** Pick the month. Every employee, their days worked,
 absences, contributions, net pay, and the employer share the school
-remits. Then open one and press Print — an A5 payslip, two to a sheet.
+remits. Then open one and press Print — an A5 payslip, two to a sheet,
+with the school's logo behind the figures.
+
+If somebody asks how they know the numbers are right: every one of them
+is computed on the server from the rates, tables, scans and approved
+leave already on file. The screen sends a month and nothing else.
 
 **The line:** "Salaries are your biggest cost after nothing, and they
 are in a spreadsheet. This reads the same scans your gate already

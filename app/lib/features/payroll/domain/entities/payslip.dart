@@ -140,6 +140,15 @@ class Payslip {
 
 /// Computes one payslip.
 ///
+/// **This is not what a real school's payslips are computed by.** That
+/// is `runPayroll`, server-side, reading the pay rates, the contribution
+/// tables, the scans and the approved leave itself -- because what a
+/// person is paid must not be decided by a browser tab, and firestore.rules
+/// refuses a payslip written by any client. This copy exists for the
+/// demo, which has no server, and is kept in step with
+/// `functions/src/shared/payroll/payslip.ts` line for line. A change to
+/// either belongs in both.
+///
 /// Pure, and takes the timesheet rather than fetching one, so every
 /// awkward case is a test: a month with no working days, an employee who
 /// never scanned out, a salary above the top contribution bracket.
@@ -293,6 +302,25 @@ Payslip computePayslip({
     daysMissingTimeOut: timesheet.daysMissingTimeOut,
   );
 }
+
+/// The monthly figure the contribution tables are read with.
+///
+/// The tables are indexed by the monthly salary, not by what one period
+/// pays -- a semi-monthly payslip still deducts against the monthly
+/// bracket. Twenty-two working days, eight hours, for the bases that are
+/// not monthly to begin with: approximate on purpose and said so, since
+/// the alternative is asking every school to declare a divisor before it
+/// can run payroll for one part-timer, and the bracket a part-timer
+/// falls into is rarely close to a boundary.
+///
+/// Kept in step with `monthlyBasisFor` in
+/// `functions/src/shared/payroll/payslip.ts`, which is what a real
+/// deployment actually uses. This copy is what the demo runs on.
+double monthlyBasisFor(Compensation compensation) => switch (compensation.basis) {
+      PayBasis.monthly => compensation.rate,
+      PayBasis.daily => compensation.rate * 22,
+      PayBasis.hourly => compensation.rate * 22 * 8,
+    };
 
 /// The 13th month pay, which is not a bonus and is not optional.
 ///

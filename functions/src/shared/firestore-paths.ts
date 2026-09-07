@@ -99,6 +99,21 @@ export const FirestorePaths = {
   // The correct answers. Never readable by students -- see firestore.rules.
   courseworkAnswerKeys: (schoolId: string) => `schools/${schoolId}/courseworkAnswerKeys`,
 
+  // ---- Payroll ----
+  // What each employee is paid, keyed by their uid so a pay rate is
+  // never two documents that disagree; the school's own contribution
+  // and tax tables; and the payslips already issued.
+  compensation: (schoolId: string) => `schools/${schoolId}/compensation`,
+  compensationDoc: (schoolId: string, employeeUid: string) =>
+    `schools/${schoolId}/compensation/${employeeUid}`,
+  payrollSchemeDoc: (schoolId: string) => `schools/${schoolId}/settings/payroll`,
+  payslips: (schoolId: string) => `schools/${schoolId}/payslips`,
+  // `{from}_{to}_{employee}`, so running a period twice cannot pay
+  // somebody twice -- the second run fails on the id rather than
+  // silently doubling the month.
+  payslipDoc: (schoolId: string, periodFrom: string, periodTo: string, employeeUid: string) =>
+    `schools/${schoolId}/payslips/${periodFrom}_${periodTo}_${employeeUid}`,
+
   counterDoc: (schoolId: string, counterName: string) =>
     `schools/${schoolId}/counters/${counterName}`,
 

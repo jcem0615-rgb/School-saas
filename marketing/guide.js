@@ -1043,9 +1043,13 @@ add(
   ]),
   H2('33.3 The payslip'),
   featureTable([
-    ['Print Payslips', 'Payslip', 'A5, two to a sheet, with the basis of every line on it - so an employee can check their own pay without asking anybody.'],
-    ['My Payslips', 'Own payslips', 'An employee can read their own, and nobody else\'s. Payslips are create-only: a correction is a new payslip.'],
+    ['Print Payslips', 'Payslip', 'A5, two to a sheet, your school logo printed faintly behind the figures, and the basis of every line on it - so an employee can check their own pay without asking anybody.'],
+    ['My Payslips', 'Own payslips', 'An employee can read their own, and nobody else\'s. Payslips are written by the server and cannot be edited afterwards: a correction is a new payslip.'],
   ], ['Control', 'Opens', 'What happens']),
+  note('Every figure on a payslip is computed on the server, from the pay rates, contribution tables, gate '
+     + 'scans and approved leave already on file. The device that presses Issue supplies the month and '
+     + 'nothing else, so what your office approved on screen and what went into the record are the same '
+     + 'calculation rather than two that have to agree.'),
   note('We ship no contribution tables. Rates move most years, a wrong bracket looks entirely plausible on '
      + 'a payslip, and the result is somebody short every payday or handed a bill in December. Your school '
      + 'types them from the circular, records which circular that was, and confirms - and that name prints '

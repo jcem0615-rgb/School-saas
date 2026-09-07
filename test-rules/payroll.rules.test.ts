@@ -129,16 +129,23 @@ describe("a payslip", () => {
     }
   });
 
-  it("is issued by Director and Admin, and nobody else", async () => {
-    const admin = contextAs("admin", "admin_a").firestore();
-    await assertSucceeds(
-      setDoc(doc(admin, `schools/${SCHOOL}/payslips/new_1`), payslip("u_staff"))
-    );
-
-    const registrar = contextAs("registrar", "registrar_a").firestore();
-    await assertFails(
-      setDoc(doc(registrar, `schools/${SCHOOL}/payslips/new_2`), payslip("u_staff"))
-    );
+  it("cannot be written by anybody at all, a Director included", async () => {
+    // It used to be a client write that only checked the writer's role,
+    // which meant the figures on it were whatever the device that sent
+    // them said they were. `runPayroll` computes them from the pay
+    // rates, the contribution tables, the scans and the approved leave;
+    // these rules make that the only way one can appear.
+    for (const [role, uid] of [
+      ["director", "director_a"],
+      ["admin", "admin_a"],
+      ["registrar", "registrar_a"],
+      ["faculty", "u_faculty"],
+    ]) {
+      const db = contextAs(role, uid).firestore();
+      await assertFails(
+        setDoc(doc(db, `schools/${SCHOOL}/payslips/new_${uid}`), payslip("u_staff"))
+      );
+    }
   });
 
   it("cannot be edited afterwards, even by an admin", async () => {

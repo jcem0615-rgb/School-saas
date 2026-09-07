@@ -469,8 +469,8 @@ const S = () => pres.addSlide();
   await cardGrid(s, [
     { icon: 'FiDollarSign', h: 'What goes in', b: 'Basic pay and allowances from the employee\'s compensation record; days worked, late and absent from the month already on the timesheet.' },
     { icon: 'FiMinusCircle', h: 'What comes out', b: 'SSS, PhilHealth, Pag-IBIG and withholding tax - contributions first, then tax on what is left. Net pay never falls below zero.' },
-    { icon: 'FiGift', h: '13th month', b: 'A twelfth of what was actually earned across the year, computed from the runs rather than from a headline salary.' },
-    { icon: 'FiPrinter', h: 'The payslip', b: 'A5, two to a sheet, with the basis of every line on it - so an employee can check their own pay without asking anybody.' },
+    { icon: 'FiLock', h: 'Server-computed', b: 'The rates, the tables, the scans and the approved leave are all read server-side. No figure on a payslip comes from the device that pressed Issue.' },
+    { icon: 'FiPrinter', h: 'The payslip', b: 'A5, two to a sheet, your logo behind it, and the basis of every line on it - so an employee can check their own pay without asking anybody.' },
   ], { cols: 4, y: 2.4, h: 2.75 });
   await callout(s, 'FiAlertCircle',
     'We ship no contribution tables. Your school types them from the circular in front of it, records which circular that was, and confirms - and no payslip prints until somebody has.',

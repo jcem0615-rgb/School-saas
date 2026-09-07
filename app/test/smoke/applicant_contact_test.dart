@@ -11,7 +11,6 @@ import 'package:logicclass/features/admissions/domain/entities/applicant.dart';
 import 'package:logicclass/features/admissions/domain/repositories/admissions_repository.dart';
 import 'package:logicclass/features/admissions/presentation/controllers/admissions_controller.dart';
 import 'package:logicclass/features/admissions/presentation/screens/applicant_detail_screen.dart';
-import 'package:logicclass/features/registrar_portal/presentation/controllers/registrar_controller.dart';
 
 /// Contact details through the admissions pipeline.
 ///

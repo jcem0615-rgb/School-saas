@@ -2,12 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/result.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart'
-    show authStateProvider, firestoreProvider;
-import '../../../timekeeping/presentation/controllers/timekeeping_controller.dart'
-    show TimesheetQuery, timesheetProvider;
+    show authStateProvider, firebaseFunctionsProvider, firestoreProvider;
 import '../../data/datasources/payroll_remote_datasource.dart';
 import '../../data/repositories_impl/payroll_repository_impl.dart';
 import '../../domain/entities/contribution_scheme.dart';
+import '../../domain/entities/payroll_run.dart';
 import '../../domain/entities/payslip.dart';
 import '../../domain/repositories/payroll_repository.dart';
 import '../../domain/usecases/payroll_usecases.dart';
@@ -19,6 +18,7 @@ final payrollRemoteDataSourceProvider = Provider<PayrollRemoteDataSource>((ref) 
   }
   return PayrollRemoteDataSource(
     firestore: ref.watch(firestoreProvider),
+    functions: ref.watch(firebaseFunctionsProvider),
     actingUser: ActingPayrollUser(
       uid: user.uid,
       schoolId: user.schoolId!,
@@ -56,89 +56,59 @@ final allPayslipsProvider = StreamProvider.autoDispose<List<Payslip>>((ref) {
   return ref.watch(payrollRepositoryProvider).watchPayslips();
 });
 
-/// What one employee's payslip would come to for a month.
-///
-/// A Provider rather than something the screen computes, because the run
-/// screen shows a list of them and the detail screen shows one, and two
-/// places computing somebody's pay is two places that can disagree about
-/// it.
-class PayrollDraftQuery {
-  final Compensation compensation;
+/// A payroll period, as the run screen asks for it.
+class PayrollRunQuery {
+  /// Any date inside the month being run.
   final DateTime month;
 
   /// False on the first cut-off of a semi-monthly month, so the month's
   /// contributions are not taken twice.
   final bool deductContributions;
 
-  const PayrollDraftQuery({
-    required this.compensation,
-    required this.month,
-    this.deductContributions = true,
-  });
+  const PayrollRunQuery({required this.month, this.deductContributions = true});
+
+  DateTime get from => DateTime(month.year, month.month, 1);
+
+  /// Day zero of the next month is the last day of this one, which is
+  /// how February and the thirty-one-day months are handled without a
+  /// table of month lengths or a leap-year rule.
+  DateTime get to => DateTime(month.year, month.month + 1, 0);
 
   @override
   bool operator ==(Object other) =>
-      other is PayrollDraftQuery &&
-      other.compensation.employeeUid == compensation.employeeUid &&
-      other.compensation.rate == compensation.rate &&
-      other.compensation.basis == compensation.basis &&
-      other.compensation.allowance == compensation.allowance &&
-      other.compensation.deductAbsences == compensation.deductAbsences &&
+      other is PayrollRunQuery &&
       other.month.year == month.year &&
       other.month.month == month.month &&
       other.deductContributions == deductContributions;
 
   @override
-  int get hashCode => Object.hash(
-        compensation.employeeUid,
-        compensation.rate,
-        compensation.basis,
-        compensation.allowance,
-        compensation.deductAbsences,
-        month.year,
-        month.month,
-        deductContributions,
-      );
+  int get hashCode => Object.hash(month.year, month.month, deductContributions);
 }
 
-final payslipDraftProvider =
-    Provider.autoDispose.family<Payslip?, PayrollDraftQuery>((ref, query) {
-  final scheme = ref.watch(contributionSchemeProvider).valueOrNull;
-  if (scheme == null) return null;
-
-  final timesheet = ref.watch(timesheetProvider(TimesheetQuery(
-    employeeUid: query.compensation.employeeUid,
-    employeeName: query.compensation.employeeName,
-    month: query.month,
-  )));
-  // Null while the scans are still arriving. An incomplete timesheet
-  // looks exactly like a damning one, and computing pay off it would
-  // dock somebody for a month of absences that were only a slow read.
-  if (timesheet == null) return null;
-
-  return computePayslip(
-    compensation: query.compensation,
-    timesheet: timesheet,
-    scheme: scheme,
-    // The tables are indexed by the monthly salary, not by what this
-    // period pays. A semi-monthly payslip still deducts against the
-    // monthly bracket.
-    monthlyBasisForContributions: query.compensation.basis == PayBasis.monthly
-        ? query.compensation.rate
-        : query.compensation.rate * _assumedMonthlyUnits(query.compensation.basis),
-    deductContributions: query.deductContributions,
-  );
-});
-
-/// Turns a daily or hourly rate into the monthly figure the contribution
-/// tables are read with.
+/// What the whole school's payroll comes to for a month.
 ///
-/// Twenty-two working days, eight hours. Approximate on purpose and said
-/// so: the alternative is asking every school to declare a divisor
-/// before it can run payroll for one part-timer, and the bracket a
-/// part-timer falls into is rarely close to a boundary.
-double _assumedMonthlyUnits(PayBasis basis) =>
-    basis == PayBasis.daily ? 22 : 22 * 8;
+/// The figures are the server's, computed by `runPayroll` with nothing
+/// written -- and the same call with `commit` set is what issues them.
+/// The point of that is what it rules out: a preview the office approves
+/// and a set of payslips that came out of some other arithmetic.
+///
+/// Before this, the run was computed on the device from a timesheet the
+/// device had assembled and written straight to Firestore. A screen that
+/// had not finished loading somebody's scans would have paid them for a
+/// month of absences.
+final payrollPreviewProvider =
+    FutureProvider.autoDispose.family<PayrollRun, PayrollRunQuery>((ref, query) async {
+  final result = await RunPayrollUseCase(ref.watch(payrollRepositoryProvider))(
+    periodFrom: query.from,
+    periodTo: query.to,
+    deductContributions: query.deductContributions,
+    commit: false,
+  );
+  return switch (result) {
+    Success(:final value) => value,
+    Error(:final failure) => throw failure.message,
+  };
+});
 
 class PayrollActionController extends StateNotifier<AsyncValue<void>> {
   final PayrollRepository _repository;
@@ -154,16 +124,19 @@ class PayrollActionController extends StateNotifier<AsyncValue<void>> {
   Future<bool> confirmContributionScheme(ContributionScheme scheme) =>
       _run(() => ConfirmContributionSchemeUseCase(_repository)(scheme));
 
-  Future<int?> issuePayslips({
-    required List<Payslip> payslips,
-    required ContributionScheme scheme,
-  }) async {
+  /// Issues the run. Returns how many payslips were written, or null
+  /// when the server refused -- in which case the reason is on [state].
+  Future<int?> issuePayroll(PayrollRunQuery query) async {
     if (mounted) state = const AsyncLoading();
-    final result =
-        await IssuePayslipsUseCase(_repository)(payslips: payslips, scheme: scheme);
+    final result = await RunPayrollUseCase(_repository)(
+      periodFrom: query.from,
+      periodTo: query.to,
+      deductContributions: query.deductContributions,
+      commit: true,
+    );
     if (result case Success(:final value)) {
       if (mounted) state = const AsyncData(null);
-      return value;
+      return value.issued;
     } else if (result case Error(:final failure)) {
       if (mounted) state = AsyncError(failure.message, StackTrace.current);
     }

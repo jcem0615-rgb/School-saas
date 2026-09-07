@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/contribution_scheme.dart';
+import '../../domain/entities/payroll_run.dart';
 import '../../domain/entities/payslip.dart';
 
 class CompensationModel extends Compensation {
@@ -137,4 +138,49 @@ class PayslipModel extends Payslip {
         'daysLate': p.daysLate,
         'daysMissingTimeOut': p.daysMissingTimeOut,
       };
+}
+
+/// Turns a callable's reply into the maps and lists the models read.
+///
+/// `cloud_functions` hands back `Map<Object?, Object?>` and
+/// `List<Object?>` on the mobile platforms and `Map<String, dynamic>` on
+/// web. Without the cast, the `is Map<String, dynamic>` test
+/// [PayslipModel.fromFirestore] applies to each earnings and deductions
+/// line quietly fails every one of them on a phone -- producing a
+/// payslip with a net pay and nothing to explain it.
+Map<String, dynamic> castMap(Map<Object?, Object?> raw) => {
+      for (final entry in raw.entries) '${entry.key}': _castValue(entry.value),
+    };
+
+Object? _castValue(Object? value) {
+  if (value is Map) return castMap(value.cast<Object?, Object?>());
+  if (value is List) return value.map(_castValue).toList();
+  return value;
+}
+
+class PayrollRunModel extends PayrollRun {
+  const PayrollRunModel({
+    required super.payslips,
+    required super.committed,
+    required super.issued,
+    required super.canIssue,
+    required super.blockers,
+  });
+
+  factory PayrollRunModel.fromCallable(Map<Object?, Object?> raw) {
+    final data = castMap(raw);
+    return PayrollRunModel(
+      payslips: [
+        for (final p in (data['payslips'] as List<dynamic>? ?? []))
+          if (p is Map<String, dynamic>) PayslipModel.fromFirestore('', p),
+      ],
+      committed: data['committed'] as bool? ?? false,
+      issued: (data['issued'] as num?)?.toInt() ?? 0,
+      canIssue: data['canIssue'] as bool? ?? false,
+      blockers: [
+        for (final b in (data['blockers'] as List<dynamic>? ?? []))
+          if (b is String) b,
+      ],
+    );
+  }
 }
