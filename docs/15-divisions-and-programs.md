@@ -81,6 +81,15 @@ roles wasn't asked for and would break legitimate oversight.
 | `payments` | registrar | read only (writes are already server-only, Module 8) |
 | `guidanceRecords` | guidance | read/create/update |
 | `summons` | guidance | read/create/update (student/parent visibility unaffected) |
+| `attendance` | principal, registrar, faculty, staff, guidance | read only (server-written); rows about staff, and about a child with no academic record yet, carry no division and are not scoped |
+| `subjectAttendance` | principal, registrar, faculty, staff, guidance | read only (server-written) |
+
+The two attendance rows were added late: attendance was the one
+per-student collection still granting blanket staff read, so an
+elementary counsellor barred from a Senior High student's grades could
+still read what time that child arrived at school each morning. See
+`docs/07-qr-attendance.md` for why the gate rule has to check
+`personRole` and `exists()` before it fetches the student doc.
 
 Self-access (a student reading their own record) and linked-parent access
 are **never** division-gated — those checks already resolve to one

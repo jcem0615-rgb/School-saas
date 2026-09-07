@@ -40,6 +40,59 @@ void main() {
     }
   });
 
+  test('the seeded week has two semesters in it', () async {
+    // The college division runs by semester and its second semester
+    // reuses the same lab, lecturer and slot. Before `term` was read,
+    // that could not be entered at all, so nothing in the demo showed
+    // it -- and a college looking at this saw a product that could not
+    // hold their timetable.
+    final container = await _signedInAs(UserRole.admin);
+    addTearDown(container.dispose);
+    final blocks = container.read(demoStoreProvider).scheduleBlocks.value;
+
+    expect(termsOf(blocks), ['1st Semester', '2nd Semester']);
+    final bscs = blocks.where((b) => b.section == 'BSCS 3-A');
+    expect(blocksInTerm(bscs, '1st Semester'), isNotEmpty);
+    expect(blocksInTerm(bscs, '2nd Semester'), isNotEmpty);
+  });
+
+  test('a second semester can reuse a slot the first one occupies', () async {
+    final container = await _signedInAs(UserRole.admin);
+    addTearDown(container.dispose);
+    final sub = container.listen(scheduleActionControllerProvider, (_, __) {});
+    addTearDown(sub.close);
+    final store = container.read(demoStoreProvider);
+    final year = store.scheduleBlocks.value.first.schoolYear;
+
+    // A slot nothing in the seeded week uses, so the only thing any of
+    // these save calls can collide with is another one of them.
+    Future<bool> save(String? term, String subject) =>
+        container.read(scheduleActionControllerProvider.notifier).save(
+              subject: subject,
+              section: 'BSCS 3-A',
+              teacherId: 'u_faculty_2',
+              teacherName: 'Dennis Pascual',
+              room: 'Computer Lab',
+              dayOfWeek: 5,
+              startMinute: 15 * 60,
+              endMinute: 16 * 60,
+              schoolYear: year,
+              term: term,
+            );
+
+    expect(await save('1st Semester', 'Networks'), isTrue);
+    // The same lab, lecturer, section and slot in the other semester.
+    // They are never in the same week, so this is not a double booking
+    // -- and refusing it was what made a second semester impossible.
+    expect(await save('2nd Semester', 'Compiler Design'), isTrue);
+    // The half of this that has to keep working: inside one semester it
+    // is still a clash.
+    expect(await save('1st Semester', 'Ethics'), isFalse);
+    // And so is a class that runs all year, because it is in the room
+    // in both semesters.
+    expect(await save(null, 'Thesis'), isFalse);
+  });
+
   test('a class can be added and shows up on the section timetable', () async {
     final container = await _signedInAs(UserRole.admin);
     addTearDown(container.dispose);

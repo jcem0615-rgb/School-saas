@@ -42,6 +42,10 @@ export const deleteScheduleBlock = onCall(
     await ref.update({
       isDeleted: true,
       deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+      // Who, as well as when. Every other soft delete in the system
+      // records both, and "this class was removed at 14:02" answers half
+      // of the question an argument about the timetable actually asks.
+      deletedBy: request.auth!.uid,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedBy: request.auth!.uid,
     });

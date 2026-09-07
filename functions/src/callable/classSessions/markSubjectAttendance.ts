@@ -7,6 +7,7 @@ import {
   canEditRoll,
   countRoll,
   subjectAttendanceId,
+  timeInForMark,
 } from "../../shared/attendance/classSession";
 import {schoolDateKey, schoolTimezone} from "../../shared/attendance/schoolClock";
 
@@ -95,11 +96,19 @@ export const markSubjectAttendance = onCall(
     const now = admin.firestore.Timestamp.now();
     const arriving = status === "present" || status === "late";
 
+    // The mark decides the arrival time; the row's own previous value
+    // never does. Opening a session stamps every student with the
+    // session's open time, so carrying that forward meant a student
+    // marked late halfway through the lesson was recorded as arriving
+    // on the bell -- which is the one thing the mark says they did not
+    // do.
+    const openedAt =
+      (session.openedAt as admin.firestore.Timestamp | undefined) ?? now;
+    const timeIn = timeInForMark(status, openedAt.toDate(), now.toDate());
+
     await markRef.update({
       status,
-      // Marked late halfway through the lesson: that is when they
-      // arrived, and the session's start time is not.
-      timeIn: arriving ? (previous.timeIn ?? now) : null,
+      timeIn: timeIn === null ? null : admin.firestore.Timestamp.fromDate(timeIn),
       // A student turned absent after the class was closed keeps no
       // duration, for the same reason they get no time out.
       timeOut: arriving ? (previous.timeOut ?? null) : null,

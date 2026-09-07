@@ -15,7 +15,7 @@ import '../widgets/timetable_view.dart';
 /// The same screen for all three because it is the same question. Who is
 /// asking only changes which blocks it is handed, and that is decided by
 /// the caller rather than sniffed from the role here.
-class MyTimetableScreen extends ConsumerWidget {
+class MyTimetableScreen extends ConsumerStatefulWidget {
   final String title;
 
   /// Exactly one of these. A section timetable shows the teacher of each
@@ -32,11 +32,26 @@ class MyTimetableScreen extends ConsumerWidget {
             'A timetable is either a section\'s or a teacher\'s.');
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyTimetableScreen> createState() => _MyTimetableScreenState();
+}
+
+class _MyTimetableScreenState extends ConsumerState<MyTimetableScreen> {
+  /// Which term is on screen. Null -- the whole year -- is the only
+  /// state a school that does not timetable by term ever has, and the
+  /// chooser does not appear for them.
+  String? _term;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = widget.title;
+    final section = widget.section;
+    final teacherId = widget.teacherId;
     final scheduleAsync = ref.watch(scheduleProvider);
-    final blocks = section != null
-        ? ref.watch(sectionScheduleProvider(section!))
+    final all = section != null
+        ? ref.watch(sectionScheduleProvider(section))
         : ref.watch(teacherScheduleProvider(teacherId!));
+    final terms = termsOf(all);
+    final blocks = blocksInTerm(all, _term);
     final year = ref.watch(scheduleYearProvider);
 
     return Scaffold(
@@ -49,7 +64,9 @@ class MyTimetableScreen extends ConsumerWidget {
               tooltip: 'Print',
               onPressed: () => TimetablePdf.print(
                 title: title,
-                subtitle: 'School Year $year',
+                subtitle: _term == null
+                    ? 'School Year $year'
+                    : 'School Year $year · $_term',
                 blocks: blocks,
                 branding: ref.read(brandingProvider).valueOrNull ?? SchoolBranding.empty,
                 preparedByName:
@@ -69,6 +86,11 @@ class MyTimetableScreen extends ConsumerWidget {
         data: (_) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
+            TermChooser(
+              terms: terms,
+              selected: _term,
+              onChanged: (value) => setState(() => _term = value),
+            ),
             Text('School Year $year', style: Theme.of(context).textTheme.bodySmall),
             TimetableView(
               blocks: blocks,

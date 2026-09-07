@@ -5,6 +5,7 @@ import {
   countRoll,
   sessionMinutes,
   subjectAttendanceId,
+  timeInForMark,
   weekdayOfDateKey,
 } from "../../../src/shared/attendance/classSession";
 
@@ -120,5 +121,37 @@ describe("sessionMinutes", () => {
         new Date("2026-03-03T00:58:00Z")
       )
     ).toBe(0);
+  });
+});
+
+describe("timeInForMark", () => {
+  const bell = new Date("2026-03-03T00:30:00Z");
+  const halfway = new Date("2026-03-03T01:00:00Z");
+
+  it("puts a present student on the bell", () => {
+    expect(timeInForMark("present", bell, halfway)).toEqual(bell);
+  });
+
+  it("puts a late student at the moment they were marked", () => {
+    // The defect this replaced kept whatever was already on the row --
+    // and every row on a fresh register carries the bell time, so a
+    // student marked late was recorded as having been on time.
+    expect(timeInForMark("late", bell, halfway)).toEqual(halfway);
+  });
+
+  it("gives an absent student no arrival at all", () => {
+    expect(timeInForMark("absent", bell, halfway)).toBeNull();
+  });
+
+  it("gives an excused student none either", () => {
+    expect(timeInForMark("excused", bell, halfway)).toBeNull();
+  });
+
+  it("will not let a slow clock produce an arrival before the class began", () => {
+    expect(timeInForMark("late", bell, new Date("2026-03-03T00:20:00Z"))).toEqual(bell);
+  });
+
+  it("treats a mark it has never heard of as no arrival, not as an arrival", () => {
+    expect(timeInForMark("tardy", bell, halfway)).toBeNull();
   });
 });

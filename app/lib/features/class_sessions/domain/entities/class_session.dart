@@ -157,3 +157,33 @@ class SubjectAttendanceMark {
       ? null
       : timeOut!.difference(timeIn!).inMinutes.clamp(0, 1 << 30);
 }
+
+/// When a student carrying [status] arrived.
+///
+/// Derived from the mark, never carried forward from the row. Opening a
+/// session stamps every student on the roll with the session's own start
+/// time, so "keep whatever is already there" meant keeping the bell time
+/// for everybody -- including the student the teacher had just marked
+/// late, which is the one thing that mark says they were not.
+///
+///   present -- here when it started, so the bell time is right.
+///   late    -- not. The moment the teacher marked them is the only
+///              record of when they came in, and it beats a time we know
+///              is wrong.
+///   absent, excused -- no arrival to record.
+///
+/// Clamped at the session's start, so a device whose clock runs behind
+/// cannot produce a student who arrived before the class began.
+///
+/// Kept in step with `timeInForMark` in
+/// `functions/src/shared/attendance/classSession.ts`, which is the copy
+/// that writes the record.
+DateTime? timeInForMark(
+  AttendanceStatus status,
+  DateTime sessionOpenedAt,
+  DateTime markedAt,
+) {
+  if (status == AttendanceStatus.present) return sessionOpenedAt;
+  if (status != AttendanceStatus.late) return null;
+  return markedAt.isBefore(sessionOpenedAt) ? sessionOpenedAt : markedAt;
+}

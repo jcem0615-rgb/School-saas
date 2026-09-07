@@ -58,6 +58,41 @@ this makes "has this person already been scanned today" a direct document
 lookup inside the transaction rather than a query, and makes the record
 naturally idempotent under retries.
 
+## A second tap at the gate was a day's pay
+
+Any repeat scan on the same day used to be read as a time out. The queue
+at a school gate produces two taps a few seconds apart -- a phone that
+did not seem to respond, a student who scanned twice, a scanner held a
+moment too long -- and the record then read *arrived 07:02, left 07:02*.
+
+Nothing downstream flagged it, and that is what made it expensive:
+`buildTimesheet` treats a day with both stamps filled in as a complete
+day. A day that says a person was at work for zero minutes looks finished
+rather than broken, so it went onto the payslip as zero hours. For an
+hourly employee that is a day's pay, arrived at silently.
+
+`classifyRepeatScan` puts a five-minute floor on it
+(`MINIMUM_DWELL_MINUTES`). Inside that window a second tap is **not an
+error** -- the person is already marked in, so the scanner answers
+`too_soon` and says so; refusing the scan would train the queue to tap
+again. Outside it, a second tap is a time out as before. A third tap on
+a day that is already finished answers `already_completed` rather than
+reopening it: the first time out is when they left.
+
+The window is returned to the caller (`minimumDwellMinutes`) so the
+scanner screen can explain itself in the school's own numbers rather than
+carrying its own copy of the figure.
+
+## What day it is at the school
+
+`markAttendance` used to carry its own inline copy of "what is today's
+date in the school's timezone" -- the same two lines the class-session
+callables already read from `shared/attendance/schoolClock`. Both copies
+were correct, which is exactly the state that drifts. There is now one,
+and `schoolDateKey`/`schoolTimezone` are it. The distinction matters: a
+scan at 8am in Manila is the previous evening in UTC, so a date key taken
+from the server clock files every early scan under yesterday.
+
 ## ID space: why `personId` isn't always the account ID
 
 For staff scans, `attendance.personId` is the `users/{uid}` account ID.
@@ -74,10 +109,24 @@ happened to use.
 
 ## Security Model additions this module
 
-- `attendance`: readable by (a) the record's own subject, (b) any
-  staff-facing monitoring role, (c) a Parent whose `linkedStudentIds`
-  contains the record's `personId` — checked live via `get()` on the
-  parent's own user doc, not a client-asserted relationship.
+- `attendance`: readable by (a) the record's own subject, (b) Director and
+  Admin, who are cross-division by design, (c) the other monitoring roles
+  — Principal, Registrar, Faculty, Staff, Guidance — **within their own
+  division**, (d) a Parent whose `linkedStudentIds` contains the record's
+  `personId` — checked live via `get()` on the parent's own user doc, not
+  a client-asserted relationship.
+- The division scoping in (c) was added late. Attendance was the one
+  per-student collection that granted blanket staff read: an elementary
+  guidance counsellor barred from a Senior High student's grades and
+  guidance file could still read, day by day, what time that child
+  arrived at school. `attendanceScopeAllows` closes it, and has to branch
+  on `personRole` first — `personId` is an auth uid for a member of staff
+  and a `students/{id}` for a child, and a staff row has no division to
+  scope by. A child scanned before Student Registration has made their
+  academic record has none either (see the ID space section above), so
+  the rule checks `exists()` before it fetches: a `get()` on a document
+  that is not there throws, and a throw denies the whole read rather than
+  the one branch.
 - Owner is deliberately excluded from attendance read access — billing
   only needs the *enrolled count*, not day-to-day attendance records, and
   extending Owner access into tenant operational data isn't a boundary
@@ -89,8 +138,10 @@ happened to use.
 | Layer | File | Covers |
 |---|---|---|
 | Domain | `scan_qr_usecase_test.dart` | empty-token validation, delegation |
-| Functions | `attendanceStatus.test.ts` | present/late boundary math, cutoff parsing/fallback |
+| Functions | `attendanceStatus.test.ts` | present/late boundary math, cutoff parsing/fallback, what a repeat scan means |
+| Emulator | `attendance-emulator/gateAndTimetable.test.ts` | `markAttendance` against a real Firestore: the queue at the gate, the time out that is real, the day filed under the school's date |
 | Rules | `attendance.rules.test.ts` | self/staff/linked-parent read access, universal write denial |
+| Rules | `division-isolation.rules.test.ts` | a scoped teacher is refused another division's attendance, and is not refused a colleague's |
 
 ## Deferred to later modules
 

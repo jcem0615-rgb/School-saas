@@ -50,6 +50,48 @@ Two rules that look like details and are not:
 - **A blank room is not a room.** Two blocks with no room recorded are in
   no recorded place, not in the same one. Treating them as a clash would
   punish every school that does not timetable rooms.
+- **Two semesters never share a week.** See below.
+
+## A second semester was impossible to enter
+
+`term` was on the record from the first version of this module, carrying
+the comment *"for schools whose timetable changes partway through the
+year"* — and neither the client check nor the server one read it, and no
+screen collected it. The effect was not a missing nicety. Two blocks in
+different semesters never coexist, so every second-semester block
+collided with its own first-semester counterpart: the same lab, the same
+lecturer, the same slot. A college could not enter its second semester at
+all, and the refusal named a clash with a class that is not running.
+
+Senior High runs two semesters and a college division runs two more, so
+for the schools this is built for that was the ordinary case rather than
+an edge one.
+
+`sharesTerm` (and `sharesTermWith`, its Dart twin) is the fix, and it is
+three lines:
+
+- Two blocks in different terms never clash.
+- **A blank term runs all year, and therefore shares the week with every
+  term.** A Grade 7 homeroom is in that room in both semesters, so a
+  semester class landing on it is still a double booking. This is the
+  half that is easy to get wrong: treating "no term" as its own term
+  would let a school book over its own year-long classes.
+- Terms are matched case- and whitespace-insensitively, so `1st Semester`
+  and `1ST semester ` are one term rather than two.
+
+The clash message names the term it collided with, because "this teacher
+is already teaching then" is not actionable when the school has two
+timetables and the class you are looking at is in the other one.
+
+On screen, `TermChooser` appears above the week — and only for a school
+that actually has terms; the chooser renders nothing at all when every
+class runs the year, which is most schools and all of the K-10 ones. It
+offers "the whole year" plus each term found on the timetable, and a
+chosen term shows its own classes **plus** the all-year ones, because
+that is the week as it actually runs. Each class carries its term as a
+chip, so a whole-year view reads as two timetables rather than as a pile
+of double bookings. What is printed matches what is on screen, term and
+all.
 
 ## Why both writes are callables
 
@@ -136,9 +178,10 @@ for the callable's clash query.
 
 | Layer | File | Covers |
 |---|---|---|
-| Domain | `schedule_block_test.dart` | overlap edges, all three clashes, time parsing round-tripped over every minute of the day |
+| Domain | `schedule_block_test.dart` | overlap edges, all three clashes, time parsing round-tripped over every minute of the day, semesters, and the term filter |
 | Functions | `conflicts.test.ts` | the same arithmetic on the copy that is authoritative |
-| Demo | `schedule_test.dart` | the seeded week is clash-free; a clash is refused and nothing is written; a block can be moved without clashing with itself |
+| Demo | `schedule_test.dart` | the seeded week is clash-free; a clash is refused and nothing is written; a block can be moved without clashing with itself; a second semester can reuse a slot the first one holds |
+| Emulator | `attendance-emulator/gateAndTimetable.test.ts` | `saveScheduleBlock` against a real Firestore: the semester cases, and what is actually stored for a blank term |
 | Rules | `schedule.rules.test.ts` | seven roles can read, five roles and a student cannot write, nobody can delete |
 
 ## Deferred
@@ -146,9 +189,17 @@ for the callable's clash query.
 - **Room as a first-class record.** Rooms are free text, like sections and
   subjects. A room catalogue with capacities would let the editor warn
   that a section of 45 is in a room for 30.
-- **Term-specific timetables.** `term` is on the record and nothing reads
-  it yet; a school whose second semester differs would want the editor to
-  filter on it.
+- **A current term on the school.** The school record does not say which
+  term it is *in*, so `nextClassToday` — the "what's on next" line on a
+  student's and a teacher's dashboard — reads the whole year and can name
+  a class from the other semester. Everything that shows a week is
+  filterable; this one line is not, because there is nothing to filter it
+  by. A `currentTerm` setting alongside `currentSchoolYear` is the fix,
+  and it would let the roll and the register default to the right one too.
+- **Dated terms.** A term is free text, like a section or a room. Giving
+  it a start and end date would let the app work out the current term
+  itself rather than being told, and would let a report say "attendance
+  for the first semester" without the reader picking dates.
 - **Attendance by period.** `markAttendance` knows the day, not the class
   — matching a scan to the block it falls inside is the obvious next use
   of this data.

@@ -343,7 +343,7 @@ const S = () => pres.addSlide();
     { lede: 'Every person in the school carries a QR ID. Staff roles carry a scanner. The scan itself decides the rest.' });
   await cardGrid(s, [
     { icon: 'FiCreditCard', h: 'The ID card', b: 'A real card layout with the school logo behind it, the student\'s photo, and the principal and director signatures from Branding. Print it, or keep it on the phone.' },
-    { icon: 'FiCamera', h: 'The scan', b: 'Open Scan Attendance, point at the code, and the record is written. Scan again later and it is a time-out, not a duplicate.' },
+    { icon: 'FiCamera', h: 'The scan', b: 'Open Scan Attendance, point at the code, and the record is written. Scan again later and it is a time-out - but a second tap in the queue, seconds after the first, is not: the person is already in, and the scanner says so.' },
     { icon: 'FiClock', h: 'Present or late', b: 'Decided on the server against the school\'s cutoff time and the school\'s timezone - not by the clock on the phone doing the scanning.' },
     { icon: 'FiEye', h: 'Who can see it', b: 'The student, their linked parent, and the staff roles allowed to. Attendance cannot be written from a client at all, only by the scan.' },
   ], { cols: 2, y: 2.35, h: 2.3 });
@@ -553,13 +553,15 @@ const S = () => pres.addSlide();
 {
   const s = S(); bg(s, C.paper);
   heading(s, 'The class schedule', 'One room, one teacher, one section, one slot',
-    { lede: 'Build the week block by block: subject, section, teacher, room, day, start and end.' });
+    { lede: 'Build the week block by block: subject, section, teacher, room, day, start and end - and, for a school that runs semesters, which one.' });
   await cardGrid(s, [
     { icon: 'FiAlertTriangle', h: 'Clashes are refused', b: 'Two classes in the same room, the same teacher in two places, or one section double-booked - the app names the conflict and will not save it. Checked again on the server before it is written.' },
+    { icon: 'FiRefreshCw', h: 'Two semesters, one year', b: 'Senior High and college change timetable halfway through. The second semester reuses the same room, lecturer and slot - not a clash, because the two are never in the same week.' },
+    { icon: 'FiFilter', h: 'One term at a time', b: 'Pick the term and read that week; classes that run all year show in every term, because that is where they actually are. A school with one timetable is never asked the question.' },
     { icon: 'FiClock', h: 'Times the way people type them', b: '7:30 AM, 7:30am, 07:30, 0730 - all understood. Nobody should have to learn a time format to build a timetable.' },
     { icon: 'FiPrinter', h: 'Printed as a grid', b: 'The week as a wall chart, with the section or the teacher dropped from the cells when it is the same all the way down.' },
     { icon: 'FiUser', h: 'Everyone sees their own', b: 'The teacher gets their week, the student gets theirs, the parent gets their child\'s - all from the same blocks.' },
-  ], { cols: 2, y: 2.35, h: 2.3 });
+  ], { cols: 3, y: 2.15, h: 2.35 });
   s.addNotes('Ask the school for their worst timetable clash story, then show it being refused.');
 }
 

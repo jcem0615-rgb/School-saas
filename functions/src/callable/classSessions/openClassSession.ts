@@ -33,6 +33,9 @@ interface OpenClassSessionData {
 const COVER_ROLES = ["director", "principal", "admin"];
 const ALLOWED_ROLES = ["faculty", ...COVER_ROLES];
 
+/** The session document plus one mark each, inside Firestore's 500-write batch. */
+const MAX_ROLL = 499;
+
 /**
  * Time In: the teacher starts the class, and the roll appears.
  *
@@ -121,6 +124,19 @@ export const openClassSession = onCall(
       .where("status", "==", "enrolled")
       .where("isDeleted", "==", false)
       .get();
+
+    // One session document plus one mark per student, in a single batch,
+    // and a batch holds 500 writes. A section that large is a data
+    // problem rather than a class -- but the failure without this is an
+    // opaque Firestore error in front of a teacher holding a phone, and
+    // the office cannot act on that.
+    if (roster.size >= MAX_ROLL) {
+      throw new HttpsError(
+        "failed-precondition",
+        `${block.section ?? "That section"} has ${roster.size} students enrolled, which is ` +
+          "too many for one register. Split the section, or ask the office to check it."
+      );
+    }
 
     const openedAt = admin.firestore.Timestamp.fromDate(now);
     const batch = db.batch();

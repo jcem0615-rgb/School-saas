@@ -11,8 +11,8 @@
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions,firestore,auth",
     "deploy": "npm run build && firebase deploy --only functions",
-    "test": "jest --testPathIgnorePatterns=test/shared/counters test/shared/payments-emulator test/shared/users-emulator test/shared/admissions-emulator test/shared/payroll-emulator test/shared/inventory-emulator test/shared/grading-emulator",
-    "test:emulator": "firebase emulators:exec --only firestore \"jest --runInBand test/shared/counters test/shared/payments-emulator test/shared/users-emulator test/shared/admissions-emulator test/shared/payroll-emulator test/shared/inventory-emulator test/shared/grading-emulator\"",
+    "test": "jest --testPathIgnorePatterns=test/shared/counters test/shared/payments-emulator test/shared/users-emulator test/shared/admissions-emulator test/shared/payroll-emulator test/shared/inventory-emulator test/shared/grading-emulator test/shared/attendance-emulator",
+    "test:emulator": "firebase emulators:exec --only firestore \"jest --runInBand test/shared/counters test/shared/payments-emulator test/shared/users-emulator test/shared/admissions-emulator test/shared/payroll-emulator test/shared/inventory-emulator test/shared/grading-emulator test/shared/attendance-emulator\"",
     "lint": "eslint --ext .ts src"
   },
   "dependencies": {

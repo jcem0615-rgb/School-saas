@@ -111,6 +111,51 @@ async function seed() {
       score: 88,
       maxScore: 100,
     });
+
+    // Gate attendance. `personId` is a students/{id} for a child and an
+    // auth uid for a member of staff, which is why the scoping has to
+    // read `personRole` before it reads anything else.
+    await setDoc(doc(db, `schools/${SCHOOL}/attendance/2026-03-03_shs_student`), {
+      personId: "shs_student",
+      personRole: "student",
+      date: "2026-03-03",
+      status: "late",
+    });
+    await setDoc(doc(db, `schools/${SCHOOL}/attendance/2026-03-03_jhs_student`), {
+      personId: "jhs_student",
+      personRole: "student",
+      date: "2026-03-03",
+      status: "present",
+    });
+    await setDoc(doc(db, `schools/${SCHOOL}/attendance/2026-03-03_faculty_eng`), {
+      personId: "faculty_eng",
+      personRole: "faculty",
+      date: "2026-03-03",
+      status: "present",
+    });
+    // A child scanned before Student Registration has made their
+    // academic record: markAttendance falls back to the account id, so
+    // there is no students/{id} to scope by.
+    await setDoc(doc(db, `schools/${SCHOOL}/attendance/2026-03-03_acct_only`), {
+      personId: "acct_only",
+      personRole: "student",
+      date: "2026-03-03",
+      status: "present",
+    });
+
+    // The per-subject register.
+    await setDoc(doc(db, `schools/${SCHOOL}/subjectAttendance/mark_shs`), {
+      sessionId: "2026-03-03_blk",
+      studentId: "shs_student",
+      subject: "Physics",
+      status: "absent",
+    });
+    await setDoc(doc(db, `schools/${SCHOOL}/subjectAttendance/mark_jhs`), {
+      sessionId: "2026-03-03_blk",
+      studentId: "jhs_student",
+      subject: "Physics",
+      status: "present",
+    });
   });
 }
 
@@ -187,5 +232,74 @@ describe("Director/Admin remain cross-division by design", () => {
     await assertSucceeds(getDoc(doc(directorDb, `schools/${SCHOOL}/students/elem_student`)));
     await assertSucceeds(getDoc(doc(directorDb, `schools/${SCHOOL}/students/college_eng_student`)));
     await assertSucceeds(getDoc(doc(directorDb, `schools/${SCHOOL}/students/college_biz_student`)));
+  });
+});
+
+describe("attendance is scoped the same way the rest of a student's file is", () => {
+  test("a Junior High teacher CANNOT read a Senior High student's gate attendance", async () => {
+    await seed();
+    const faculty = contextAs("faculty", "faculty_jhs");
+    await assertFails(
+      getDoc(doc(faculty.firestore(), `schools/${SCHOOL}/attendance/2026-03-03_shs_student`))
+    );
+  });
+
+  test("the same teacher CAN read their own division's", async () => {
+    await seed();
+    const faculty = contextAs("faculty", "faculty_jhs");
+    await assertSucceeds(
+      getDoc(doc(faculty.firestore(), `schools/${SCHOOL}/attendance/2026-03-03_jhs_student`))
+    );
+  });
+
+  test("and CANNOT read the Senior High student's mark in a lesson either", async () => {
+    await seed();
+    const faculty = contextAs("faculty", "faculty_jhs");
+    await assertFails(
+      getDoc(doc(faculty.firestore(), `schools/${SCHOOL}/subjectAttendance/mark_shs`))
+    );
+  });
+
+  test("but CAN read the mark for a student in their own division", async () => {
+    await seed();
+    const faculty = contextAs("faculty", "faculty_jhs");
+    await assertSucceeds(
+      getDoc(doc(faculty.firestore(), `schools/${SCHOOL}/subjectAttendance/mark_jhs`))
+    );
+  });
+
+  test("a staff attendance row has no division, so scoping does not hide it", async () => {
+    await seed();
+    // The scan is a colleague's timekeeping, not a child's file. Refusing
+    // it here would be scoping on a field that is not there -- and the
+    // rule would have to fetch a students/{id} that does not exist to
+    // find that out.
+    const faculty = contextAs("faculty", "faculty_jhs");
+    await assertSucceeds(
+      getDoc(doc(faculty.firestore(), `schools/${SCHOOL}/attendance/2026-03-03_faculty_eng`))
+    );
+  });
+
+  test("a child scanned before their academic record exists is still readable", async () => {
+    await seed();
+    const faculty = contextAs("faculty", "faculty_jhs");
+    await assertSucceeds(
+      getDoc(doc(faculty.firestore(), `schools/${SCHOOL}/attendance/2026-03-03_acct_only`))
+    );
+  });
+
+  test("an unrestricted registrar reads every division, as before", async () => {
+    await seed();
+    const db = contextAs("registrar", "registrar_unrestricted").firestore();
+    await assertSucceeds(getDoc(doc(db, `schools/${SCHOOL}/attendance/2026-03-03_shs_student`)));
+    await assertSucceeds(getDoc(doc(db, `schools/${SCHOOL}/attendance/2026-03-03_jhs_student`)));
+    await assertSucceeds(getDoc(doc(db, `schools/${SCHOOL}/subjectAttendance/mark_shs`)));
+  });
+
+  test("the director stays cross-division", async () => {
+    await seed();
+    const db = contextAs("director", "director_1").firestore();
+    await assertSucceeds(getDoc(doc(db, `schools/${SCHOOL}/attendance/2026-03-03_shs_student`)));
+    await assertSucceeds(getDoc(doc(db, `schools/${SCHOOL}/subjectAttendance/mark_shs`)));
   });
 });

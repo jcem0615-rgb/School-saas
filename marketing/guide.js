@@ -527,7 +527,7 @@ add(
     ['My QR ID / My e-ID', 'My School ID', 'A card layout with the school logo behind it, the holder\'s photo, and the principal and director signatures from Branding. Print it, or present it from the screen.'],
     ['Print ID', 'Print dialog', 'Produces the card as a printable document.'],
     ['Scan Attendance', 'Scan Attendance QR', 'Opens the camera. Point it at a code and the record is written; the screen confirms who was marked and offers Scan Next.'],
-    ['Second scan', 'Scan Attendance QR', 'A later scan of the same person on the same day is a time-out, not a duplicate. A third is reported as already completed.'],
+    ['Second scan', 'Scan Attendance QR', 'A later scan of the same person on the same day is a time-out. A second tap within a few minutes is not - that is the queue at the gate, and the scanner says the person is already in rather than signing them straight back out. A scan after a time-out is reported as already completed.'],
   ], ['Control', 'Opens', 'What happens']),
   H2('13.1 Why present or late is decided on the server'),
   P('Whether a scan counts as present or late is compared against the school\'s configured cutoff time in '
@@ -555,6 +555,7 @@ add(
     'Pressing Time in twice opens the same register, not a second one.',
     'A class not on today\'s timetable cannot be started, so a day\'s marks cannot be filed under the wrong date.',
     'A register can be corrected on the day it was taken, and not afterwards. After that it is the registrar\'s to amend.',
+    'A student marked late is recorded as arriving when the teacher marked them, not when the class started - which is the only record there is of when they came through the door. Corrected back to present, they are on the bell again.',
     'An excused lesson still counts as a lesson missed in the rate. A school that dropped them would report a child who missed half a term with a note as having a perfect record.',
   ]),
 );
@@ -661,10 +662,12 @@ add(
   featureTable([
     ['Add class', 'Schedule editor', 'Subject, section, teacher, room, day, start time and end time.'],
     ['Starts / Ends', 'Schedule editor', 'Times are read the way people type them - 7:30 AM, 7:30am, 07:30, 0730 are all understood.'],
-    ['Save', 'Schedule editor', 'Refused if it clashes: two classes in the same room, the same teacher in two places, or one section double-booked. The conflict is named. The same check runs again on the server before anything is written.'],
+    ['Semester or term', 'Schedule editor', 'Optional. Leave it blank and the class runs all year, which is what a Grade 7 timetable does. Name it - 1st Semester, 2nd Semester, whatever the school calls it - and the class belongs to that term only.'],
+    ['Save', 'Schedule editor', 'Refused if it clashes: two classes in the same room, the same teacher in two places, or one section double-booked. The conflict is named, and names the term it is in. The same check runs again on the server before anything is written.'],
     ['Remove', 'Confirmation', 'Deletes a block from the week.'],
     ['Section filter', 'Class Schedule', 'The week for one section.'],
-    ['Print', 'Print dialog', 'The week as a wall-chart grid. Where the section or the teacher is the same all the way down a column, it is printed once rather than in every cell.'],
+    ['Term', 'Class Schedule', 'Which term of the year to read. Only shown when the school actually has terms. A term shows its own classes plus the ones that run all year, because that is the week as it actually runs.'],
+    ['Print', 'Print dialog', 'The week as a wall-chart grid, matching what is on screen, term and all. Where the section or the teacher is the same all the way down a column, it is printed once rather than in every cell.'],
   ], ['Control', 'Where', 'What it does']),
   H2('17.1 The same blocks, four ways'),
   bullets([
@@ -673,6 +676,14 @@ add(
     'A teacher sees their own week, on My Schedule.',
     'A student sees theirs, and a parent sees their child\'s.',
   ]),
+  H2('17.2 Schools that change timetable halfway through the year'),
+  P('Senior High runs two semesters, and so does a college division. The second semester routinely '
+    + 'reuses the same room, the same lecturer and the same slot as the first - and that is not a '
+    + 'double booking, because the two are never in the same week. Name the term on each class and the '
+    + 'app treats them that way. A class with no term named runs all year, so it still blocks the slot '
+    + 'in every term: a Grade 7 homeroom really is in that room in both semesters.'),
+  P('A school with one timetable for the whole year is never asked about any of this. The field is '
+    + 'optional and the term chooser does not appear at all until a term is named.'),
 );
 
 // ---------------------------------------------------------------- 18 Reports

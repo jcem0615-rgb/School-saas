@@ -1,4 +1,10 @@
-import {findClashes, overlaps, TimetableBlock} from "../../../src/shared/schedule/conflicts";
+import {
+  describeClash,
+  findClashes,
+  overlaps,
+  sharesTerm,
+  TimetableBlock,
+} from "../../../src/shared/schedule/conflicts";
 
 /**
  * The client checks clashes too, so an admin is told before the round
@@ -104,5 +110,83 @@ describe("findClashes", () => {
 
   it("ignores another school year", () => {
     expect(findClashes(block({id: undefined, schoolYear: "2027-2028"}), [block()])).toEqual([]);
+  });
+});
+
+/**
+ * Two timetables in one school year.
+ *
+ * `term` was on the block with the note "for schools whose timetable
+ * changes partway through the year", and nothing read it -- not the
+ * client copy and not this one. Two blocks in different semesters never
+ * coexist, so calling them a clash made the second semester impossible
+ * to enter: every block collided with its own counterpart from the
+ * first. Senior High runs two semesters and a college division runs two
+ * more, so that was the ordinary case for these schools, not an edge
+ * one.
+ */
+describe("a school that timetables by semester", () => {
+  const base: TimetableBlock = {
+    subject: "Mathematics",
+    section: "STEM 11-A",
+    teacherId: "t_1",
+    teacherName: "Maria Santos",
+    room: "Room 204",
+    dayOfWeek: 1,
+    startMinute: 7 * 60 + 30,
+    endMinute: 8 * 60 + 30,
+    schoolYear: "2026-2027",
+  };
+
+  it("lets the same slot be used again in the other semester", () => {
+    const first = {...base, id: "b1", term: "1st Semester"};
+    const second = {...base, id: "b2", term: "2nd Semester", subject: "Physics"};
+    // Same teacher, same section, same room, same slot -- and no clash,
+    // because the two are never in the same week.
+    expect(findClashes(second, [first])).toEqual([]);
+    expect(sharesTerm(first, second)).toBe(false);
+  });
+
+  it("still catches a clash inside one semester", () => {
+    const first = {...base, id: "b1", term: "1st Semester"};
+    const second = {...base, id: "b2", term: "1st Semester", subject: "Physics"};
+    expect(findClashes(second, [first]).map((c) => c.kind).sort()).toEqual([
+      "room",
+      "section",
+      "teacher",
+    ]);
+  });
+
+  it("reads a blank term as all year, so it clashes with every semester", () => {
+    // A Grade 7 class runs the whole year. It genuinely is in the room
+    // during both semesters, and a school that enters it that way has
+    // to be told when a semester class lands on top of it.
+    const allYear = {...base, id: "b1", term: null};
+    const semester = {...base, id: "b2", term: "2nd Semester"};
+    expect(sharesTerm(allYear, semester)).toBe(true);
+    expect(findClashes(semester, [allYear]).length).toBeGreaterThan(0);
+    expect(findClashes(allYear, [semester]).length).toBeGreaterThan(0);
+  });
+
+  it("treats a term typed two ways as one term", () => {
+    // "1st Semester" and "1st semester " are what two people type for
+    // the same thing, and reading them as different ones would let a
+    // real double-booking through.
+    const first = {...base, id: "b1", term: "1st Semester"};
+    const second = {...base, id: "b2", term: " 1st semester "};
+    expect(sharesTerm(first, second)).toBe(true);
+    expect(findClashes(second, [first]).length).toBeGreaterThan(0);
+  });
+
+  it("names the semester in the refusal, so the admin knows which one", () => {
+    const first = {...base, id: "b1", term: "1st Semester"};
+    const clash = findClashes({...base, id: "b2"}, [first])[0];
+    expect(describeClash(clash)).toContain("1st Semester");
+  });
+
+  it("says nothing about a term when there is not one", () => {
+    const first = {...base, id: "b1"};
+    const clash = findClashes({...base, id: "b2"}, [first])[0];
+    expect(describeClash(clash)).not.toContain("(");
   });
 });

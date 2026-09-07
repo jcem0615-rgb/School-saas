@@ -74,7 +74,12 @@ class ScheduleBlock {
   /// Same slot on the same day of the same year -- the precondition for
   /// any of the three clashes being worth checking.
   bool clashesInTimeWith(ScheduleBlock other) =>
-      id != other.id && schoolYear == other.schoolYear && overlaps(other);
+      id != other.id &&
+      // Trimmed, so a year typed with a stray space is the same year.
+      // Untrimmed, two blocks a school considers to be in 2026-2027
+      // would be in different ones here and never reported as clashing.
+      schoolYear.trim() == other.schoolYear.trim() &&
+      overlaps(other);
 }
 
 /// What kind of double-booking was found.
@@ -101,7 +106,8 @@ class ScheduleConflict {
 
   String get message => '${kind.message} '
       '${against.subject} with ${against.teacherName} in ${against.section}, '
-      '${against.dayLabel} ${against.timeLabel}.';
+      '${against.dayLabel} ${against.timeLabel}'
+      '${(against.term ?? '').trim().isEmpty ? '' : ' (${against.term})'}.';
 }
 
 /// Every way [candidate] collides with what is already timetabled.
@@ -117,6 +123,10 @@ List<ScheduleConflict> findConflicts(
   final room = candidate.room?.trim().toLowerCase();
 
   for (final other in existing) {
+    // Different semesters never share a week, so they cannot collide.
+    // Checked before the time comparison because it is the cheaper test
+    // and because it is the one that was missing.
+    if (!sharesTermWith(candidate, other)) continue;
     if (!candidate.clashesInTimeWith(other)) continue;
 
     if (other.teacherId == candidate.teacherId) {
@@ -135,6 +145,65 @@ List<ScheduleConflict> findConflicts(
     }
   }
   return conflicts;
+}
+
+/// Whether two blocks are ever in the same week as each other.
+///
+/// [ScheduleBlock.term] carried the note "for schools whose timetable
+/// changes partway through the year", and nothing read it -- not here
+/// and not on the server. Two blocks in different semesters never
+/// coexist, so calling them a clash made the second semester impossible
+/// to enter: every block collided with its own counterpart from the
+/// first. Senior High runs two semesters and a college division runs two
+/// more, so that was the ordinary case for the schools this is built
+/// for, not an edge one.
+///
+/// A block with no term runs all year and therefore shares the week with
+/// every term, which is why a blank on either side coexists with
+/// anything.
+///
+/// Kept in step with `sharesTerm` in
+/// `functions/src/shared/schedule/conflicts.ts`, which is the copy that
+/// decides whether the write is allowed.
+bool sharesTermWith(ScheduleBlock a, ScheduleBlock b) {
+  final left = (a.term ?? '').trim().toLowerCase();
+  final right = (b.term ?? '').trim().toLowerCase();
+  if (left.isEmpty || right.isEmpty) return true;
+  return left == right;
+}
+
+/// Every term named anywhere on [blocks], in order.
+///
+/// Blocks with no term are left out: they run all year, which is not a
+/// term a school picks between. An empty result means the school does
+/// not timetable by term at all, and nothing about terms need be shown.
+List<String> termsOf(Iterable<ScheduleBlock> blocks) {
+  // Keyed by the lowercased form so "1st Semester" and "1st semester"
+  // are one term, and holding the spelling the school actually typed so
+  // that is what appears on screen.
+  final seen = <String, String>{};
+  for (final block in blocks) {
+    final term = (block.term ?? '').trim();
+    if (term.isEmpty) continue;
+    seen.putIfAbsent(term.toLowerCase(), () => term);
+  }
+  return seen.values.toList()..sort();
+}
+
+/// The week as it actually runs in [term].
+///
+/// The classes named for that term, plus every class that runs all
+/// year -- a Grade 7 timetable is in the room in both semesters, and a
+/// term view that dropped it would be a lie about the week.
+///
+/// A null or blank [term] means the whole year at once.
+List<ScheduleBlock> blocksInTerm(Iterable<ScheduleBlock> blocks, String? term) {
+  final wanted = (term ?? '').trim().toLowerCase();
+  if (wanted.isEmpty) return blocks.toList();
+  return blocks.where((block) {
+    final own = (block.term ?? '').trim();
+    return own.isEmpty || own.toLowerCase() == wanted;
+  }).toList();
 }
 
 const _weekdayNames = [

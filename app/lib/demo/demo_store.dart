@@ -1294,6 +1294,7 @@ class DemoStore {
       required int day,
       required int start,
       required int end,
+      String? term,
     }) {
       counter++;
       return ScheduleBlock(
@@ -1307,6 +1308,7 @@ class DemoStore {
         startMinute: start,
         endMinute: end,
         schoolYear: sy,
+        term: term,
       );
     }
 
@@ -1352,6 +1354,13 @@ class DemoStore {
         ),
       // BSCS 3-A meets in the afternoon, so Dennis and Maria never
       // contend for a room and the seeded week is clash-free.
+      //
+      // The college division runs by semester, and its second semester
+      // reuses the same lab, the same lecturer and the same slot. That
+      // is the ordinary shape of a college timetable and it is exactly
+      // what the clash check used to refuse -- so it is seeded here, and
+      // a school looking at the demo can see both semesters and switch
+      // between them.
       for (final day in [1, 3])
         block(
           subject: 'Data Structures',
@@ -1362,6 +1371,7 @@ class DemoStore {
           day: day,
           start: 13 * 60,
           end: 14 * 60 + 30,
+          term: '1st Semester',
         ),
       for (final day in [2, 4])
         block(
@@ -1373,6 +1383,31 @@ class DemoStore {
           day: day,
           start: 13 * 60,
           end: 14 * 60 + 30,
+          term: '1st Semester',
+        ),
+      for (final day in [1, 3])
+        block(
+          subject: 'Operating Systems',
+          section: bscs,
+          teacherId: dennis,
+          teacherName: 'Dennis Pascual',
+          room: 'Computer Lab',
+          day: day,
+          start: 13 * 60,
+          end: 14 * 60 + 30,
+          term: '2nd Semester',
+        ),
+      for (final day in [2, 4])
+        block(
+          subject: 'Software Engineering',
+          section: bscs,
+          teacherId: dennis,
+          teacherName: 'Dennis Pascual',
+          room: 'Computer Lab',
+          day: day,
+          start: 13 * 60,
+          end: 14 * 60 + 30,
+          term: '2nd Semester',
         ),
     ];
   }

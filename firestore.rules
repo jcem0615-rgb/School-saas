@@ -134,6 +134,21 @@ service cloud.firestore {
       return scopeAllowsStudent(schoolId, student.get('educationLevel', 'elementary'), student.get('department', null));
     }
 
+    // The same question for an attendance record, which is the one
+    // per-student collection whose rows are not all about students:
+    // `personId` is an auth uid for a member of staff and a
+    // students/{id} academic record for a child. A staff row has no
+    // division to scope by, and neither does a child scanned before
+    // Student Registration has made their academic record (markAttendance
+    // falls back to the account id there). `get()` on a document that is
+    // not there throws and denies the whole read, so both cases are
+    // answered before the student doc is fetched.
+    function attendanceScopeAllows(schoolId, record) {
+      return record.get('personRole', '') != 'student'
+        || !exists(/databases/$(database)/documents/schools/$(schoolId)/students/$(record.personId))
+        || scopeAllowsStudentById(schoolId, record.personId);
+    }
+
     // -------------------------------------------------------------------
     // Platform-level data (Owner only) -- schools registry, subscriptions,
     // invoices, owner audit log. No tenant user may ever read or write here.
@@ -1209,16 +1224,26 @@ service cloud.firestore {
         allow read: if belongsToSchool(schoolId)
                       && schoolIsAccessible(schoolId)
                       && (
+                        // School-wide administrative roles, cross-division
+                        // by design -- the same standing they have on
+                        // students, grades and payments.
+                        hasRole(schoolId, ['director', 'admin'])
+                        // The monitoring roles, division-scoped like every
+                        // other per-student collection. This was the one
+                        // that was not: an elementary guidance counsellor
+                        // blocked from a Senior High student's grades and
+                        // guidance file could read, day by day, what time
+                        // that child arrived at school.
+                        || (hasRole(schoolId, ['principal', 'registrar', 'faculty', 'staff', 'guidance'])
+                            && attendanceScopeAllows(schoolId, resource.data))
                         // the record's own subject -- employees: personId
                         // IS their auth uid; students: personId is their
                         // linked students/{studentId} record, so resolve
                         // that record's userId instead (see
                         // docs/07-qr-attendance.md, "ID space" section).
-                        resource.data.personId == request.auth.uid
+                        || resource.data.personId == request.auth.uid
                         || (resource.data.personRole == 'student'
                             && get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.personId)).data.userId == request.auth.uid)
-                        // staff-facing monitoring roles
-                        || claims().role in ['director', 'principal', 'admin', 'registrar', 'faculty', 'staff', 'guidance']
                         // a parent viewing a linked child's record
                         || (claims().role == 'parent'
                             && exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid))
@@ -1255,8 +1280,16 @@ service cloud.firestore {
         allow read: if belongsToSchool(schoolId)
                       && schoolIsAccessible(schoolId)
                       && (
-                        get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.studentId)).data.userId == request.auth.uid
-                        || claims().role in ['director', 'principal', 'admin', 'registrar', 'faculty', 'staff', 'guidance']
+                        hasRole(schoolId, ['director', 'admin'])
+                        // Division-scoped for the same roles, and for the
+                        // same reason, as `grades` -- a mark in a lesson
+                        // is no less about one named child than a mark in
+                        // an exam. Every row here is built from a
+                        // section's enrolment, so the student record it
+                        // names always exists.
+                        || (hasRole(schoolId, ['principal', 'registrar', 'faculty', 'staff', 'guidance'])
+                            && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        || get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.studentId)).data.userId == request.auth.uid
                         || (claims().role == 'parent'
                             && exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid))
                             && resource.data.studentId in

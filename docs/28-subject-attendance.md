@@ -105,6 +105,26 @@ grade gets argued over, and the callables are the only door.
 **An absent student gets no time out.** They had no time in. A duration
 against a child who was not in the room is worse than a blank.
 
+**The mark decides the arrival time, not the row.** Opening a session
+stamps every student on the roll with the session's own start time. The
+mark used to keep whatever was already on the row — which, since the row
+had only ever held the bell time, meant a student switched to *late* was
+recorded as having arrived on the bell. The comment above that line
+promised the opposite. `timeInForMark` now derives it: *present* is the
+bell (that is what the mark means), *late* is the moment the teacher
+marked them (the only record there is of when they came through the
+door), *absent* and *excused* have no arrival at all. Correcting a
+mis-tap from late back to present puts the child back on the bell rather
+than leaving them permanently recorded as having walked in halfway
+through. Clamped at the session start, so a device whose clock runs slow
+cannot produce a student who arrived before the class began.
+
+**A roll has an upper bound.** One session document plus one mark per
+student, in one batch, and a Firestore batch holds 500 writes. A section
+of five hundred is a data problem rather than a class — but without the
+check the failure is an opaque Firestore error in front of a teacher
+holding a phone, and the office cannot act on that.
+
 **Excused lessons stay in the denominator.** A school that dropped them
 would report a child who missed half a term with a note as having a
 perfect record, which is not what either the teacher or the parent is
@@ -126,6 +146,14 @@ read all eight to find it.
 A session document is the class — who taught it, how the whole section
 came out. A family's business is their own child's line in it.
 
+Marks are division-scoped for the same roles, and for the same reason, as
+`grades`: a mark in a lesson is no less about one named child than a mark
+in an exam. Director and Admin stay cross-division, as they are
+everywhere else. Every row here is built from a section's enrolment, so
+the student record it names always exists — which is why this rule can
+call `scopeAllowsStudentById` directly, where the gate-attendance one has
+to guard first (see `docs/07-qr-attendance.md`).
+
 ## Covered by tests
 
 * `functions/test/shared/attendance/classSession.test.ts` — the id
@@ -142,12 +170,19 @@ came out. A family's business is their own child's line in it.
   a correction after Time Out keeping the summary honest, and the
   family's per-subject rates.
 * `app/test/smoke/portal_actions_test.dart` — the three screens render.
+* `app/test/unit/features/class_sessions/domain/time_in_for_mark_test.dart`
+  — the arrival-time arithmetic on the client's copy.
+* `functions/test/shared/attendance-emulator/gateAndTimetable.test.ts` —
+  `openClassSession` and `markSubjectAttendance` against a real
+  Firestore: a latecomer recorded when they were marked rather than on
+  the bell, the correction back to present, and an absent student left
+  with no arrival.
 
 ## Not covered
 
-The callables themselves are not exercised against the emulator. The
-rules, the pure logic and the client behaviour are each tested, and the
-demo repositories mirror the callables closely enough that the smoke
-tests pin the same rules — but "the deployed function does what the demo
-does" is asserted by reading, not by running. Worth an emulator test
-before a school relies on it for a term's records.
+Time Out is not exercised against the emulator. `openClassSession` and
+`markSubjectAttendance` now are, and the rest — the counts recomputed
+after a correction on a closed session, the stamp written to every
+student who was there — is tested on the pure logic, the rules and the
+demo, but "the deployed `closeClassSession` does what the demo does" is
+still asserted by reading rather than by running.

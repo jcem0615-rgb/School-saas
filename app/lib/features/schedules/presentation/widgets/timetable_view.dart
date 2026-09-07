@@ -128,6 +128,7 @@ class _BlockTile extends StatelessWidget {
       if (showTeacher) block.teacherName,
       if (block.room != null) block.room!,
     ].join(' · ');
+    final term = (block.term ?? '').trim();
 
     return Card(
       elevation: 0,
@@ -168,7 +169,32 @@ class _BlockTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(block.subject, style: theme.textTheme.titleSmall),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(block.subject, style: theme.textTheme.titleSmall),
+                        ),
+                        // Named on the class itself, because a week that
+                        // holds two semesters otherwise reads as a
+                        // double booking. Nothing shows for a school
+                        // whose classes all run the year.
+                        if (term.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              term,
+                              style: theme.textTheme.labelSmall
+                                  ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                     if (subtitle.isNotEmpty)
                       Text(
                         subtitle,
@@ -183,6 +209,48 @@ class _BlockTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Picks which term of the year a timetable is being read in.
+///
+/// Renders nothing at all when the school does not timetable by term,
+/// which is most of them -- a Grade 1 to Grade 10 school has one week
+/// and should not be asked which one it wants.
+class TermChooser extends StatelessWidget {
+  final List<String> terms;
+
+  /// Null means the whole year at once.
+  final String? selected;
+  final ValueChanged<String?> onChanged;
+
+  const TermChooser({
+    super.key,
+    required this.terms,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (terms.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: DropdownButtonFormField<String?>(
+        isExpanded: true,
+        value: terms.contains(selected) ? selected : null,
+        decoration: const InputDecoration(labelText: 'Term'),
+        items: [
+          const DropdownMenuItem<String?>(
+            value: null,
+            child: Text('The whole year'),
+          ),
+          for (final term in terms)
+            DropdownMenuItem<String?>(value: term, child: Text(term)),
+        ],
+        onChanged: onChanged,
       ),
     );
   }

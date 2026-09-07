@@ -3,7 +3,13 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import {requireCallerClaims, requireRole} from "../../shared/auth/claims";
 import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
-import {computeAttendanceStatus, parseCutoffTime} from "../../shared/attendance/attendanceStatus";
+import {
+  MINIMUM_DWELL_MINUTES,
+  classifyRepeatScan,
+  computeAttendanceStatus,
+  parseCutoffTime,
+} from "../../shared/attendance/attendanceStatus";
+import {schoolDateKey, schoolTimezone} from "../../shared/attendance/schoolClock";
 
 interface MarkAttendanceData {
   qrToken: string;
@@ -127,10 +133,11 @@ export const markAttendance = onCall(
       }
     }
 
-    // Timezone lives on the platform-level school record (Admin SDK reads
-    // bypass rules, so this is safe even though clients can't touch it).
-    const schoolRecord = await db.doc(FirestorePaths.platformSchoolDoc(schoolId)).get();
-    const timezone = (schoolRecord.data()?.timezone as string) ?? "Asia/Manila";
+    // Through `schoolClock` rather than a second copy of the same two
+    // lines. What day it is at the school decides which record a scan
+    // lands on, and two implementations of that is the shape that drifts
+    // -- the class-session callables already read it from there.
+    const timezone = await schoolTimezone(schoolId);
     const cutoffSetting = (await db.doc(FirestorePaths.school(schoolId)).get()).data()?.attendanceCutoffTime as
       | string
       | undefined;
@@ -139,7 +146,7 @@ export const markAttendance = onCall(
     const cutoff = parseCutoffTime(cutoffSetting);
     const status = computeAttendanceStatus(hour, minute, cutoff.hour, cutoff.minute);
 
-    const dateKey = new Intl.DateTimeFormat("en-CA", {timeZone: timezone}).format(now); // YYYY-MM-DD
+    const dateKey = schoolDateKey(now, timezone);
     const recordId = `${dateKey}_${resolvedPersonId}`;
     const recordRef = db.doc(FirestorePaths.attendanceDoc(schoolId, recordId));
 
@@ -172,7 +179,19 @@ export const markAttendance = onCall(
       }
 
       const existingData = existing.data()!;
-      if (!existingData.timestampOut) {
+      const timestampIn =
+        (existingData.timestampIn as admin.firestore.Timestamp | undefined)?.toDate() ?? now;
+      const timestampOut =
+        (existingData.timestampOut as admin.firestore.Timestamp | undefined)?.toDate() ?? null;
+
+      // A second tap within a few seconds is the queue at the gate, not
+      // somebody leaving. Signing them out on it would record a person
+      // as having arrived and left in the same minute -- which for an
+      // hourly employee is a day's pay, and which nothing downstream
+      // flags, because a record with both stamps filled in is a record
+      // that looks complete.
+      const repeat = classifyRepeatScan(timestampIn, timestampOut, now);
+      if (repeat === "time_out") {
         tx.update(recordRef, {
           timestampOut: admin.firestore.Timestamp.fromDate(now),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -181,7 +200,7 @@ export const markAttendance = onCall(
         return {action: "time_out", status: existingData.status};
       }
 
-      return {action: "already_completed", status: existingData.status};
+      return {action: repeat, status: existingData.status};
     });
 
     await writeAuditLog({
@@ -201,7 +220,8 @@ export const markAttendance = onCall(
       personId: resolvedPersonId,
       personName: `${person.firstName ?? ""} ${person.lastName ?? ""}`.trim(),
       personRole: person.role,
-      action: result.action, // 'time_in' | 'time_out' | 'already_completed'
+      action: result.action, // 'time_in' | 'time_out' | 'too_soon' | 'already_completed'
+      minimumDwellMinutes: MINIMUM_DWELL_MINUTES,
       status: result.status, // 'present' | 'late'
       timestamp: now.toISOString(),
     };

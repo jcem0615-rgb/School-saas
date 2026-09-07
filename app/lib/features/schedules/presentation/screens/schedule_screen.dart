@@ -34,6 +34,10 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   _Lens _lens = _Lens.section;
   String? _value;
 
+  /// Which term of the year is on screen. Null is the whole year, and
+  /// is the only state a school without terms ever has.
+  String? _term;
+
   List<String> _choicesFor(_Lens lens, List<ScheduleBlock> all, List<dynamic> sections) {
     switch (lens) {
       case _Lens.section:
@@ -101,7 +105,10 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     // how this opened on a section nobody had timetabled, showing an
     // empty week that reads as a broken feature.
     final selected = _value ?? _bestDefault(choices, all);
-    final shown = _filtered(all, selected);
+    // The term filter is applied last, so the section chooser still
+    // offers a section whose only classes are in the other semester.
+    final terms = termsOf(all);
+    final shown = blocksInTerm(_filtered(all, selected), _term);
 
     ref.listen(scheduleActionControllerProvider, (previous, next) {
       if (next case AsyncError(:final error)) {
@@ -124,7 +131,9 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
               tooltip: 'Print this timetable',
               onPressed: () => TimetablePdf.print(
                 title: selected ?? 'Timetable',
-                subtitle: 'School Year $year',
+                subtitle: _term == null
+                    ? 'School Year $year'
+                    : 'School Year $year · $_term',
                 blocks: shown,
                 branding: ref.read(brandingProvider).valueOrNull ?? SchoolBranding.empty,
                 preparedByName:
@@ -187,6 +196,11 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
                 ],
                 onChanged: (v) => setState(() => _value = v),
               ),
+            TermChooser(
+              terms: terms,
+              selected: _term,
+              onChanged: (value) => setState(() => _term = value),
+            ),
             const SizedBox(height: 4),
             Text('School Year $year', style: Theme.of(context).textTheme.bodySmall),
             TimetableView(
@@ -243,6 +257,7 @@ class _BlockEditorState extends ConsumerState<_BlockEditor> {
   late final TextEditingController _subject;
   late final TextEditingController _section;
   late final TextEditingController _room;
+  late final TextEditingController _term;
   late final TextEditingController _start;
   late final TextEditingController _end;
   late int _day;
@@ -255,6 +270,7 @@ class _BlockEditorState extends ConsumerState<_BlockEditor> {
     _subject = TextEditingController(text: block?.subject ?? '');
     _section = TextEditingController(text: block?.section ?? '');
     _room = TextEditingController(text: block?.room ?? '');
+    _term = TextEditingController(text: block?.term ?? '');
     _start = TextEditingController(text: block == null ? '' : block.startLabel);
     _end = TextEditingController(text: block == null ? '' : block.endLabel);
     _day = block?.dayOfWeek ?? DateTime.now().weekday;
@@ -272,6 +288,7 @@ class _BlockEditorState extends ConsumerState<_BlockEditor> {
     _subject.dispose();
     _section.dispose();
     _room.dispose();
+    _term.dispose();
     _start.dispose();
     _end.dispose();
     super.dispose();
@@ -296,6 +313,7 @@ class _BlockEditorState extends ConsumerState<_BlockEditor> {
           teacherId: _teacher?.uid ?? '',
           teacherName: _teacher?.fullName ?? '',
           room: _room.text,
+          term: _term.text,
           dayOfWeek: _day,
           startMinute: start,
           endMinute: end,
@@ -379,6 +397,17 @@ class _BlockEditorState extends ConsumerState<_BlockEditor> {
               controller: _room,
               label: 'Room (optional)',
               suggestions: all.map((b) => b.room ?? '').where((r) => r.isNotEmpty).toList(),
+            ),
+            const SizedBox(height: 12),
+            // The field that makes a second semester possible. Blocks in
+            // different terms never share a week, so they do not clash;
+            // leaving this blank means the class runs all year, which is
+            // what a Grade 7 timetable does.
+            ComboField(
+              controller: _term,
+              label: 'Semester or term (optional)',
+              suggestions:
+                  all.map((b) => b.term ?? '').where((t) => t.isNotEmpty).toList(),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(

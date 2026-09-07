@@ -211,6 +211,41 @@ void main() {
       );
     });
 
+    test('records a latecomer as arriving when they were marked', () async {
+      // Opening the register stamps every student with the session's own
+      // start time. Keeping that on a student switched to late recorded
+      // them as having been there on the bell -- the one thing the mark
+      // says they were not.
+      final container = await signedInAs(UserRole.faculty);
+      final store = container.read(demoStoreProvider);
+      final block = addTodaysClass(store);
+      final controller = actions(container);
+
+      final sessionId = (await controller.openSession(block.id))!;
+      final session = store.classSessions.value.firstWhere((s) => s.id == sessionId);
+      final student = rollOf(store, sessionId).first.studentId;
+
+      await controller.mark(
+        sessionId: sessionId,
+        studentId: student,
+        status: AttendanceStatus.late,
+      );
+      final late = rollOf(store, sessionId).firstWhere((m) => m.studentId == student);
+      expect(late.timeIn, isNotNull);
+      expect(late.timeIn!.isAfter(session.openedAt), isTrue);
+
+      // And corrected back to present, they are on the bell again --
+      // a mis-tap does not leave a child permanently marked as having
+      // walked in halfway through.
+      await controller.mark(
+        sessionId: sessionId,
+        studentId: student,
+        status: AttendanceStatus.present,
+      );
+      final fixed = rollOf(store, sessionId).firstWhere((m) => m.studentId == student);
+      expect(fixed.timeIn, session.openedAt);
+    });
+
     test('refuses to rewrite an earlier day\'s register', () async {
       final container = await signedInAs(UserRole.faculty);
       final store = container.read(demoStoreProvider);

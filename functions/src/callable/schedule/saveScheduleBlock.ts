@@ -120,6 +120,10 @@ export const saveScheduleBlock = onCall(
       startMinute,
       endMinute,
       schoolYear: schoolYear.trim(),
+      // Part of the clash check, not just stored. Two blocks in
+      // different semesters never share a week, and treating them as a
+      // collision made a second semester impossible to enter.
+      term: (term ?? "").trim() || null,
     };
 
     // Only the same day of the same year can clash, so that is all that
@@ -144,6 +148,7 @@ export const saveScheduleBlock = onCall(
         startMinute: (data.startMinute as number) ?? 0,
         endMinute: (data.endMinute as number) ?? 0,
         schoolYear: (data.schoolYear as string) ?? "",
+        term: (data.term as string | null) ?? null,
       };
     });
 
@@ -167,7 +172,7 @@ export const saveScheduleBlock = onCall(
       startMinute,
       endMinute,
       schoolYear: candidate.schoolYear,
-      term: (term ?? "").trim() || null,
+      term: candidate.term,
       isDeleted: false,
       updatedAt: now,
       updatedBy: request.auth!.uid,

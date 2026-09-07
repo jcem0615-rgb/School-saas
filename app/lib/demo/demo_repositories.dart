@@ -4777,7 +4777,9 @@ class DemoClassSessionRepository implements ClassSessionRepository {
             section: mark.section,
             date: mark.date,
             status: status,
-            timeIn: arriving ? (mark.timeIn ?? now) : null,
+            // The mark decides the arrival time; the row's previous
+            // value never does. See timeInForMark.
+            timeIn: timeInForMark(status, session.openedAt, now),
             timeOut: arriving ? mark.timeOut : null,
           )
         else

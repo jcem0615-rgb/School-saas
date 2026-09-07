@@ -16,6 +16,7 @@ ScheduleBlock block({
   int start = 450, // 7:30
   int end = 510, // 8:30
   String schoolYear = '2026-2027',
+  String? term,
 }) =>
     ScheduleBlock(
       id: id,
@@ -28,6 +29,7 @@ ScheduleBlock block({
       startMinute: start,
       endMinute: end,
       schoolYear: schoolYear,
+      term: term,
     );
 
 void main() {
@@ -181,6 +183,90 @@ void main() {
         expect(parseMinuteOfDay(formatMinuteOfDay(minute)), minute,
             reason: 'failed at ${formatMinuteOfDay(minute)}');
       }
+    });
+  });
+
+  group('a school that timetables by semester', () {
+    // The field existed, documented as being "for schools whose
+    // timetable changes partway through the year", and nothing read it.
+    // Two blocks in different semesters never coexist, so every second
+    // semester block collided with its own first-semester counterpart --
+    // which made a second semester impossible to enter at all.
+    test('the same slot is free again in the other semester', () {
+      final first = block(term: '1st Semester');
+      final second = block(id: 'b2', subject: 'Physics', term: '2nd Semester');
+      expect(findConflicts(second, [first]), isEmpty);
+    });
+
+    test('but not twice in the same semester', () {
+      final first = block(term: '1st Semester');
+      final second = block(id: 'b2', subject: 'Physics', term: '1st Semester');
+      expect(findConflicts(second, [first]), isNotEmpty);
+    });
+
+    test('a class with no term runs all year, so a semester lands on it', () {
+      final allYear = block();
+      final semester = block(id: 'b2', subject: 'Physics', term: '2nd Semester');
+      expect(findConflicts(semester, [allYear]), isNotEmpty);
+      expect(findConflicts(allYear, [semester]), isNotEmpty);
+    });
+
+    test('a term is matched however it was typed', () {
+      final first = block(term: '1st Semester');
+      final second = block(id: 'b2', subject: 'Physics', term: '  1ST semester ');
+      expect(findConflicts(second, [first]), isNotEmpty);
+    });
+
+    test('the message names the semester the clash is in', () {
+      final first = block(term: '1st Semester');
+      final second = block(id: 'b2', subject: 'Physics', term: '1st Semester');
+      expect(findConflicts(second, [first]).first.message, contains('1st Semester'));
+    });
+
+    test('and says nothing about a term when there is not one', () {
+      final first = block();
+      final second = block(id: 'b2', subject: 'Physics');
+      expect(findConflicts(second, [first]).first.message, isNot(contains('(')));
+    });
+
+    test('a year typed with a stray space is still the same year', () {
+      // Otherwise a school whose year reads " 2026-2027" on one block
+      // and "2026-2027" on another gets no clash check between them.
+      final first = block(schoolYear: '2026-2027');
+      final second = block(id: 'b2', subject: 'Physics', schoolYear: ' 2026-2027 ');
+      expect(findConflicts(second, [first]), isNotEmpty);
+    });
+  });
+
+  group('reading one term of a year', () {
+    test('a school with no terms is asked nothing about them', () {
+      expect(termsOf([block(), block(id: 'b2')]), isEmpty);
+    });
+
+    test('names each term once, however it was typed', () {
+      final blocks = [
+        block(term: '1st Semester'),
+        block(id: 'b2', term: '1ST SEMESTER'),
+        block(id: 'b3', term: '2nd Semester'),
+        block(id: 'b4'),
+      ];
+      expect(termsOf(blocks), ['1st Semester', '2nd Semester']);
+    });
+
+    test('a term shows its own classes and the ones that run all year', () {
+      // A Grade 7 class is in the room both semesters. A term view that
+      // dropped it would be a lie about the week.
+      final allYear = block(subject: 'Homeroom');
+      final first = block(id: 'b2', term: '1st Semester');
+      final second = block(id: 'b3', term: '2nd Semester');
+      final shown = blocksInTerm([allYear, first, second], '1st Semester');
+      expect(shown.map((b) => b.id), ['b1', 'b2']);
+    });
+
+    test('no term chosen means the whole year at once', () {
+      final blocks = [block(), block(id: 'b2', term: '2nd Semester')];
+      expect(blocksInTerm(blocks, null), hasLength(2));
+      expect(blocksInTerm(blocks, '  '), hasLength(2));
     });
   });
 }

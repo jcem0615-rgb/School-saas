@@ -19,7 +19,16 @@ export interface TimetableBlock {
   startMinute: number;
   endMinute: number;
   schoolYear: string;
+
+  /**
+   * Semester or quarter, for a school whose timetable changes partway
+   * through the year. Null means it runs all year.
+   */
+  term?: string | null;
 }
+
+const norm = (value: string | null | undefined): string =>
+  (value ?? "").trim().toLowerCase();
 
 export type ClashKind = "teacher" | "section" | "room";
 
@@ -41,8 +50,26 @@ export function overlaps(a: TimetableBlock, b: TimetableBlock): boolean {
   );
 }
 
-const norm = (value: string | null | undefined): string =>
-  (value ?? "").trim().toLowerCase();
+/**
+ * Whether two blocks are ever in the same week as each other.
+ *
+ * `term` carried the note "for schools whose timetable changes partway
+ * through the year", and nothing read it. Two blocks in different
+ * semesters never coexist, so calling them a clash made the second
+ * semester impossible to enter: every block collided with its own
+ * counterpart from the first. Senior High runs two semesters and a
+ * college division runs two more, so that was not an edge case for the
+ * schools this is built for -- it was the ordinary case.
+ *
+ * A block with no term runs all year and therefore shares the week with
+ * every term, which is why a null on either side coexists with anything.
+ */
+export function sharesTerm(a: TimetableBlock, b: TimetableBlock): boolean {
+  const left = norm(a.term);
+  const right = norm(b.term);
+  if (left === "" || right === "") return true;
+  return left === right;
+}
 
 /** Every way `candidate` collides with what is already timetabled. */
 export function findClashes(
@@ -55,6 +82,7 @@ export function findClashes(
   for (const other of existing) {
     if (other.id && candidate.id && other.id === candidate.id) continue;
     if (other.schoolYear !== candidate.schoolYear) continue;
+    if (!sharesTerm(candidate, other)) continue;
     if (!overlaps(candidate, other)) continue;
 
     if (other.teacherId === candidate.teacherId) {
@@ -81,7 +109,8 @@ export function describeClash(clash: Clash): string {
       clash.kind === "section" ?
         "This section already has a class then." :
         "That room is already taken then.";
-  return `${what} ${b.subject} with ${b.teacherName} in ${b.section}.`;
+  const when = norm(b.term) === "" ? "" : ` (${b.term})`;
+  return `${what} ${b.subject} with ${b.teacherName} in ${b.section}${when}.`;
 }
 
 /** Minutes-from-midnight bounds a real class fits inside. */

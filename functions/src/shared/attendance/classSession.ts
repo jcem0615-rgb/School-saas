@@ -142,3 +142,33 @@ export function sessionMinutes(openedAt: Date, closedAt: Date | null): number | 
   const minutes = Math.round((closedAt.getTime() - openedAt.getTime()) / 60000);
   return minutes < 0 ? 0 : minutes;
 }
+
+/**
+ * When a student with this mark arrived.
+ *
+ * Derived from the mark rather than carried forward from whatever the
+ * row said before, because the previous value is never evidence of
+ * anything: every student on the roll is written with the session's open
+ * time when the register is created, so "keep the time already there"
+ * means "keep the bell time" for every student in the class, including
+ * the one who walked in twenty minutes late.
+ *
+ *   present -- they were here when the class started, which is what the
+ *              mark means; the bell time is right.
+ *   late    -- they were not. The moment the teacher marked them is the
+ *              only record of when they came through the door, and it is
+ *              closer to the truth than a time we know is wrong.
+ *   absent, excused -- no arrival to record.
+ *
+ * Clamped at the session's start so a phone whose clock is behind the
+ * server cannot produce a student who arrived before the class began.
+ */
+export function timeInForMark(
+  status: string,
+  sessionOpenedAt: Date,
+  markedAt: Date
+): Date | null {
+  if (status === "present") return sessionOpenedAt;
+  if (status !== "late") return null;
+  return markedAt.getTime() < sessionOpenedAt.getTime() ? sessionOpenedAt : markedAt;
+}
