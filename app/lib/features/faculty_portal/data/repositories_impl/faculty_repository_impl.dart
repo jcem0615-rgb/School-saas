@@ -1,9 +1,11 @@
+import '../../../../core/errors/app_exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/errors/result.dart';
 import '../../domain/entities/coursework_item.dart';
 import '../../domain/entities/answer_key.dart';
 import '../../domain/entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
+import '../../domain/entities/class_assessment.dart';
 import '../../domain/entities/grade.dart';
 import '../../domain/entities/grading_scheme.dart';
 import '../../domain/repositories/faculty_repository.dart';
@@ -134,8 +136,103 @@ class FacultyRepositoryImpl implements FacultyRepository {
       _remote.watchStudentsInSection(section);
 
   @override
-  Stream<List<Grade>> watchGradesFor({required String subject, required String section}) =>
-      _remote.watchGradesFor(subject: subject, section: section);
+  Stream<List<Grade>> watchGradesFor({
+    required String subject,
+    required String section,
+    String? term,
+  }) =>
+      _remote.watchGradesFor(subject: subject, section: section, term: term);
+
+  @override
+  Stream<List<ClassAssessment>> watchClassAssessments({
+    required String subject,
+    required String section,
+    required String term,
+  }) =>
+      _remote.watchClassAssessments(subject: subject, section: section, term: term);
+
+  @override
+  Stream<SubjectWeights?> watchClassWeights({
+    required String subject,
+    required String section,
+  }) =>
+      _remote.watchClassWeights(subject: subject, section: section);
+
+  @override
+  Stream<String?> watchClassWeightsSetBy({
+    required String subject,
+    required String section,
+  }) =>
+      _remote.watchClassWeightsSetBy(subject: subject, section: section);
+
+  @override
+  Future<Result<({String assessmentId, List<String> marksOverMax})>>
+      saveClassAssessment({
+    String? assessmentId,
+    required String subject,
+    required String section,
+    required String term,
+    required String title,
+    required GradingComponent component,
+    required double maxScore,
+  }) async {
+    try {
+      return Success(await _remote.saveClassAssessment(
+        assessmentId: assessmentId,
+        subject: subject,
+        section: section,
+        term: term,
+        title: title,
+        component: component,
+        maxScore: maxScore,
+      ));
+    } on ServerException catch (e) {
+      // The server's own words. It names the total that was refused and
+      // the children whose marks no longer fit, and a screen that
+      // flattened that to "something went wrong" would leave a teacher
+      // with nothing to act on.
+      return Error(ValidationFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Result<({int saved, int cleared})>> saveAssessmentScores({
+    required String assessmentId,
+    required List<ScoreEntry> scores,
+  }) async {
+    try {
+      return Success(await _remote.saveAssessmentScores(
+        assessmentId: assessmentId,
+        scores: scores,
+      ));
+    } on ServerException catch (e) {
+      return Error(ValidationFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Result<void>> setClassWeights({
+    required String subject,
+    required String section,
+    SubjectWeights? weights,
+  }) async {
+    try {
+      await _remote.setClassWeights(
+        subject: subject,
+        section: section,
+        weights: weights,
+      );
+      return const Success(null);
+    } on ServerException catch (e) {
+      return Error(ValidationFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
 
   @override
   Future<Result<void>> submitGrade({
@@ -164,6 +261,11 @@ class FacultyRepositoryImpl implements FacultyRepository {
         remarks: remarks,
       );
       return const Success(null);
+    } on ServerException catch (e) {
+      // The server names the child and the total it refused, and an
+      // import reports one line per rejected row -- a generic failure
+      // there tells a teacher forty rows went wrong and nothing else.
+      return Error(ValidationFailure(e.message));
     } catch (_) {
       return const Error(UnknownFailure());
     }

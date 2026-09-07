@@ -400,7 +400,8 @@ add(
   featureTable([
     ['My Schedule', 'My Timetable', 'The teacher\'s own week - what they teach, when, where and to whom.'],
     ['Coursework', 'Coursework', 'Every lesson plan, lesson, assignment, project, exam and quiz they have set. See 8.2.'],
-    ['Grade Submission', 'Grade Submission', 'Enter marks for a section. See 8.5.'],
+    ['Class Record', 'Class Record', 'Where a teacher actually keeps grades: a column per piece of work, the class typed down it in one go, and the quarterly grade computed as you save. See 8.5.'],
+    ['Grade Submission', 'Grade Submission', 'The older per-student path, kept for a single late mark and for the spreadsheet import. See 8.5.'],
     ['Material Requests', 'Material Requests', 'File a request for what the classroom needs; it lands in the same approvals inbox the Director reads.'],
     ['Scan Attendance', 'Scan Attendance QR', 'Mark a class present by scanning their IDs. See section 13.'],
     ['Emergency Alerts', 'Emergency Alerts', 'Raise or read an alert without leaving the room.'],

@@ -20,9 +20,10 @@ If you have one minute, show these three and stop:
 1. **Registrar → Admissions.** "Two families enquired three weeks ago and
    nobody has rung them back." That is the number a school loses its year
    to.
-2. **Faculty → Grade Submission** (Mathematics, Grade 10 - Rizal). The
-   grades are already weighted the DepEd way — written work, performance
-   tasks, quarterly assessment — and one student is below 75.
+2. **Faculty → Class Record** (Mathematics, Grade 10 - Rizal, 2nd
+   Quarter). Four pieces of work as columns, the class typed down them,
+   and the grade already weighted the DepEd way. Open a student and the
+   whole arithmetic is under their name.
 3. **Parent → Payments.** The balance, what it is made of, the
    instalment plan behind it, and Pay Online.
 
@@ -174,26 +175,39 @@ anybody twice — the record's own id prevents it."
 | My Schedule | Their week |
 | Class Attendance | Per subject, with a time in and a time out |
 | Coursework | Assignments, quizzes, exams — with answer keys and auto-scoring |
-| **Grade Submission** | The class record |
+| **Class Record** | Where grades are actually kept |
+| Grade Submission | One late mark, and the spreadsheet import |
 | Material Requests | Into the same approvals inbox |
 | Announcements | Targeted at their own sections |
 | Messages | Parent–teacher threads |
 | Scan Attendance, Emergency Alerts, My Leave, My Timesheet | |
 
-**Grade Submission — the one to demo.** Type *Mathematics* and *Grade 10
-- Rizal*, press Load.
+**Class Record — the one to demo.** Type *Mathematics* and *Grade 10 -
+Rizal*, pick *2nd Quarter*, press Open.
 
-- Every student in the section, including the ungraded ones — *"a
-  grades-only list can never show you who has not been graded."*
-- Each row shows the **computed** grade, the weight group it came from
-  ("Science and Mathematics"), and which components are still empty.
-- Tap **Submit Grade**: the Component dropdown is Written Work,
-  Performance Tasks or Quarterly Assessment.
-- **Export / Import** takes a spreadsheet.
+- Four pieces of work already given out — two written, two performance —
+  with how many of the class are marked against each.
+- The percentages in force are named at the top: *WW 40% · PT 40% · QA
+  20%*, and where they came from. Press **Change** and set your own: the
+  whole class recomputes, and it refuses anything that does not add up to
+  100.
+- Tap a piece of work: the class, one box each, type down it and
+  **Save**. No dialog per child.
+- **Type a mark, save, then type a different one.** It replaces. *"Every
+  other system I have seen adds a second row and quietly averages the
+  child into the wrong grade."*
+- Leave one blank and save: the row reads **not sat**, not zero.
+- Open a student: every mark, then each component's raw over possible,
+  the percentage, the weight, what it contributed, the initial grade and
+  the final one.
 
 **The line:** "In week two there is no quarterly assessment yet. Most
 systems count that as a zero and cap every child at 80. This one
 rescales it out and tells the teacher what is missing."
+
+**Grade Submission** is still there for a single late mark and for the
+spreadsheet import — same arithmetic, same records, correctable the same
+way.
 
 ---
 

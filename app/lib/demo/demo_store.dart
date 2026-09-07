@@ -23,6 +23,7 @@ import '../features/emergency/domain/entities/emergency_alert.dart';
 import '../features/emergency/domain/entities/emergency_contact.dart';
 import '../features/faculty_portal/domain/entities/answer_key.dart';
 import '../features/faculty_portal/domain/entities/coursework_submission.dart';
+import '../features/faculty_portal/domain/entities/class_assessment.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
 import '../features/faculty_portal/domain/entities/grading_scheme.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
@@ -239,6 +240,19 @@ class DemoStore {
   late final courseworkSubmissions =
       BehaviorSubject<List<CourseworkSubmission>>.seeded(_seedCourseworkSubmissions());
   late final grades = BehaviorSubject<List<Grade>>.seeded(_seedGrades());
+
+  /// The pieces of work a class was given: the columns of the class
+  /// record. Seeded for the Grade 10 maths class the demo tour walks
+  /// through, so a teacher opening it types into a record that already
+  /// looks like a term's work rather than an empty grid.
+  late final classAssessments =
+      BehaviorSubject<List<ClassAssessment>>.seeded(_seedClassAssessments());
+
+  /// What each component counts for one class, keyed the way
+  /// `classKeyFor` keys it. Empty: the demo school grades on its own
+  /// confirmed scheme, which is the ordinary case and the one worth
+  /// showing first.
+  late final classWeights = BehaviorSubject<Map<String, SubjectWeights>>.seeded(const {});
 
   /// The stock room, part-used.
   ///
@@ -2192,7 +2206,117 @@ class DemoStore {
     ];
   }
 
+  /// The Grade 10 maths class's second quarter, as columns.
+  ///
+  /// Four pieces of work across the three components, which is what a
+  /// class record looks like halfway through a quarter -- written work
+  /// and performance tasks under way, the exam not yet sat. A teacher
+  /// opening the demo sees the arithmetic doing something rather than an
+  /// empty grid, and sees the one thing the screen exists to say: the
+  /// grade is out of the eighty per cent that has been given out, not
+  /// out of a hundred with the exam counted as zero.
+  List<ClassAssessment> _seedClassAssessments() => [
+        ClassAssessment(
+          id: 'as_math_q2_ww1',
+          subject: 'Mathematics',
+          section: 'Grade 10 - Rizal',
+          term: '2nd Quarter',
+          title: 'Quiz 1 - Quadratics',
+          component: GradingComponent.writtenWork,
+          maxScore: 20,
+          createdByName: 'Maria Santos',
+          createdAt: _daysAgo(18),
+        ),
+        ClassAssessment(
+          id: 'as_math_q2_ww2',
+          subject: 'Mathematics',
+          section: 'Grade 10 - Rizal',
+          term: '2nd Quarter',
+          title: 'Long test - Functions',
+          component: GradingComponent.writtenWork,
+          maxScore: 40,
+          createdByName: 'Maria Santos',
+          createdAt: _daysAgo(9),
+        ),
+        ClassAssessment(
+          id: 'as_math_q2_pt1',
+          subject: 'Mathematics',
+          section: 'Grade 10 - Rizal',
+          term: '2nd Quarter',
+          title: 'Group problem set',
+          component: GradingComponent.performanceTask,
+          maxScore: 50,
+          createdByName: 'Maria Santos',
+          createdAt: _daysAgo(12),
+        ),
+        ClassAssessment(
+          id: 'as_math_q2_pt2',
+          subject: 'Mathematics',
+          section: 'Grade 10 - Rizal',
+          term: '2nd Quarter',
+          title: 'Board work',
+          component: GradingComponent.performanceTask,
+          maxScore: 30,
+          createdByName: 'Maria Santos',
+          createdAt: _daysAgo(4),
+        ),
+      ];
+
+  /// The marks against those four, for the five students in the section.
+  ///
+  /// One deliberate blank: Trisha did not sit the long test. A blank is
+  /// not a zero -- the piece of work drops out of both her score and the
+  /// total it is over -- and the class record shows the difference,
+  /// because collapsing the two marks an absent child as having failed.
+  List<Grade> _seedClassRecordMarks() {
+    // The three students actually enrolled in Grade 10 - Rizal. A mark
+    // against a child who is not on the roster is a row the class record
+    // can never show, which is how a seed drifts out of being a demo of
+    // anything.
+    const roster = <(String, String)>[
+      ('stu_001', 'Miguel Torres'),
+      ('stu_003', 'Andrea Villanueva'),
+      ('stu_004', 'Paolo Ramirez'),
+    ];
+    const marks = <String, List<double?>>{
+      // Quiz /20, long test /40, group set /50, board work /30.
+      'stu_001': [18, 34, 46, 27],
+      'stu_003': [19, 37, 48, 29],
+      // Paolo missed the long test. A blank is not a zero: the work
+      // drops out of both his score and the total it is over, and the
+      // class record says "not sat" rather than showing him a nought.
+      'stu_004': [12, null, 38, 21],
+    };
+    const columns = <(String, GradingComponent, double)>[
+      ('as_math_q2_ww1', GradingComponent.writtenWork, 20),
+      ('as_math_q2_ww2', GradingComponent.writtenWork, 40),
+      ('as_math_q2_pt1', GradingComponent.performanceTask, 50),
+      ('as_math_q2_pt2', GradingComponent.performanceTask, 30),
+    ];
+
+    return [
+      for (final (studentId, studentName) in roster)
+        for (var i = 0; i < columns.length; i++)
+          if (marks[studentId]![i] != null)
+            Grade(
+              id: '${columns[i].$1}_$studentId',
+              assessmentId: columns[i].$1,
+              studentId: studentId,
+              studentName: studentName,
+              subject: 'Mathematics',
+              section: 'Grade 10 - Rizal',
+              term: '2nd Quarter',
+              component: columns[i].$2,
+              score: marks[studentId]![i]!,
+              maxScore: columns[i].$3,
+              submittedByName: 'Maria Santos',
+              submittedAt: _daysAgo(3),
+            ),
+    ];
+  }
+
   List<Grade> _seedGrades() => [
+        ..._seedClassRecordMarks(),
         // Miguel's first quarter, closed: every component in, so the
         // report card has a complete column to print.
         ..._componentSet(
@@ -2254,16 +2378,12 @@ class DemoStore {
         // The quarter in progress: no quarterly assessment anywhere,
         // because the exam has not been sat. Every grade on screen is
         // computed from the two components that exist.
-        ..._componentSet(
-          idPrefix: 'gr_m2_math',
-          studentId: 'stu_001',
-          studentName: 'Miguel Torres',
-          subject: 'Mathematics',
-          term: '2nd Quarter',
-          daysAgo: 1,
-          written: (34, 40),
-          performance: (88, 100),
-        ),
+        //
+        // The Grade 10 maths class's second quarter is not here: it is
+        // in `_seedClassRecordMarks`, as marks against the four pieces
+        // of work the teacher actually gave out. Same children and the
+        // same totals, but as columns a teacher can open and retype
+        // rather than a lump nothing points at.
         ..._componentSet(
           idPrefix: 'gr_m2_sci',
           studentId: 'stu_001',
@@ -2275,28 +2395,6 @@ class DemoStore {
           performance: (92, 100),
         ),
 
-        // Two classmates, so the teacher's class record is a class and
-        // not one child -- and so the spread on it is visible.
-        ..._componentSet(
-          idPrefix: 'gr_a2_math',
-          studentId: 'stu_003',
-          studentName: 'Andrea Villanueva',
-          subject: 'Mathematics',
-          term: '2nd Quarter',
-          daysAgo: 1,
-          written: (39, 40),
-          performance: (96, 100),
-        ),
-        ..._componentSet(
-          idPrefix: 'gr_p2_math',
-          studentId: 'stu_004',
-          studentName: 'Paolo Ramirez',
-          subject: 'Mathematics',
-          term: '2nd Quarter',
-          daysAgo: 1,
-          written: (27, 40),
-          performance: (71, 100),
-        ),
       ];
 
   /// One alert, already dealt with.

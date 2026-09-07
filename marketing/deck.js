@@ -269,12 +269,12 @@ const S = () => pres.addSlide();
   heading(s, 'Grading', 'Weighted the DepEd way, and printed as a Form 138',
     { lede: 'Written work, performance tasks and quarterly assessment - weighted per subject group by the school\'s own table.' });
   await cardGrid(s, [
-    { icon: 'FiPieChart', h: 'The weights are the school\'s', b: 'Seeded with the DepEd Order 8 s.2015 groupings as a starting point, then edited and confirmed by a named person at the school.' },
+    { icon: 'FiGrid', h: 'The class record', b: 'One piece of work is a column, the class is the rows. Type the marks down it once and every grade recomputes - no dialog per child, and a corrected mark replaces the wrong one rather than adding to it.' },
+    { icon: 'FiPieChart', h: 'The percentages are yours', b: 'Seeded with the DepEd Order 8 s.2015 groupings and confirmed by a named person at the school - and a subject teacher can set their own split for their class, as long as it adds up to a hundred.' },
     { icon: 'FiAlertCircle', h: 'A missing component is not a zero', b: 'In week two of a quarter no exam has been given. The grade is rescaled out of the weight that exists and names what is still missing, rather than capping every child at 80.' },
-    { icon: 'FiFileText', h: 'The report card', b: 'Form 138 on the school\'s own letterhead: every subject, every quarter, the final grade, the descriptor and the remarks.' },
-    { icon: 'FiLock', h: 'Nothing prints unconfirmed', b: 'Until somebody at the school has checked the weights against the order current for them, the report card refuses to print - and editing them revokes the confirmation.' },
+    { icon: 'FiFileText', h: 'The report card shows its work', b: 'Form 138 on the school\'s own letterhead, and a second page giving every component - raw over possible, the percentage, the weight, what it contributed - for the quarter being read.' },
   ], { cols: 2, y: 2.35, h: 2.3 });
-  s.addNotes('Grades arrive by hand or from a spreadsheet, and the class record shows the arithmetic. The rescaling point is the one teachers react to: every other system they have used counts a missing exam as a zero.');
+  s.addNotes('Open the class record in the demo and type a mark - the grade moves as you save. Two things teachers react to: a missing exam is not a zero, and a corrected mark replaces rather than doubling. Every other system they have used gets one of those wrong.');
 }
 
 // ---------------------------------------------------------------- 12. Guidance + Staff

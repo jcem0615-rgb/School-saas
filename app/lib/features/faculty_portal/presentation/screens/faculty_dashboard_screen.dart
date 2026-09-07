@@ -10,6 +10,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart' show authSt
 
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import 'coursework_list_screen.dart';
+import 'class_record_screen.dart';
 import 'grades_screen.dart';
 import 'material_requests_screen.dart';
 import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
@@ -98,6 +99,18 @@ class FacultyDashboardScreen extends StatelessWidget {
                   label: 'Coursework',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const CourseworkListScreen())),
+                ),
+                // First of the two on purpose. The class record is where
+                // a teacher actually keeps grades -- one column per
+                // piece of work, the class typed down it in one go --
+                // and Grade Submission is the older per-student path,
+                // kept for a single late mark and for the spreadsheet
+                // import.
+                GlassTile(
+                  icon: Icons.table_chart_outlined,
+                  label: 'Class Record',
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const ClassRecordScreen())),
                 ),
                 GlassTile(
                   icon: Icons.grade_outlined,

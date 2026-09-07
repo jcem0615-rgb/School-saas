@@ -65,6 +65,17 @@ class FirestorePaths {
   /// readable by everyone in the tenant -- a student reading their own
   /// grade needs the weights to be told how it was arrived at -- and
   /// writable only by the roles that already own school-wide settings.
+  /// The pieces of work a class was given: one column each in the
+  /// teacher's record, and what every mark hangs off.
+  static String classAssessments(String schoolId) =>
+      '${school(schoolId)}/classAssessments';
+
+  /// What each component counts for one class, when the teacher has set
+  /// something other than the school's scheme.
+  static String classWeights(String schoolId) => '${school(schoolId)}/classWeights';
+  static String classWeightsDoc(String schoolId, String classKey) =>
+      '${classWeights(schoolId)}/$classKey';
+
   static String gradingSchemeDoc(String schoolId) =>
       '${school(schoolId)}/settings/grading';
 

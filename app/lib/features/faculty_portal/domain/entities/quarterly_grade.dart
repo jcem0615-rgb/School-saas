@@ -57,6 +57,40 @@ class QuarterlyGrade {
   /// child down for a teacher not having entered anything yet.
   final bool hasWork;
 
+  /// The weight actually available to be earned: the sum of the weights
+  /// of the components that have work in them.
+  ///
+  /// A hundred once the quarter is complete, and less than that while it
+  /// is running. Carried rather than recomputed because it is the number
+  /// that explains why an initial grade of 88 is 88 in week two -- the
+  /// grade is out of the 80 per cent that exists so far, not out of a
+  /// hundred with the exam counted as zero.
+  double get availableWeight => components
+      .where((c) => c.hasWork)
+      .fold<double>(0, (sum, c) => sum + c.weight);
+
+  /// Every piece of the arithmetic, in the order it happens, for a
+  /// screen or a report card that has to show its work.
+  ///
+  /// A teacher asked why a child got 87 needs to point at the line. A
+  /// single number cannot be argued with, which is not the same as being
+  /// right.
+  List<String> get workingOut => [
+        for (final c in components)
+          if (c.hasWork)
+            '${c.component.displayLabel}: ${_trimNumber(c.raw)} / '
+                '${_trimNumber(c.possible)} = '
+                '${c.percentageScore.toStringAsFixed(2)}% '
+                'x ${_trimNumber(c.weight)}% = '
+                '${c.weightedScore.toStringAsFixed(2)}',
+        if (availableWeight > 0 && availableWeight < 100)
+          'Only ${_trimNumber(availableWeight)}% of the grade has been given '
+              'out so far, so the total is taken over that rather than '
+              'counting the rest as zero.',
+        'Initial grade: ${initialGrade.toStringAsFixed(2)}',
+        'Final grade: $finalGrade',
+      ];
+
   const QuarterlyGrade({
     required this.subject,
     required this.term,
@@ -106,8 +140,12 @@ QuarterlyGrade computeQuarterlyGrade({
   required String term,
   required Iterable<Grade> grades,
   required GradingScheme scheme,
+  /// The weights this class is actually graded on, when the subject
+  /// teacher has set a split of their own. Absent means the school's
+  /// confirmed scheme decides, which is the ordinary case.
+  SubjectWeights? weightsOverride,
 }) {
-  final weights = scheme.weightsFor(subject);
+  final weights = weightsOverride ?? scheme.weightsFor(subject);
 
   final components = <ComponentScore>[];
   var anyWork = false;
@@ -121,10 +159,13 @@ QuarterlyGrade computeQuarterlyGrade({
       // and would make the denominator wrong if counted. It is a teacher
       // recording attendance at an activity, not an assessment.
       if (grade.maxScore <= 0) continue;
-      // A score above the maximum is bonus marks, which schools really do
-      // give. Kept rather than clamped: capping it silently would erase a
-      // teacher's decision, and the percentage going over 100 in one
-      // component is visible and explicable.
+      // Added as recorded, and not clamped. Every path that writes a
+      // mark refuses one above its own total -- it is overwhelmingly the
+      // two columns filled in the wrong order, and a school that really
+      // does give bonus marks raises the total the work is out of, which
+      // is the same arithmetic said honestly. Anything above the maximum
+      // here therefore predates that check, and silently capping it would
+      // change a grade already issued without saying so.
       raw += grade.score;
       possible += grade.maxScore;
     }
@@ -207,3 +248,7 @@ int? generalAverage(Iterable<QuarterlyGrade> grades) {
 }
 
 double _round2(double value) => (value * 100).roundToDouble() / 100;
+
+String _trimNumber(double value) => value == value.roundToDouble()
+    ? value.toStringAsFixed(0)
+    : value.toStringAsFixed(2);

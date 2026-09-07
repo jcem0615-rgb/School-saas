@@ -1,13 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/result.dart';
-import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider, firestoreProvider;
+import '../../../auth/presentation/controllers/auth_controller.dart'
+    show authStateProvider, firebaseFunctionsProvider, firestoreProvider;
 import '../../data/datasources/faculty_remote_datasource.dart';
 import '../../data/repositories_impl/faculty_repository_impl.dart';
 import '../../domain/entities/coursework_item.dart';
 import '../../domain/entities/answer_key.dart';
 import '../../domain/entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
+import '../../domain/entities/class_assessment.dart';
+import '../../domain/entities/class_weights.dart';
 import '../../domain/entities/grade.dart';
 import '../../domain/entities/grading_scheme.dart';
 import '../../domain/entities/quarterly_grade.dart';
@@ -22,6 +25,7 @@ final facultyRemoteDataSourceProvider = Provider<FacultyRemoteDataSource>((ref) 
   }
   return FacultyRemoteDataSource(
     firestore: ref.watch(firestoreProvider),
+    functions: ref.watch(firebaseFunctionsProvider),
     actingUser: ActingFaculty(uid: user.uid, schoolId: user.schoolId!, name: user.fullName),
   );
 });
@@ -37,14 +41,28 @@ final myCourseworkStreamProvider = StreamProvider.autoDispose<List<CourseworkIte
 class GradeQuery {
   final String subject;
   final String section;
-  const GradeQuery({required this.subject, required this.section});
+
+  /// The quarter. Null means every mark the class has, which only the
+  /// student's own subject page wants -- it groups by term itself.
+  ///
+  /// It used to be absent entirely, and that was a real defect rather
+  /// than a missing convenience: the class list computed a quarterly
+  /// grade from whatever came back and labelled it with whichever term
+  /// happened to be first, so a teacher in Q2 was shown a number
+  /// computed from Q1 and Q2 added together.
+  final String? term;
+
+  const GradeQuery({required this.subject, required this.section, this.term});
 
   @override
   bool operator ==(Object other) =>
-      other is GradeQuery && other.subject == subject && other.section == section;
+      other is GradeQuery &&
+      other.subject == subject &&
+      other.section == section &&
+      other.term == term;
 
   @override
-  int get hashCode => Object.hash(subject, section);
+  int get hashCode => Object.hash(subject, section, term);
 }
 
 /// Roster for a section, so the grade screen can list students instead of
@@ -55,7 +73,149 @@ final sectionRosterProvider =
 });
 
 final gradesStreamProvider = StreamProvider.autoDispose.family<List<Grade>, GradeQuery>((ref, query) {
-  return WatchGradesUseCase(ref.watch(facultyRepositoryProvider))(subject: query.subject, section: query.section);
+  return WatchGradesUseCase(ref.watch(facultyRepositoryProvider))(
+    subject: query.subject,
+    section: query.section,
+    term: query.term,
+  );
+});
+
+/// The pieces of work one class was given in one quarter.
+final classAssessmentsProvider = StreamProvider.autoDispose
+    .family<List<ClassAssessment>, GradeQuery>((ref, query) {
+  final term = query.term;
+  if (term == null || term.isEmpty) {
+    return const Stream<List<ClassAssessment>>.empty();
+  }
+  return ref.watch(facultyRepositoryProvider).watchClassAssessments(
+        subject: query.subject,
+        section: query.section,
+        term: term,
+      );
+});
+
+/// The weights this class is actually graded on, and where they came
+/// from -- the teacher's own split, or the school's confirmed scheme.
+final classWeightsProvider =
+    Provider.autoDispose.family<ClassWeights?, GradeQuery>((ref, query) {
+  final scheme = ref.watch(gradingSchemeProvider).valueOrNull;
+  if (scheme == null) return null;
+  final override = ref
+      .watch(_classWeightsOverrideProvider(query))
+      .valueOrNull;
+  return weightsForClass(
+    subject: query.subject,
+    scheme: scheme,
+    override: override,
+    overrideSetByName:
+        ref.watch(_classWeightsSetByProvider(query)).valueOrNull,
+  );
+});
+
+final _classWeightsOverrideProvider = StreamProvider.autoDispose
+    .family<SubjectWeights?, GradeQuery>((ref, query) {
+  return ref.watch(facultyRepositoryProvider).watchClassWeights(
+        subject: query.subject,
+        section: query.section,
+      );
+});
+
+final _classWeightsSetByProvider =
+    StreamProvider.autoDispose.family<String?, GradeQuery>((ref, query) {
+  return ref.watch(facultyRepositoryProvider).watchClassWeightsSetBy(
+        subject: query.subject,
+        section: query.section,
+      );
+});
+
+/// One student's row in the class record: their mark against every piece
+/// of work, and what the quarter comes to so far.
+class ClassRecordRow {
+  final StudentSummary student;
+
+  /// Keyed by assessment id. A missing key is a blank -- the student has
+  /// not sat that one -- which is not the same as a zero and is not
+  /// counted as one.
+  final Map<String, double> marks;
+
+  final QuarterlyGrade grade;
+
+  const ClassRecordRow({
+    required this.student,
+    required this.marks,
+    required this.grade,
+  });
+}
+
+/// The whole class record: the columns, the rows, and the arithmetic.
+///
+/// Assembled in one place so the number in the last column and the
+/// numbers it was computed from cannot come from two different reads.
+/// The teacher's screen shows the working; a screen that showed only the
+/// answer would send them back to the spreadsheet this replaces.
+class ClassRecord {
+  final List<ClassAssessment> assessments;
+  final List<ClassRecordRow> rows;
+  final ClassWeights weights;
+
+  const ClassRecord({
+    required this.assessments,
+    required this.rows,
+    required this.weights,
+  });
+
+  List<ClassAssessment> forComponent(GradingComponent component) =>
+      assessments.where((a) => a.component == component).toList();
+
+  /// The class average of the final grades, over the students who have
+  /// anything recorded. Left out entirely when nobody does: an average
+  /// of nothing is 0, and 0 is a mark.
+  int? get classAverage {
+    final graded = rows.where((r) => r.grade.hasWork).toList();
+    if (graded.isEmpty) return null;
+    final sum = graded.fold<int>(0, (running, r) => running + r.grade.finalGrade);
+    return (sum / graded.length).round();
+  }
+
+  int get passing => rows.where((r) => r.grade.hasWork && isPassing(r.grade.finalGrade)).length;
+  int get failing => rows.where((r) => r.grade.hasWork && !isPassing(r.grade.finalGrade)).length;
+}
+
+final classRecordProvider =
+    Provider.autoDispose.family<ClassRecord?, GradeQuery>((ref, query) {
+  final scheme = ref.watch(gradingSchemeProvider).valueOrNull;
+  final weights = ref.watch(classWeightsProvider(query));
+  final roster = ref.watch(sectionRosterProvider(query.section)).valueOrNull;
+  final assessments = ref.watch(classAssessmentsProvider(query)).valueOrNull;
+  final grades = ref.watch(gradesStreamProvider(query)).valueOrNull;
+  // Null while any half is still arriving. A record assembled from a
+  // roster that has loaded and marks that have not shows a class of
+  // ungraded children, which is indistinguishable from a class nobody
+  // has marked.
+  if (scheme == null || weights == null || roster == null || assessments == null || grades == null) {
+    return null;
+  }
+
+  final rows = <ClassRecordRow>[];
+  for (final student in roster) {
+    final theirs = grades.where((g) => g.studentId == student.id).toList();
+    rows.add(ClassRecordRow(
+      student: student,
+      marks: {
+        for (final g in theirs)
+          if (g.assessmentId != null) g.assessmentId!: g.score,
+      },
+      grade: computeQuarterlyGrade(
+        subject: query.subject,
+        term: query.term ?? '',
+        grades: theirs,
+        scheme: scheme,
+        weightsOverride: weights.weights,
+      ),
+    ));
+  }
+
+  return ClassRecord(assessments: assessments, rows: rows, weights: weights);
 });
 
 class FacultyActionController extends StateNotifier<AsyncValue<void>> {
@@ -202,6 +362,66 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
             submissionId: submissionId,
             score: score,
             feedback: feedback,
+          ));
+
+  /// Creates or edits a piece of work, and names any marks that no
+  /// longer fit its total rather than silently changing them.
+  Future<({String assessmentId, List<String> marksOverMax})?> saveClassAssessment({
+    String? assessmentId,
+    required String subject,
+    required String section,
+    required String term,
+    required String title,
+    required GradingComponent component,
+    required double maxScore,
+  }) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _repository.saveClassAssessment(
+      assessmentId: assessmentId,
+      subject: subject,
+      section: section,
+      term: term,
+      title: title,
+      component: component,
+      maxScore: maxScore,
+    );
+    if (result case Success(:final value)) {
+      if (mounted) state = const AsyncData(null);
+      return value;
+    } else if (result case Error(:final failure)) {
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
+    }
+    return null;
+  }
+
+  /// A whole column of marks at once. Each replaces whatever was there.
+  Future<({int saved, int cleared})?> saveAssessmentScores({
+    required String assessmentId,
+    required List<ScoreEntry> scores,
+  }) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _repository.saveAssessmentScores(
+      assessmentId: assessmentId,
+      scores: scores,
+    );
+    if (result case Success(:final value)) {
+      if (mounted) state = const AsyncData(null);
+      return value;
+    } else if (result case Error(:final failure)) {
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
+    }
+    return null;
+  }
+
+  Future<bool> setClassWeights({
+    required String subject,
+    required String section,
+    SubjectWeights? weights,
+  }) =>
+      _run(() => _repository.setClassWeights(
+            subject: subject,
+            section: section,
+            weights: weights,
           ));
 
   Future<bool> _run(Future<dynamic> Function() action) async {

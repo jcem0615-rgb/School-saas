@@ -856,6 +856,22 @@ service cloud.firestore {
       }
 
       // ---- grades ----
+      // A mark: one student, one piece of work.
+      //
+      // Server-written. Two reasons, and the first is not about
+      // security. `submitGrade` wrote a new document every time, so a
+      // mark could be posted and never corrected -- and the quarterly
+      // arithmetic sums the scores and the maximums inside a component,
+      // so a teacher fixing 80-out-of-10 to 8-out-of-10 left the child
+      // on 88 out of 20. `saveAssessmentScores` writes each mark at
+      // `{assessment}_{student}`, so entering it again replaces it.
+      //
+      // The second: the old update rule pinned only `studentId`, which
+      // left `submittedByName` writable. A grade is a record of what a
+      // named teacher marked, and "who gave this grade" answered with
+      // whatever the client typed is not a record. The callable stamps
+      // it from the token, the way the approvals rule has always
+      // required of a decision.
       match /grades/{gradeId} {
         allow read: if belongsToSchool(schoolId)
                       && schoolIsAccessible(schoolId)
@@ -868,19 +884,36 @@ service cloud.firestore {
                             && resource.data.studentId in
                                get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
                       );
-        allow create: if schoolIsAccessible(schoolId)
-                        && (
-                          hasRole(schoolId, ['director', 'admin'])
-                          || (hasRole(schoolId, ['faculty'])
-                              && scopeAllowsStudentById(schoolId, request.resource.data.studentId))
-                        );
-        allow update: if schoolIsAccessible(schoolId)
-                        && request.resource.data.studentId == resource.data.studentId
-                        && (
-                          hasRole(schoolId, ['director', 'admin'])
-                          || (hasRole(schoolId, ['faculty']) && scopeAllowsStudentById(schoolId, resource.data.studentId))
-                        );
-        allow delete: if false;
+        allow create, update, delete: if false;
+      }
+
+      // ---- classAssessments ----
+      // The pieces of work a class was given: one column each in the
+      // teacher's record, and what every mark hangs off.
+      //
+      // Readable by the school's teaching side and by the family whose
+      // child was marked -- a student looking at "Quiz 3, 18 out of 20"
+      // needs to know what Quiz 3 was out of. Server-written, so a total
+      // cannot be edited out from under the marks that were checked
+      // against it.
+      match /classAssessments/{assessmentId} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow write: if false;
+      }
+
+      // ---- classWeights ----
+      // What each component counts for one class, when the teacher has
+      // set something other than the school's confirmed scheme.
+      //
+      // Readable by the whole school on purpose: a grade computed on a
+      // split nobody can see is the spreadsheet this replaces, and the
+      // family is entitled to know how the number was reached. Written
+      // only by `setClassWeights`, which refuses any set that does not
+      // add up to a hundred -- the one misconfiguration that produces
+      // plausible-looking wrong grades for a whole class, all quarter.
+      match /classWeights/{classKey} {
+        allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
+        allow write: if false;
       }
 
       // ---- inventory ----

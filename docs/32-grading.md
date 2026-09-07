@@ -105,26 +105,101 @@ the school, for the same reason the weights are confirmed by it.
 
 ## What a teacher does
 
-The submit dialog and the spreadsheet import both carry a **Component**
-now. It is a dropdown, not free text: a score filed under nothing cannot
-be weighted, and the whole quarterly grade rests on that one choice.
+### The class record
 
-The class list shows the computed grade for the term the last mark was
-posted in, with the weight group that produced it and which components
-are still empty, instead of the most recent raw score out of its own
-total.
+One piece of work is one **column**; the class is the rows; the teacher
+types down the column and saves once. That is the screen a teacher
+actually keeps grades in, and it is new.
+
+What was there before was a dialog per child, per mark, asking for the
+student, the term, the component, the score and the total each time.
+Nobody marks forty children that way. They keep a spreadsheet and type
+the totals in at the end, which is the thing this module exists to
+replace.
+
+The record shows, for every student: each mark against each piece of
+work, then each component's raw total over what was possible, its
+percentage, the weight it carries, what that contributes, the initial
+grade and the transmuted final. A teacher asked why a child got 87 can
+point at the line. One that shows only the answer sends them back to the
+spreadsheet.
+
+### A mark can be corrected
+
+This is the defect the class record was built on top of, and it was
+silent.
+
+`submitGrade` wrote a **new document every time**. Scores inside a
+component sum, and so do the maximums — so a teacher who typed 80 out of
+10, noticed, and re-entered 8 out of 10 ended the quarter with 88 out of
+20. Nothing errored. No screen said anything. The `allow update` rule
+that would have permitted a correction existed, and a rules test asserted
+it worked, and no code path in the app ever issued one: a rules test
+proving a capability nothing exercises is the most comfortable kind of
+wrong.
+
+The import knew. Its own comment says *"a mark is posted, never
+replaced"*, and it works around it by refusing a row identical to one
+already on file — which catches a file run twice and does nothing
+whatever about a correction, because a corrected mark is by definition
+not identical.
+
+Giving the work an identity fixes it by construction. A mark lives at
+`{assessment}_{student}`, so entering it again replaces it. Both write
+paths — the class record's whole-column save and the single-mark post the
+import and the dialog use — land at the same id.
+
+### A blank is not a zero
+
+Left empty means the child did not sit it: the piece of work drops out of
+both their score and the total it is over. Zero means they sat it and
+scored nothing, and the total counts against them. Collapsing the two
+marks an absent child as having failed.
+
+### The percentages the teacher sets
+
+The school's confirmed scheme is still the default and is what a class
+with no override is graded on. What the class record adds is the case
+that scheme cannot express: a subject marked on a split the department
+agreed, which before this had to be done in a spreadsheet beside the app.
+
+The override is per subject and section, carries the name of whoever set
+it, and is refused unless the three add up to a hundred — the one
+misconfiguration that does not announce itself, since 30/50/30 produces
+grades that look entirely plausible and are wrong for every child in the
+class, all quarter. The record names which weights produced the grade and
+whose they are, so a split nobody agreed to is visible rather than
+quietly in effect.
+
+Changing them recomputes every grade in the class. Nothing is re-entered.
+
+### Grade Submission, and the import
+
+The older per-student path is kept for a single late mark and for the
+spreadsheet import, and both now go through `postGradeMark`, which finds
+or creates the piece of work the mark belongs to. So an import run twice
+replaces rather than doubles.
+
+The submit dialog and the import both carry a **Component**. It is a
+dropdown, not free text: a score filed under nothing cannot be weighted,
+and the whole quarterly grade rests on that one choice.
 
 The import gained a Component column (blank means written work, which is
-what every mark posted before this existed already counts as), and its
-duplicate rule had to widen. It used to refuse a student who already had
-a mark for the term. A student legitimately has many marks in a term now
-— three components, several pieces inside each — so the rule is no longer
-"already has a mark this term" but "already has this exact mark": same
-component, same label, same score out of the same total. That is a file
-being run twice, which would silently double a child's written work,
-since scores inside a component sum. Two genuinely identical unlabelled
-quizzes are the one case it refuses wrongly, and naming one of them in
-Remarks is the way through.
+what every mark posted before this existed already counts as), and it
+still refuses a row identical to one on file — less critical now that a
+re-run replaces, but it is the thing that tells you the file was run
+twice.
+
+### One quarter at a time
+
+The class list used to read every mark the class had ever been given and
+label the result with whichever term came back first, so a teacher in Q2
+was shown a number computed from Q1 and Q2 added together. The query is
+scoped to a quarter now, and the screen picks one.
+
+The same query's limit was 300 marks per class for the *year*. A busy
+subject reaches that inside a quarter and the oldest marks fall out of
+the window, which does not fail — it quietly moves the grade.
 
 ## What a student and a parent see
 
@@ -145,6 +220,15 @@ final grade and Passed/Failed at the right, the general average boxed
 below, and three signature blocks — Class Adviser, Principal, Parent /
 Guardian. A quarter with no work in it prints **blank, not zero**.
 
+A second page shows **how those grades were computed** for the most
+recent quarter with work in it: per subject, each component's raw total
+over what was possible, its percentage, the weight, and what it
+contributed, then the initial grade and the final. One quarter rather
+than four — the one the family is reading the card for, and four of these
+is a document nobody opens. Page one is the record; this is the
+arithmetic behind it, because "weighted per subject" tells a parent a
+rule was applied without telling them what it did.
+
 It is issued from **Records & Forms** in the Registrar's portal alongside
 the TOR and Form 137, which means it goes through the same release log:
 who collected it, when, why, and how many copies. A family that says they
@@ -160,17 +244,44 @@ step it has not done.
 
 | Thing | File |
 | --- | --- |
+| **The class record** | `faculty_portal/presentation/screens/class_record_screen.dart` |
+| A piece of work, a mark against it | `faculty_portal/domain/entities/class_assessment.dart` |
+| Whose percentages, and where from | `faculty_portal/domain/entities/class_weights.dart` |
 | Weights, bands, defaults | `faculty_portal/domain/entities/grading_scheme.dart` |
 | The arithmetic | `faculty_portal/domain/entities/quarterly_grade.dart` |
-| Stored shape | `faculty_portal/data/models/grading_scheme_model.dart` |
+| Assembling the record | `faculty_portal/presentation/controllers/faculty_controller.dart` |
 | Settings screen | `faculty_portal/presentation/screens/grading_scheme_screen.dart` |
 | The document | `faculty_portal/presentation/documents/report_card_pdf.dart` |
-| Firestore | `schools/{id}/settings/grading` |
+| **The write paths** | `functions/src/callable/grading/` — `saveClassAssessment`, `saveAssessmentScores`, `setClassWeights`, `postGradeMark` |
+| Validation, keys, weights | `functions/src/shared/grading/` |
+| Firestore | `schools/{id}/settings/grading`, `classAssessments/{id}`, `classWeights/{classKey}`, `grades/{assessment}_{student}` |
+
+### Rules
 
 The scheme lives under `settings/`, which `firestore.rules` already makes
 readable by everyone in the tenant and writable only by Director, Admin
 and Registrar. A student reading their own grade needs the weights to be
 told how it was arrived at, so tenant-wide read is right; the weights are
-a school-wide decision somebody is answerable for, so the write list is
-the one that already owns school-wide settings. No rules change was
-needed.
+a school-wide decision somebody is answerable for.
+
+**Marks are server-written.** `allow create, update, delete: if false` on
+`grades`. Two reasons, and the first is not about security: it is the
+only way one mark per student per piece of work can be guaranteed, which
+is what makes a correction a correction. The second is that the old
+update rule pinned `studentId` and nothing else, so `submittedByName` was
+writable — and a grade is a record of what a named teacher marked. "Who
+gave this grade" answered with whatever the client typed is not a record.
+The `approvals` rule has always required a decision to be signed by the
+account making it; this is the same requirement, arrived at late.
+
+`classAssessments` and `classWeights` are readable by the whole school
+and written by nobody. A total editable from a console is a total the
+marks were never checked against, and how a grade was reached is not a
+secret from the family it belongs to.
+
+Tests: `functions/test/shared/grading/` (pure),
+`functions/test/shared/grading-emulator/` (the four callables against a
+real Firestore, including a mark entered twice being one mark),
+`test-rules/faculty-portal.rules.test.ts`, and the Dart suites under
+`app/test/unit/features/faculty_portal/` and
+`app/test/smoke/class_record_test.dart`.

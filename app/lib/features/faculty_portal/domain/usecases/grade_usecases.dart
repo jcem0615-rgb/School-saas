@@ -8,8 +8,12 @@ class WatchGradesUseCase {
   final FacultyRepository _repository;
   const WatchGradesUseCase(this._repository);
 
-  Stream<List<Grade>> call({required String subject, required String section}) =>
-      _repository.watchGradesFor(subject: subject, section: section);
+  Stream<List<Grade>> call({
+    required String subject,
+    required String section,
+    String? term,
+  }) =>
+      _repository.watchGradesFor(subject: subject, section: section, term: term);
 }
 
 class SubmitGradeUseCase {
@@ -28,6 +32,16 @@ class SubmitGradeUseCase {
     String? courseworkItemId,
     String? remarks,
   }) {
+    // Before the comparisons, because the comparisons are what let it
+    // through: `NaN <= 0`, `NaN < 0` and `NaN > maxScore` are all false,
+    // so a NaN passed every guard below and went into a component where
+    // it makes the percentage NaN from then on. `double.tryParse('NaN')`
+    // returns NaN for one word typed into the score box.
+    if (!score.isFinite || !maxScore.isFinite) {
+      return Future.value(const Error(ValidationFailure(
+        'A score and its total both have to be numbers.',
+      )));
+    }
     if (maxScore <= 0) {
       return Future.value(const Error(ValidationFailure('Max score must be greater than zero.')));
     }

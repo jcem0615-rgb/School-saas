@@ -17,6 +17,7 @@ class GradeModel extends Grade {
     required super.submittedAt,
     super.component,
     super.courseworkItemId,
+    super.assessmentId,
     super.remarks,
   });
 
@@ -30,6 +31,7 @@ class GradeModel extends Grade {
       term: data['term'] as String? ?? '',
       component: GradingComponent.fromString(data['component'] as String? ?? ''),
       courseworkItemId: data['courseworkItemId'] as String?,
+      assessmentId: data['assessmentId'] as String?,
       score: (data['score'] as num?)?.toDouble() ?? 0.0,
       maxScore: (data['maxScore'] as num?)?.toDouble() ?? 0.0,
       remarks: data['remarks'] as String?,

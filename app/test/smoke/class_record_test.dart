@@ -1,0 +1,439 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:logicclass/core/theme/app_theme.dart';
+import 'package:logicclass/demo/demo_overrides.dart';
+import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/features/faculty_portal/domain/entities/class_assessment.dart';
+import 'package:logicclass/features/faculty_portal/domain/entities/grading_scheme.dart';
+import 'package:logicclass/features/faculty_portal/presentation/controllers/faculty_controller.dart';
+import 'package:logicclass/features/faculty_portal/presentation/screens/class_record_screen.dart';
+
+/// The class record: what a teacher types into, and what it computes.
+///
+/// Two things are being pinned. The first is the defect: a mark used to
+/// be posted and never replaced, and the quarterly arithmetic sums the
+/// scores *and the maximums* inside a component — so 80 out of 10,
+/// corrected to 8 out of 10, left the child on 88 out of 20 with nothing
+/// on any screen saying so.
+///
+/// The second is the feature: the teacher enters scores against a piece
+/// of work and the quarterly grade follows from the percentages the
+/// class is graded on, without anybody computing anything by hand.
+void main() {
+  const query = GradeQuery(
+    subject: 'Mathematics',
+    section: 'Grade 10 - Rizal',
+    term: '2nd Quarter',
+  );
+
+  Future<ProviderContainer> teacherContainer() async {
+    final container = ProviderContainer(overrides: demoOverrides());
+    container.read(demoAuthRepositoryProvider).signInAs(
+          DemoStore.demoAccounts.firstWhere((a) => a.email == 'faculty@demo.ph'),
+        );
+    return container;
+  }
+
+  FacultyActionController actions(ProviderContainer container) {
+    container.listen(facultyActionControllerProvider, (_, __) {});
+    return container.read(facultyActionControllerProvider.notifier);
+  }
+
+  /// The assembled record, once every stream behind it has emitted.
+  ///
+  /// `classRecordProvider` is deliberately null until the roster, the
+  /// marks, the pieces of work and the scheme have all arrived -- a
+  /// record built from a roster that loaded and marks that did not shows
+  /// a class of ungraded children, which looks exactly like a class
+  /// nobody has marked. So the test waits for it rather than reading
+  /// through the gap.
+  Future<ClassRecord> record(ProviderContainer container) async {
+    container.listen(classRecordProvider(query), (_, __) {});
+    // Pumped before reading, not only while it is null. The demo store's
+    // subjects emit synchronously but Riverpod rebuilds on a microtask,
+    // so a read straight after a write returns the value from before it
+    // -- which reads as "the change did nothing" rather than as a test
+    // that looked too early.
+    for (var attempt = 0; attempt < 50; attempt++) {
+      await Future<void>.delayed(Duration.zero);
+      final value = container.read(classRecordProvider(query));
+      if (value != null && attempt >= 4) return value;
+    }
+    fail('the class record never assembled');
+  }
+
+  group('what the record shows', () {
+    test('a column per piece of work, and a row per student', () async {
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      final r = await record(container);
+      expect(r.assessments.map((a) => a.title), [
+        'Quiz 1 - Quadratics',
+        'Group problem set',
+        'Long test - Functions',
+        'Board work',
+      ]);
+      // The three students actually enrolled in the section. The roster
+      // drives the rows, not the marks: a teacher needs to see who has
+      // *not* been marked, which a marks-only list can never show.
+      expect(r.rows, hasLength(3));
+    });
+
+    test('the grade follows from the percentages, with nothing typed by hand',
+        () async {
+      // Written work 40, performance tasks 40, quarterly 20 — the
+      // school's confirmed scheme for Mathematics. Andrea has 56/60 of
+      // written work and 77/80 of performance tasks, and no exam yet.
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      final andrea = (await record(container))
+          .rows
+          .firstWhere((r) => r.student.fullName.contains('Andrea'));
+      final ww = andrea.grade.componentFor(GradingComponent.writtenWork);
+      final pt = andrea.grade.componentFor(GradingComponent.performanceTask);
+
+      expect(ww.raw, 56);
+      expect(ww.possible, 60);
+      expect(pt.raw, 77);
+      expect(pt.possible, 80);
+      expect(ww.percentageScore, closeTo(93.33, 0.01));
+      expect(pt.percentageScore, closeTo(96.25, 0.01));
+
+      // Weighted over the eighty per cent that has actually been given
+      // out, not over a hundred with the unsat exam counted as zero.
+      expect(andrea.grade.availableWeight, 80);
+      expect(
+        andrea.grade.initialGrade,
+        closeTo((93.33 * 40 + 96.25 * 40) / 80, 0.05),
+      );
+      expect(andrea.grade.hasWork, isTrue);
+    });
+
+    test('a blank is not a zero', () async {
+      // Paolo did not sit the long test. The piece of work drops out of
+      // both his score and the total it is over; counting it as nothing
+      // would mark him as having failed something he was absent from.
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      final r = await record(container);
+      final longTest =
+          r.assessments.firstWhere((a) => a.title == 'Long test - Functions');
+      final paolo =
+          r.rows.firstWhere((row) => row.student.fullName.contains('Paolo'));
+
+      expect(paolo.marks.containsKey(longTest.id), isFalse);
+      // 12 out of 20 only, not 12 out of 60.
+      final ww = paolo.grade.componentFor(GradingComponent.writtenWork);
+      expect(ww.raw, 12);
+      expect(ww.possible, 20);
+    });
+
+    test('says which percentages produced the number, and whose they are',
+        () async {
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      final r = await record(container);
+      expect(r.weights.isOverride, isFalse);
+      expect(r.weights.provenance, contains('School scheme'));
+      expect(r.weights.weights.balances, isTrue);
+    });
+
+    test('shows its working rather than only the answer', () async {
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      final andrea = (await record(container))
+          .rows
+          .firstWhere((r) => r.student.fullName.contains('Andrea'));
+      final working = andrea.grade.workingOut.join('\n');
+
+      expect(working, contains('Written Work'));
+      expect(working, contains('x 40%'));
+      expect(working, contains('Initial grade'));
+      expect(working, contains('Final grade'));
+      // And says why the total is over eighty rather than a hundred.
+      expect(working, contains('80% of the grade has been given out'));
+    });
+  });
+
+  group('typing marks in', () {
+    test('a corrected score replaces the wrong one', () async {
+      // The regression, in one test. Entering 80 out of 20 is refused;
+      // entering 18 after 8 leaves one mark of 18, not two summing to
+      // 26 out of 40.
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+      final store = container.read(demoStoreProvider);
+      final quiz = (await record(container))
+          .assessments
+          .firstWhere((a) => a.title == 'Quiz 1 - Quadratics');
+
+      Future<void> mark(double score) => actions(container).saveAssessmentScores(
+            assessmentId: quiz.id,
+            scores: [
+              ScoreEntry(
+                studentId: 'stu_001',
+                studentName: 'Miguel Torres',
+                score: score,
+              ),
+            ],
+          );
+
+      await mark(8);
+      await mark(18);
+
+      final his = store.grades.value
+          .where((g) => g.assessmentId == quiz.id && g.studentId == 'stu_001')
+          .toList();
+      expect(his, hasLength(1));
+      expect(his.single.score, 18);
+      expect(his.single.maxScore, 20);
+    });
+
+    test('a score above the total is refused, and nothing is written', () async {
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+      final store = container.read(demoStoreProvider);
+      final quiz = (await record(container))
+          .assessments
+          .firstWhere((a) => a.title == 'Quiz 1 - Quadratics');
+      final before = store.grades.value.length;
+
+      final result = await actions(container).saveAssessmentScores(
+        assessmentId: quiz.id,
+        scores: [
+          const ScoreEntry(
+            studentId: 'stu_001',
+            studentName: 'Miguel Torres',
+            score: 200,
+          ),
+        ],
+      );
+      expect(result, isNull);
+      expect(store.grades.value, hasLength(before));
+    });
+
+    test('a score that is not a number is refused', () async {
+      // `double.tryParse('NaN')` returns NaN for one word typed into the
+      // box, and every guard here was a comparison, all of which are
+      // false for NaN.
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+      final quiz = (await record(container))
+          .assessments
+          .firstWhere((a) => a.title == 'Quiz 1 - Quadratics');
+
+      expect(
+        await actions(container).saveAssessmentScores(
+          assessmentId: quiz.id,
+          scores: [
+            const ScoreEntry(
+              studentId: 'stu_001',
+              studentName: 'Miguel Torres',
+              score: double.nan,
+            ),
+          ],
+        ),
+        isNull,
+      );
+    });
+
+    test('clearing a mark leaves the work out rather than scoring nothing',
+        () async {
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+      final quiz = (await record(container))
+          .assessments
+          .firstWhere((a) => a.title == 'Quiz 1 - Quadratics');
+
+      final result = await actions(container).saveAssessmentScores(
+        assessmentId: quiz.id,
+        scores: [
+          const ScoreEntry(studentId: 'stu_001', studentName: 'Miguel Torres'),
+        ],
+      );
+      expect(result?.cleared, 1);
+
+      final miguel = (await record(container))
+          .rows
+          .firstWhere((r) => r.student.id == 'stu_001');
+      expect(miguel.marks.containsKey(quiz.id), isFalse);
+      // Still has the long test, so written work is out of 40 now.
+      expect(miguel.grade.componentFor(GradingComponent.writtenWork).possible, 40);
+    });
+  });
+
+  group('the percentages the teacher sets', () {
+    test('replace the school scheme, and every grade follows', () async {
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+      final before = (await record(container))
+          .rows
+          .firstWhere((r) => r.student.fullName.contains('Andrea'))
+          .grade
+          .initialGrade;
+
+      final ok = await actions(container).setClassWeights(
+        subject: query.subject,
+        section: query.section,
+        weights: const SubjectWeights(
+          label: 'Set for this class',
+          writtenWork: 20,
+          performanceTask: 60,
+          quarterlyAssessment: 20,
+        ),
+      );
+      expect(ok, isTrue);
+
+      final after = await record(container);
+      expect(after.weights.isOverride, isTrue);
+      expect(after.weights.weights.performanceTask, 60);
+      expect(after.weights.provenance, contains('Set for this class'));
+      // Andrea is stronger on performance tasks, so weighting them
+      // higher moves her up. The point is that it moved at all without
+      // anybody re-entering a mark.
+      final now = after.rows
+          .firstWhere((r) => r.student.fullName.contains('Andrea'))
+          .grade
+          .initialGrade;
+      expect(now, isNot(closeTo(before, 0.001)));
+      expect(now, greaterThan(before));
+    });
+
+    test('are refused unless the three add up to a hundred', () async {
+      // The one misconfiguration that does not announce itself: the
+      // grades stay plausible and are wrong for the whole class.
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      final ok = await actions(container).setClassWeights(
+        subject: query.subject,
+        section: query.section,
+        weights: const SubjectWeights(
+          label: 'Set for this class',
+          writtenWork: 30,
+          performanceTask: 50,
+          quarterlyAssessment: 30,
+        ),
+      );
+      expect(ok, isFalse);
+      expect((await record(container)).weights.isOverride, isFalse);
+    });
+
+    test('can be handed back to the school scheme', () async {
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      await actions(container).setClassWeights(
+        subject: query.subject,
+        section: query.section,
+        weights: const SubjectWeights(
+          label: 'Set for this class',
+          writtenWork: 20,
+          performanceTask: 60,
+          quarterlyAssessment: 20,
+        ),
+      );
+      expect((await record(container)).weights.isOverride, isTrue);
+
+      await actions(container).setClassWeights(
+        subject: query.subject,
+        section: query.section,
+      );
+      expect((await record(container)).weights.isOverride, isFalse);
+    });
+  });
+
+  group('adding a piece of work', () {
+    test('needs a name and a total that is a number above zero', () async {
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      Future<Object?> save({String title = 'Seatwork 2', double maxScore = 15}) =>
+          actions(container).saveClassAssessment(
+            subject: query.subject,
+            section: query.section,
+            term: query.term!,
+            title: title,
+            component: GradingComponent.writtenWork,
+            maxScore: maxScore,
+          );
+
+      expect(await save(title: '   '), isNull);
+      expect(await save(maxScore: 0), isNull);
+      expect(await save(maxScore: double.nan), isNull);
+      expect(await save(), isNotNull);
+      expect((await record(container)).assessments, hasLength(5));
+    });
+
+    test('lowering the total names the marks that no longer fit', () async {
+      // Either number could be the right one, and only the teacher knows
+      // which. Clamping would change a mark without saying so.
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+      final longTest = (await record(container))
+          .assessments
+          .firstWhere((a) => a.title == 'Long test - Functions');
+
+      final result = await actions(container).saveClassAssessment(
+        assessmentId: longTest.id,
+        subject: query.subject,
+        section: query.section,
+        term: query.term!,
+        title: longTest.title,
+        component: longTest.component,
+        maxScore: 30,
+      );
+      expect(result, isNotNull);
+      expect(result!.marksOverMax, contains('Andrea Villanueva'));
+    });
+  });
+
+  group('the screen', () {
+    testWidgets('opens a class and shows the working', (tester) async {
+      tester.view.physicalSize = const Size(430 * 3, 2600 * 3);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            home: const ClassRecordScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Mathematics');
+      await tester.enterText(find.byType(TextField).at(1), 'Grade 10 - Rizal');
+      await tester.pumpAndSettle();
+
+      // The quarter the seeded marks are in.
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('2nd Quarter').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Quiz 1 - Quadratics'), findsWidgets);
+      expect(find.text('Andrea Villanueva'), findsOneWidget);
+      // The percentages in force, named on the screen rather than
+      // implied.
+      expect(find.textContaining('WW 40%'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+}

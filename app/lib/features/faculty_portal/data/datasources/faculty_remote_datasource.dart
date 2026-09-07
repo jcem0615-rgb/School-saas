@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../../core/constants/firestore_paths.dart';
+import '../../../../core/errors/app_exceptions.dart';
+import '../../domain/entities/class_assessment.dart';
+import '../models/class_record_models.dart';
 import '../models/coursework_item_model.dart';
 import '../models/answer_key_model.dart';
 import '../models/coursework_submission_model.dart';
@@ -18,10 +22,15 @@ class ActingFaculty {
 
 class FacultyRemoteDataSource {
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
   final ActingFaculty _actingUser;
 
-  const FacultyRemoteDataSource({required FirebaseFirestore firestore, required ActingFaculty actingUser})
-      : _firestore = firestore,
+  const FacultyRemoteDataSource({
+    required FirebaseFirestore firestore,
+    required FirebaseFunctions functions,
+    required ActingFaculty actingUser,
+  })  : _firestore = firestore,
+        _functions = functions,
         _actingUser = actingUser;
 
   Stream<List<CourseworkItemModel>> watchMyCourseworkItems() {
@@ -188,16 +197,180 @@ class FacultyRemoteDataSource {
     });
   }
 
-  Stream<List<GradeModel>> watchGradesFor({required String subject, required String section}) {
-    return _firestore
+  /// One class's marks, for one quarter.
+  ///
+  /// The term filter is not a convenience. Without it this returned every
+  /// mark the class had ever been given, and the caller that turned them
+  /// into a quarterly grade labelled the result with whichever term
+  /// happened to come first -- so a teacher in Q2 was shown a number
+  /// computed from Q1 and Q2 added together.
+  ///
+  /// The limit is per class per quarter now rather than per class for the
+  /// year. On the old query a busy subject reached 300 inside a quarter
+  /// and the oldest marks fell out of the window, which does not fail:
+  /// it quietly moves the grade.
+  Stream<List<GradeModel>> watchGradesFor({
+    required String subject,
+    required String section,
+    String? term,
+  }) {
+    Query<Map<String, dynamic>> query = _firestore
         .collection(FirestorePaths.grades(_actingUser.schoolId))
         .where('subject', isEqualTo: subject)
         .where('section', isEqualTo: section)
-        .where('isDeleted', isEqualTo: false)
+        .where('isDeleted', isEqualTo: false);
+    if (term != null && term.isNotEmpty) {
+      query = query.where('term', isEqualTo: term);
+    }
+    return query
         .orderBy('submittedAt', descending: true)
-        .limit(300)
+        .limit(1000)
         .snapshots()
         .map((snap) => snap.docs.map((d) => GradeModel.fromFirestore(d.id, d.data())).toList());
+  }
+
+  /// The pieces of work one class was given in one quarter.
+  Stream<List<ClassAssessmentModel>> watchClassAssessments({
+    required String subject,
+    required String section,
+    required String term,
+  }) {
+    return _firestore
+        .collection(FirestorePaths.classAssessments(_actingUser.schoolId))
+        .where('subject', isEqualTo: subject)
+        .where('section', isEqualTo: section)
+        .where('term', isEqualTo: term)
+        .where('isDeleted', isEqualTo: false)
+        .limit(200)
+        .snapshots()
+        .map((snap) {
+      final items = snap.docs
+          .map((d) => ClassAssessmentModel.fromFirestore(d.id, d.data()))
+          .toList();
+      // Ordered here rather than in the query: ordering by createdAt in
+      // Firestore would need a composite index for a list this small,
+      // and a class record read in the order things were given out is
+      // the order a teacher expects their columns in.
+      items.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      return items;
+    });
+  }
+
+  /// The split this class is graded on, when the teacher has set one.
+  Stream<SubjectWeights?> watchClassWeights({
+    required String subject,
+    required String section,
+  }) {
+    return _firestore
+        .doc(FirestorePaths.classWeightsDoc(
+            _actingUser.schoolId, classKeyFor(subject, section)))
+        .snapshots()
+        .map((snap) => ClassWeightsModel.weightsFrom(snap.data()));
+  }
+
+  Stream<String?> watchClassWeightsSetBy({
+    required String subject,
+    required String section,
+  }) {
+    return _firestore
+        .doc(FirestorePaths.classWeightsDoc(
+            _actingUser.schoolId, classKeyFor(subject, section)))
+        .snapshots()
+        .map((snap) => ClassWeightsModel.setByName(snap.data()));
+  }
+
+  /// Creates or edits a piece of work. Returns the ids of any marks that
+  /// no longer fit its total.
+  Future<({String assessmentId, List<String> marksOverMax})> saveClassAssessment({
+    String? assessmentId,
+    required String subject,
+    required String section,
+    required String term,
+    required String title,
+    required GradingComponent component,
+    required double maxScore,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('saveClassAssessment');
+      final response = await callable.call({
+        'schoolId': _actingUser.schoolId,
+        if (assessmentId != null) 'assessmentId': assessmentId,
+        'subject': subject,
+        'section': section,
+        'term': term,
+        'title': title,
+        'component': component.value,
+        'maxScore': maxScore,
+      });
+      final data = (response.data as Map).cast<Object?, Object?>();
+      return (
+        assessmentId: data['assessmentId'] as String? ?? '',
+        marksOverMax: [
+          for (final n in (data['marksOverMax'] as List<Object?>? ?? []))
+            if (n is String) n,
+        ],
+      );
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Could not save that piece of work.');
+    }
+  }
+
+  /// A whole column of marks at once.
+  ///
+  /// Each lands at `{assessment}_{student}`, so typing a corrected score
+  /// over a wrong one replaces it. The old path wrote a new document
+  /// every time and the arithmetic summed them: 80 out of 10 corrected
+  /// to 8 out of 10 became 88 out of 20.
+  Future<({int saved, int cleared})> saveAssessmentScores({
+    required String assessmentId,
+    required List<ScoreEntry> scores,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('saveAssessmentScores');
+      final response = await callable.call({
+        'schoolId': _actingUser.schoolId,
+        'assessmentId': assessmentId,
+        'scores': [
+          for (final entry in scores)
+            {
+              'studentId': entry.studentId,
+              'studentName': entry.studentName,
+              'score': entry.score,
+            },
+        ],
+      });
+      final data = (response.data as Map).cast<Object?, Object?>();
+      return (
+        saved: (data['saved'] as num?)?.toInt() ?? 0,
+        cleared: (data['cleared'] as num?)?.toInt() ?? 0,
+      );
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Could not save those marks.');
+    }
+  }
+
+  Future<void> setClassWeights({
+    required String subject,
+    required String section,
+    SubjectWeights? weights,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable('setClassWeights');
+      await callable.call({
+        'schoolId': _actingUser.schoolId,
+        'subject': subject,
+        'section': section,
+        if (weights == null)
+          'clear': true
+        else ...{
+          'writtenWork': weights.writtenWork,
+          'performanceTask': weights.performanceTask,
+          'quarterlyAssessment': weights.quarterlyAssessment,
+        },
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Could not save those percentages.');
+    }
   }
 
   /// Students in one section, for the grade roster.
@@ -216,6 +389,16 @@ class FacultyRemoteDataSource {
         .map((snap) => snap.docs.map((d) => StudentSummaryModel.fromFirestore(d.id, d.data())).toList());
   }
 
+  /// One mark, posted without setting up a column first.
+  ///
+  /// The path the import and the single-student dialog use.
+  /// `postGradeMark` finds or creates the piece of work the mark belongs
+  /// to and writes the mark against it at a derived id -- so a re-run
+  /// replaces rather than adds. This used to write a new document every
+  /// time, and the quarterly arithmetic sums the scores and the maximums
+  /// inside a component: an import run twice doubled a child's written
+  /// work, and a corrected mark was added to the wrong one rather than
+  /// replacing it.
   Future<void> submitGrade({
     required String studentId,
     required String studentName,
@@ -228,33 +411,24 @@ class FacultyRemoteDataSource {
     String? courseworkItemId,
     String? remarks,
   }) async {
-    final ref = _firestore.collection(FirestorePaths.grades(_actingUser.schoolId)).doc();
-    await ref.set({
-      'id': ref.id,
-      'studentId': studentId,
-      'studentName': studentName,
-      'subject': subject,
-      'section': section,
-      'term': term,
-      'component': component.value,
-      'courseworkItemId': courseworkItemId,
-      'score': score,
-      'maxScore': maxScore,
-      'remarks': remarks,
-      'submittedByName': _actingUser.name,
-      'submittedAt': FieldValue.serverTimestamp(),
-      'schoolId': _actingUser.schoolId,
-      'createdBy': _actingUser.uid,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedBy': _actingUser.uid,
-      'updatedAt': FieldValue.serverTimestamp(),
-      'deletedAt': null,
-      'deletedBy': null,
-      'isDeleted': false,
-    });
+    try {
+      final callable = _functions.httpsCallable('postGradeMark');
+      await callable.call({
+        'schoolId': _actingUser.schoolId,
+        'studentId': studentId,
+        'studentName': studentName,
+        'subject': subject,
+        'section': section,
+        'term': term,
+        'component': component.value,
+        'score': score,
+        'maxScore': maxScore,
+        'remarks': remarks,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Could not post that mark.');
+    }
   }
-
-  // ---- The grading scheme (weights and transmutation) ----
 
   Stream<GradingSchemeModel> watchGradingScheme() {
     return _firestore

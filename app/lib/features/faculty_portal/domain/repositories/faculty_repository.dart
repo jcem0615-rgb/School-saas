@@ -3,6 +3,7 @@ import '../entities/coursework_item.dart';
 import '../entities/answer_key.dart';
 import '../entities/coursework_submission.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
+import '../entities/class_assessment.dart';
 import '../entities/grade.dart';
 import '../entities/grading_scheme.dart';
 
@@ -68,7 +69,65 @@ abstract class FacultyRepository {
   /// since firestore.rules denies hard delete on every collection.
   Future<Result<void>> deleteCourseworkItem(String itemId);
 
-  Stream<List<Grade>> watchGradesFor({required String subject, required String section});
+  /// One class's marks, scoped to a quarter.
+  ///
+  /// [term] is not optional in spirit: without it this returns every mark
+  /// the class was ever given, and anything that computes a quarterly
+  /// grade from them adds quarters together. It stays nullable only for
+  /// the one caller that genuinely wants the lot -- the student's own
+  /// subject page, which groups by term itself.
+  Stream<List<Grade>> watchGradesFor({
+    required String subject,
+    required String section,
+    String? term,
+  });
+
+  /// The pieces of work one class was given in one quarter: the columns
+  /// of the class record.
+  Stream<List<ClassAssessment>> watchClassAssessments({
+    required String subject,
+    required String section,
+    required String term,
+  });
+
+  /// The split this class is graded on, when the teacher has set one.
+  /// Null means the school's confirmed scheme decides.
+  Stream<SubjectWeights?> watchClassWeights({
+    required String subject,
+    required String section,
+  });
+
+  Stream<String?> watchClassWeightsSetBy({
+    required String subject,
+    required String section,
+  });
+
+  /// Creates or edits a piece of work. Names any marks that no longer
+  /// fit its total rather than clamping them: either number could be the
+  /// right one, and only the teacher knows which.
+  Future<Result<({String assessmentId, List<String> marksOverMax})>>
+      saveClassAssessment({
+    String? assessmentId,
+    required String subject,
+    required String section,
+    required String term,
+    required String title,
+    required GradingComponent component,
+    required double maxScore,
+  });
+
+  /// A whole column of marks at once, each replacing whatever was there.
+  Future<Result<({int saved, int cleared})>> saveAssessmentScores({
+    required String assessmentId,
+    required List<ScoreEntry> scores,
+  });
+
+  /// Sets, or clears, what each component counts for this class.
+  Future<Result<void>> setClassWeights({
+    required String subject,
+    required String section,
+    SubjectWeights? weights,
+  });
 
   /// The students enrolled in one section, so a teacher grades from a
   /// roster instead of typing student IDs from memory.

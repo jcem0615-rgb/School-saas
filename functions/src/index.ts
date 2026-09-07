@@ -73,6 +73,20 @@ export {enrolApplicant} from "./callable/admissions/enrolApplicant";
 export {setStudentBalance} from "./callable/students/setStudentBalance";
 
 // ---------------------------------------------------------------------------
+// Module: Grading
+//
+// A mark used to be posted and never replaced -- every submission wrote
+// a new document, and the quarterly arithmetic sums the scores and the
+// maximums inside a component, so correcting 80/10 to 8/10 left a child
+// on 88/20. Marks now land at a derived id under the piece of work they
+// belong to, so entering one again replaces it.
+// ---------------------------------------------------------------------------
+export {saveClassAssessment} from "./callable/grading/saveClassAssessment";
+export {saveAssessmentScores} from "./callable/grading/saveAssessmentScores";
+export {setClassWeights} from "./callable/grading/setClassWeights";
+export {postGradeMark} from "./callable/grading/postGradeMark";
+
+// ---------------------------------------------------------------------------
 // Module: Inventory
 //
 // A movement and the item's running total move together or not at all,

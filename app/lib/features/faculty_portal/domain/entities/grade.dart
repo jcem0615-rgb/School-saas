@@ -9,6 +9,14 @@ class Grade {
   final String term;
   final String? courseworkItemId;
 
+  /// The piece of work this is a mark against.
+  ///
+  /// Null on marks written before assessments existed. Those still count
+  /// towards their component exactly as they did -- they are simply not
+  /// a column anybody can type into, which is what "posted and never
+  /// replaceable" meant for them.
+  final String? assessmentId;
+
   /// Which of the three DepEd components this score belongs to.
   ///
   /// Required for a quarterly grade to be computable at all, and
@@ -37,6 +45,7 @@ class Grade {
     required this.submittedAt,
     this.component = GradingComponent.writtenWork,
     this.courseworkItemId,
+    this.assessmentId,
     this.remarks,
   });
 

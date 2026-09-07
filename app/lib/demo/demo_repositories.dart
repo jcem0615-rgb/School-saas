@@ -31,6 +31,7 @@ import '../features/emergency/domain/entities/emergency_contact.dart';
 import '../features/emergency/domain/repositories/emergency_repository.dart';
 import '../features/faculty_portal/domain/entities/answer_key.dart';
 import '../features/faculty_portal/domain/entities/coursework_submission.dart';
+import '../features/faculty_portal/domain/entities/class_assessment.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
 import '../features/faculty_portal/domain/entities/grading_scheme.dart';
 import '../core/storage/upload_repository.dart';
@@ -2512,11 +2513,216 @@ class DemoFacultyRepository implements FacultyRepository {
   }
 
   @override
-  Stream<List<Grade>> watchGradesFor({required String subject, required String section}) {
+  Stream<List<Grade>> watchGradesFor({
+    required String subject,
+    required String section,
+    String? term,
+  }) {
     return _store.grades.stream.map(
-      (all) => all.where((g) => g.subject == subject && g.section == section).toList()
+      (all) => all
+          .where((g) =>
+              g.subject == subject &&
+              g.section == section &&
+              (term == null || term.isEmpty || g.term == term))
+          .toList()
         ..sort((a, b) => a.studentName.compareTo(b.studentName)),
     );
+  }
+
+  @override
+  Stream<List<ClassAssessment>> watchClassAssessments({
+    required String subject,
+    required String section,
+    required String term,
+  }) {
+    return _store.classAssessments.stream.map(
+      (all) => all
+          .where((a) => a.subject == subject && a.section == section && a.term == term)
+          .toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt)),
+    );
+  }
+
+  @override
+  Stream<SubjectWeights?> watchClassWeights({
+    required String subject,
+    required String section,
+  }) =>
+      _store.classWeights.stream.map((all) => all[classKeyFor(subject, section)]);
+
+  @override
+  Stream<String?> watchClassWeightsSetBy({
+    required String subject,
+    required String section,
+  }) =>
+      _store.classWeights.stream.map((all) =>
+          all.containsKey(classKeyFor(subject, section))
+              ? _store.requireUser.fullName
+              : null);
+
+  @override
+  Future<Result<({String assessmentId, List<String> marksOverMax})>>
+      saveClassAssessment({
+    String? assessmentId,
+    required String subject,
+    required String section,
+    required String term,
+    required String title,
+    required GradingComponent component,
+    required double maxScore,
+  }) async {
+    await _latency();
+    // The same refusals the callable makes, in the same order. A demo
+    // that accepted a piece of work the real thing rejects is a demo
+    // selling a promise the product does not keep.
+    if (title.trim().isEmpty) {
+      return const Error(ValidationFailure('A name for this piece of work is required.'));
+    }
+    if (!maxScore.isFinite) {
+      return const Error(
+          ValidationFailure('The total this is marked out of has to be a number.'));
+    }
+    if (maxScore <= 0) {
+      return const Error(ValidationFailure(
+          'The total this is marked out of has to be more than zero.'));
+    }
+
+    final id = assessmentId ?? _store.nextId('as');
+    final assessment = ClassAssessment(
+      id: id,
+      subject: subject.trim(),
+      section: section.trim(),
+      term: term.trim(),
+      title: title.trim(),
+      component: component,
+      maxScore: maxScore,
+      createdByName: _store.requireUser.fullName,
+      createdAt: DateTime.now(),
+    );
+
+    final existing = [..._store.classAssessments.value];
+    final at = existing.indexWhere((a) => a.id == id);
+    if (at >= 0) {
+      existing[at] = assessment;
+    } else {
+      existing.add(assessment);
+    }
+    _store.classAssessments.add(existing);
+
+    final overMax = _store.grades.value
+        .where((g) => g.assessmentId == id && g.score > maxScore)
+        .map((g) => g.studentName)
+        .toList();
+
+    _store.audit(
+      module: 'grading',
+      action: assessmentId == null ? 'create' : 'update',
+      targetCollection: 'classAssessments',
+      targetId: id,
+      newValue: {'title': assessment.title, 'maxScore': maxScore},
+    );
+    return Success((assessmentId: id, marksOverMax: overMax));
+  }
+
+  @override
+  Future<Result<({int saved, int cleared})>> saveAssessmentScores({
+    required String assessmentId,
+    required List<ScoreEntry> scores,
+  }) async {
+    await _latency();
+    final assessment = _store.classAssessments.value
+        .where((a) => a.id == assessmentId)
+        .firstOrNull;
+    if (assessment == null) {
+      return const Error(ValidationFailure('That piece of work is no longer on file.'));
+    }
+
+    for (final entry in scores) {
+      final score = entry.score;
+      if (score == null) continue;
+      if (!score.isFinite) {
+        return Error(ValidationFailure('${entry.studentName}: a score has to be a number.'));
+      }
+      if (score < 0) {
+        return Error(ValidationFailure('${entry.studentName}: a score cannot be negative.'));
+      }
+      if (score > assessment.maxScore) {
+        return Error(ValidationFailure(
+          '${entry.studentName}: a score of ${_trimScore(score)} is higher than the '
+          '${_trimScore(assessment.maxScore)} this is marked out of.',
+        ));
+      }
+    }
+
+    // Keyed the way the real one keys it, so entering a corrected mark
+    // replaces rather than adds. The whole point of the change.
+    final byId = {for (final g in _store.grades.value) g.id: g};
+    var saved = 0;
+    var cleared = 0;
+    for (final entry in scores) {
+      final id = '${assessmentId}_${entry.studentId}';
+      if (entry.score == null) {
+        if (byId.remove(id) != null) cleared += 1;
+        continue;
+      }
+      byId[id] = Grade(
+        id: id,
+        assessmentId: assessmentId,
+        studentId: entry.studentId,
+        studentName: entry.studentName,
+        subject: assessment.subject,
+        section: assessment.section,
+        term: assessment.term,
+        component: assessment.component,
+        score: entry.score!,
+        maxScore: assessment.maxScore,
+        submittedByName: _store.requireUser.fullName,
+        submittedAt: DateTime.now(),
+      );
+      saved += 1;
+    }
+    _store.grades.add(byId.values.toList());
+
+    _store.audit(
+      module: 'grading',
+      action: 'update',
+      targetCollection: 'grades',
+      targetId: assessmentId,
+      newValue: {'marked': saved, 'cleared': cleared},
+    );
+    return Success((saved: saved, cleared: cleared));
+  }
+
+  @override
+  Future<Result<void>> setClassWeights({
+    required String subject,
+    required String section,
+    SubjectWeights? weights,
+  }) async {
+    await _latency();
+    final key = classKeyFor(subject, section);
+    final next = {..._store.classWeights.value};
+    if (weights == null) {
+      next.remove(key);
+    } else {
+      if (!weights.balances) {
+        return Error(ValidationFailure(
+          'Written work, performance tasks and quarterly assessment have to '
+          'add up to 100 per cent. These come to '
+          '${weights.total.toStringAsFixed(weights.total == weights.total.roundToDouble() ? 0 : 2)}.',
+        ));
+      }
+      next[key] = weights;
+    }
+    _store.classWeights.add(next);
+    _store.audit(
+      module: 'grading',
+      action: weights == null ? 'delete' : 'update',
+      targetCollection: 'classWeights',
+      targetId: key,
+      newValue: {'subject': subject, 'section': section},
+    );
+    return const Success(null);
   }
 
   @override
@@ -5196,3 +5402,8 @@ class DemoSystemCheckRepository implements SystemCheckRepository {
     return SystemCheckReport(checks: const [], ranAt: DateTime.now(), demoMode: true);
   }
 }
+
+
+String _trimScore(double value) => value == value.roundToDouble()
+    ? value.toStringAsFixed(0)
+    : value.toString();

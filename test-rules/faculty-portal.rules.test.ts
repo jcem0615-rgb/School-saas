@@ -114,36 +114,134 @@ describe("courseworkItems", () => {
 });
 
 describe("grades", () => {
-  test("faculty cannot reassign a grade to a different student on update", async () => {
+  /**
+   * A mark is server-written now, and these two tests are why.
+   *
+   * The old rules allowed a teacher to correct a score in place, and the
+   * test below asserted it -- correctly, about the rules. But no code
+   * path in the app ever issued that update: `submitGrade` wrote a new
+   * document every time, and the quarterly arithmetic sums the scores
+   * and the maximums inside a component, so a teacher fixing
+   * 80-out-of-10 to 8-out-of-10 left the child on 88 out of 20. A rules
+   * test proving a capability nothing exercises is the most comfortable
+   * kind of wrong.
+   *
+   * `saveAssessmentScores` writes each mark at `{assessment}_{student}`,
+   * so entering it again replaces it -- and the client writes none of
+   * it, which also closes the hole the old update rule left open: it
+   * pinned `studentId` and nothing else, so `submittedByName` was
+   * writable and "who gave this grade" answered with whatever was typed.
+   */
+  test("no client may write a mark, whatever their role", async () => {
     await seedActiveSubscription();
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), `schools/${SCHOOL}/grades/grade_1`), {
         studentId: "student_1",
         score: 90,
         maxScore: 100,
+        submittedByName: "Ms Reyes",
       });
     });
-    const faculty = contextAs("faculty", "faculty_1");
-    await assertFails(
-      updateDoc(doc(faculty.firestore(), `schools/${SCHOOL}/grades/grade_1`), {
-        studentId: "student_2",
-      })
-    );
+
+    for (const [role, uid] of [
+      ["faculty", "faculty_1"],
+      ["director", "director_1"],
+      ["admin", "admin_1"],
+    ]) {
+      const db = contextAs(role, uid).firestore();
+      await assertFails(
+        setDoc(doc(db, `schools/${SCHOOL}/grades/grade_new_${uid}`), {
+          studentId: "student_1",
+          score: 90,
+          maxScore: 100,
+        })
+      );
+      // Including the two the old rule left open: the score itself, and
+      // the name against it.
+      await assertFails(
+        updateDoc(doc(db, `schools/${SCHOOL}/grades/grade_1`), {score: 88})
+      );
+      await assertFails(
+        updateDoc(doc(db, `schools/${SCHOOL}/grades/grade_1`), {
+          submittedByName: "Somebody Else",
+        })
+      );
+    }
   });
 
-  test("faculty CAN correct a score on an existing grade", async () => {
+  test("a teacher can still read the marks they gave", async () => {
+    // Server-written does not mean invisible. The class record is a
+    // read of these.
     await seedActiveSubscription();
     await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/grades/grade_2`), {
+      // One firestore() per context: calling it twice throws "settings
+      // can no longer be changed".
+      const db = context.firestore();
+      await setDoc(doc(db, `schools/${SCHOOL}/students/student_1`), {
+        id: "student_1",
+        educationLevel: "high_school",
+        isDeleted: false,
+      });
+      await setDoc(doc(db, `schools/${SCHOOL}/grades/grade_3`), {
         studentId: "student_1",
-        score: 85,
+        score: 90,
         maxScore: 100,
       });
     });
-    const faculty = contextAs("faculty", "faculty_1");
-    await assertSucceeds(
-      updateDoc(doc(faculty.firestore(), `schools/${SCHOOL}/grades/grade_2`), {
-        score: 88,
+    // A fresh uid: @firebase/rules-unit-testing caches a context per
+    // uid, and calling firestore() on one already used in another test
+    // throws "settings can no longer be changed".
+    const faculty = contextAs("faculty", "faculty_reader");
+    await assertSucceeds(getDoc(doc(faculty.firestore(), `schools/${SCHOOL}/grades/grade_3`)));
+  });
+});
+
+describe("the pieces of work behind a mark", () => {
+  test("are readable by the school and written by nobody", async () => {
+    // A student reading "18 out of 20" needs to know what the 20 was
+    // for; a total editable from a console is a total the marks were
+    // never checked against.
+    await seedActiveSubscription();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, `schools/${SCHOOL}/classAssessments/as_1`), {
+        subject: "Mathematics",
+        section: "Grade 10 - Rizal",
+        term: "Q1",
+        title: "Quiz 1",
+        component: "written_work",
+        maxScore: 20,
+        isDeleted: false,
+      });
+      await setDoc(doc(db, `schools/${SCHOOL}/classWeights/mathematics__grade-10-rizal`), {
+        subject: "Mathematics",
+        section: "Grade 10 - Rizal",
+        writtenWork: 40,
+        performanceTask: 40,
+        quarterlyAssessment: 20,
+      });
+    });
+
+    for (const [role, uid] of [
+      ["faculty", "faculty_work_reader"],
+      ["student", "student_work_reader"],
+      ["parent", "parent_work_reader"],
+    ]) {
+      const db = contextAs(role, uid).firestore();
+      await assertSucceeds(getDoc(doc(db, `schools/${SCHOOL}/classAssessments/as_1`)));
+      // How the number was reached is not a secret from the family.
+      await assertSucceeds(
+        getDoc(doc(db, `schools/${SCHOOL}/classWeights/mathematics__grade-10-rizal`))
+      );
+    }
+
+    const faculty = contextAs("faculty", "faculty_work_writer").firestore();
+    await assertFails(
+      updateDoc(doc(faculty, `schools/${SCHOOL}/classAssessments/as_1`), {maxScore: 5})
+    );
+    await assertFails(
+      updateDoc(doc(faculty, `schools/${SCHOOL}/classWeights/mathematics__grade-10-rizal`), {
+        writtenWork: 90,
       })
     );
   });

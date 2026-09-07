@@ -163,8 +163,141 @@ class ReportCardPdf {
       ),
     );
 
+    // A second page showing how the latest quarter's numbers were
+    // reached.
+    //
+    // The table on page one is the record; this is the arithmetic behind
+    // it. A parent asked to accept an 87 has nothing to check it
+    // against otherwise, and "weighted per subject" on the front page
+    // tells them a rule was applied without telling them what it did.
+    // One quarter rather than all four: the one they are reading the
+    // card for, and four of these is a document nobody opens.
+    final workingTerm = _latestTermWithWork(terms, bySubject);
+    if (workingTerm != null) {
+      document.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (context) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('HOW THESE GRADES WERE COMPUTED',
+                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text('$studentName  ·  $workingTerm',
+                  style: const pw.TextStyle(fontSize: 9)),
+              pw.SizedBox(height: 10),
+              _workingTable(subjects: subjects, term: workingTerm, bySubject: bySubject),
+              pw.SizedBox(height: 10),
+              pw.Text(
+                'Each component is the total scored over the total the work '
+                'was out of, turned into a percentage and multiplied by the '
+                'weight that component carries in this subject. The three are '
+                'added to give the initial grade, which the school\'s '
+                'transmutation table turns into the final grade.',
+                style: const pw.TextStyle(fontSize: 7.5),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Text(
+                'A component with nothing recorded is left out rather than '
+                'counted as zero, and the grade is taken over the weight that '
+                'has actually been given out. That is why a grade can be shown '
+                'before the quarterly assessment has been sat.',
+                style: const pw.TextStyle(fontSize: 7.5),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return document.save();
   }
+
+  /// The most recent quarter anybody has recorded anything in.
+  static String? _latestTermWithWork(
+    List<String> terms,
+    Map<String, List<QuarterlyGrade>> bySubject,
+  ) {
+    for (final term in terms.reversed) {
+      final any = bySubject.values
+          .expand((grades) => grades)
+          .any((g) => g.term == term && g.hasWork);
+      if (any) return term;
+    }
+    return null;
+  }
+
+  static pw.Widget _workingTable({
+    required List<String> subjects,
+    required String term,
+    required Map<String, List<QuarterlyGrade>> bySubject,
+  }) {
+    pw.Widget cell(String text, {bool header = false, pw.TextAlign? align}) =>
+        pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+          child: pw.Text(
+            text,
+            textAlign: align,
+            style: pw.TextStyle(
+              fontSize: 7.5,
+              fontWeight: header ? pw.FontWeight.bold : pw.FontWeight.normal,
+            ),
+          ),
+        );
+
+    String share(QuarterlyGrade grade, GradingComponent component) {
+      final c = grade.componentFor(component);
+      if (!c.hasWork) return '--';
+      return '${_trim(c.raw)}/${_trim(c.possible)}\n'
+          '${c.percentageScore.toStringAsFixed(1)}% x ${_trim(c.weight)}%\n'
+          '= ${c.weightedScore.toStringAsFixed(2)}';
+    }
+
+    return pw.Table(
+      border: pw.TableBorder.all(width: 0.5),
+      columnWidths: const {
+        0: pw.FlexColumnWidth(2.2),
+        1: pw.FlexColumnWidth(1.6),
+        2: pw.FlexColumnWidth(1.6),
+        3: pw.FlexColumnWidth(1.6),
+        4: pw.FlexColumnWidth(1.1),
+        5: pw.FlexColumnWidth(0.9),
+      },
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+          children: [
+            cell('Subject', header: true),
+            cell('Written Work', header: true, align: pw.TextAlign.center),
+            cell('Performance', header: true, align: pw.TextAlign.center),
+            cell('Quarterly', header: true, align: pw.TextAlign.center),
+            cell('Initial', header: true, align: pw.TextAlign.center),
+            cell('Final', header: true, align: pw.TextAlign.center),
+          ],
+        ),
+        for (final subject in subjects)
+          if (bySubject[subject]
+                  ?.where((g) => g.term == term && g.hasWork)
+                  .firstOrNull
+              case final grade?)
+            pw.TableRow(children: [
+              cell(subject),
+              cell(share(grade, GradingComponent.writtenWork),
+                  align: pw.TextAlign.center),
+              cell(share(grade, GradingComponent.performanceTask),
+                  align: pw.TextAlign.center),
+              cell(share(grade, GradingComponent.quarterlyAssessment),
+                  align: pw.TextAlign.center),
+              cell(grade.initialGrade.toStringAsFixed(2), align: pw.TextAlign.center),
+              cell('${grade.finalGrade}', align: pw.TextAlign.center),
+            ]),
+      ],
+    );
+  }
+
+  static String _trim(double value) => value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2);
 
   static pw.Widget _gradeTable({
     required List<String> subjects,

@@ -99,6 +99,25 @@ export const FirestorePaths = {
   // The correct answers. Never readable by students -- see firestore.rules.
   courseworkAnswerKeys: (schoolId: string) => `schools/${schoolId}/courseworkAnswerKeys`,
 
+  // ---- Grading ----
+  // A class assessment is one piece of work a class was given -- one
+  // column in the teacher's record. A grade is one student's mark
+  // against one of them, at a derived id, so entering it again replaces
+  // it rather than adding a second row the arithmetic would sum.
+  grades: (schoolId: string) => `schools/${schoolId}/grades`,
+  gradeDoc: (schoolId: string, gradeId: string) => `schools/${schoolId}/grades/${gradeId}`,
+  classAssessments: (schoolId: string) => `schools/${schoolId}/classAssessments`,
+  classAssessmentDoc: (schoolId: string, assessmentId: string) =>
+    `schools/${schoolId}/classAssessments/${assessmentId}`,
+  // What each component counts for one class, when the teacher has set
+  // something other than the school's scheme. Keyed by the class, so
+  // there is one set of weights per subject and section rather than one
+  // per person who happened to write last.
+  classWeights: (schoolId: string) => `schools/${schoolId}/classWeights`,
+  classWeightsDoc: (schoolId: string, key: string) =>
+    `schools/${schoolId}/classWeights/${key}`,
+  gradingSchemeDoc: (schoolId: string) => `schools/${schoolId}/settings/grading`,
+
   // ---- Inventory ----
   // The stock room, and the log of everything in and out of it. The
   // quantity on an item is a running total; the transactions are the
