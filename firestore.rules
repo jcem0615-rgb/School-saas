@@ -343,11 +343,20 @@ service cloud.firestore {
 
       // ---- audit log: append-only from server, read-only from client ----
       match /auditLog/{logId} {
-        // Admin-tier roles see the full school audit trail; every other
-        // user can see only their own actions ("My Activity History" --
-        // a General Requirement for every role per the spec, distinct
-        // from the full Audit Trail screen Owner/Director/Admin get).
-        allow read: if hasRole(schoolId, ['owner', 'director', 'admin'])
+        // The Director and the Admin see the full school trail; every
+        // other user sees only their own actions ("My Activity History"
+        // -- a General Requirement for every role per the spec, distinct
+        // from the full Audit Trail screen).
+        //
+        // 'owner' used to be in this list and never once matched:
+        // hasRole() requires belongsToSchool(), and the Owner is
+        // platform-level with no schoolId claim at all. The rule read as
+        // though the Owner could open any school's trail while the code
+        // said otherwise, which is the wrong way round for a rule --
+        // and the boundary the dead branch pretended to cross is one
+        // this build deliberately does not cross (see the same reasoning
+        // on attendance in docs/07). Removed rather than made to work.
+        allow read: if hasRole(schoolId, ['director', 'admin'])
                       || (belongsToSchool(schoolId) && schoolIsAccessible(schoolId) && resource.data.userId == request.auth.uid);
         allow write: if false;
       }

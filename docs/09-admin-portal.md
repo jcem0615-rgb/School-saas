@@ -68,13 +68,73 @@ related but distinctly larger feature, deferred — see below.
 ## Audit Trail (pulled forward as a shared feature)
 
 Built as its own `features/audit_trail/` module (not nested under Admin
-Portal) since Director and Owner need the same screen. Filters by module
-and date range via Firestore query composition; free-text search over
-`userName`/`remarks` is done client-side over the fetched page, since
+Portal) since the Director and the Admin need the same screen. Filters by
+module and date range via Firestore query composition; free-text search
+over `userName`/`remarks` is done client-side over the fetched page, since
 Firestore has no native substring search — full-text search infrastructure
 is a Reports-module concern if usage ever demands it at scale. PDF/Excel
 export and restore-from-soft-delete are also deferred to Reports &
 Documents.
+
+Most entries are not written by the module that caused them. A single
+trigger, `onAnyTenantDocWrite`, fires on every write to any direct
+subcollection of a school and records it, which is what lets Announcements,
+Meetings, Approvals and Expenses take direct client writes without each one
+needing a callable purely to satisfy "every action must be logged".
+
+### Who may read it
+
+The Director and the Admin read the whole school trail. Everyone else
+reads only the entries naming them — "My Activity History", which the spec
+asks for on every role and which is a different screen from the full trail.
+
+`'owner'` used to sit in that first list and never once matched: the rule
+calls `hasRole()`, `hasRole()` requires `belongsToSchool()`, and the Owner
+is platform-level with no `schoolId` claim at all. The rule read as though
+the Owner could open any school's trail while the code said otherwise,
+which is the wrong way round for a rule to be wrong — and the boundary the
+dead branch pretended to cross is one this build deliberately does not
+cross, the same call made about attendance in `07`. It was removed rather
+than made to work. The rules suite pins the Owner out.
+
+Nothing writes to the trail from a client, whatever the role.
+
+### What it must never copy
+
+**The audit log must never carry content that its own readers could not
+otherwise read.** The trail is read school-wide by two roles, so copying a
+document into an entry makes that document readable by both of them,
+whatever the collection's own read rule says.
+
+For one collection the read rule says the opposite in as many words.
+`conversations` carries `lastMessage`, a preview of what a parent last said
+to a teacher, rewritten on every message; the messaging rule says nobody
+but the two participants may read a thread — not an admin, not the
+director — and that a school needing to see one has a lawful-request path
+"and an audit trail, not a back door". The audit trail was the back door.
+
+`conversations` is therefore in `CONTENT_WITHHELD`: the entry is still
+written, so who touched which thread and when is still on the record, but
+the values are withheld and the entry says so in its remarks rather than
+looking like a document that happened to be empty. Anything added to that
+set later is held to the same invariant.
+
+This is distinct from `EXCLUDED_COLLECTIONS` (`auditLog`, `notifications`,
+`counters`, `users`), which are not logged at all — either they have
+bespoke audit handling or they would cause runaway self-referential writes.
+
+### Who deleted it
+
+A hard delete has no `after`, so there is nothing left on the document to
+read the actor from. The trigger used to fall straight through to
+`"unknown"` — answering "who deleted this?" with the one word the trail
+exists to avoid, on the single action where the answer matters most and is
+least recoverable from anywhere else.
+
+It now falls back to `before.updatedBy` / `before.createdBy`: the last
+account to have written the document. That is not proof of who removed it,
+which is why the entry says as much in its remarks rather than presenting a
+name as a finding.
 
 ## Firestore collections added
 
@@ -91,6 +151,8 @@ a new collection.
 |---|---|---|
 | Domain | `admin_usecases_test.dart` | employee/assignment field validation |
 | Rules | `admin-portal.rules.test.ts` | teacher assignment role gate, employeeInfo editable but status field protected |
+| Emulator | `auditTrail.test.ts` | the trigger names the actor on a create, an edit and a hard delete; keeps both sides of an edit; records that a conversation changed without recording what was said, and says it withheld it; still copies an ordinary record in full; says nothing about its own writes |
+| Rules | `oversight-roles.rules.test.ts` | the trail is read whole by the Director and the Admin, only own-actions by a Principal, not at all by the Owner, and written by nobody from a client |
 
 ## Deferred to later modules
 

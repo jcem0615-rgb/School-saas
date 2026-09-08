@@ -80,6 +80,8 @@ is the whole point of a report.
   -- one family's overpayment must not quietly settle another's arrears.
   Collected sums every payment row as it stands, because a refund is its
   own negative row and the payment it reverses keeps its positive one.
+  See *One figure, three places* below -- this arithmetic has to hold
+  everywhere the same number is shown.
 - **Attendance**: the rate counts present and late together. A late
   student came to school, so lateness gets its own column instead of
   being deducted. Excused absences sit outside the rate on both sides --
@@ -96,6 +98,37 @@ is the whole point of a report.
   Term choices come from the terms actually used, because terms are free
   text and a typed filter would return nothing when the office writes
   "1st Quarter" and the reader typed "Q1".
+
+## One figure, three places
+
+"Money collected" is computed in three separate implementations: the
+Collections report here, the Director's dashboard tile
+(`director_remote_datasource`), and the school totals screen
+(`school_totals_remote_datasource`). They must agree, and for a while two
+of them did while the third quietly did not.
+
+A refund is two writes, not one. The original payment flips to
+`status: 'refunded'` and **keeps its positive amount**; a second row is
+created for the negative amount with `status: 'completed'`. The pair nets
+to zero only if both rows are counted.
+
+The dashboard filtered its sum on `status == 'completed'`, which dropped
+the refunded original and kept the negative row. A payment of PHP 2,500
+taken and refunded the same day therefore showed on the Director's
+dashboard as **-PHP 2,500** rather than nothing -- the school appearing to
+have lost money it never had. The filter is gone; all three now sum every
+row in the period.
+
+The demo store had a *different* wrong answer -- it excluded refund rows
+while keeping the payments they reversed, so the same day overstated by
+PHP 2,500 -- which is why the demo never reproduced the live bug. It sums
+every row now too.
+
+`collections_figures_test.dart` holds the three to the same answer,
+including a test that reads the dashboard figure and the report headline
+for one day and asserts they match. A refund's arithmetic is the sort of
+thing that gets re-derived in a fourth place next year; the test is what
+makes the fourth place fail loudly rather than differ quietly.
 
 ## Firestore
 
@@ -119,11 +152,20 @@ Reports read only. Nothing in this module writes.
 |---|---|---|
 | Domain | `report_builders_test.dart` | the arithmetic of all four reports, plus `ReportPeriod` boundaries |
 | Demo | `reports_test.dart` | each kind reads only what it declares, the period actually narrows, every report builds against the seeded school |
+| Smoke | `collections_figures_test.dart` | a same-day payment and refund net to nothing, one refund among three leaves the other two standing, and the dashboard agrees with the Collections report on the same day |
 
 ## Deferred
 
 - **Division-scoped reports** for the Principal -- see above for why it is
   a build rather than a filter.
+- **Reports for the Principal at all.** The Principal dashboard has no
+  Reports tile, and rules do not let a Principal read `payments`, so
+  opening the screen as one would error on the two money reports rather
+  than show a narrower version of them. This is a gap, not a defect: no
+  screen currently points a Principal at it. It reads sharper now that the
+  Principal is oversight-only -- oversight without reports is thin -- and
+  the fix is the division-scoped build above plus a rules decision about
+  what money a Principal may see, not a tile.
 - **Charts.** These are tables, and a table is what gets forwarded to a
   division office. A trend line over terms would be the first chart worth
   having.

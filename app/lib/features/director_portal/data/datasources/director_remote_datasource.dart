@@ -370,11 +370,21 @@ class DirectorRemoteDataSource {
         .get();
     final totalCountFuture = attendanceCol.where('date', isEqualTo: todayKey).count().get();
 
+    // Every row in the day, whatever its status.
+    //
+    // A refund is two writes: the original payment keeps its positive
+    // amount and flips to 'refunded', and a second row is written for
+    // the negative with status 'completed'. Filtering on 'completed'
+    // therefore dropped the original and kept the negative -- so a
+    // payment taken and refunded on the same day did not net to nothing,
+    // it took the day's collections *down* by the full amount, counting
+    // the refund twice. Summing every row is what the Collections report
+    // and the School Totals tile already do, and it is the arithmetic
+    // that matches the money.
     final paymentsSumFuture = _firestore
         .collection(FirestorePaths.payments(_actingUser.schoolId))
         .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(todayStart))
         .where('createdAt', isLessThan: Timestamp.fromDate(todayEnd))
-        .where('status', isEqualTo: 'completed')
         .aggregate(sum('amount'))
         .get();
 

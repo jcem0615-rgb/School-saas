@@ -15,7 +15,7 @@ final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
 /// Statement of Account/Payment Monitoring all reuse screens already
 /// built for Student Portal and Payments. `allowRefunds: false` on the
 /// payment history reuse is deliberate: a Parent monitors payments, but
-/// refund authority stays with Director/Admin (see docs/08-payments.md).
+/// refund authority stays with the Admin (see docs/08-payments.md).
 class ChildDetailScreen extends StatelessWidget {
   final StudentSummary child;
   const ChildDetailScreen({super.key, required this.child});

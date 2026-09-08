@@ -601,7 +601,7 @@ add(
     ['Payment Method', 'Record Payment', 'Cash, GCash or bank transfer.'],
     ['Reference Number', 'Record Payment', 'The transaction reference, where there is one.'],
     ['Receipt', 'Receipt', 'A sequential receipt number generated on the server, with the date, purpose, reference and who collected it. Two cashiers taking money at the same moment cannot be issued the same number.'],
-    ['Refund', 'Confirmation', 'Reverses a payment. Director and Admin only, enforced on the server whatever the screen shows.'],
+    ['Refund', 'Confirmation', 'Reverses a payment. The Admin only, enforced on the server whatever the screen shows - deliberately not the Registrar who collects, because one account that can both take money and give it back is a control nobody is exercising.'],
   ], ['Control', 'Where', 'What it does']),
   H2('14.4 The balance'),
   P('The balance is owned by the server. It moves only inside the same operation that records a payment, a '
@@ -826,6 +826,9 @@ add(
     + 'a channel nobody trusts is a channel nobody uses. A school that needs to see a conversation has a '
     + 'lawful-request route and an audit trail; what it does not have is a login that quietly opens every '
     + 'private message in the school.'),
+  note('The audit trail holds to the same line. It records that a conversation was written to, by whom and '
+     + 'when, and says on the entry that it withheld the content - it does not copy the message in. A log '
+     + 'the office reads school-wide would otherwise be the back door this section says does not exist.'),
   H2('22.3 What is fixed and what is not'),
   bullets([
     'A message cannot be edited, and cannot be unsent. It is the record of what was said.',
@@ -914,6 +917,9 @@ add(
   P('Every create, edit and delete in the school lands in the audit trail with who did it and when, and it '
     + 'is recorded automatically rather than because a screen remembered to log it. The Director and Admin '
     + 'read the whole trail, filtered by module and date range; every account can read its own.'),
+  note('The trail never carries content its own readers could not otherwise read. Parent-teacher '
+     + 'conversations are recorded as having changed, not quoted, and the entry says so. A log read '
+     + 'school-wide must not become a way around the rules on what it is logging.'),
 );
 
 // ---------------------------------------------------------------- 26 Privacy

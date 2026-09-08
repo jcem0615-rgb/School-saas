@@ -435,10 +435,12 @@ class DemoDirectorRepository implements DirectorRepository {
         .where((a) =>
             a.date == today && a.subjectType == AttendanceSubjectType.student)
         .toList();
-    final todaysPayments = _store.payments.value.where((p) {
-      final c = p.createdAt;
-      return _sameDay(c, DateTime.now()) && !p.isRefund;
-    });
+    // Every row in the day, refunds included, so the pair nets itself
+    // out -- the same arithmetic the live aggregate and the Collections
+    // report use. Dropping the refund row while keeping the payment it
+    // reverses reported money the school no longer has.
+    final todaysPayments = _store.payments.value
+        .where((p) => _sameDay(p.createdAt, DateTime.now()));
     return Success(DirectorDashboardSummary(
       todayAttendancePresentCount:
           todays.where((a) => a.status != AttendanceStatus.absent).length,

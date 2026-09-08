@@ -373,7 +373,7 @@ const S = () => pres.addSlide();
     { icon: 'FiTag', h: '1. Define the fee schedule', b: 'A named set of fees for a division, grade level and school year - tuition, miscellaneous, books, whatever the school charges' },
     { icon: 'FiCheckSquare', h: '2. Assess the student', b: 'Charge a schedule against one student, or type an ad-hoc charge line by line. The total is shown before anything is committed' },
     { icon: 'FiDollarSign', h: '3. Take the payment', b: 'Type the number on the ID card and the student\'s name, class and balance appear. Nothing sends until the ID names somebody' },
-    { icon: 'FiRefreshCw', h: '4. Refund if needed', b: 'A refund is its own row against the original payment. Director and Admin only, enforced on the server' },
+    { icon: 'FiRefreshCw', h: '4. Refund if needed', b: 'A refund is its own row against the original payment. The Admin only - never the cashier who took the money - enforced on the server' },
     { icon: 'FiPieChart', h: '5. Show the family the arithmetic', b: 'Charged, paid, and what is left - with the assessments listed, so a balance is never a number nobody can explain' },
     { icon: 'FiFileText', h: '6. Void a mistake, do not delete it', b: 'A wrong assessment is voided and stays visible. The history of a family\'s account is never quietly rewritten' },
   ], { cols: 2, y: 2.2, rh: 1.4 });

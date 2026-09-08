@@ -37,6 +37,20 @@ lawful-request path and an audit trail; what it does not have is a rule
 that quietly makes every private conversation readable by whoever holds
 an admin login.
 
+The audit trail was, for a while, exactly that rule wearing a different
+hat. `onAnyTenantDocWrite` copies each written document into its log
+entry, and a `conversations` document carries `lastMessage` -- a preview
+of what a parent last said, rewritten on every message. The log is read
+school-wide by the Director and the Admin, so every thread's latest line
+was landing in front of both of them. The promise above was true of the
+`conversations` rule and false of the system.
+
+`conversations` is now in the trigger's `CONTENT_WITHHELD` set: the entry
+still records who touched which thread and when, and says in its remarks
+that the content was withheld, but the values do not go in. The invariant
+it exists to hold is in `09`: the audit log must never carry content that
+its own readers could not otherwise read.
+
 ## The shape of it
 
 | Collection | One document per | Written by |

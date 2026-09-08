@@ -288,3 +288,78 @@ describe("the four things they keep", () => {
     );
   });
 });
+
+describe("the audit trail", () => {
+  // The trail is where "who changed this" is answered, so who may read
+  // it is part of the same question this file is about.
+  it("is read whole by the Director and the Admin", async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/auditLog/log_1`), {
+        userId: "admin_1",
+        module: "expenses",
+        action: "update",
+      });
+    });
+    for (const role of ["director", "admin"]) {
+      const db = contextAs(role).firestore();
+      await assertSucceeds(getDoc(doc(db, `schools/${SCHOOL}/auditLog/log_1`)));
+    }
+  });
+
+  it("shows a Principal only their own actions, not the school's", async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, `schools/${SCHOOL}/auditLog/log_mine`), {
+        userId: "principal_1",
+        module: "approvals",
+        action: "update",
+      });
+      await setDoc(doc(db, `schools/${SCHOOL}/auditLog/log_theirs`), {
+        userId: "admin_1",
+        module: "expenses",
+        action: "update",
+      });
+    });
+    const db = contextAs("principal").firestore();
+    await assertSucceeds(getDoc(doc(db, `schools/${SCHOOL}/auditLog/log_mine`)));
+    await assertFails(getDoc(doc(db, `schools/${SCHOOL}/auditLog/log_theirs`)));
+  });
+
+  it("is closed to the Owner, who is outside the school", async () => {
+    // The rule used to list 'owner' and never once matched it: hasRole()
+    // requires belongsToSchool(), and the Owner has no schoolId claim at
+    // all. The branch was removed rather than made to work -- reaching
+    // into a tenant's operational records is a boundary this build does
+    // not cross. This asserts the outcome either way.
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `schools/${SCHOOL}/auditLog/log_1`), {
+        userId: "admin_1",
+        module: "expenses",
+        action: "update",
+      });
+    });
+    const owner = testEnv.authenticatedContext("owner_1", {
+      role: "owner",
+      status: "active",
+      mustChangePassword: false,
+    });
+    await assertFails(getDoc(doc(owner.firestore(), `schools/${SCHOOL}/auditLog/log_1`)));
+  });
+
+  it("and nobody writes to it from a client, whatever their role", async () => {
+    await seed();
+    for (const role of ["director", "principal", "admin"]) {
+      const db = contextAs(role).firestore();
+      await assertFails(
+        setDoc(doc(db, `schools/${SCHOOL}/auditLog/forged`), {
+          userId: `${role}_1`,
+          module: "expenses",
+          action: "update",
+        })
+      );
+    }
+  });
+});

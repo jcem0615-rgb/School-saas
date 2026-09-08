@@ -53,12 +53,22 @@ Firestore read simply being stale for a second.
 ## Refunds require a different role than collecting payments
 
 `recordPayment` allows Director/Admin/Registrar. `recordRefund` allows
-**only** Director/Admin — Registrar is deliberately excluded. A cashier
-who can both take money in and send money back out unilaterally is a
-classic internal-control gap; requiring a more senior role to reverse a
-transaction is a real safeguard, not a formality, and is exactly the kind
-of thing a school's bookkeeper or auditor will ask about when evaluating
-whether to trust this system with their money.
+**only the Admin** — the Registrar is deliberately excluded, and the
+Director lost it along with everything else operational when the role
+became oversight-only (see `39`). A cashier who can both take money in and
+send money back out unilaterally is a classic internal-control gap;
+requiring a second, different account to reverse a transaction is a real
+safeguard, not a formality, and is exactly the kind of thing a school's
+bookkeeper or auditor will ask about when evaluating whether to trust this
+system with their money. The control the split exists for survives the
+Director's removal intact: the person who takes the money and the person
+who can give it back are still two different accounts.
+
+The router gate on the Refund button listed the Director for a while after
+the callable stopped allowing it, so the button rendered for an account the
+server would refuse. It is `admin` on both sides now. A button that is
+drawn and then refused is worse than one that is absent — on this screen it
+tells a family their money is coming back before anything can send it.
 
 ## Fee assessment: what the balance is actually for
 

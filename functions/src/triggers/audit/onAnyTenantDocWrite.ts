@@ -20,6 +20,31 @@ import {classifyAction} from "../../shared/audit/classifyAction";
  */
 const EXCLUDED_COLLECTIONS = new Set(["auditLog", "notifications", "counters", "users"]);
 
+/**
+ * Collections whose *content* must not be copied into the log, even
+ * though the fact of the write is worth recording.
+ *
+ * The trail is read school-wide by the Director and the Admin. Copying a
+ * document into an entry therefore makes that document readable by both
+ * of them, whatever the collection's own read rule says -- and for one
+ * collection the read rule says the opposite in as many words.
+ *
+ * `conversations` carries `lastMessage`, a preview of what a parent last
+ * said to a teacher, rewritten on every message. Its rule says nobody
+ * but the two participants may read a thread -- "not an admin, not the
+ * director" -- and that a school needing to see one has a lawful-request
+ * path "and an audit trail, not a back door". The audit trail was the
+ * back door.
+ *
+ * The entry is still written: who touched which thread, and when. Only
+ * the values are withheld, and the entry says so rather than looking
+ * like a document with nothing in it.
+ *
+ * The invariant, for anything added here later: the audit log must never
+ * carry content that its own readers could not otherwise read.
+ */
+const CONTENT_WITHHELD = new Set(["conversations"]);
+
 export const onAnyTenantDocWrite = onDocumentWritten(
   {document: "schools/{schoolId}/{collectionId}/{docId}", region: "asia-southeast1"},
   async (event) => {
@@ -39,7 +64,21 @@ export const onAnyTenantDocWrite = onDocumentWritten(
     // (updatedBy/createdBy, set by the client at write time) over
     // event.data metadata, since Firestore triggers don't carry the
     // caller's auth context directly.
-    const actingUid = (after?.updatedBy as string) ?? (after?.createdBy as string) ?? "unknown";
+    //
+    // `before` is consulted too, and only a delete reaches it: a hard
+    // delete has no `after`, so there is nothing left to read the actor
+    // from. Falling straight through to "unknown" made this answer "who
+    // deleted it?" with the one word the trail exists to avoid -- on the
+    // single action where the answer matters most and is least
+    // recoverable from anywhere else. The last account to touch the
+    // document is not proof of who removed it, which is why the entry
+    // says as much in its remarks.
+    const actingUid =
+      (after?.updatedBy as string) ??
+      (after?.createdBy as string) ??
+      (before?.updatedBy as string) ??
+      (before?.createdBy as string) ??
+      "unknown";
 
     let actingUserRole = "unknown";
     let actingUserName = "Unknown";
@@ -54,6 +93,15 @@ export const onAnyTenantDocWrite = onDocumentWritten(
       // Best-effort enrichment only -- never block the audit write on this.
     }
 
+    const withheld = CONTENT_WITHHELD.has(collectionId);
+    const remarks = withheld ?
+      "Content not recorded: this collection is readable only by the people " +
+        "named on the document, and the audit log is not." :
+      action === "delete" ?
+        "Deleted. The account named is the last one to have written this " +
+          "document, which is the closest the record can get." :
+        null;
+
     await writeAuditLog({
       schoolId,
       userId: actingUid,
@@ -63,9 +111,10 @@ export const onAnyTenantDocWrite = onDocumentWritten(
       action,
       targetCollection: `schools/${schoolId}/${collectionId}`,
       targetId: docId,
-      previousValue: before,
-      newValue: after,
+      previousValue: withheld ? null : before,
+      newValue: withheld ? null : after,
       success: true,
+      remarks,
     });
   }
 );

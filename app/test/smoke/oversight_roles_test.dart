@@ -15,6 +15,8 @@ import 'package:logicclass/features/payments/presentation/screens/fee_structures
 import 'package:logicclass/features/registrar_portal/presentation/screens/student_list_screen.dart';
 import 'package:logicclass/features/schedules/presentation/screens/schedule_screen.dart';
 import 'package:logicclass/features/timekeeping/presentation/screens/leave_requests_screen.dart';
+import 'package:logicclass/core/router/app_router.dart';
+import 'package:logicclass/main.dart';
 
 /// Director and Principal supervise; Admin operates.
 ///
@@ -123,6 +125,80 @@ void main() {
     testWidgets('a director can still call a meeting', (tester) async {
       await pumpAs(tester, UserRole.director, const MeetingsScreen());
       expect(find.byType(FloatingActionButton), findsWidgets);
+    });
+  });
+
+  /// The Refund button, which is decided by the router rather than by the
+  /// screen -- so it is checked through the router, on the real widget
+  /// tree, rather than by handing the screen a flag and asserting the flag
+  /// was honoured.
+  ///
+  /// This is the gate that went stale: `recordRefund` allows the Admin
+  /// alone, and the router went on drawing the button for the Director
+  /// after the role became oversight-only. A refused refund is not a
+  /// harmless dead button -- somebody has already told a family the money
+  /// is coming back by the time the server says no.
+  group('the refund button', () {
+    Future<void> openHistoryAs(WidgetTester tester, UserRole role) async {
+      // Tall on purpose. The payment rows sit below the balance breakdown
+      // and the instalment plan, and a row that never gets laid out is a
+      // row whose button finds nothing -- which would pass this test for
+      // the wrong reason. The amount assertion in each case is what makes
+      // sure the list actually rendered before the button is judged.
+      tester.view.physicalSize = const Size(1200, 7000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final container = ProviderContainer(overrides: demoOverrides());
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: const LogicClassApp()),
+      );
+      await tester.pumpAndSettle();
+
+      final uids = {for (final a in DemoStore.demoAccounts) a.uid};
+      container.read(demoStoreProvider).acknowledgedPrivacy.add(uids);
+      container.read(demoStoreProvider).acceptedTerms.add(uids);
+
+      demoSignInAs(
+        container.read(demoAuthRepositoryProvider),
+        container.read(goRouterProvider),
+        DemoStore.demoAccounts.firstWhere((a) => a.role == role),
+      );
+      await tester.pumpAndSettle();
+
+      container.read(goRouterProvider).go('${AppRoutes.paymentHistory}/stu_001');
+      await tester.pumpAndSettle();
+    }
+
+    final refund = find.widgetWithIcon(IconButton, Icons.undo);
+
+    testWidgets('is the admin\'s, and the history is theirs to act on',
+        (tester) async {
+      await openHistoryAs(tester, UserRole.admin);
+      expect(find.text('\u20B15,000.00'), findsWidgets,
+          reason: 'the history did not render, so finding no button proves nothing');
+      expect(refund, findsWidgets);
+    });
+
+    testWidgets('is not offered to a director, who reads the same history',
+        (tester) async {
+      await openHistoryAs(tester, UserRole.director);
+      expect(find.text('\u20B15,000.00'), findsWidgets);
+      expect(refund, findsNothing);
+    });
+
+    testWidgets('nor to a principal', (tester) async {
+      await openHistoryAs(tester, UserRole.principal);
+      expect(find.text('\u20B15,000.00'), findsWidgets);
+      expect(refund, findsNothing);
+    });
+
+    testWidgets('nor to the registrar, who took the money in the first place',
+        (tester) async {
+      await openHistoryAs(tester, UserRole.registrar);
+      expect(find.text('\u20B15,000.00'), findsWidgets);
+      expect(refund, findsNothing);
     });
   });
 

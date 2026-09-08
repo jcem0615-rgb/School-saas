@@ -261,13 +261,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '${AppRoutes.paymentHistory}/:studentId',
         builder: (context, state) {
           final user = ref.read(authStateProvider).valueOrNull;
-          // Only collector/refund-capable roles see the refund action;
-          // everyone else (Student viewing their own, Parent viewing a
-          // child's) gets a read-only history -- Firestore rules are the
-          // real enforcement boundary, this only controls whether the
-          // button renders.
-          final allowRefunds = user != null &&
-              (user.role == UserRole.director || user.role == UserRole.admin);
+          // The Admin alone. `recordRefund` allows that one role and the
+          // server is the enforcement boundary; this only decides whether
+          // the button renders. It listed the Director too until the
+          // Director became oversight-only, which left the button drawn
+          // for an account the callable would refuse -- an offer the
+          // system could not honour, on the screen where the answer is
+          // money going back to a family.
+          //
+          // Everyone else (a Student on their own history, a Parent on a
+          // child's) gets a read-only history, as before.
+          final allowRefunds = user != null && user.role == UserRole.admin;
           return PaymentHistoryScreen(
             studentId: state.pathParameters['studentId']!,
             allowRefunds: allowRefunds,
