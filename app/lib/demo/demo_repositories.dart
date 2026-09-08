@@ -4281,6 +4281,20 @@ class DemoEmergencyRepository implements EmergencyRepository {
         locationFailure: location?.failure,
       ),
     );
+    // The half `onEmergencyAlertCreated.ts` does. The demo had the alert
+    // document and not this, so a student pressing the button in front
+    // of a prospect rang nothing at all -- which is the one thing this
+    // feature is for.
+    _store.notify(
+      recipientUids:
+          _store.emergencyRespondersFor(studentId: studentId, section: section),
+      kind: NotificationKind.emergency,
+      title: 'Emergency alert: $studentName',
+      body: message?.isNotEmpty == true
+          ? message!
+          : '$studentName ($section) needs help.',
+      sourceId: id,
+    );
     _store.audit(
       module: 'emergencyAlerts',
       action: 'create',

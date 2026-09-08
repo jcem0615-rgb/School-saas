@@ -800,12 +800,26 @@ service cloud.firestore {
         // help is evidence; staff acknowledging an alert must not be able
         // to move it, and nor should a later edit be able to quietly
         // erase it.
+        //
+        // Whoever gets there first is who picked it up. An alert two
+        // people open at once had both of them tapping "I'm on it", and
+        // the second write replaced the first -- so the record of who
+        // actually responded became whoever tapped last. The same for
+        // resolving: the note saying what happened is written once.
+        // The screen already hides both buttons once they are used;
+        // this is what makes that true when two phones disagree.
         allow update: if belongsToSchool(schoolId)
                         && claims().role in ['director', 'principal', 'admin', 'registrar', 'faculty', 'staff', 'guidance']
                         && !request.resource.data.diff(resource.data).affectedKeys()
                               .hasAny(['userId', 'studentId', 'section', 'message', 'raisedAt',
                                        'latitude', 'longitude', 'locationAccuracyMeters',
-                                       'locationFailure']);
+                                       'locationFailure'])
+                        && (resource.data.get('acknowledgedAt', null) == null
+                            || !request.resource.data.diff(resource.data).affectedKeys()
+                                  .hasAny(['acknowledgedBy', 'acknowledgedByName', 'acknowledgedAt']))
+                        && (resource.data.get('resolvedAt', null) == null
+                            || !request.resource.data.diff(resource.data).affectedKeys()
+                                  .hasAny(['resolvedBy', 'resolvedByName', 'resolvedAt', 'resolutionNote']));
 
         allow delete: if false;
       }

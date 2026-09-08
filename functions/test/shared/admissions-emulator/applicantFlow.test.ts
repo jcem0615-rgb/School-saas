@@ -400,7 +400,12 @@ describe("the applicant flow", () => {
         expect((rejected as PromiseRejectedResult).reason.message)
           .toMatch(/enrolled a moment ago|already/i);
       }
-    });
+      // Deliberately contended, so it waits on the emulator's own
+      // transaction lock. Jest's five-second default is not enough for
+      // that, and the failure reads as a broken guarantee rather than as
+      // a slow test -- the other concurrency tests in this suite carry
+      // the same allowance for the same reason.
+    }, 30_000);
 
     it("refuses to enrol the same applicant twice, later", async () => {
       await seedApplicant({stage: "reserved"});

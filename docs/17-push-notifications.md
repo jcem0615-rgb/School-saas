@@ -141,6 +141,12 @@ parent in the school is not recoverable.
 recipient; those documents are deleted. Without it the token list grows
 forever with every reinstall and cleared browser.
 
+**An emergency alert is told to more than the adviser.** Guidance and the
+office are notified every time, alongside the section's adviser and the
+child's parents. One adviser is one absence, one resignation or one
+mistyped section name away from an alert that reaches nobody in the
+building. See `docs/22-emergency.md`.
+
 **Sends are chunked at 500 tokens.** `sendEachForMulticast` rejects more
 than that outright. A school large enough to cross the line is a school
 whose announcements would otherwise silently stop going out.
@@ -201,6 +207,9 @@ only the push half is affected.
   their parent and its teacher; it reaches nobody in another class and
   nobody who is in no class; a school-wide notice still reaches everyone
   active; a leaver is skipped; and an audience of nobody stays silent.
+* The emergency fan-out —
+  `functions/test/shared/emergency-emulator/emergencyFanOut.test.ts`,
+  against a real Firestore, reading the inbox afterwards.
 * The demo — `app/test/smoke/section_announcement_test.dart` now checks
   the inbox as well as the list. The demo repositories had the list half
   only, so a class notice posted in front of a prospect rang nothing —

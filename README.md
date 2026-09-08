@@ -205,7 +205,8 @@ npm run test:rules
 numbers claimed under contention, a payroll period issued twice, a parent
 linked to a student in one transaction, a second tap at the gate arriving
 before the first has been recorded, a class announcement fanning out to
-the class rather than to nobody. It runs the suites **serially**
+the class rather than to nobody, an emergency alert reaching the adviser
+whose assignment spells the section a shade differently. It runs the suites **serially**
 (`--runInBand`) on purpose -- they share one emulator, and running them in
 parallel makes the deliberately-contended tests fail on the emulator's own
 transaction lock rather than on anything the code did.

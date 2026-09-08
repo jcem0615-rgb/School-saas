@@ -70,6 +70,12 @@ class EmergencyRemoteDataSource {
     return _firestore
         .collection(FirestorePaths.emergencyAlerts(_schoolId))
         .where('studentId', isEqualTo: studentId)
+        // Newest first, and only then capped. Without the ordering the
+        // cap takes fifty documents in id order -- and the ids are
+        // random, so a family with a long history would have been shown
+        // an arbitrary fifty rather than the recent ones, including
+        // possibly not the alert raised this morning.
+        .orderBy('raisedAt', descending: true)
         .limit(50)
         .snapshots()
         .map((snap) =>

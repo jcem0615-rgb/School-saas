@@ -490,7 +490,7 @@ add(
     ['Payments & Balance', 'Payment History', 'What was charged, what was paid, what is left, and the breakdown of how the balance is made up. Read only.'],
     ['Pay online', 'Pay Online', 'Send a fee by GCash or bank transfer and submit the reference for review. See section 15.'],
     ['Promissory Note', 'Promissory Note', 'Ask for an extension with an amount and a reason. It files into the same approvals inbox as every other request.'],
-    ['Emergency', 'Emergency', 'One button that alerts the adviser and the linked parents, with a note of what happened. The school\'s published numbers are on the same screen.'],
+    ['Emergency', 'Emergency', 'One button that alerts the adviser, guidance, the office and the linked parents, with a note of what happened. The school\'s published numbers are on the same screen.'],
     ['Announcements', 'Announcements', 'Everything addressed to students.'],
     ['My QR ID', 'My School ID', 'The school ID card, on the phone and printable.'],
     ['Profile', 'Profile', 'As section 3.2.'],
@@ -704,13 +704,25 @@ add(
 add(
   H1('19. Emergency'),
   featureTable([
-    ['Emergency (student)', 'Emergency', 'One button, with a note of what happened. Sending it notifies the student\'s adviser and their linked parents.'],
+    ['Emergency (student)', 'Emergency', 'One button, with a note of what happened. Sending it notifies the student\'s class adviser, guidance, the office and their linked parents - at once, and at high priority.'],
     ['Emergency Alerts (staff)', 'Emergency Alerts', 'Live alerts raised in the school. Faculty, Guidance, Principal, Admin and the Director can see them, and any of them can resolve one.'],
-    ['Resolve', 'Emergency Alerts', 'Closes an alert, recorded with who resolved it and when.'],
+    ['Acknowledge', 'Emergency Alerts', 'Says somebody is on their way. Recorded with who and when, and written once - if two people tap it, the first is the one who picked it up.'],
+    ['Resolve', 'Emergency Alerts', 'Closes an alert with a note of what happened, recorded with who resolved it and when. Also written once.'],
     ['Emergency Alerts (parent)', 'Emergency Alerts', 'Alerts about their own children, with the numbers to call. An unresolved one also appears as a banner on the parent dashboard.'],
     ['Emergency Numbers', 'Emergency Numbers', 'The school\'s published list - clinic, guard, barangay, hospital - each with who answers, the number, a note and its position in the list. One tap dials.'],
     ['Add number', 'Emergency Numbers', 'Director and Admin publish and reorder the list.'],
   ], ['Control', 'Where', 'What it does']),
+  H2('19.1 Who is told, and why it is not just the adviser'),
+  P('The class adviser knows the child and is usually nearest to them, so they are told first. They are '
+    + 'not told alone. A section with no adviser set, an adviser who has left, or a section name typed a '
+    + 'shade differently on the teacher\'s assignment than on the student record, and an alert that named '
+    + 'only the adviser would reach nobody in the building at all. So guidance and the office are told '
+    + 'every time as well. Over-telling is the right failure for the one message somebody may be in '
+    + 'danger behind.'),
+  P('Where the student was, if their phone could say, is captured at the moment the button is pressed and '
+    + 'never afterwards - this is where they called for help from, not a track of where they went. Asking '
+    + 'for it never delays the alert: after eight seconds the alert goes without it, carrying a note of '
+    + 'why there is no position rather than a blank.'),
 );
 
 // ---------------------------------------------------------------- 20 Import/export

@@ -309,7 +309,7 @@ const S = () => pres.addSlide();
     { icon: 'FiClock', h: 'Attendance', b: 'Their own record, every scan, in and out' },
     { icon: 'FiDollarSign', h: 'Payments & Balance', b: 'What was charged, what was paid, what is left - and how it adds up' },
     { icon: 'FiFileText', h: 'Promissory Note', b: 'Ask for an extension with an amount and a reason' },
-    { icon: 'FiAlertTriangle', h: 'Emergency', b: 'One button that alerts the adviser and the parents' },
+    { icon: 'FiAlertTriangle', h: 'Emergency', b: 'One button that alerts the adviser, guidance, the office and the parents' },
     { icon: 'FiBell', h: 'Announcements', b: 'Everything addressed to students' },
     { icon: 'FiCreditCard', h: 'My QR ID', b: 'The school ID card, on the phone and printable' },
   ], { cols: 2, y: 2.15, rh: 0.87, disc: '2E3A70', glyph: C.accent,
@@ -506,7 +506,7 @@ const S = () => pres.addSlide();
   await rowList(s, [
     { icon: 'FiBell', h: 'An announcement', b: 'Reaches every account it is addressed to - a role, or one class, and only those. Whose phone rings is decided on the server, not by a filter on a list' },
     { icon: 'FiUserX', h: 'A guidance summons', b: 'The student and every linked parent are told, and told again if the office calls it off. A family should not rearrange a day around an appointment that is not happening' },
-    { icon: 'FiAlertTriangle', h: 'An emergency', b: 'The class adviser and the student\'s parents, at high priority, with the app closed' },
+    { icon: 'FiAlertTriangle', h: 'An emergency', b: 'The class adviser, guidance, the office and the student\'s parents, at high priority, with the app closed' },
     { icon: 'FiCalendar', h: 'A leave decision', b: 'The employee who filed it. Somebody who never hears back either comes in when they should not have, or stays away when they were expected' },
     { icon: 'FiMessageCircle', h: 'A message', b: 'The other person in the conversation, named by the child it is about' },
     { icon: 'FiInbox', h: 'And all of it, in one inbox', b: 'Reached from the bell in every portal. A phone that was off, or a browser that never granted permission, misses nothing' },

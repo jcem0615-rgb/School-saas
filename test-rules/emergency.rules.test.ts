@@ -212,6 +212,71 @@ describe("who sees and handles an alert", () => {
     );
   });
 
+  test("a second member of staff CANNOT overwrite who picked it up", async () => {
+    // Two people open the list and both tap "I'm on it". The second
+    // write used to replace the first, so the record of who actually
+    // responded became whoever tapped last.
+    await seed();
+    const first = contextAs("faculty", "faculty_a").firestore();
+    await assertSucceeds(
+      updateDoc(doc(first, `schools/${SCHOOL}/emergencyAlerts/alert_1`), {
+        acknowledgedBy: "faculty_a",
+        acknowledgedByName: "Maria Santos",
+        acknowledgedAt: serverTimestamp(),
+      })
+    );
+
+    const second = contextAs("guidance", "guidance_a").firestore();
+    await assertFails(
+      updateDoc(doc(second, `schools/${SCHOOL}/emergencyAlerts/alert_1`), {
+        acknowledgedBy: "guidance_a",
+        acknowledgedByName: "Ana Reyes",
+        acknowledgedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  test("but CAN still resolve one somebody else acknowledged", async () => {
+    // Picking it up and closing it are two different acts, and often two
+    // different people.
+    await seed();
+    const first = contextAs("faculty", "faculty_a").firestore();
+    await updateDoc(doc(first, `schools/${SCHOOL}/emergencyAlerts/alert_1`), {
+      acknowledgedBy: "faculty_a",
+      acknowledgedByName: "Maria Santos",
+      acknowledgedAt: serverTimestamp(),
+    });
+
+    const second = contextAs("guidance", "guidance_a").firestore();
+    await assertSucceeds(
+      updateDoc(doc(second, `schools/${SCHOOL}/emergencyAlerts/alert_1`), {
+        resolvedBy: "guidance_a",
+        resolvedByName: "Ana Reyes",
+        resolutionNote: "Taken to the clinic. Parents called.",
+        resolvedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  test("and a resolved alert CANNOT be re-resolved with a different account of it", async () => {
+    await seed();
+    const first = contextAs("faculty", "faculty_a").firestore();
+    await updateDoc(doc(first, `schools/${SCHOOL}/emergencyAlerts/alert_1`), {
+      resolvedBy: "faculty_a",
+      resolvedByName: "Maria Santos",
+      resolutionNote: "Taken to the clinic.",
+      resolvedAt: serverTimestamp(),
+    });
+
+    const second = contextAs("admin", "admin_a").firestore();
+    await assertFails(
+      updateDoc(doc(second, `schools/${SCHOOL}/emergencyAlerts/alert_1`), {
+        resolutionNote: "Nothing happened.",
+        resolvedAt: serverTimestamp(),
+      })
+    );
+  });
+
   test("staff CANNOT rewrite what the student said", async () => {
     // Handling an alert must not be a route to editing the report.
     await seed();

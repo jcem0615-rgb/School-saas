@@ -783,6 +783,47 @@ class DemoStore {
     return uids.toList();
   }
 
+  /// Who a student's emergency alert goes to, the same set
+  /// `onEmergencyAlertCreated.ts` resolves: the section's adviser, the
+  /// roles whose job it is to respond, and the child's linked parents.
+  ///
+  /// The adviser alone is not enough. A section with none set, or a
+  /// section name typed a shade differently on the assignment than on
+  /// the student record, and the alert reaches nobody in the building.
+  List<String> emergencyRespondersFor({
+    required String studentId,
+    required String section,
+  }) {
+    const responderRoles = {
+      UserRole.guidance,
+      UserRole.director,
+      UserRole.principal,
+      UserRole.admin,
+    };
+    final uids = <String>{};
+
+    final wanted = _normalizeSection(section);
+    for (final assignment in assignments.value) {
+      if (!assignment.isAdviser) continue;
+      if (_normalizeSection(assignment.section) != wanted) continue;
+      uids.add(assignment.teacherId);
+    }
+    for (final account in demoAccounts) {
+      if (account.schoolId == null) continue;
+      if (account.status != UserAccountStatus.active) continue;
+      if (responderRoles.contains(account.role)) uids.add(account.uid);
+      if (account.role == UserRole.parent &&
+          (account.linkedStudentIds ?? const []).contains(studentId)) {
+        uids.add(account.uid);
+      }
+    }
+    return uids.toList();
+  }
+
+  /// Matches `normalizeSection` in functions/src/shared/sections.ts.
+  static String _normalizeSection(String section) =>
+      section.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
   void dispose() {
     for (final s in <BehaviorSubject<dynamic>>[
       currentUser, schools, revenue, invoices, students, employees,

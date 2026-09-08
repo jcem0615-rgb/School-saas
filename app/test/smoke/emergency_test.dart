@@ -114,6 +114,74 @@ void main() {
       expect(alert.isAcknowledged, isFalse);
     });
 
+    test('it tells the adviser, guidance, the office and the parents', () async {
+      // The demo had the alert document and not the notification, so
+      // pressing the button in front of a prospect rang nothing -- which
+      // is the one thing this feature exists to do.
+      final container = await signedInAs(UserRole.student);
+      final sub = container.listen(emergencyActionControllerProvider, (_, __) {});
+      addTearDown(sub.close);
+      final store = container.read(demoStoreProvider);
+
+      await container.read(emergencyActionControllerProvider.notifier).raiseAlert(
+            studentId: 'stu_001',
+            studentName: 'Miguel Torres',
+            section: 'Grade 10 - Rizal',
+          );
+
+      bool told(String uid) => (store.notifications.value[uid] ?? const [])
+          .any((n) => n.title.contains('Miguel Torres'));
+
+      expect(told('u_faculty'), isTrue, reason: 'the section adviser');
+      expect(told('u_guidance'), isTrue, reason: 'whose job this is');
+      expect(told('u_director'), isTrue);
+      expect(told('u_admin'), isTrue);
+      expect(told('u_parent'), isTrue, reason: "the child's own parent");
+      expect(told('u_registrar'), isFalse, reason: 'not a responder');
+    });
+
+    test('and still tells the school when the section has no adviser', () async {
+      // The adviser alone is one absence, one resignation or one typo
+      // away from nobody in the building being told.
+      final container = await signedInAs(UserRole.student);
+      final sub = container.listen(emergencyActionControllerProvider, (_, __) {});
+      addTearDown(sub.close);
+      final store = container.read(demoStoreProvider);
+
+      await container.read(emergencyActionControllerProvider.notifier).raiseAlert(
+            studentId: 'stu_001',
+            studentName: 'Miguel Torres',
+            section: 'Grade 12 - Nobody Advises This',
+          );
+
+      bool told(String uid) => (store.notifications.value[uid] ?? const [])
+          .any((n) => n.title.contains('Miguel Torres'));
+
+      expect(told('u_guidance'), isTrue);
+      expect(told('u_director'), isTrue);
+    });
+
+    test('a section name typed differently still finds the adviser', () async {
+      // Section names are entered by hand in two places. An exact match
+      // meant the nearest member of staff was silently not told.
+      final container = await signedInAs(UserRole.student);
+      final sub = container.listen(emergencyActionControllerProvider, (_, __) {});
+      addTearDown(sub.close);
+      final store = container.read(demoStoreProvider);
+
+      await container.read(emergencyActionControllerProvider.notifier).raiseAlert(
+            studentId: 'stu_001',
+            studentName: 'Miguel Torres',
+            section: '  grade 10  -  rizal ',
+          );
+
+      expect(
+        (store.notifications.value['u_faculty'] ?? const [])
+            .any((n) => n.title.contains('Miguel Torres')),
+        isTrue,
+      );
+    });
+
     test('staff see it and can acknowledge, then resolve', () async {
       final container = await signedInAs(UserRole.student);
       final studentSub = container.listen(emergencyActionControllerProvider, (_, __) {});
