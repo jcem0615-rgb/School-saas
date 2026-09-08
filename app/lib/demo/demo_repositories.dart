@@ -5134,7 +5134,9 @@ class DemoTimekeepingRepository implements TimekeepingRepository {
   final DemoStore _store;
   DemoTimekeepingRepository(this._store);
 
-  static const _officeRoles = {UserRole.director, UserRole.principal, UserRole.admin};
+  /// The Admin decides leave. Director and Principal read the queue and
+  /// no longer act on it -- see `UserRole.isOversightOnly`.
+  static const _officeRoles = {UserRole.admin};
 
   @override
   Stream<List<LeaveRequest>> watchMyLeave() {
@@ -5257,7 +5259,7 @@ class DemoTimekeepingRepository implements TimekeepingRepository {
       return const Error(ServerFailure('That request no longer exists.'));
     }
     if (!_officeRoles.contains(user.role)) {
-      return const Error(ServerFailure('Only the office decides leave.'));
+      return const Error(ServerFailure('Only the Admin decides leave.'));
     }
     if (!request.isPending) {
       return const Error(ServerFailure('That request has already been decided.'));

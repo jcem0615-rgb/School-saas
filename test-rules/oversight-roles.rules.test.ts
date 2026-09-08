@@ -120,6 +120,14 @@ async function seed() {
       sortOrder: 1,
       isDeleted: false,
     });
+    await setDoc(doc(db, `schools/${SCHOOL}/leaveRequests/lv_1`), {
+      employeeUid: "faculty_1",
+      status: "pending",
+      days: 2,
+      fromDate: "2026-03-02",
+      toDate: "2026-03-03",
+      decidedByUid: null,
+    });
     await setDoc(doc(db, `schools/${SCHOOL}/emergencyAlerts/alert_1`), {
       studentId: "stu_1",
       userId: "student_1",
@@ -196,6 +204,31 @@ describe("what they may still read", () => {
 });
 
 describe("the four things they keep", () => {
+  it("but not a leave request -- that went to the Admin as well", async () => {
+    await seed();
+    for (const role of ["director", "principal"]) {
+      const db = contextAs(role).firestore();
+      await assertFails(
+        updateDoc(doc(db, `schools/${SCHOOL}/leaveRequests/lv_1`), {
+          status: "approved",
+          decidedByUid: `${role}_1`,
+          decidedByName: "The Office",
+          decidedByRole: role,
+          decidedAt: new Date(),
+          decisionRemarks: "Get well",
+          updatedAt: new Date(),
+          updatedBy: `${role}_1`,
+        })
+      );
+    }
+  });
+
+  it("though they still read the queue", async () => {
+    await seed();
+    const db = contextAs("director").firestore();
+    await assertSucceeds(getDoc(doc(db, `schools/${SCHOOL}/leaveRequests/lv_1`)));
+  });
+
   it("a director decides an approval request", async () => {
     await seed();
     const db = contextAs("director").firestore();

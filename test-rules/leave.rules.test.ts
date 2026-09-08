@@ -199,7 +199,7 @@ describe("deciding", () => {
     updatedBy: uid,
   });
 
-  it("the office approves or declines", async () => {
+  it("the admin approves or declines", async () => {
     const db = contextAs("admin", "admin_a").firestore();
     await assertSucceeds(
       updateDoc(
@@ -207,6 +207,23 @@ describe("deciding", () => {
         decision("admin_a", "admin")
       )
     );
+  });
+
+  it("and nobody else in the office does", async () => {
+    // Director and Principal read this queue -- the test above proves
+    // that -- and no longer decide in it. Supervision, not operation.
+    for (const [role, uid] of [
+      ["director", "director_a"],
+      ["principal", "principal_a"],
+    ] as const) {
+      const db = contextAs(role, uid).firestore();
+      await assertFails(
+        updateDoc(
+          doc(db, `schools/${SCHOOL}/leaveRequests/lv_1`),
+          decision(uid, role)
+        )
+      );
+    }
   });
 
   it("but cannot record the decision under somebody else's name", async () => {

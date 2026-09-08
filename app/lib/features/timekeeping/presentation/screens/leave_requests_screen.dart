@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/auth/capabilities.dart';
+
 import '../../domain/entities/leave_request.dart';
 import '../controllers/timekeeping_controller.dart';
 import '../widgets/leave_tile.dart';
@@ -30,6 +32,11 @@ class LeaveRequestsScreen extends ConsumerWidget {
           ),
         ),
         data: (all) {
+          // Director and Principal read this queue and no longer decide
+          // in it -- see canOperateProvider. LeaveTile draws no buttons
+          // when the callbacks are null, so the pending list stays
+          // visible and stops being actionable.
+          final canDecide = ref.watch(canOperateProvider);
           final pending = all.where((r) => r.isPending).toList();
           final decided = all.where((r) => !r.isPending).toList();
 
@@ -51,17 +58,21 @@ class LeaveRequestsScreen extends ConsumerWidget {
               _SectionHeader(
                 label: pending.isEmpty
                     ? 'Nothing waiting'
-                    : pending.length == 1
-                        ? '1 waiting on you'
-                        : '${pending.length} waiting on you',
+                    : !canDecide
+                        ? '${pending.length} waiting on the Admin'
+                        : pending.length == 1
+                            ? '1 waiting on you'
+                            : '${pending.length} waiting on you',
                 emphasis: pending.isNotEmpty,
               ),
               for (final request in pending)
                 LeaveTile(
                   request: request,
                   showEmployee: true,
-                  onApprove: () => _decide(context, ref, request, true),
-                  onDecline: () => _decide(context, ref, request, false),
+                  onApprove:
+                      !canDecide ? null : () => _decide(context, ref, request, true),
+                  onDecline:
+                      !canDecide ? null : () => _decide(context, ref, request, false),
                 ),
               if (decided.isNotEmpty) ...[
                 const _SectionHeader(label: 'Already decided'),

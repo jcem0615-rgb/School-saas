@@ -45,6 +45,7 @@ press.
 | Emergency numbers | Director, Principal, Admin | Admin |
 | Year-end rollover | Director, Admin, Registrar | Admin, Registrar |
 | Data-subject requests | Director, Admin, Registrar | Admin, Registrar |
+| Leave decisions | Director, Principal, Admin | Admin |
 
 ## What they keep
 
@@ -54,8 +55,9 @@ Four things, and each is a decision rather than data entry.
 that queue. Handing it to the Admin alone would mean an Admin deciding
 requests they filed themselves, which is not an approval.
 
-**Leave decisions.** The same argument, for the same reason: an office
-that can only approve its own leave is not an approval step either.
+Leave decisions were on this list on the same argument, and were then
+moved to the Admin deliberately -- see the third consequence below. Both
+roles still *read* the leave queue: knowing who is off is supervision.
 
 **Announcements.** Saying something to the school, under their own name.
 Authorship is pinned on create *and* update, so a notice stays their
@@ -82,6 +84,15 @@ account-status callable, "only a Director may" would have meant nobody
 in the school could ever deactivate a departed Principal — so
 `setUserStatus` gained an Owner path instead. Without that, this change
 would have created a lock-out where none existed.
+
+**An Admin now decides their own leave.** Leave decisions moved to the
+Admin alone, which means the one person who can decide a leave request is
+also somebody who files them. There is deliberately no self-decision
+block: adding one would leave an Admin's own leave undecidable by
+anybody, since nobody else in the school can decide it. A school that
+wants a second pair of eyes on that runs two Admin accounts. This is the
+one place where the model gives up a separation it kept elsewhere, and it
+is a choice rather than an oversight.
 
 ## How it is enforced, in three places
 

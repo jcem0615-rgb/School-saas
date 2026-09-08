@@ -22,9 +22,10 @@ Owner (platform-level)
 > **Since Module 39, the Principal is oversight-only.** They read their
 > division and change almost nothing in it: the timetable, teacher
 > assignments, student records and the school's emergency numbers all
-> belong to the Admin now. What a Principal keeps is deciding approvals
-> and leave, posting announcements, calling meetings, and picking up an
-> emergency alert. Everything below about *what a Principal can see* still
+> belong to the Admin now. What a Principal keeps is deciding approvals,
+> posting announcements, calling meetings, and picking up an emergency
+> alert -- not a leave decision, which is the Admin's, though they still
+> read the queue. Everything below about *what a Principal can see* still
 > holds; the write halves have moved. See
 > `docs/39-oversight-and-operations.md`.
 

@@ -14,6 +14,7 @@ import 'package:logicclass/features/emergency/presentation/screens/emergency_con
 import 'package:logicclass/features/payments/presentation/screens/fee_structures_screen.dart';
 import 'package:logicclass/features/registrar_portal/presentation/screens/student_list_screen.dart';
 import 'package:logicclass/features/schedules/presentation/screens/schedule_screen.dart';
+import 'package:logicclass/features/timekeeping/presentation/screens/leave_requests_screen.dart';
 
 /// Director and Principal supervise; Admin operates.
 ///
@@ -82,6 +83,30 @@ void main() {
             reason: 'the admin operates: ${entry.key} must still be editable');
       });
     }
+  });
+
+  group('the leave queue', () {
+    // Read by both oversight roles, decided by neither. The queue stays
+    // on their dashboard because knowing who is off is supervision; the
+    // Approve and Decline buttons are not offered.
+    testWidgets('a director sees it and is offered no decision', (tester) async {
+      await pumpAs(tester, UserRole.director, const LeaveRequestsScreen());
+      expect(find.text('Approve'), findsNothing);
+      expect(find.text('Decline'), findsNothing);
+      expect(find.textContaining('waiting on the Admin'), findsWidgets);
+    });
+
+    testWidgets('a principal likewise', (tester) async {
+      await pumpAs(tester, UserRole.principal, const LeaveRequestsScreen());
+      expect(find.text('Approve'), findsNothing);
+      expect(find.text('Decline'), findsNothing);
+    });
+
+    testWidgets('and the admin decides it', (tester) async {
+      await pumpAs(tester, UserRole.admin, const LeaveRequestsScreen());
+      expect(find.text('Approve'), findsWidgets);
+      expect(find.text('Decline'), findsWidgets);
+    });
   });
 
   group('what a supervisor keeps', () {

@@ -23,6 +23,8 @@ service cloud.firestore {
     //   approvals    -- deciding a request. Handing this to the Admin
     //                   alone would mean an Admin deciding requests they
     //                   filed themselves, which is not an approval.
+    //                   Leave decisions went to the Admin anyway, by a
+    //                   later decision; approvals did not.
     //   announcements -- saying something to the school, under their own
     //                   name. Authorship is pinned on both create and
     //                   update, so it stays their words.
@@ -493,8 +495,20 @@ service cloud.firestore {
                           // account that made it -- the same rule the
                           // approvals queue uses, and for the same
                           // reason.
+                          //
+                          // The Admin, and only the Admin. Director and
+                          // Principal read this queue and no longer
+                          // decide in it. One consequence is worth
+                          // naming rather than leaving to be found: an
+                          // Admin's own leave is now decided by the
+                          // Admin. There is no self-decision block here
+                          // and adding one would make an Admin's leave
+                          // undecidable by anybody, since nobody else in
+                          // the school can decide it. A school that
+                          // needs a second pair of eyes on that has two
+                          // Admin accounts.
                           (
-                            hasRole(schoolId, ['director', 'principal', 'admin'])
+                            hasRole(schoolId, ['admin'])
                             && request.resource.data.status in ['approved', 'declined']
                             && request.resource.data.decidedByUid == request.auth.uid
                             && request.resource.data.decidedByRole == claims().role
