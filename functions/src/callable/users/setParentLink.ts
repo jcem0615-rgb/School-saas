@@ -17,7 +17,7 @@ interface SetParentLinkData {
 // it sees. Faculty and guidance are deliberately absent: a class adviser
 // knowing a family is not the same as being allowed to grant somebody
 // access to a child's record.
-const ALLOWED_ROLES = ["director", "admin", "registrar"];
+const ALLOWED_ROLES = ["admin", "registrar"];
 
 /**
  * Attaches a parent account to a child's record, or detaches it.

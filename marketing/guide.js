@@ -186,6 +186,18 @@ add(
     + 'not theirs, and nothing has to be copied from one part of the school to another - a mark a teacher '
     + 'submits is the same record a parent reads, and a payment a cashier records is the same figure that '
     + 'moves a balance.'),
+  H2('Who supervises and who operates'),
+  P('Two of the ten roles read the school without changing it. A Director runs the school and a '
+    + 'Principal runs a division, and both of them are oversight: they open every screen they are '
+    + 'entitled to, and the buttons that add, edit or delete are not offered to them. Everything the '
+    + 'school changes week to week - enrolling a student, charging a fee, moving stock, building the '
+    + 'timetable, setting what somebody is paid - is the Admin\'s.'),
+  P('They keep four things, because each is a decision rather than data entry: deciding an approval '
+    + 'request, deciding a leave request, posting an announcement under their own name, and calling a '
+    + 'meeting. A Director or Principal can also pick up an emergency alert, and the first one to do so '
+    + 'is the one the record names.'),
+  P('This is enforced in the database rules, not only in the app. A supervisor is never shown a form '
+    + 'that the server would then refuse.'),
   H2('What this guide covers'),
   P('Every portal, every screen, and every button on it. Where a button leads somewhere with its own '
     + 'buttons, that screen has its own table. Cross-cutting features - attendance, fees, records and '
@@ -207,9 +219,9 @@ add(
   H1('2. The nine portals at a glance'),
   P('One school runs all nine. An account belongs to exactly one of them.'),
   featureTable([
-    ['Director', 'School-wide leadership', 'Today\'s figures, announcements, meetings, approvals, fee schedules, expenses, reports, audit trail, system check, data requests.'],
-    ['Principal', 'One division', 'Student records, class schedule, teacher assignment, announcements, meetings, approvals, emergency - all limited to their division.'],
-    ['Admin', 'School operations', 'Employee accounts, teacher assignment, strands and programs, branding, schedules, fee schedules, reports, audit trail, attendance scanning, leave requests and staff timesheets.'],
+    ['Director', 'School-wide oversight', 'Reads everything in the school - today\'s figures, fee schedules, expenses, payroll, reports, the audit trail - and changes four things: announcements, meetings, approvals and leave decisions. Editing the school\'s records is the Admin\'s.'],
+    ['Principal', 'One division, oversight only', 'Reads student records, the class schedule and teacher assignments for their division; decides approvals and leave, posts announcements, calls meetings, picks up an emergency alert. No edit buttons on the records themselves.'],
+    ['Admin', 'School operations - the operator', 'Employee accounts, teacher assignment, strands and programs, branding, schedules, fee schedules, receipt booklets, expenses, payroll, inventory, reports, audit trail, attendance scanning, leave requests and staff timesheets. Everything the school changes week to week.'],
     ['Registrar / Cashier', 'The front counter', 'Enrolment, student records, fee assessment, payments and receipts, printed forms, online-payment review and setup, data requests.'],
     ['Faculty', 'Teaching', 'Own timetable, class registers with time in and out, coursework, answer keys, submissions, grade submission, material requests, attendance scanning, messages with parents, own leave and timesheet.'],
     ['Guidance', 'Student welfare', 'Guidance records, student summons, emergency alerts.'],

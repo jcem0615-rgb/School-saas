@@ -110,11 +110,16 @@ describe("who may keep it", () => {
     await assertSucceeds(updateDoc(doc(db, ITEM), {location: "Stock room B"}));
   });
 
-  it("director and admin, who own what the school buys", async () => {
-    for (const role of ["director", "admin"]) {
-      const db = contextAs(role, `${role}_a`).firestore();
-      await assertSucceeds(updateDoc(doc(db, ITEM), {reorderLevel: 8}));
-    }
+  it("the admin, who owns what the school buys", async () => {
+    const db = contextAs("admin", "admin_a").firestore();
+    await assertSucceeds(updateDoc(doc(db, ITEM), {reorderLevel: 8}));
+  });
+
+  it("not the director, who reads the stock room and does not keep it", async () => {
+    // Supervision, not operation. See the note at the top of
+    // firestore.rules.
+    const db = contextAs("director", "director_a").firestore();
+    await assertFails(updateDoc(doc(db, ITEM), {reorderLevel: 8}));
   });
 
   it("not a teacher, who reads it every day", async () => {

@@ -57,7 +57,13 @@ const PROVISIONING_MATRIX: Record<string, string[]> = {
   // and an Admin to do the day-to-day setup, without having to sign in as
   // the Director first just to create the Admin.
   owner: ["director", "admin"],
-  director: ["admin", "principal", "registrar", "faculty", "staff", "guidance"],
+  // The Director does not appear here. Creating an account is an
+  // operational act -- it hands somebody a password and a role -- and the
+  // Director supervises rather than operates (see the note at the top of
+  // firestore.rules). The consequence is deliberate and worth stating:
+  // if a school's Admin leaves or is locked out, the Director cannot
+  // mint a replacement, and the Owner does it. That is the cost of the
+  // Director not being able to give themselves an operator.
   admin: ["principal", "registrar", "faculty", "staff", "guidance"],
   registrar: ["student", "parent"],
 };

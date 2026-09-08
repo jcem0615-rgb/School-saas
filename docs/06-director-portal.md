@@ -1,5 +1,14 @@
 # Module 6: Director Portal
 
+> **Since Module 39, the Director is oversight-only.** They read every
+> screen in this document and write on four of them: Announcements,
+> Meeting Scheduler, Approvals, and picking up an emergency alert.
+> Expenses, fee schedules, receipt booklets, payroll, branding, settings,
+> account creation and account status have all moved to the Admin — and a
+> Director's or Principal's own account status has moved to the Owner. See
+> `docs/39-oversight-and-operations.md` for the full table and the two
+> consequences that came with it.
+
 ## Overview
 
 Director Portal covers Dashboard, Announcements, Meeting Scheduler,

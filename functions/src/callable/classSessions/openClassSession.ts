@@ -30,7 +30,7 @@ interface OpenClassSessionData {
  * same one-way boundary the QR scanner draws: a compromised student
  * device must not be able to mark itself present.
  */
-const COVER_ROLES = ["director", "principal", "admin"];
+const COVER_ROLES = ["admin"];
 const ALLOWED_ROLES = ["faculty", ...COVER_ROLES];
 
 /** The session document plus one mark each, inside Firestore's 500-write batch. */

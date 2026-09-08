@@ -19,7 +19,7 @@ interface MarkSubjectAttendanceData {
 }
 
 const MARKS = ["present", "late", "absent", "excused"];
-const COVER_ROLES = ["director", "principal", "admin"];
+const COVER_ROLES = ["admin"];
 const ALLOWED_ROLES = ["faculty", ...COVER_ROLES];
 
 /**

@@ -4,6 +4,45 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // -------------------------------------------------------------------
+    // Director and Principal supervise; Admin operates.
+    // -------------------------------------------------------------------
+    //
+    // Neither oversight role appears in an operational write rule in this
+    // file, and that is deliberate rather than incidental. A Director
+    // runs the school and a Principal runs a division; both of them read
+    // everything they are entitled to and change almost nothing. Every
+    // create, update and delete on the school's records -- students,
+    // fees, receipt booklets, expenses, inventory, programs, the
+    // timetable, teacher assignments, branding, settings, what somebody
+    // is paid -- belongs to the Admin, alongside the Registrar and the
+    // Faculty in their own areas.
+    //
+    // They keep exactly four things, and each is a decision rather than
+    // data entry:
+    //
+    //   approvals    -- deciding a request. Handing this to the Admin
+    //                   alone would mean an Admin deciding requests they
+    //                   filed themselves, which is not an approval.
+    //   announcements -- saying something to the school, under their own
+    //                   name. Authorship is pinned on both create and
+    //                   update, so it stays their words.
+    //   meetings     -- calling one, which is a claim on people's time
+    //                   rather than a change to a record.
+    //   emergencyAlerts -- acknowledging and resolving. Somebody in
+    //                   charge must be able to say "I am on it", and the
+    //                   first person to do so is the one recorded.
+    //
+    // Reads are untouched. Taking the buttons away is the point; taking
+    // the visibility away would defeat it, because a supervisor who
+    // cannot see the records cannot supervise. Division scoping still
+    // narrows what a Principal reads -- see docs/15 and docs/16.
+    //
+    // The client half is `UserRole.isOversightOnly` in
+    // app/lib/core/constants/user_roles.dart, which is what stops a
+    // screen offering a button these rules would refuse. The full model
+    // is written up in docs/39-oversight-and-operations.md.
+
+    // -------------------------------------------------------------------
     // Helper functions
     // -------------------------------------------------------------------
 
@@ -219,7 +258,7 @@ service cloud.firestore {
       // billing-relevant fields (billingRatePerStudent) are Owner-only and
       // live in platform_schools instead, never here.
       allow read: if belongsToSchool(schoolId);
-      allow write: if hasRole(schoolId, ['director', 'admin']);
+      allow write: if hasRole(schoolId, ['admin']);
 
       // ---- users ----
       match /users/{userId} {
@@ -251,7 +290,7 @@ service cloud.firestore {
         // on either screen looks unusual afterwards. setParentLink.ts is
         // the only writer, so the change is checked and lands in the
         // audit trail with a name against it.
-        allow update: if hasRole(schoolId, ['director', 'admin'])
+        allow update: if hasRole(schoolId, ['admin'])
                         && schoolIsAccessible(schoolId)
                         && !request.resource.data.diff(resource.data)
                               .affectedKeys()
@@ -549,6 +588,9 @@ service cloud.firestore {
       }
 
       // ---- meetings ----
+      // One of the four things the two oversight roles still write.
+      // Calling a meeting is what a Director and a Principal do; it is a
+      // decision about people's time rather than a change to a record.
       match /meetings/{meetingId} {
         allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
         allow create: if hasRole(schoolId, ['director', 'principal', 'admin']) && schoolIsAccessible(schoolId);
@@ -644,7 +686,7 @@ service cloud.firestore {
       // would be the single most damaging write in this system.
       match /settings/{settingId} {
         allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
-        allow write: if hasRole(schoolId, ['director', 'admin', 'registrar'])
+        allow write: if hasRole(schoolId, ['admin', 'registrar'])
                        && schoolIsAccessible(schoolId);
       }
 
@@ -653,8 +695,8 @@ service cloud.firestore {
       // not to every tenant member the way announcements/meetings are.
       match /expenses/{expenseId} {
         allow read: if hasRole(schoolId, ['director', 'admin', 'registrar']) && schoolIsAccessible(schoolId);
-        allow create: if hasRole(schoolId, ['director', 'admin']) && schoolIsAccessible(schoolId);
-        allow update: if hasRole(schoolId, ['director', 'admin'])
+        allow create: if hasRole(schoolId, ['admin']) && schoolIsAccessible(schoolId);
+        allow update: if hasRole(schoolId, ['admin'])
                         && schoolIsAccessible(schoolId)
                         && request.resource.data.createdBy == resource.data.createdBy;
         allow delete: if false;
@@ -663,8 +705,8 @@ service cloud.firestore {
       // ---- teacherAssignments ----
       match /teacherAssignments/{assignmentId} {
         allow read: if hasRole(schoolId, ['director', 'principal', 'admin', 'registrar', 'faculty']) && schoolIsAccessible(schoolId);
-        allow create: if hasRole(schoolId, ['director', 'principal', 'admin']) && schoolIsAccessible(schoolId);
-        allow update: if hasRole(schoolId, ['director', 'principal', 'admin'])
+        allow create: if hasRole(schoolId, ['admin']) && schoolIsAccessible(schoolId);
+        allow update: if hasRole(schoolId, ['admin'])
                         && schoolIsAccessible(schoolId)
                         && request.resource.data.createdBy == resource.data.createdBy;
         allow delete: if false;
@@ -699,7 +741,7 @@ service cloud.firestore {
                         && request.resource.data.handledByName == null
                         && request.resource.data.outcome == null;
 
-        allow update: if hasRole(schoolId, ['director', 'admin', 'registrar'])
+        allow update: if hasRole(schoolId, ['admin', 'registrar'])
                         && schoolIsAccessible(schoolId)
                         // The request itself is what was asked; only the
                         // answer may change.
@@ -742,11 +784,11 @@ service cloud.firestore {
                         resource.data.published == true
                         || hasRole(schoolId, ['director', 'principal', 'admin', 'faculty', 'registrar', 'guidance'])
                       );
-        allow create: if hasRole(schoolId, ['faculty', 'director', 'admin'])
+        allow create: if hasRole(schoolId, ['faculty', 'admin'])
                         && schoolIsAccessible(schoolId)
                         && request.resource.data.teacherId == request.auth.uid;
         allow update: if schoolIsAccessible(schoolId)
-                        && (resource.data.teacherId == request.auth.uid || hasRole(schoolId, ['director', 'principal', 'admin']))
+                        && (resource.data.teacherId == request.auth.uid || hasRole(schoolId, ['admin']))
                         && request.resource.data.teacherId == resource.data.teacherId;
         allow delete: if false;
       }
@@ -758,10 +800,15 @@ service cloud.firestore {
       // cannot reach during a fire is not a safety feature. Nothing in
       // this collection is personal data -- it is what a school prints on
       // a poster by the door.
+      //
+      // Published by the Admin. The list is school configuration, so it
+      // moved with everything else when Director and Principal became
+      // oversight-only; they still read it, and every portal still dials
+      // from it.
       match /emergencyContacts/{contactId} {
         allow read: if belongsToSchool(schoolId);
         allow create, update: if schoolIsAccessible(schoolId)
-                                && hasRole(schoolId, ['director', 'principal', 'admin']);
+                                && hasRole(schoolId, ['admin']);
         allow delete: if false; // soft delete only
       }
 
@@ -838,7 +885,7 @@ service cloud.firestore {
                       && schoolIsAccessible(schoolId)
                       && claims().role in ['director', 'principal', 'admin', 'faculty'];
         allow create, update: if schoolIsAccessible(schoolId)
-                                && hasRole(schoolId, ['faculty', 'director', 'principal', 'admin']);
+                                && hasRole(schoolId, ['faculty', 'admin']);
         allow delete: if false;
       }
 
@@ -903,7 +950,7 @@ service cloud.firestore {
         // rule: they may touch the score fields and nothing else, so
         // grading can never quietly rewrite what was handed in.
         allow update: if schoolIsAccessible(schoolId)
-                        && hasRole(schoolId, ['faculty', 'director', 'principal', 'admin'])
+                        && hasRole(schoolId, ['faculty', 'admin'])
                         && !request.resource.data.diff(resource.data).affectedKeys()
                               .hasAny(['userId', 'studentId', 'courseworkId', 'answer', 'answers',
                                        'attachmentUrl', 'submittedAt', 'autoScore', 'correctCount']);
@@ -1001,10 +1048,10 @@ service cloud.firestore {
       // total in one transaction.
       match /inventory/{itemId} {
         allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
-        allow create: if hasRole(schoolId, ['director', 'admin', 'staff'])
+        allow create: if hasRole(schoolId, ['admin', 'staff'])
                         && schoolIsAccessible(schoolId)
                         && request.resource.data.quantityOnHand == 0;
-        allow update: if hasRole(schoolId, ['director', 'admin', 'staff'])
+        allow update: if hasRole(schoolId, ['admin', 'staff'])
                         && schoolIsAccessible(schoolId)
                         && request.resource.data.quantityOnHand == resource.data.quantityOnHand;
         // Soft delete only, which is an update above. An item with
@@ -1038,7 +1085,7 @@ service cloud.firestore {
       match /compensation/{employeeUid} {
         allow read: if hasRole(schoolId, ['director', 'admin'])
                       && schoolIsAccessible(schoolId);
-        allow write: if hasRole(schoolId, ['director', 'admin'])
+        allow write: if hasRole(schoolId, ['admin'])
                        && schoolIsAccessible(schoolId);
       }
 
@@ -1156,7 +1203,7 @@ service cloud.firestore {
         allow create: if schoolIsAccessible(schoolId)
                         && request.resource.data.releasedBy == request.auth.uid
                         && (
-                          hasRole(schoolId, ['director', 'admin'])
+                          hasRole(schoolId, ['admin'])
                           || (hasRole(schoolId, ['registrar'])
                               && scopeAllowsStudentById(schoolId, request.resource.data.studentId))
                         );
@@ -1171,7 +1218,7 @@ service cloud.firestore {
                         && schoolIsAccessible(schoolId)
                         && request.resource.data.staffId == request.auth.uid;
         allow update: if schoolIsAccessible(schoolId)
-                        && (resource.data.staffId == request.auth.uid || hasRole(schoolId, ['director', 'admin']))
+                        && (resource.data.staffId == request.auth.uid || hasRole(schoolId, ['admin']))
                         && request.resource.data.staffId == resource.data.staffId;
         allow delete: if false;
       }
@@ -1210,7 +1257,7 @@ service cloud.firestore {
                       );
         allow create: if schoolIsAccessible(schoolId)
                         && (
-                          hasRole(schoolId, ['director', 'admin'])
+                          hasRole(schoolId, ['admin'])
                           || (hasRole(schoolId, ['guidance'])
                               && guidanceScopeAllows(schoolId, request.resource.data.get('studentId', null)))
                         );
@@ -1219,7 +1266,7 @@ service cloud.firestore {
         allow update: if schoolIsAccessible(schoolId)
                         && request.resource.data.get('studentId', null) == resource.data.get('studentId', null)
                         && (
-                          hasRole(schoolId, ['director', 'admin'])
+                          hasRole(schoolId, ['admin'])
                           || (hasRole(schoolId, ['guidance'])
                               && guidanceScopeAllows(schoolId, resource.data.get('studentId', null)))
                         );
@@ -1245,14 +1292,14 @@ service cloud.firestore {
                       );
         allow create: if schoolIsAccessible(schoolId)
                         && (
-                          hasRole(schoolId, ['director', 'admin'])
+                          hasRole(schoolId, ['admin'])
                           || (hasRole(schoolId, ['guidance'])
                               && scopeAllowsStudentById(schoolId, request.resource.data.studentId))
                         );
         allow update: if schoolIsAccessible(schoolId)
                         && request.resource.data.studentId == resource.data.studentId
                         && (
-                          hasRole(schoolId, ['director', 'admin'])
+                          hasRole(schoolId, ['admin'])
                           || (hasRole(schoolId, ['guidance']) && scopeAllowsStudentById(schoolId, resource.data.studentId))
                         );
         allow delete: if false;
@@ -1381,7 +1428,7 @@ service cloud.firestore {
                               .affectedKeys()
                               .hasAny(['balance', 'studentNumber', 'userId', 'schoolId'])
                         && (
-                          hasRole(schoolId, ['director', 'admin'])
+                          hasRole(schoolId, ['admin'])
                           || (hasRole(schoolId, ['registrar'])
                               && scopeAllowsStudent(schoolId, resource.data.get('educationLevel', 'elementary'), resource.data.get('department', null)))
                         );
@@ -1410,12 +1457,14 @@ service cloud.firestore {
       // ---- receiptBooklets (the BIR-registered OR series) ----
       // Readable by anyone who may collect money -- the cashier's screen
       // shows which booklet is in use and what number comes next.
-      // Registered by Director/Admin only: a booklet's range is a
-      // statement about a government permit, not a preference.
+      // Registered by the Admin only: a booklet's range is a statement
+      // about a government permit, not a preference. Director and
+      // Principal read it and do not set it -- see the oversight note at
+      // the top of this file.
       match /receiptBooklets/{bookletId} {
         allow read: if hasRole(schoolId, ['director', 'admin', 'registrar'])
                       && schoolIsAccessible(schoolId);
-        allow create, update: if hasRole(schoolId, ['director', 'admin'])
+        allow create, update: if hasRole(schoolId, ['admin'])
                                 && schoolIsAccessible(schoolId);
         // Closed by setting isActive, never removed: every payment citing
         // one of its numbers has to stay explainable to an examiner.
@@ -1439,11 +1488,12 @@ service cloud.firestore {
       // Readable tenant-wide, like programs: a fee schedule is
       // institutional configuration a family is entitled to see, and the
       // student portal shows it beside what they were actually charged.
-      // Only Director/Admin publish it -- a registrar assesses fees but
-      // does not decide what they are.
+      // Only the Admin publishes it -- a registrar assesses fees but does
+      // not decide what they are, and the Director reads the schedule
+      // rather than setting it.
       match /feeStructures/{structureId} {
         allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
-        allow create, update: if hasRole(schoolId, ['director', 'admin'])
+        allow create, update: if hasRole(schoolId, ['admin'])
                                 && schoolIsAccessible(schoolId);
         // Retired by setting isActive, never removed: every assessment
         // that cites a schedule has to stay readable.
@@ -1484,8 +1534,8 @@ service cloud.firestore {
       // sensitive data. Only Director/Admin manage the catalog itself.
       match /programs/{programId} {
         allow read: if belongsToSchool(schoolId) && schoolIsAccessible(schoolId);
-        allow create: if hasRole(schoolId, ['director', 'admin']) && schoolIsAccessible(schoolId);
-        allow update: if hasRole(schoolId, ['director', 'admin']) && schoolIsAccessible(schoolId);
+        allow create: if hasRole(schoolId, ['admin']) && schoolIsAccessible(schoolId);
+        allow update: if hasRole(schoolId, ['admin']) && schoolIsAccessible(schoolId);
         allow delete: if false;
       }
 

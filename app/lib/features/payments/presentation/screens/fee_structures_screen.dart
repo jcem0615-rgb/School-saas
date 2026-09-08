@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/auth/capabilities.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/education_level.dart';
@@ -25,14 +27,17 @@ class FeeStructuresScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final structuresAsync = ref.watch(feeStructuresProvider);
+    final canOperate = ref.watch(canOperateProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Fee Schedules')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEditor(context, ref, null),
-        icon: const Icon(Icons.add),
-        label: const Text('New schedule'),
-      ),
+      floatingActionButton: !canOperate
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _openEditor(context, ref, null),
+              icon: const Icon(Icons.add),
+              label: const Text('New schedule'),
+            ),
       body: structuresAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Failed to load fee schedules: $err')),

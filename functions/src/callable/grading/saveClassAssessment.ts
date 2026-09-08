@@ -22,7 +22,7 @@ interface SaveAssessmentData {
   maxScore: number;
 }
 
-const TEACHING_ROLES = ["director", "admin", "faculty"];
+const TEACHING_ROLES = ["admin", "faculty"];
 
 /**
  * One piece of work a class was given: one column in the class record.

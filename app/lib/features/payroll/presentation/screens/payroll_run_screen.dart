@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/auth/capabilities.dart';
 import 'package:intl/intl.dart';
 
 import '../../../admin_portal/domain/entities/school_branding.dart';
@@ -138,7 +140,9 @@ class _PayrollRunScreenState extends ConsumerState<PayrollRunScreen> {
       floatingActionButton: run == null || drafts.isEmpty
           ? null
           : FloatingActionButton.extended(
-              onPressed: _working || !run.canIssue ? null : () => _issue(run, query),
+              onPressed: _working || !run.canIssue || !ref.watch(canOperateProvider)
+                  ? null
+                  : () => _issue(run, query),
               icon: const Icon(Icons.receipt_long_outlined),
               label: Text('Issue ${drafts.length}'),
             ),

@@ -33,9 +33,11 @@ interface RegisterStudentData {
   guardianContacts?: GuardianContact[];
 }
 
-// Student Registration is a Registrar-primary responsibility; Director/
-// Admin can also register in smaller schools where roles overlap.
-const REGISTER_ALLOWED_ROLES = ["director", "admin", "registrar"];
+// Student Registration is a Registrar-primary responsibility; the Admin
+// can also register in smaller schools where the two roles overlap. Not
+// the Director or the Principal -- putting a child on the roll is
+// operating the school, not supervising it.
+const REGISTER_ALLOWED_ROLES = ["admin", "registrar"];
 
 export const registerStudent = onCall(
   {region: "asia-southeast1"},

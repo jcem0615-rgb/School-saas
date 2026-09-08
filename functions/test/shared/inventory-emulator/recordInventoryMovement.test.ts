@@ -107,16 +107,18 @@ describe("moving stock", () => {
 
   describe("who may move it", () => {
     it("is the roles that keep the stock room", async () => {
-      for (const role of ["director", "admin", "staff"]) {
+      for (const role of ["admin", "staff"]) {
         await callRecordMovement({data: movement(), auth: caller(role)} as never);
       }
-      expect(await onHandNow()).toBe(2);
+      expect(await onHandNow()).toBe(3);
     });
 
-    it("is not a teacher, who can see the shelf but not empty it", async () => {
-      await expect(
-        callRecordMovement({data: movement(), auth: caller("faculty")} as never)
-      ).rejects.toThrow(/role/i);
+    it("is not a teacher, and not the Director, who read the shelf without emptying it", async () => {
+      for (const role of ["faculty", "director", "principal"]) {
+        await expect(
+          callRecordMovement({data: movement(), auth: caller(role)} as never)
+        ).rejects.toThrow(/role/i);
+      }
       expect(await onHandNow()).toBe(5);
     });
 

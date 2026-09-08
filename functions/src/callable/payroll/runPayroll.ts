@@ -48,7 +48,7 @@ interface RunPayrollData {
   employeeUids?: string[];
 }
 
-const PAYROLL_ROLES = ["director", "admin"];
+const PAYROLL_ROLES = ["admin"];
 
 /** How many employees are read at once. A school has tens, not thousands. */
 const READ_CONCURRENCY = 10;

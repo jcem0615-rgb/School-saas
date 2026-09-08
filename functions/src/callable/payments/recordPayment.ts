@@ -25,7 +25,7 @@ interface RecordPaymentData {
 // Roles that may collect/record a payment. Faculty/Staff/Guidance have no
 // business handling money -- keeping this list tight limits blast radius
 // if any one account is compromised.
-const COLLECTOR_ALLOWED_ROLES = ["director", "admin", "registrar"];
+const COLLECTOR_ALLOWED_ROLES = ["admin", "registrar"];
 
 /**
  * Payments are recorded by collectors only.

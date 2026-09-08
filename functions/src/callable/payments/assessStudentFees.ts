@@ -44,7 +44,7 @@ interface AssessStudentFeesData {
 // The same list that may collect a payment or set a balance. Charging a
 // family money is a finance action; Faculty, Staff and Guidance have no
 // business doing it.
-const ALLOWED_ROLES = ["director", "admin", "registrar"];
+const ALLOWED_ROLES = ["admin", "registrar"];
 
 const VALID_CATEGORIES = ["tuition", "miscellaneous", "other"];
 

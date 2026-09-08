@@ -163,8 +163,8 @@ describe("setParentLink", () => {
       ).rejects.toThrow(/signed in/i);
     });
 
-    it("lets the three roles that enrol children do it", async () => {
-      for (const role of ["registrar", "admin", "director"]) {
+    it("lets the two roles that enrol children do it", async () => {
+      for (const role of ["registrar", "admin"]) {
         await seed();
         const result = await call(
           {schoolId: SCHOOL, parentUid: PARENT, studentId: BEA, linked: true},

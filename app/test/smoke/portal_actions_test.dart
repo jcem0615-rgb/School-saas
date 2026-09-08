@@ -43,7 +43,9 @@ void main() {
   final formScreens = <String, (UserRole, Widget)>{
     'Director · Announcements': (UserRole.director, const AnnouncementsScreen()),
     'Director · Meetings': (UserRole.director, const MeetingsScreen()),
-    'Director · Expenses': (UserRole.director, const ExpensesScreen()),
+    // Recording an expense is the Admin's now: the Director reads the
+    // ledger and does not write to it.
+    'Admin · Expenses': (UserRole.admin, const ExpensesScreen()),
     'Admin · Teacher Assignments': (UserRole.admin, const TeacherAssignmentsScreen()),
     'Admin · Programs': (UserRole.admin, const ProgramsScreen()),
     'Admin · Employees': (UserRole.admin, const EmployeeListScreen()),
@@ -230,7 +232,9 @@ void main() {
     final rowScreens = <String, (UserRole, Widget)>{
       'Director · Announcements': (UserRole.director, const AnnouncementsScreen()),
       'Director · Meetings': (UserRole.director, const MeetingsScreen()),
-      'Director · Expenses': (UserRole.director, const ExpensesScreen()),
+      // Recording an expense is the Admin's now: the Director reads the
+    // ledger and does not write to it.
+    'Admin · Expenses': (UserRole.admin, const ExpensesScreen()),
       'Admin · Teacher Assignments': (UserRole.admin, const TeacherAssignmentsScreen()),
       'Admin · Programs': (UserRole.admin, const ProgramsScreen()),
       'Faculty · Coursework': (UserRole.faculty, const CourseworkListScreen()),

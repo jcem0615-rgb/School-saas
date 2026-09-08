@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/auth/capabilities.dart';
+
 import '../../../../core/constants/user_roles.dart';
 import '../../../../core/widgets/combo_field.dart';
 import '../../../admin_portal/domain/entities/employee_summary.dart';
@@ -109,6 +111,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     // offers a section whose only classes are in the other semester.
     final terms = termsOf(all);
     final shown = blocksInTerm(_filtered(all, selected), _term);
+    final canOperate = ref.watch(canOperateProvider);
 
     ref.listen(scheduleActionControllerProvider, (previous, next) {
       if (next case AsyncError(:final error)) {
@@ -142,11 +145,15 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEditor(all, faculty),
-        icon: const Icon(Icons.add),
-        label: const Text('Add class'),
-      ),
+      // Not offered to the Director or the Principal. They read the
+      // timetable and no longer build it -- see canOperateProvider.
+      floatingActionButton: !canOperate
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _openEditor(all, faculty),
+              icon: const Icon(Icons.add),
+              label: const Text('Add class'),
+            ),
       body: scheduleAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
@@ -208,7 +215,11 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
               showSection: _lens != _Lens.section,
               showTeacher: _lens != _Lens.teacher,
               highlightDay: DateTime.now().weekday,
-              onTap: (block) => _openEditor(all, faculty, existing: block),
+              // Read-only for the two oversight roles: no chevron, no
+              // editor, and no filled-in form ending in a refusal.
+              onTap: !canOperate
+                  ? null
+                  : (block) => _openEditor(all, faculty, existing: block),
               emptyMessage: 'Nothing is timetabled here yet.\n\n'
                   'Add a class and it will show up on the student and teacher '
                   'timetables straight away.',

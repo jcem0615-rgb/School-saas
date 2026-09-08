@@ -202,7 +202,11 @@ describe("the callables that move money", () => {
     });
 
     it("refuses the roles that have no business handling money", async () => {
-      for (const role of ["faculty", "guidance", "staff", "student", "parent", "principal"]) {
+      // The Director is on this list now too: supervising the money is
+      // not the same as taking it.
+      for (const role of [
+        "faculty", "guidance", "staff", "student", "parent", "principal", "director",
+      ]) {
         await expect(
           callRecordPayment({data: cash(500), auth: caller(role)} as never)
         ).rejects.toThrow();
@@ -262,7 +266,7 @@ describe("the callables that move money", () => {
 
       await callRecordRefund({
         data: {schoolId: SCHOOL, paymentId, reason: "Paid twice at the counter"},
-        auth: caller("director"),
+        auth: caller("admin"),
       } as never);
 
       expect(await balanceOf()).toBe(10000);
@@ -287,7 +291,7 @@ describe("the callables that move money", () => {
       await expect(
         callRecordRefund({
           data: {schoolId: SCHOOL, paymentId, reason: "  "},
-          auth: caller("director"),
+          auth: caller("admin"),
         } as never)
       ).rejects.toThrow(/reason/i);
     });
@@ -301,7 +305,7 @@ describe("the callables that move money", () => {
         Array.from({length: 4}, () =>
           callRecordRefund({
             data: {schoolId: SCHOOL, paymentId, reason: "Paid twice"},
-            auth: caller("director"),
+            auth: caller("admin"),
           } as never)
         )
       );
@@ -319,13 +323,13 @@ describe("the callables that move money", () => {
       const paymentId = await takeAPayment(2500);
       await callRecordRefund({
         data: {schoolId: SCHOOL, paymentId, reason: "Paid twice"},
-        auth: caller("director"),
+        auth: caller("admin"),
       } as never);
 
       await expect(
         callRecordRefund({
           data: {schoolId: SCHOOL, paymentId, reason: "again"},
-          auth: caller("director"),
+          auth: caller("admin"),
         } as never)
       ).rejects.toThrow(/already been refunded/i);
       expect(await balanceOf()).toBe(10000);
@@ -335,7 +339,7 @@ describe("the callables that move money", () => {
       await expect(
         callRecordRefund({
           data: {schoolId: SCHOOL, paymentId: "pay_nobody", reason: "x"},
-          auth: caller("director"),
+          auth: caller("admin"),
         } as never)
       ).rejects.toThrow(/not found/i);
     });
@@ -516,7 +520,7 @@ describe("the callables that move money", () => {
       const refundable = (await paymentRows()).find((p) => p.amount === 2500)!.id as string;
       await callRecordRefund({
         data: {schoolId: SCHOOL, paymentId: refundable, reason: "Paid twice"},
-        auth: caller("director"),
+        auth: caller("admin"),
       } as never);
       expect(await balanceOf()).toBe(13500);
 

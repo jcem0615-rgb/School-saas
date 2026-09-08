@@ -83,9 +83,9 @@ async function seed() {
 beforeEach(seed);
 
 describe("who may register a booklet", () => {
-  it("a director may", async () => {
+  it("a director may not -- they read the register, they do not open it", async () => {
     const db = contextAs("director", "director_a").firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, `schools/${SCHOOL}/receiptBooklets/bklt_002`), booklet())
     );
   });

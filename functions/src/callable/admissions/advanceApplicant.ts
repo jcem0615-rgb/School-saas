@@ -27,7 +27,7 @@ interface AdvanceApplicantData {
   notes?: string;
 }
 
-const ADMISSIONS_ROLES = ["director", "admin", "registrar"];
+const ADMISSIONS_ROLES = ["admin", "registrar"];
 
 /**
  * Moves a family one step, and records what that step produced.

@@ -11,7 +11,7 @@ interface VoidAssessmentData {
   reason: string;
 }
 
-const ALLOWED_ROLES = ["director", "admin", "registrar"];
+const ALLOWED_ROLES = ["admin", "registrar"];
 
 /**
  * Reverses an assessment, putting the balance back.

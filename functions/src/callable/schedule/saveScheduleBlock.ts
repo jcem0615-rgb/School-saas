@@ -30,7 +30,7 @@ interface SaveScheduleBlockData {
 // The timetable is an institutional decision, like the fee schedule. A
 // teacher may not move their own class out of a clash with somebody
 // else's.
-const ALLOWED_ROLES = ["director", "principal", "admin"];
+const ALLOWED_ROLES = ["admin"];
 
 /**
  * Adds or moves one class on the timetable.

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/auth/capabilities.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/education_level.dart';
@@ -43,6 +45,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   @override
   Widget build(BuildContext context) {
     final divisionFilter = ref.watch(studentDivisionFilterProvider);
+    final canOperate = ref.watch(canOperateProvider);
     final limit = ref.watch(studentPageLimitProvider);
 
     // Typing switches the screen off the paged query and onto the whole
@@ -69,11 +72,13 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showRegisterSheet(context, ref),
-        icon: const Icon(Icons.person_add_alt),
-        label: const Text('Register Student'),
-      ),
+      floatingActionButton: !canOperate
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _showRegisterSheet(context, ref),
+              icon: const Icon(Icons.person_add_alt),
+              label: const Text('Register Student'),
+            ),
       body: Column(
         children: [
           Padding(

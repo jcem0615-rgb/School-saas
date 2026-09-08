@@ -10,7 +10,7 @@ interface ResetPasswordData {
 }
 
 // Roles permitted to force-reset another user's password within their school.
-const RESET_ALLOWED_ROLES = ["owner", "director", "admin"];
+const RESET_ALLOWED_ROLES = ["owner", "admin"];
 
 export const resetPasswordAdmin = onCall(
   {region: "asia-southeast1"},

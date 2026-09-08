@@ -9,7 +9,7 @@ interface DeleteScheduleBlockData {
   blockId: string;
 }
 
-const ALLOWED_ROLES = ["director", "principal", "admin"];
+const ALLOWED_ROLES = ["admin"];
 
 /**
  * Takes one class off the timetable.

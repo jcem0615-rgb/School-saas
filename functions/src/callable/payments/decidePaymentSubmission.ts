@@ -16,7 +16,7 @@ interface DecidePaymentSubmissionData {
 // Same list that may collect a payment at the counter. Verifying an
 // e-wallet transfer against the school's account is the same trust
 // decision as accepting cash, so it carries the same role gate.
-const REVIEWER_ROLES = ["director", "admin", "registrar"];
+const REVIEWER_ROLES = ["admin", "registrar"];
 
 /**
  * Approves or rejects a family's claim that they paid online.

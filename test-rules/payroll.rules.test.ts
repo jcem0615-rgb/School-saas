@@ -78,12 +78,19 @@ async function seed() {
 beforeEach(seed);
 
 describe("what somebody is paid", () => {
-  it("is readable and settable by Director and Admin", async () => {
-    for (const role of ["director", "admin"]) {
-      const db = contextAs(role, `${role}_a`).firestore();
-      await assertSucceeds(getDoc(doc(db, COMPENSATION)));
-      await assertSucceeds(updateDoc(doc(db, COMPENSATION), {rate: 33000}));
-    }
+  it("is settable by the Admin", async () => {
+    const db = contextAs("admin", "admin_a").firestore();
+    await assertSucceeds(getDoc(doc(db, COMPENSATION)));
+    await assertSucceeds(updateDoc(doc(db, COMPENSATION), {rate: 33000}));
+  });
+
+  it("is readable by the Director, and not settable by them", async () => {
+    // What somebody is paid is exactly the kind of thing a Director has
+    // to be able to see and exactly the kind of thing they should not be
+    // able to change on their own. Supervision, not operation.
+    const db = contextAs("director", "director_a").firestore();
+    await assertSucceeds(getDoc(doc(db, COMPENSATION)));
+    await assertFails(updateDoc(doc(db, COMPENSATION), {rate: 33000}));
   });
 
   it("is not readable by the registrar, who handles every other peso", async () => {

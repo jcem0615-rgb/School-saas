@@ -108,7 +108,7 @@ describe("keeping a class record", () => {
 
   describe("who may mark", () => {
     it("is the teaching side of the school", async () => {
-      for (const role of ["faculty", "director", "admin"]) {
+      for (const role of ["faculty", "admin"]) {
         const result = await callSaveAssessment({
           data: assessment({title: `Quiz ${role}`}),
           auth: caller(role),
@@ -117,8 +117,9 @@ describe("keeping a class record", () => {
       }
     });
 
-    it("is not the registrar, and not a student", async () => {
-      for (const role of ["registrar", "student", "parent", "staff"]) {
+    it("is not the registrar, not a supervisor, and not a student", async () => {
+      // Director and Principal supervise; marking is the teaching side's.
+      for (const role of ["registrar", "director", "principal", "student", "parent", "staff"]) {
         await expect(
           callSaveAssessment({data: assessment(), auth: caller(role)} as never)
         ).rejects.toThrow(/role/i);

@@ -17,7 +17,7 @@ interface SetClassWeightsData {
   clear?: boolean;
 }
 
-const TEACHING_ROLES = ["director", "admin", "faculty"];
+const TEACHING_ROLES = ["admin", "faculty"];
 
 /**
  * What each component counts for one class.

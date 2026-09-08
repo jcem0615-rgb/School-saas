@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/auth/capabilities.dart';
+
 import '../../../../core/constants/user_roles.dart';
 import '../../../../core/data_transfer/csv.dart';
 import '../../../../core/widgets/combo_field.dart';
@@ -18,6 +20,7 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final assignmentsAsync = ref.watch(teacherAssignmentsStreamProvider);
     final employeesAsync = ref.watch(employeesStreamProvider);
+    final canOperate = ref.watch(canOperateProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -30,11 +33,13 @@ class TeacherAssignmentsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showEditor(context, ref, employeesAsync.valueOrNull ?? []),
-        icon: const Icon(Icons.add),
-        label: const Text('Assign'),
-      ),
+      floatingActionButton: !canOperate
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _showEditor(context, ref, employeesAsync.valueOrNull ?? []),
+              icon: const Icon(Icons.add),
+              label: const Text('Assign'),
+            ),
       body: assignmentsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Failed to load assignments: $err')),

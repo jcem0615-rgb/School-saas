@@ -12,9 +12,9 @@ interface SaveApplicantData extends ApplicantData {
   applicantId?: string;
 }
 
-// The admissions office. Registrar-primary, with Director and Admin for
-// the smaller schools where the roles overlap.
-const ADMISSIONS_ROLES = ["director", "admin", "registrar"];
+// The admissions office. Registrar-primary, with the Admin for the
+// smaller schools where the two roles overlap.
+const ADMISSIONS_ROLES = ["admin", "registrar"];
 
 /**
  * Takes down an enquiry, or corrects one.

@@ -11,14 +11,17 @@ interface RecordRefundData {
   reason: string;
 }
 
-// Refunds are more consequential than collecting a payment (money leaves,
-// and a completed transaction is being reversed) -- restricted to
-// Director/Admin only, deliberately excluding Registrar even though
-// Registrar can collect payments. A cashier who can both take and refund
-// money unilaterally is a classic embezzlement vector; requiring a
-// different, more senior role to reverse a transaction is a real control,
-// not just a formality.
-const REFUND_ALLOWED_ROLES = ["director", "admin"];
+// Refunds are more consequential than collecting a payment: money leaves,
+// and a completed transaction is being reversed. The Admin only,
+// deliberately excluding the Registrar even though the Registrar is who
+// collects. A cashier who can both take and refund money unilaterally is
+// a classic embezzlement vector, and requiring a second person to reverse
+// a transaction is a real control rather than a formality.
+//
+// That control survived the Director becoming oversight-only: the person
+// who takes the money and the person who can give it back are still two
+// different accounts.
+const REFUND_ALLOWED_ROLES = ["admin"];
 
 export const recordRefund = onCall(
   {region: "asia-southeast1"},

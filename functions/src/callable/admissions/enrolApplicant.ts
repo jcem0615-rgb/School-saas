@@ -16,7 +16,7 @@ interface EnrolApplicantData {
   birthDate: string;
 }
 
-const ADMISSIONS_ROLES = ["director", "admin", "registrar"];
+const ADMISSIONS_ROLES = ["admin", "registrar"];
 
 /**
  * Turns an applicant into a student, exactly once.

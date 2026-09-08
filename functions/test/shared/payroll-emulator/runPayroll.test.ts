@@ -187,10 +187,19 @@ describe("running payroll", () => {
   });
 
   describe("who may run it", () => {
-    it("is the Director and the Admin", async () => {
-      for (const role of ["director", "admin"]) {
-        const result = await callRunPayroll({data: period(), auth: caller(role)} as never);
-        expect(result.payslips).toHaveLength(1);
+    it("is the Admin", async () => {
+      const result = await callRunPayroll({data: period(), auth: caller("admin")} as never);
+      expect(result.payslips).toHaveLength(1);
+    });
+
+    it("is not the Director, who reads a payslip without running the payroll", async () => {
+      // Supervision, not operation. What somebody is paid is exactly the
+      // kind of figure a Director must be able to see and must not be
+      // able to set on their own.
+      for (const role of ["director", "principal"]) {
+        await expect(
+          callRunPayroll({data: period(), auth: caller(role)} as never)
+        ).rejects.toThrow(/role/i);
       }
     });
 

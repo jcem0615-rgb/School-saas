@@ -26,7 +26,7 @@ interface PostMarkData {
   remarks?: string;
 }
 
-const TEACHING_ROLES = ["director", "admin", "faculty"];
+const TEACHING_ROLES = ["admin", "faculty"];
 
 /**
  * One mark, posted without setting up a column first.

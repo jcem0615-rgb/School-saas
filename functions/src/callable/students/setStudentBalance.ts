@@ -16,7 +16,7 @@ interface SetStudentBalanceData {
 // Assessing fees is a records/finance action, same list that may collect a
 // payment. Faculty/Staff/Guidance have no business setting what a family
 // owes.
-const ALLOWED_ROLES = ["director", "admin", "registrar"];
+const ALLOWED_ROLES = ["admin", "registrar"];
 
 /**
  * Sets a student's assessed balance.

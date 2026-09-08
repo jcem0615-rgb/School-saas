@@ -23,7 +23,7 @@ interface SaveScoresData {
   scores: ScoreEntry[];
 }
 
-const TEACHING_ROLES = ["director", "admin", "faculty"];
+const TEACHING_ROLES = ["admin", "faculty"];
 
 /** A class is one screenful of students; a batch is 500 writes. */
 const MAX_SCORES_PER_CALL = 200;

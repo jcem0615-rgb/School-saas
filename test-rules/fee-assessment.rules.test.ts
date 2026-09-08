@@ -146,10 +146,20 @@ describe("publishing fee schedules", () => {
     );
   });
 
-  test("a director can publish one", async () => {
-    const director = contextAs("director");
+  test("an admin can publish one", async () => {
+    const admin = contextAs("admin");
     await assertSucceeds(
-      setDoc(doc(director.firestore(), `schools/${SCHOOL}/feeStructures/f2`), structure())
+      setDoc(doc(admin.firestore(), `schools/${SCHOOL}/feeStructures/f2`), structure())
+    );
+  });
+
+  // The Director supervises and does not operate: they read the fee
+  // schedule and do not set it. See the note at the top of
+  // firestore.rules.
+  test("a director cannot publish one", async () => {
+    const director = contextAs("director");
+    await assertFails(
+      setDoc(doc(director.firestore(), `schools/${SCHOOL}/feeStructures/f2b`), structure())
     );
   });
 

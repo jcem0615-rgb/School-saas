@@ -21,7 +21,7 @@ interface RecordMovementData {
 }
 
 /** The roles that actually keep the stock room, matching firestore.rules. */
-const STOCK_ROLES = ["director", "admin", "staff"];
+const STOCK_ROLES = ["admin", "staff"];
 
 /**
  * Moves something in or out of the stock room.

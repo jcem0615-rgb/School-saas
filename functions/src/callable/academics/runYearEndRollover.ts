@@ -16,10 +16,11 @@ interface RunRolloverData {
   decisions: PromotionDecisionData[];
 }
 
-// The registrar's office owns the academic record; a director or admin
-// can run it in a school small enough that the roles overlap. Nobody
-// else: this is the least reversible operation in the system.
-const ROLLOVER_ALLOWED_ROLES = ["director", "admin", "registrar"];
+// The registrar's office owns the academic record, with the Admin
+// alongside them for the schools where the two roles overlap. Nobody
+// else: this is the least reversible operation in the system, and the
+// Director watches it happen rather than running it.
+const ROLLOVER_ALLOWED_ROLES = ["admin", "registrar"];
 
 /**
  * Moves a page of students into the next school year.

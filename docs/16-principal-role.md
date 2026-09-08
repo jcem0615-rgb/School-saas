@@ -19,11 +19,19 @@ Owner (platform-level)
        └─ Registrar / Faculty / Staff / Guidance (operational, division-scopable)
 ```
 
-Both **Director and Admin can provision a Principal account** (Admin
+> **Since Module 39, the Principal is oversight-only.** They read their
+> division and change almost nothing in it: the timetable, teacher
+> assignments, student records and the school's emergency numbers all
+> belong to the Admin now. What a Principal keeps is deciding approvals
+> and leave, posting announcements, calling meetings, and picking up an
+> emergency alert. Everything below about *what a Principal can see* still
+> holds; the write halves have moved. See
+> `docs/39-oversight-and-operations.md`.
+
+The **Admin provisions a Principal account** (Admin
 Portal → Employee Management is the one working provisioning UI in this
-build; Director's own equivalent screen doesn't exist yet — see
-`docs/10-registrar-portal.md`'s note on this same gap for Registrar-
-created accounts). A Principal's own `employeeInfo.assignedDivision`
+build). The Director used to be able to as well and no longer is —
+creating an account is an operational act. A Principal's own `employeeInfo.assignedDivision`
 should almost always be set (that's the entire point of the role), but
 it's not hard-required — an unconfigured Principal behaves school-wide,
 same as every other role before this module.

@@ -1,5 +1,12 @@
 # Module 9a: Admin Portal
 
+> **Since Module 39, the Admin operates the school.** Everything the
+> Director used to be able to write is the Admin's: branding, settings,
+> fee schedules, receipt booklets, expenses, payroll, programs, the
+> timetable, teacher assignments, account creation and account status.
+> Director and Principal read those screens and no longer edit them. See
+> `docs/39-oversight-and-operations.md`.
+
 ## Overview
 
 Covers Employee Management, User Approval, Reset Password, and Teacher

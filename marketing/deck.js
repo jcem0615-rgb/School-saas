@@ -71,7 +71,7 @@ const S = () => pres.addSlide();
   heading(s, 'How it is organised', 'Nine portals, one school, one login each',
     { dark: true, lede: 'Sign in once and the app opens on the portal for your role. Nobody chooses a mode, and nobody sees a screen that is not theirs.' });
   await rowList(s, [
-    { icon: 'FiHome', h: 'Director', b: 'School-wide oversight, approvals, money and audit' },
+    { icon: 'FiHome', h: 'Director', b: 'School-wide oversight: reads everything, approves, and edits nothing' },
     { icon: 'FiAward', h: 'Principal', b: 'Academic leadership for one division' },
     { icon: 'FiSettings', h: 'Admin', b: 'People, branding, catalogues, schedules, reports' },
     { icon: 'FiUserCheck', h: 'Registrar / Cashier', b: 'Enrolment, records, fees, receipts, forms' },
@@ -91,19 +91,19 @@ const S = () => pres.addSlide();
 // ---------------------------------------------------------------- 4. Director
 {
   const s = S(); bg(s, C.paper);
-  heading(s, 'Director Portal', 'Every button on the Director\'s screen',
+  heading(s, 'Director Portal', 'Every screen the head of school opens',
     { lede: 'Opens on four live figures for today: attendance rate, collections, pending approvals and upcoming meetings.' });
   await rowList(s, [
     { icon: 'FiSpeaker' in require('react-icons/fi') ? 'FiSpeaker' : 'FiBell', h: 'Announcements', b: 'Post to everyone or pick the roles; pin one to the top' },
     { icon: 'FiCalendar', h: 'Meeting Scheduler', b: 'Title, description, location, start and end; cancel a meeting' },
     { icon: 'FiCheckSquare', h: 'Approvals', b: 'One inbox for every request in the school. Every decision records who made it, when, and what they were deciding' },
-    { icon: 'FiGrid', h: 'Class Schedule', b: 'The week\'s timetable for every section, with clash detection' },
+    { icon: 'FiGrid', h: 'Class Schedule', b: 'The week\'s timetable for every section, read across the whole school' },
     { icon: 'FiCheckCircle', h: 'System Check', b: 'Seven readiness checks before a school goes live' },
     { icon: 'FiShield', h: 'Data Requests', b: 'What families have asked about their data, and what was answered' },
     { icon: 'FiBarChart2', h: 'Reports', b: 'Enrolment, collections, attendance and grades - on screen, to Excel, or printed' },
-    { icon: 'FiTag', h: 'Fee Schedules', b: 'Define the fee sets the cashier assesses against' },
-    { icon: 'FiCreditCard', h: 'Expenses', b: 'Record school spending by category, or import a spreadsheet of it' },
-    { icon: 'FiPhone', h: 'Emergency Numbers', b: 'The list every phone in the school can dial from' },
+    { icon: 'FiTag', h: 'Fee Schedules', b: 'Read the fee sets the cashier assesses against - the Admin defines them' },
+    { icon: 'FiCreditCard', h: 'Expenses', b: 'Read school spending by category and date. The Admin records it' },
+    { icon: 'FiPhone', h: 'Emergency Numbers', b: 'The list every phone in the school can dial from, maintained by the Admin' },
     { icon: 'FiSearch', h: 'Audit Trail', b: 'Every change made in the school, filterable by module and date' },
     { icon: 'FiActivity', h: 'My Activity', b: 'The same trail, narrowed to what you did' },
   ], { cols: 2, y: 2.15, rh: 0.73 });
@@ -118,23 +118,23 @@ const S = () => pres.addSlide();
   await cardGrid(s, [
     { icon: 'FiUsers', h: 'Student Records', b: 'Read the roster and any record in their division - view only.' },
     { icon: 'FiGrid', h: 'Class Schedule', b: 'The week as it is actually timetabled, section by section.' },
-    { icon: 'FiUserCheck', h: 'Teacher Assignment', b: 'Who teaches which subject in which section, and who advises it.' },
+    { icon: 'FiUserCheck', h: 'Teacher Assignment', b: 'Who teaches which subject in which section, and who advises it - read.' },
     { icon: 'FiAlertTriangle', h: 'Emergency Alerts', b: 'Live alerts raised in the school, with the power to resolve one.' },
     { icon: 'FiPhone', h: 'Emergency Numbers', b: 'The school\'s published numbers, one tap to dial.' },
     { icon: 'FiBell', h: 'Announcements', b: 'Post school or division messages under their own name, to a role or to one class.' },
     { icon: 'FiCalendar', h: 'Meeting Scheduler', b: 'Call a meeting and say who it is for.' },
     { icon: 'FiCheckSquare', h: 'Approvals', b: 'Decide the requests that reach a division head - and the decision is signed with their account.' },
   ], { cols: 4, y: 2.35, h: 2.14, vgap: 0.22 });
-  s.addNotes('The division boundary is enforced in the database rules, not just hidden in the UI - worth saying out loud.');
+  s.addNotes('Two things worth saying out loud: the division boundary is enforced in the database rules rather than hidden in the UI, and "oversight, not data entry" is literal - a Principal has no edit buttons on any of these. Same for the Director.');
 }
 
 // ---------------------------------------------------------------- 6. Admin (people)
 {
   const s = S(); bg(s, C.paper);
   heading(s, 'Admin Portal . 1 of 2', 'People, academics and the school\'s identity',
-    { lede: 'The operator role: the person who keeps the school configured week to week.' });
+    { lede: 'The operator role, and since the Director and Principal became read-only, the only one: everything the school changes week to week is changed from this account.' });
   await rowList(s, [
-    { icon: 'FiUsers', h: 'Employee Management', b: 'Create an account for any role, set department, position and division scope' },
+    { icon: 'FiUsers', h: 'Employee Management', b: 'Create a Principal, Registrar, Faculty, Staff or Guidance account, with department, position and division scope' },
     { icon: 'FiKey', h: 'Reset Password', b: 'Issue a temporary password; the employee is forced to change it at next sign-in' },
     { icon: 'FiUserCheck', h: 'Activate / Suspend', b: 'Switch an account off without deleting anything it wrote' },
     { icon: 'FiUpload', h: 'Import employees', b: 'Bring a staff list in from Excel or CSV, or export the one you have' },

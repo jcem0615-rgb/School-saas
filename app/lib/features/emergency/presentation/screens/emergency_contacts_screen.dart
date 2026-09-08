@@ -10,11 +10,17 @@ import '../controllers/emergency_controller.dart';
 
 /// The numbers to call when something goes wrong.
 ///
-/// One screen for the whole school. Everyone reads it; the admin roles
-/// also get the editor here rather than in a separate admin-only screen,
-/// so there is no chance of the list a student sees drifting from the
-/// list an admin maintains.
-const _editorRoles = [UserRole.director, UserRole.principal, UserRole.admin];
+/// One screen for the whole school. Everyone reads it; the Admin also
+/// gets the editor here rather than in a separate admin-only screen, so
+/// there is no chance of the list a student sees drifting from the list
+/// an admin maintains.
+///
+/// Director and Principal read it and no longer edit it. The list is
+/// school configuration, and configuration moved to the Admin when those
+/// two became oversight-only -- see `UserRole.isOversightOnly`. Offering
+/// them the editor here would produce a filled-in form and then a
+/// permission error, which is worse than not offering it.
+const _editorRoles = [UserRole.admin];
 
 class EmergencyContactsScreen extends ConsumerWidget {
   const EmergencyContactsScreen({super.key});

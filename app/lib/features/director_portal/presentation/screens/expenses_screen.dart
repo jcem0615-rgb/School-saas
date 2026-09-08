@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/auth/capabilities.dart';
 import 'package:intl/intl.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -26,6 +28,7 @@ class ExpensesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expensesAsync = ref.watch(expensesStreamProvider);
+    final canOperate = ref.watch(canOperateProvider);
 
     ref.listen(directorActionControllerProvider, (previous, next) {
       if (next case AsyncError(:final error)) {
@@ -46,11 +49,13 @@ class ExpensesScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showEditor(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Record'),
-      ),
+      floatingActionButton: !canOperate
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _showEditor(context, ref),
+              icon: const Icon(Icons.add),
+              label: const Text('Record'),
+            ),
       body: expensesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Failed to load expenses: $err')),
