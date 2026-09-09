@@ -55,6 +55,26 @@ Four things, and each is a decision rather than data entry.
 that queue. Handing it to the Admin alone would mean an Admin deciding
 requests they filed themselves, which is not an approval.
 
+That sentence was written before anything enforced it. Until recently
+`firestore.rules` let all three deciders -- Director, Principal and Admin
+-- approve a request they had filed, so the hazard the paragraph names
+as the reason for the role was open to the role itself. The rule now
+compares the decider's uid against the request's `createdBy` and refuses
+a self-decision, and the screen shows *You filed this. Somebody else
+decides it.* in place of the buttons rather than offering an action the
+server takes back.
+
+The comparison uses `get('createdBy', '')` rather than a direct read: a
+request written before that field existed would otherwise throw on the
+missing field and fail the whole rule, stranding it as undecidable by
+anybody. The default can never equal a uid, so an old request stays
+decidable by everyone -- which is the right way for this to degrade.
+
+`ApprovalRequest` gained `requestedByUid` for the same change. It carried
+only the filer's display name, which is why the demo had to keep a side
+map of uids to answer "is this mine?" -- and why the screen could not
+answer it at all. A name is not an identity.
+
 Leave decisions were on this list on the same argument, and were then
 moved to the Admin deliberately -- see the third consequence below. Both
 roles still *read* the leave queue: knowing who is off is supervision.

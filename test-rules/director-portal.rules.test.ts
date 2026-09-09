@@ -198,6 +198,99 @@ describe("approvals", () => {
     );
   });
 
+  // The header of firestore.rules gives "an Admin deciding requests they
+  // filed themselves, which is not an approval" as the reason the
+  // Director and the Principal keep this power at all. The rule did not
+  // check it until now, so the stated reason for the role was not
+  // enforced against anybody -- including the two roles it was meant to
+  // protect.
+  describe("nobody decides their own request", () => {
+    const filedBy = async (id: string, uid: string, role: string) => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), `schools/${SCHOOL}/approvals/${id}`), {
+          status: "pending",
+          requestedByRole: role,
+          createdBy: uid,
+        });
+      });
+    };
+
+    test("not the director", async () => {
+      await seedActiveSubscription();
+      await filedBy("own_1", "director_1", "director");
+      const director = contextAs("director");
+      await assertFails(
+        updateDoc(doc(director.firestore(), `schools/${SCHOOL}/approvals/own_1`), {
+          status: "approved",
+          decidedByUid: "director_1",
+          decidedByRole: "director",
+        })
+      );
+    });
+
+    test("not the admin, which is the case the rule was written for", async () => {
+      await seedActiveSubscription();
+      await filedBy("own_2", "admin_1", "admin");
+      const admin = contextAs("admin");
+      await assertFails(
+        updateDoc(doc(admin.firestore(), `schools/${SCHOOL}/approvals/own_2`), {
+          status: "approved",
+          decidedByUid: "admin_1",
+          decidedByRole: "admin",
+        })
+      );
+    });
+
+    test("not the principal either", async () => {
+      await seedActiveSubscription();
+      await filedBy("own_3", "principal_1", "principal");
+      const principal = contextAs("principal");
+      await assertFails(
+        updateDoc(doc(principal.firestore(), `schools/${SCHOOL}/approvals/own_3`), {
+          status: "approved",
+          decidedByUid: "principal_1",
+          decidedByRole: "principal",
+        })
+      );
+    });
+
+    test("but somebody else decides the same request", async () => {
+      // The other half. A test that only proves the refusal passes just
+      // as well if the rule refuses everybody.
+      await seedActiveSubscription();
+      await filedBy("own_4", "admin_1", "admin");
+      const director = contextAs("director");
+      await assertSucceeds(
+        updateDoc(doc(director.firestore(), `schools/${SCHOOL}/approvals/own_4`), {
+          status: "approved",
+          decidedByUid: "director_1",
+          decidedByRole: "director",
+        })
+      );
+    });
+
+    test("and a request written before createdBy existed is still decidable", async () => {
+      // The rule reads createdBy with a default rather than directly. A
+      // missing field would otherwise throw and fail the whole rule,
+      // which would strand an old request nobody could ever decide.
+      await seedActiveSubscription();
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), `schools/${SCHOOL}/approvals/legacy_1`), {
+          status: "pending",
+          requestedByRole: "staff",
+        });
+      });
+      const director = contextAs("director");
+      await assertSucceeds(
+        updateDoc(doc(director.firestore(), `schools/${SCHOOL}/approvals/legacy_1`), {
+          status: "approved",
+          decidedByUid: "director_1",
+          decidedByRole: "director",
+        })
+      );
+    });
+  });
+
   test("a decision must be signed by the account making it", async () => {
     // The approval history exists to answer "who approved this?". If a
     // decider can write somebody else's uid beside their decision, it

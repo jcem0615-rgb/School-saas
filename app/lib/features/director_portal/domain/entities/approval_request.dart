@@ -24,6 +24,17 @@ class ApprovalRequest {
   final Map<String, dynamic> details;
   final String requestedByName;
   final String requestedByRole;
+
+  /// The account that filed it, stored as `createdBy`.
+  ///
+  /// The mirror of [decidedByUid], and here for the same reason: a name
+  /// is not an identity. Nobody may decide their own request, and a
+  /// screen that only knows "filed by Ana Reyes" cannot tell whether the
+  /// Ana Reyes reading it is the same one -- so it would draw a button
+  /// the rules refuse. Nullable because a request written before this
+  /// field existed has no answer, and guessing one would be worse than
+  /// admitting it.
+  final String? requestedByUid;
   final ApprovalStatus status;
 
   /// Who decided it, in what role, and when.
@@ -50,6 +61,7 @@ class ApprovalRequest {
     required this.requestedByRole,
     required this.status,
     required this.createdAt,
+    this.requestedByUid,
     this.description,
     this.decidedByUid,
     this.decidedByName,

@@ -11,6 +11,7 @@ class ApprovalRequestModel extends ApprovalRequest {
     required super.requestedByName,
     required super.requestedByRole,
     required super.status,
+    super.requestedByUid,
     required super.createdAt,
     super.description,
     super.decidedByUid,
@@ -29,6 +30,9 @@ class ApprovalRequestModel extends ApprovalRequest {
       details: (data['details'] as Map<String, dynamic>?) ?? {},
       requestedByName: data['requestedByName'] as String? ?? 'Unknown',
       requestedByRole: data['requestedByRole'] as String? ?? 'unknown',
+      // `createdBy` is the field the write path sets and the rules check;
+      // the entity calls it requestedByUid to sit beside decidedByUid.
+      requestedByUid: data['createdBy'] as String?,
       status: ApprovalStatus.fromString(data['status'] as String? ?? 'pending'),
       decidedByUid: data['decidedByUid'] as String?,
       decidedByName: data['decidedByName'] as String?,

@@ -9,10 +9,15 @@ with no mention of the Owner portal in it. A verification that passes
 because it never ran is worse than no verification, because somebody
 believes it.
 
+It also checks the counts the README quotes back at the reader. Those
+drift the moment either document grows, and a README that says 52 pages
+over a 58-page guide is the same kind of wrong as a stale feature claim:
+small, and true-looking until somebody counts.
+
 Usage:  python3 verify.py
-Exits non-zero if either document mentions the Owner portal, or if a
+Exits non-zero if either document mentions the Owner portal, if a
 document turns out to hold no text at all -- which is the shape the last
-failure took.
+failure took -- or if the README's counts no longer match what was built.
 """
 import re
 import sys
@@ -40,6 +45,42 @@ def text_of(path: Path) -> str:
     return ' '.join(found)
 
 
+def readme_counts(deck: Path) -> list:
+    """Hold the README's own numbers to the built artefacts.
+
+    The slide count is read out of the deck. The page count is read from
+    the generated PDF, because pages are a rendering property -- the
+    .docx has no page count until something lays it out.
+    """
+    readme = (HERE / 'README.md').read_text(encoding='utf-8')
+    problems = []
+
+    with zipfile.ZipFile(deck) as z:
+        slides = len([n for n in z.namelist()
+                      if re.match(r'ppt/slides/slide\d+\.xml$', n)])
+    claimed = re.search(r'(\d+)-slide demo deck', readme)
+    if not claimed:
+        problems.append('README no longer states a slide count')
+    elif int(claimed.group(1)) != slides:
+        problems.append(
+            f'README says {claimed.group(1)} slides, the deck has {slides}')
+
+    pdf = HERE / 'LogicClass-Feature-Guide.pdf'
+    claimed_pages = re.search(r'(\d+)-page reference', readme)
+    if not claimed_pages:
+        problems.append('README no longer states a page count')
+    elif pdf.exists():
+        # /Type /Page, not /Pages, and not /Page followed by a letter.
+        blob = pdf.read_bytes()
+        pages = len(re.findall(rb'/Type\s*/Page[^s]', blob))
+        if pages and int(claimed_pages.group(1)) != pages:
+            problems.append(
+                f'README says {claimed_pages.group(1)} pages, the guide PDF has {pages}')
+        elif pages:
+            print(f'README: {slides} slides and {pages} pages, both as claimed')
+    return problems
+
+
 def main() -> int:
     failures = []
     for name in DOCS:
@@ -61,6 +102,10 @@ def main() -> int:
             failures.append(f'{name}: {hits}')
         else:
             print(f'{name}: {len(blob):,} characters, no Owner-portal wording')
+
+    deck = HERE / DOCS[0]
+    if deck.exists():
+        failures += readme_counts(deck)
 
     for f in failures:
         print(f'FAIL  {f}', file=sys.stderr)

@@ -283,7 +283,7 @@ const S = () => pres.addSlide();
   heading(s, 'Guidance and Staff Portals', 'Two smaller roles, deliberately kept apart',
     { lede: 'One of these records is the most closely held in the system. The other is a work log nobody, including its author, can edit.' });
   await cardGrid(s, [
-    { icon: 'FiHeart', h: 'Guidance Records', b: 'Counselling notes against one student, by category. The guidance office, the Director and the division Principal - and nobody else, not even the class adviser.' },
+    { icon: 'FiHeart', h: 'Guidance Records', b: 'Counselling notes against one student, by category. Guidance, the Director, the Admin and the division Principal - nobody else, not the adviser, not the family.' },
     { icon: 'FiMail', h: 'Student Summons', b: 'Call a student to the office with a reason and a time. Visible to the student and the linked parent too: a family should not learn about it afterwards.' },
     { icon: 'FiCheckSquare', h: 'Staff Checklist', b: 'A personal task list for today. Add a task, edit it, tick it off. It resets with the date rather than piling up week on week.' },
     { icon: 'FiClipboard', h: 'Daily Reports', b: 'A short end-of-day work log. Written once and never editable - a correction is a new entry, so the record stays trustworthy.' },

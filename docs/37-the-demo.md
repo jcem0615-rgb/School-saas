@@ -53,6 +53,46 @@ nothing there. Seeded data changes every time a module lands, so
 
 Change the seed so a claim stops being true and the suite says so.
 
+## The shapes are tested against the server
+
+The section above holds the demo's *claims* to its data. This holds its
+data to the *product*, which is a different failure and a quieter one.
+
+The demo is the only executable stand-in for the server anywhere in this
+repo: there is no local Firestore in a widget test, so a screen exercised
+in a test is exercised against `DemoStore`. When the demo writes a shape
+the server never writes, two things go wrong at once. A prospect is shown
+behaviour that will not happen, and reasoning that looks sound against
+demo data can be wrong against real data with nothing to say so.
+
+A refund is where that bit. `recordRefund.ts` flips the original payment
+to `refunded` -- keeping its positive amount -- and writes the negative
+row as `completed`. The demo marked *both* rows `refunded`. Against that,
+"total the completed rows" reads like a sound way to add up a day's
+collections; against real data it drops the payment being reversed and
+keeps only the negative, which is the mistake the Director's dashboard
+actually made (see `docs/18-reports.md`).
+
+`demo_matches_product_test.dart` now pins the demo to the server's shape,
+quoting the callable each assertion mirrors:
+
+| What | The demo now does | Because |
+| --- | --- | --- |
+| Refund status | original `refunded`, new row `completed` | `recordRefund.ts` |
+| Refund receipt | the original's number with `-R` | `recordRefund.ts` |
+| Receipt number | `RC-YYYY-NNNNNN` | `formatReceiptNumber` in `balanceMath.ts` |
+| Self-decision | refused, naming who decides instead | the `approvals` rule |
+
+The receipt prefix was `OR-`, which is this system's abbreviation for the
+*official* receipt -- the BIR serial off a printed booklet, a different
+field (`officialReceiptNo`) with its own register and reconciliation. The
+demo was printing the internal receipt under the government one's name,
+on the one screen where a school has to keep the two apart.
+
+These are shape assertions, not arithmetic ones; the arithmetic has its
+own tests. The rule for anything added here: if a callable writes it, the
+demo writes the same thing, and a test quotes the callable.
+
 ## There is no reset button
 
 The store lives in memory for the life of the tab, so **reloading the

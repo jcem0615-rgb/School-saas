@@ -414,16 +414,6 @@ class DemoDirectorRepository implements DirectorRepository {
   final DemoStore _store;
   DemoDirectorRepository(this._store);
 
-  /// The uid behind each approval request. [ApprovalRequest] only carries
-  /// the requester's display name and role, but watchApprovals filters by
-  /// uid (Firestore stores both), so the fake tracks it alongside.
-  final Map<String, String> _approvalOwners = {
-    'apr_001': 'u_faculty',
-    'apr_002': 'u_admin',
-    'apr_003': 'u_student',
-    'apr_004': 'u_staff',
-  };
-
   @override
   Future<Result<DirectorDashboardSummary>> getDashboardSummary() async {
     await _latency(250);
@@ -694,7 +684,7 @@ class DemoDirectorRepository implements DirectorRepository {
         list = list.where((a) => a.status == statusFilter).toList();
       }
       if (requestedByUid != null) {
-        list = list.where((a) => _approvalOwners[a.id] == requestedByUid).toList();
+        list = list.where((a) => a.requestedByUid == requestedByUid).toList();
       }
       return [...list]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     });
@@ -710,7 +700,6 @@ class DemoDirectorRepository implements DirectorRepository {
     await _latency();
     final user = _store.requireUser;
     final id = _store.nextId('apr');
-    _approvalOwners[id] = user.uid;
     _store.prepend(
       _store.approvals,
       ApprovalRequest(
@@ -721,6 +710,7 @@ class DemoDirectorRepository implements DirectorRepository {
         details: details,
         requestedByName: user.fullName,
         requestedByRole: user.role.value,
+        requestedByUid: user.uid,
         status: ApprovalStatus.pending,
         createdAt: DateTime.now(),
       ),
@@ -742,6 +732,20 @@ class DemoDirectorRepository implements DirectorRepository {
     String? remarks,
   }) async {
     await _latency();
+    // Nobody decides their own request. firestore.rules refuses this, and
+    // the reason the Director and the Principal keep approvals at all is
+    // that somebody has to be able to decide a request the Admin filed.
+    // The demo already knew who filed each one -- it kept a side map of
+    // uids because the entity carried only a display name -- and simply
+    // never asked before deciding. The uid is on the request itself now,
+    // so the map is gone and the screen can ask the same question.
+    final request =
+        _store.approvals.value.where((a) => a.id == approvalId).firstOrNull;
+    if (request?.requestedByUid == _store.requireUser.uid) {
+      return const Error(ValidationFailure(
+        'You filed this request. Somebody else decides it.',
+      ));
+    }
     _store.update<ApprovalRequest>(
       _store.approvals,
       (a) => a.id == approvalId,
@@ -3270,8 +3274,14 @@ class DemoPaymentRepository implements PaymentRepository {
       );
     }
     final id = _store.nextId('pay');
+    // RC-, matching formatReceiptNumber in balanceMath.ts. It read OR-
+    // here, which is the abbreviation this system uses for the *official*
+    // receipt -- the BIR serial off a printed booklet, a different field
+    // (`officialReceiptNo`) with its own register and reconciliation. The
+    // demo printed the internal receipt under the government one's name,
+    // on the one screen where a school has to keep the two apart.
     final receiptNumber =
-        'OR-${DateTime.now().year}-${(_store.payments.value.length + 1).toString().padLeft(6, '0')}';
+        'RC-${DateTime.now().year}-${(_store.payments.value.length + 1).toString().padLeft(6, '0')}';
 
     _store.prepend(
       _store.payments,
@@ -3409,7 +3419,7 @@ class DemoPaymentRepository implements PaymentRepository {
       // counter flow uses so the two are indistinguishable afterwards.
       paymentId = _store.nextId('pay');
       final receiptNumber =
-          'OR-${DateTime.now().year}-${(_store.payments.value.length + 1).toString().padLeft(6, '0')}';
+          'RC-${DateTime.now().year}-${(_store.payments.value.length + 1).toString().padLeft(6, '0')}';
       _store.prepend(
         _store.payments,
         Payment(
@@ -3526,11 +3536,27 @@ class DemoPaymentRepository implements PaymentRepository {
         studentId: original.studentId,
         amount: -original.amount,
         method: original.method,
-        receiptNumber:
-            'RF-${DateTime.now().year}-${(_store.payments.value.length + 1).toString().padLeft(6, '0')}',
+        // Both of these are the shape recordRefund.ts writes, and they
+        // were not. The receipt is the original's number with -R after
+        // it, not a separate RF- series -- a refund is a reversal of one
+        // receipt, not a receipt of its own.
+        //
+        // The status is the one that matters. Live, the negative row is
+        // `completed` and the *original* is what flips to `refunded`; the
+        // demo marked both rows refunded.
+        //
+        // That is not cosmetic. The demo is the only executable stand-in
+        // for the server anywhere in this repo's tests, so anything
+        // reasoned about or exercised against it was being checked
+        // against data the server never produces. The refund pair is
+        // exactly where that bites: `refunded` on both rows makes "count
+        // the completed ones" look like a sound way to total a day, and
+        // it is not -- which is the mistake the Director's dashboard
+        // actually made against real data.
+        receiptNumber: '${original.receiptNumber}-R',
         collectedByName: _store.requireUser.fullName,
         purpose: original.purpose,
-        status: PaymentStatus.refunded,
+        status: PaymentStatus.completed,
         refundOf: paymentId,
         createdAt: DateTime.now(),
       ),

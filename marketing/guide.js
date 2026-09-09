@@ -279,8 +279,11 @@ add(
     ['My Activity', 'My Activity History', 'The same trail, narrowed to your own actions.'],
     ['Profile', 'Profile', 'As section 3.2.'],
   ]),
-  note('A Director decides approvals but cannot decide their own request - the rule that files a request '
-     + 'and the rule that decides one are deliberately separate.'),
+  note('Nobody decides their own request - not the Director, not the Principal, not the Admin. The rule '
+     + 'that files a request and the rule that decides one are deliberately separate, and the database '
+     + 'refuses a self-decision whatever the screen offers. That separation is the whole reason deciding '
+     + 'approvals stayed with the Director and the Principal when everything else operational moved to '
+     + 'the Admin: somebody has to be able to decide what the Admin filed.'),
   H2('4.2 What an approval records'),
   P('A request card shows what is being decided, not only its title. The details a request carries - a '
     + 'quantity and an estimated cost for a material request, an amount and a reason for a promissory note '
@@ -468,7 +471,7 @@ add(
   P('These two features look similar and are deliberately governed differently.'),
   featureTable([
     ['Student Summons', 'Guidance, Director, Admin, the division Principal, the student, and their linked parent', 'Being called to the guidance office is something a family needs to know about, so it follows the same pattern as attendance, grades and payments.'],
-    ['Guidance Records', 'Guidance, Director, and the division Principal only', 'Counselling notes are the most closely held record in the system. Not the class adviser, not the student, not the parent.'],
+    ['Guidance Records', 'Guidance, Director, Admin, and the division Principal', 'Counselling notes are the most closely held record in the system. Not the class adviser, not the student, not the parent. Written only by Guidance, and by the Admin who administers the school\'s records.'],
   ], ['Record', 'Who can read it', 'Why']),
 );
 
@@ -721,7 +724,7 @@ add(
     ['Resolve', 'Emergency Alerts', 'Closes an alert with a note of what happened, recorded with who resolved it and when. Also written once.'],
     ['Emergency Alerts (parent)', 'Emergency Alerts', 'Alerts about their own children, with the numbers to call. An unresolved one also appears as a banner on the parent dashboard.'],
     ['Emergency Numbers', 'Emergency Numbers', 'The school\'s published list - clinic, guard, barangay, hospital - each with who answers, the number, a note and its position in the list. One tap dials.'],
-    ['Add number', 'Emergency Numbers', 'Director and Admin publish and reorder the list.'],
+    ['Add number', 'Emergency Numbers', 'The Admin publishes and reorders the list. Everyone in the school reads it.'],
   ], ['Control', 'Where', 'What it does']),
   H2('19.1 Who is told, and why it is not just the adviser'),
   P('The class adviser knows the child and is usually nearest to them, so they are told first. They are '
@@ -932,7 +935,7 @@ add(
     ['A recorded acknowledgement', 'First sign-in', 'Every account reads the notice before their first use, and the version they read is stored against the account.'],
     ['Access requests', 'Profile > Privacy and my information', 'A family can ask what is held about their child, from their own account.'],
     ['Correction, erasure, objection', 'Same screen', 'The other rights the Act names, filed the same way.'],
-    ['The queue', 'Data Requests', 'Director, Admin and Registrar see every request with its kind, its target answer date and whether it is overdue. Each is answered as done or refused, with the reason recorded.'],
+    ['The queue', 'Data Requests', 'Director, Admin and Registrar see every request with its kind, its target answer date and whether it is overdue. The Admin and the Registrar answer them, as done or refused, with the reason recorded; the Director reads the queue without deciding it.'],
     ['A retention schedule', 'Shipped with the system', 'How long each kind of record is kept, written down.'],
     ['A Data Processing Agreement', 'Shipped with the system', 'A template ready for the school\'s DPO to review.'],
     ['The DPO\'s contact details', 'Branding', 'The name, email and phone a family is told to contact.'],
@@ -1077,7 +1080,7 @@ add(
     + 'payslip each.'),
   H2('33.1 Setting it up'),
   featureTable([
-    ['Compensation', 'Employee', 'Basis - monthly, daily or hourly - the rate, and any allowances. Director and Admin only, enforced by the database.'],
+    ['Compensation', 'Employee', 'Basis - monthly, daily or hourly - the rate, and any allowances. Set by the Admin and readable by the Director and the Admin only, enforced by the database.'],
     ['Contribution Scheme', 'Payroll Setup', 'The SSS, PhilHealth, Pag-IBIG and withholding brackets. It ships EMPTY.'],
     ['Confirm', 'Payroll Setup', 'A named person states that these brackets came from the circular in front of them, names that circular, and confirms. No payslip prints until they have.'],
   ], ['Control', 'Opens', 'What happens']),

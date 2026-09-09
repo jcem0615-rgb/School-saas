@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../domain/entities/approval_request.dart';
 import '../controllers/director_controller.dart';
 import '../widgets/approval_status_badge.dart';
@@ -137,27 +138,53 @@ class _ApprovalTile extends ConsumerWidget {
             ],
             if (request.status == ApprovalStatus.pending) ...[
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  OutlinedButton(
-                    onPressed: () => _showRejectDialog(context, ref),
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                    child: const Text('Reject'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: () => ref
-                        .read(directorActionControllerProvider.notifier)
-                        .decideApproval(approvalId: request.id, approve: true),
-                    child: const Text('Approve'),
-                  ),
-                ],
-              ),
+              // Your own request is shown but not decidable. The rules
+              // refuse a self-decision, so the buttons would be an offer
+              // the server takes back -- and on an approvals queue that
+              // reads as the system changing its mind about whether you
+              // are allowed to sign something off. It says who it is
+              // waiting for instead.
+              if (_isMine(ref, request))
+                Text(
+                  'You filed this. Somebody else decides it.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                )
+              else
+                Row(
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => _showRejectDialog(context, ref),
+                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Reject'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: () => ref
+                          .read(directorActionControllerProvider.notifier)
+                          .decideApproval(approvalId: request.id, approve: true),
+                      child: const Text('Approve'),
+                    ),
+                  ],
+                ),
             ],
           ],
         ),
       ),
     );
+  }
+
+  /// Whether the signed-in account filed this request.
+  ///
+  /// A request written before `createdBy` was carried on the entity has a
+  /// null uid. That is treated as somebody else's rather than as mine:
+  /// the rule compares against a default that can never equal a uid, so
+  /// hiding the buttons here would hide an action the server allows.
+  bool _isMine(WidgetRef ref, ApprovalRequest request) {
+    final uid = ref.watch(authStateProvider).valueOrNull?.uid;
+    return uid != null && request.requestedByUid == uid;
   }
 
   Future<void> _showRejectDialog(BuildContext context, WidgetRef ref) async {

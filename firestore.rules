@@ -645,12 +645,27 @@ service cloud.firestore {
         // approval history -- which exists to answer "who approved this?"
         // -- would answer with whatever the client typed. The same shape
         // as the authorship check on create.
+        //
+        // And not your own. The header at the top of this file gives
+        // "an Admin deciding requests they filed themselves, which is not
+        // an approval" as the reason the Director and the Principal keep
+        // this power at all -- and until this line the rule let all three
+        // of them do exactly that. The rationale for the role was written
+        // down; the check that made it true was not. It applies to every
+        // decider, including the two the reasoning was meant to protect.
+        //
+        // `get` with a default rather than a direct read: an approval
+        // written before `createdBy` existed would throw on a missing
+        // field and fail the whole rule, which would block deciding it
+        // rather than allowing it -- still wrong, and harder to read as
+        // a failure. Defaulting to '' can never equal a uid.
         allow update: if hasRole(schoolId, ['director', 'principal', 'admin'])
                         && schoolIsAccessible(schoolId)
                         && resource.data.status == 'pending'
                         && request.resource.data.status in ['approved', 'rejected']
                         && request.resource.data.decidedByUid == request.auth.uid
-                        && request.resource.data.decidedByRole == claims().role;
+                        && request.resource.data.decidedByRole == claims().role
+                        && resource.data.get('createdBy', '') != request.auth.uid;
         allow delete: if false;
       }
 
