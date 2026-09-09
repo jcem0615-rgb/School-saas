@@ -12,7 +12,6 @@ import '../../../admissions/presentation/screens/admissions_screen.dart';
 import '../../../inventory/presentation/screens/inventory_screen.dart';
 import '../../../payroll/presentation/screens/payroll_run_screen.dart';
 import '../../../faculty_portal/presentation/screens/grading_scheme_screen.dart';
-import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../../system_check/presentation/screens/system_check_screen.dart';
 import '../../../schedules/presentation/screens/schedule_screen.dart';
@@ -128,12 +127,6 @@ class AdminDashboardScreen extends StatelessWidget {
                   label: 'System Check',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const SystemCheckScreen())),
-                ),
-                GlassTile(
-                  icon: Icons.privacy_tip_outlined,
-                  label: 'Data Requests',
-                  onTap: () => Navigator.of(context)
-                      .push(MaterialPageRoute(builder: (_) => const DataRequestsScreen())),
                 ),
                 GlassTile(
                   icon: Icons.insights_outlined,

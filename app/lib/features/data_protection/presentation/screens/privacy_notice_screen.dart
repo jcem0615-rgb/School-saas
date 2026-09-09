@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../admin_portal/domain/entities/school_branding.dart';
 import '../../../admin_portal/presentation/controllers/admin_controller.dart' show brandingProvider;
 import '../widgets/privacy_notice_body.dart';
-import 'my_data_screen.dart';
 
 /// The notice, on its own page.
 ///
@@ -22,16 +21,11 @@ class PrivacyNoticeScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Privacy')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        children: [
-          PrivacyNoticeBody(branding: branding),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const MyDataScreen())),
-            icon: const Icon(Icons.assignment_outlined),
-            label: const Text('Ask about my information'),
-          ),
-        ],
+        // No "ask about my information" button any more: requests are
+        // made to the office, and a button that only opened a screen
+        // saying so would be an errand rather than an answer. The notice
+        // itself says where to ask.
+        children: [PrivacyNoticeBody(branding: branding)],
       ),
     );
   }

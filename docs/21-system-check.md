@@ -21,7 +21,7 @@ Director and Admin only, alongside the audit trail and reports.
 | Database indexes created | Five probe queries run | `firestore:indexes` never deployed |
 | File storage writable | A probe file is written and removed | Storage rules not deployed, or Storage not enabled |
 | Account claims set | The token carries a role and the right `schoolId` | Account made by hand in the console; or a stale token |
-| School details filled in | Name, logo, year, principal and DPO all set | Nobody has been through Branding yet — a **warning**, not a failure |
+| School details filled in | Name, logo, year and principal all set | Nobody has been through Branding yet — a **warning**, not a failure |
 
 ## The rules check is the one that matters
 

@@ -44,7 +44,6 @@ import '../features/reports/domain/entities/report_period.dart';
 import '../features/reports/domain/repositories/reports_repository.dart';
 import '../features/schedules/domain/entities/schedule_block.dart';
 import '../features/schedules/domain/repositories/schedule_repository.dart';
-import '../features/data_protection/domain/entities/data_request.dart';
 import '../features/data_protection/domain/repositories/data_protection_repository.dart';
 import '../features/system_check/domain/entities/system_check.dart';
 import '../features/system_check/domain/repositories/system_check_repository.dart';
@@ -1169,9 +1168,6 @@ class DemoAdminRepository implements AdminRepository {
     String? directorSignatureUrl,
     String? directorName,
     String? schoolYear,
-    String? dpoName,
-    String? dpoEmail,
-    String? dpoPhone,
   }) async {
     await _latency();
     final current = _store.branding.value;
@@ -1187,9 +1183,6 @@ class DemoAdminRepository implements AdminRepository {
       directorSignatureUrl: directorSignatureUrl ?? current.directorSignatureUrl,
       directorName: directorName ?? current.directorName,
       schoolYear: schoolYear ?? current.schoolYear,
-      dpoName: dpoName ?? current.dpoName,
-      dpoEmail: dpoEmail ?? current.dpoEmail,
-      dpoPhone: dpoPhone ?? current.dpoPhone,
       updatedAt: DateTime.now(),
       updatedByName: _store.requireUser.fullName,
     ));
@@ -4531,74 +4524,6 @@ class DemoScheduleRepository implements ScheduleRepository {
 class DemoDataProtectionRepository implements DataProtectionRepository {
   final DemoStore _store;
   DemoDataProtectionRepository(this._store);
-
-  @override
-  Stream<List<DataRequest>> watchRequests() => _store.dataRequests.stream.map(
-        (all) => [...all]..sort((a, b) => b.requestedAt.compareTo(a.requestedAt)),
-      );
-
-  @override
-  Stream<List<DataRequest>> watchMyRequests(String uid) => _store.dataRequests.stream.map(
-        (all) => all.where((r) => r.requestedByUid == uid).toList()
-          ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt)),
-      );
-
-  @override
-  Future<Result<String>> raiseRequest({
-    required DataRequestKind kind,
-    required String details,
-    String? studentId,
-    String? studentName,
-  }) async {
-    await _latency();
-    final user = _store.requireUser;
-    final id = 'dsr_${DateTime.now().microsecondsSinceEpoch}';
-    _store.dataRequests.add([
-      DataRequest(
-        id: id,
-        requestedByUid: user.uid,
-        requestedByName: user.fullName,
-        kind: kind,
-        details: details,
-        requestedAt: DateTime.now(),
-        studentId: studentId,
-        studentName: studentName,
-      ),
-      ..._store.dataRequests.value,
-    ]);
-    return Success(id);
-  }
-
-  @override
-  Future<Result<void>> closeRequest({
-    required String requestId,
-    required DataRequestStatus status,
-    required String outcome,
-  }) async {
-    await _latency();
-    final user = _store.requireUser;
-    _store.dataRequests.add([
-      for (final request in _store.dataRequests.value)
-        if (request.id == requestId)
-          DataRequest(
-            id: request.id,
-            requestedByUid: request.requestedByUid,
-            requestedByName: request.requestedByName,
-            kind: request.kind,
-            details: request.details,
-            requestedAt: request.requestedAt,
-            studentId: request.studentId,
-            studentName: request.studentName,
-            status: status,
-            handledByName: user.fullName,
-            handledAt: DateTime.now(),
-            outcome: outcome,
-          )
-        else
-          request,
-    ]);
-    return const Success(null);
-  }
 
   @override
   Future<Result<void>> acknowledgePrivacyNotice(int version) async {

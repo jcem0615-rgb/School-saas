@@ -6,7 +6,6 @@ import 'package:logicclass/features/auth/presentation/controllers/auth_controlle
     show authStateProvider;
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
-import 'package:logicclass/features/data_protection/domain/entities/data_request.dart';
 import 'package:logicclass/features/data_protection/domain/entities/privacy_notice.dart';
 import 'package:logicclass/features/data_protection/presentation/controllers/data_protection_controller.dart';
 
@@ -78,97 +77,5 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 100));
 
     expect(container.read(needsPrivacyAcknowledgementProvider), isFalse);
-  });
-
-  test('a family can raise a request and the office sees it', () async {
-    final container = await _signedInAs(UserRole.parent);
-    addTearDown(container.dispose);
-    final sub = container.listen(dataProtectionActionControllerProvider, (_, __) {});
-    addTearDown(sub.close);
-    final store = container.read(demoStoreProvider);
-    final before = store.dataRequests.value.length;
-
-    final ok = await container.read(dataProtectionActionControllerProvider.notifier).raise(
-          kind: DataRequestKind.correction,
-          details: 'My phone number on file is the old one.',
-        );
-
-    expect(ok, isTrue);
-    expect(store.dataRequests.value, hasLength(before + 1));
-    final filed = store.dataRequests.value.first;
-    expect(filed.kind, DataRequestKind.correction);
-    expect(filed.status, DataRequestStatus.open);
-    expect(filed.outcome, isNull);
-  });
-
-  test('an empty request is refused and nothing is filed', () async {
-    final container = await _signedInAs(UserRole.parent);
-    addTearDown(container.dispose);
-    final sub = container.listen(dataProtectionActionControllerProvider, (_, __) {});
-    addTearDown(sub.close);
-    final store = container.read(demoStoreProvider);
-    final before = store.dataRequests.value.length;
-
-    final ok = await container.read(dataProtectionActionControllerProvider.notifier).raise(
-          kind: DataRequestKind.access,
-          details: '   ',
-        );
-
-    expect(ok, isFalse);
-    expect(store.dataRequests.value, hasLength(before));
-  });
-
-  test('the office answers a request and the person who asked sees the answer', () async {
-    final container = await _signedInAs(UserRole.registrar);
-    addTearDown(container.dispose);
-    final sub = container.listen(dataProtectionActionControllerProvider, (_, __) {});
-    addTearDown(sub.close);
-    final store = container.read(demoStoreProvider);
-    final open = store.dataRequests.value.firstWhere((r) => r.isOpen);
-
-    final ok = await container.read(dataProtectionActionControllerProvider.notifier).close(
-          requestId: open.id,
-          status: DataRequestStatus.actioned,
-          outcome: 'Printed and handed over at the registrar.',
-        );
-
-    expect(ok, isTrue);
-    final answered = store.dataRequests.value.firstWhere((r) => r.id == open.id);
-    expect(answered.status, DataRequestStatus.actioned);
-    expect(answered.outcome, 'Printed and handed over at the registrar.');
-    expect(answered.handledByName, isNotNull);
-    expect(answered.details, open.details, reason: 'the question asked must not change');
-  });
-
-  // A school cannot always agree, and a system with nowhere to put a
-  // refusal pushes the office into either lying or ignoring it.
-  test('a refusal cannot be recorded without a reason', () async {
-    final container = await _signedInAs(UserRole.registrar);
-    addTearDown(container.dispose);
-    final sub = container.listen(dataProtectionActionControllerProvider, (_, __) {});
-    addTearDown(sub.close);
-    final store = container.read(demoStoreProvider);
-    final open = store.dataRequests.value.firstWhere((r) => r.isOpen);
-
-    final ok = await container.read(dataProtectionActionControllerProvider.notifier).close(
-          requestId: open.id,
-          status: DataRequestStatus.refused,
-          outcome: '',
-        );
-
-    expect(ok, isFalse);
-    expect(store.dataRequests.value.firstWhere((r) => r.id == open.id).isOpen, isTrue);
-  });
-
-  test('the seeded refusal carries its reason', () async {
-    final container = await _signedInAs(UserRole.registrar);
-    addTearDown(container.dispose);
-    final refused = container
-        .read(demoStoreProvider)
-        .dataRequests
-        .value
-        .firstWhere((r) => r.status == DataRequestStatus.refused);
-    expect(refused.outcome, isNotNull);
-    expect(refused.outcome, contains('required to keep'));
   });
 }

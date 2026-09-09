@@ -13,9 +13,6 @@ class SchoolBrandingModel extends SchoolBranding {
     super.principalSignatureUrl,
     super.directorSignatureUrl,
     super.schoolYear,
-    super.dpoName,
-    super.dpoEmail,
-    super.dpoPhone,
     super.updatedAt,
     super.updatedByName,
   });
@@ -35,9 +32,6 @@ class SchoolBrandingModel extends SchoolBranding {
       principalSignatureUrl: data['principalSignatureUrl'] as String?,
       directorSignatureUrl: data['directorSignatureUrl'] as String?,
       schoolYear: data['schoolYear'] as String?,
-      dpoName: data['dpoName'] as String?,
-      dpoEmail: data['dpoEmail'] as String?,
-      dpoPhone: data['dpoPhone'] as String?,
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       updatedByName: data['updatedByName'] as String?,
     );

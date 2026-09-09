@@ -209,9 +209,6 @@ class AdminRepositoryImpl implements AdminRepository {
     String? directorSignatureUrl,
     String? directorName,
     String? schoolYear,
-    String? dpoName,
-    String? dpoEmail,
-    String? dpoPhone,
   }) {
     return _run(() => _remote.updateBranding({
           if (logoUrl != null) 'logoUrl': logoUrl,
@@ -223,9 +220,6 @@ class AdminRepositoryImpl implements AdminRepository {
           if (directorSignatureUrl != null) 'directorSignatureUrl': directorSignatureUrl,
           if (directorName != null) 'directorName': directorName,
           if (schoolYear != null) 'schoolYear': schoolYear,
-          if (dpoName != null) 'dpoName': dpoName,
-          if (dpoEmail != null) 'dpoEmail': dpoEmail,
-          if (dpoPhone != null) 'dpoPhone': dpoPhone,
         }));
   }
 }

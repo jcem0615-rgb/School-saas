@@ -86,8 +86,7 @@ rules require, and most other records while you are enrolled and for
   satisfied, you can bring your complaint to the National Privacy
   Commission.
 
-You can raise any of these at the school office, or from the Privacy
-section of your own profile in the app.
+You can raise any of these at the school office.
 
 We will respond within `[15]` days.
 

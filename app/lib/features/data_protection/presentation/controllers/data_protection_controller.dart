@@ -5,7 +5,6 @@ import '../../../auth/presentation/controllers/auth_controller.dart'
     show authStateProvider, firestoreProvider;
 import '../../data/datasources/data_protection_remote_datasource.dart';
 import '../../data/repositories_impl/data_protection_repository_impl.dart';
-import '../../domain/entities/data_request.dart';
 import '../../domain/entities/privacy_notice.dart';
 import '../../domain/repositories/data_protection_repository.dart';
 import '../../domain/usecases/data_protection_usecases.dart';
@@ -19,24 +18,11 @@ final dataProtectionRemoteDataSourceProvider = Provider<DataProtectionRemoteData
     firestore: ref.watch(firestoreProvider),
     schoolId: user.schoolId!,
     uid: user.uid,
-    userName: user.fullName,
   );
 });
 
 final dataProtectionRepositoryProvider = Provider<DataProtectionRepository>((ref) {
   return DataProtectionRepositoryImpl(ref.watch(dataProtectionRemoteDataSourceProvider));
-});
-
-/// The office's queue.
-final dataRequestsProvider = StreamProvider.autoDispose<List<DataRequest>>((ref) {
-  return WatchDataRequestsUseCase(ref.watch(dataProtectionRepositoryProvider))();
-});
-
-/// What one person has asked for, on their own profile.
-final myDataRequestsProvider = StreamProvider.autoDispose<List<DataRequest>>((ref) {
-  final uid = ref.watch(authStateProvider).valueOrNull?.uid;
-  if (uid == null) return const Stream.empty();
-  return WatchMyDataRequestsUseCase(ref.watch(dataProtectionRepositoryProvider))(uid);
 });
 
 /// Whether this person still owes an acknowledgement of the current
@@ -52,42 +38,12 @@ final needsPrivacyAcknowledgementProvider = Provider<bool>((ref) {
 });
 
 class DataProtectionActionController extends StateNotifier<AsyncValue<void>> {
-  final RaiseDataRequestUseCase _raise;
-  final CloseDataRequestUseCase _close;
   final AcknowledgePrivacyNoticeUseCase _acknowledge;
 
   DataProtectionActionController({
-    required RaiseDataRequestUseCase raise,
-    required CloseDataRequestUseCase close,
     required AcknowledgePrivacyNoticeUseCase acknowledge,
-  })  : _raise = raise,
-        _close = close,
-        _acknowledge = acknowledge,
+  })  : _acknowledge = acknowledge,
         super(const AsyncData(null));
-
-  Future<bool> raise({
-    required DataRequestKind kind,
-    required String details,
-    String? studentId,
-    String? studentName,
-  }) async {
-    if (mounted) state = const AsyncLoading();
-    return _boolFrom(await _raise(
-      kind: kind,
-      details: details,
-      studentId: studentId,
-      studentName: studentName,
-    ));
-  }
-
-  Future<bool> close({
-    required String requestId,
-    required DataRequestStatus status,
-    required String outcome,
-  }) async {
-    if (mounted) state = const AsyncLoading();
-    return _boolFrom(await _close(requestId: requestId, status: status, outcome: outcome));
-  }
 
   Future<bool> acknowledge() async {
     if (mounted) state = const AsyncLoading();
@@ -110,10 +66,7 @@ class DataProtectionActionController extends StateNotifier<AsyncValue<void>> {
 
 final dataProtectionActionControllerProvider = StateNotifierProvider.autoDispose<
     DataProtectionActionController, AsyncValue<void>>((ref) {
-  final repository = ref.watch(dataProtectionRepositoryProvider);
   return DataProtectionActionController(
-    raise: RaiseDataRequestUseCase(repository),
-    close: CloseDataRequestUseCase(repository),
-    acknowledge: AcknowledgePrivacyNoticeUseCase(repository),
+    acknowledge: AcknowledgePrivacyNoticeUseCase(ref.watch(dataProtectionRepositoryProvider)),
   );
 });

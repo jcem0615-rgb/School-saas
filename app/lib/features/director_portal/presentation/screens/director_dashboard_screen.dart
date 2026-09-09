@@ -8,7 +8,6 @@ import 'package:intl/intl.dart';
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../../../owner_portal/presentation/widgets/revenue_card.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
-import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../../system_check/presentation/screens/system_check_screen.dart';
 import '../../../schedules/presentation/screens/schedule_screen.dart';
@@ -150,12 +149,6 @@ class DirectorDashboardScreen extends ConsumerWidget {
                     label: 'System Check',
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const SystemCheckScreen())),
-                  ),
-                  GlassTile(
-                    icon: Icons.privacy_tip_outlined,
-                    label: 'Data Requests',
-                    onTap: () => Navigator.of(context)
-                        .push(MaterialPageRoute(builder: (_) => const DataRequestsScreen())),
                   ),
                   GlassTile(
                     icon: Icons.insights_outlined,

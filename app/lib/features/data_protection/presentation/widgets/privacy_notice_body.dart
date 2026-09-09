@@ -64,8 +64,6 @@ class PrivacyNoticeBody extends StatelessWidget {
               ],
             ),
           ),
-        const SizedBox(height: 8),
-        _DpoCard(branding: branding),
       ],
     );
   }
@@ -162,51 +160,3 @@ class _Section extends StatelessWidget {
   }
 }
 
-/// The named person a complaint goes to.
-///
-/// Shown as unset rather than hidden when the school has not named one.
-/// A blank space says nothing; "your school has not named one yet" is
-/// the prompt that gets one named, and it is the first thing a regulator
-/// asks for.
-class _DpoCard extends StatelessWidget {
-  final SchoolBranding branding;
-  const _DpoCard({required this.branding});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final name = branding.dpoName?.trim();
-    final email = branding.dpoEmail?.trim();
-    final phone = branding.dpoPhone?.trim();
-    final named = name != null && name.isNotEmpty;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Data Protection Officer', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 6),
-          if (!named)
-            Text(
-              'Your school has not named one in this system yet. Ask the '
-              'school office who to contact about your information.',
-              style: theme.textTheme.bodySmall,
-            )
-          else ...[
-            Text(name, style: theme.textTheme.bodyMedium),
-            if (email != null && email.isNotEmpty)
-              SelectableText(email, style: theme.textTheme.bodySmall),
-            if (phone != null && phone.isNotEmpty)
-              SelectableText(phone, style: theme.textTheme.bodySmall),
-          ],
-        ],
-      ),
-    );
-  }
-}

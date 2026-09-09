@@ -7,15 +7,42 @@ It was the gap that blocked a signature rather than a demo: everything
 else in this system was built to be *used*, and none of it was built to
 be *asked about*.
 
-Five pieces:
+Three pieces:
 
 | Piece | Where |
 |---|---|
 | A privacy notice describing what this system actually holds | `PrivacyNotice`, rendered by `PrivacyNoticeBody` |
 | An acknowledgement, recorded per person and per version | `privacyNoticeVersion` on the user record |
-| A named Data Protection Officer | `dpoName/dpoEmail/dpoPhone` on branding |
-| A path for data subject requests, and the record of how each was answered | `dataRequests` |
 | A DPA, a privacy notice template and a retention schedule | `legal/` |
+
+## What was removed, and what that means
+
+Two of the original five pieces are gone: the **in-app data-request
+queue** (`dataRequests`, its screens, its rules) and the **named Data
+Protection Officer** stored on branding (`dpoName/dpoEmail/dpoPhone`).
+
+This narrows the software, not the school's obligations. A school under
+the Data Privacy Act still has to appoint a Data Protection Officer and
+still has to answer access, correction, erasure and objection requests
+within its stated window. What changed is only that this system no
+longer holds the officer's contact details or tracks the requests: both
+happen at the office, off this software, and the privacy notice now says
+so rather than pointing at a screen.
+
+The consequences worth knowing before this is sold:
+
+- **A school cannot show, from this system, how it answered a request.**
+  The refusal-with-a-reason record is gone, so that evidence lives
+  wherever the office keeps it.
+- **The privacy notice no longer prints a name to complain to.** It
+  directs a family to the school office instead.
+- **The going-live check no longer asks for a DPO.** Branding warns on a
+  missing name, logo, school year or principal, and nothing else.
+
+The `legal/` drafts still describe the officer and the rights in full,
+because those are statements of law rather than descriptions of this
+software. The privacy-notice template no longer tells a family they can
+raise a request from their profile in the app, which stopped being true.
 
 ## The notice is written from the collections, not from a template
 
@@ -57,43 +84,10 @@ the school cannot say was given. Owner is exempt — the platform operator
 is not somebody whose data the school processes, and there is no school
 branding to name an officer from.
 
-## Requests: the refusal is the feature
-
-Four kinds — access, correction, erasure, objection — as separate kinds
-rather than a free-text subject, because they are answered differently.
-
-Closing a request **requires an outcome in both directions**. A school
-genuinely cannot delete everything on request: a transcript is a record
-it is required to keep and a receipt already reported cannot vanish. A
-system with nowhere to put a refusal pushes the office into either lying
-or ignoring the request, and the seeded demo deliberately shows a refusal
-with its reason rather than a tidy queue of grants.
-
-The queue sorts **oldest open first** and shows days waiting, flagging
-anything past the school's target (defaulted to 15 days — the school's
-own figure to argue with, not this software's statement of what the law
-requires). A queue sorted newest-first is one where the request somebody
-has waited a month for sinks out of sight, which is the only failure this
-screen exists to prevent.
-
 ## Rules
 
-```
-schools/{schoolId}/dataRequests/{id}
-```
-
-- **Create**: anybody active in the school, for themselves only
-  (`requestedByUid == request.auth.uid`), and never pre-answered — a
-  queue you can pre-close proves nothing.
-- **Read**: the office (Director, Admin, Registrar) and the person who
-  asked. Not teachers: a teacher has no business in the list of who asked
-  the school about their own records.
-- **Update**: the office only, and the question itself is immutable —
-  `requestedByUid`, `kind`, `details` and `requestedAt` cannot change
-  when the answer is written.
-- **Delete**: never.
-
-The acknowledgement is an ordinary self-write to the user's own document,
+Nothing in this module has a collection of its own any more. The
+acknowledgement is an ordinary self-write to the user's own document,
 permitted by `onlySelfEditableFieldsChanged`. It is a person asserting
 something about themselves; what matters is that they cannot assert it
 about anybody else, which the uid check already guarantees, and the rules
@@ -130,16 +124,14 @@ schedule says so.
 
 | Layer | File | Covers |
 |---|---|---|
-| Domain | `data_request_test.dart` | overdue arithmetic, mandatory outcomes, every notice category naming who can see it |
-| Demo | `data_protection_test.dart` | the gate opens off the record and not off a dismissed screen; an older version still owes a new acknowledgement; raise, answer and refuse |
-| Rules | `data-requests.rules.test.ts` | self-only creation, never pre-answered, office-only answers, the question immutable, nothing deleted, acknowledgement cannot be made for somebody else |
+| Demo | `data_protection_test.dart` | the gate opens off the record and not off a dismissed screen; an older version still owes a new acknowledgement; the acknowledgement survives a role switch |
 
 ## Deferred
 
-- **A personal data export.** The access request is recorded and answered
-  by hand today. Producing the document — everything held on one student,
-  printed — is the obvious next build, and the report PDF machinery is
-  already there for it.
+- **A personal data export.** Producing the document — everything held on
+  one student, printed — would be the obvious build if request handling
+  ever comes back into the software. The report PDF machinery is already
+  there for it.
 - **Breach notification workflow.** The DPA commits to a notification
   window; nothing in the app tracks one.
 - **Per-school notice text.** The notice describes the software, which is

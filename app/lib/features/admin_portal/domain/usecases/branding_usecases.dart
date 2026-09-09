@@ -25,9 +25,6 @@ class UpdateBrandingUseCase {
     String? directorSignatureUrl,
     String? directorName,
     String? schoolYear,
-    String? dpoName,
-    String? dpoEmail,
-    String? dpoPhone,
   }) {
     return _repository.updateBranding(
       logoUrl: logoUrl,
@@ -39,9 +36,6 @@ class UpdateBrandingUseCase {
       directorSignatureUrl: directorSignatureUrl,
       directorName: directorName?.trim(),
       schoolYear: schoolYear?.trim(),
-      dpoName: dpoName?.trim(),
-      dpoEmail: dpoEmail?.trim(),
-      dpoPhone: dpoPhone?.trim(),
     );
   }
 }

@@ -115,8 +115,7 @@ class PrivacyNotice {
     PrivacyPoint(
       heading: 'Ask what is held about you',
       body: 'The school will give you a copy of what this system holds about '
-          'you or your child. Ask the office, or raise a request from your '
-          'own profile in the app.',
+          'you or your child. Ask the school office.',
     ),
     PrivacyPoint(
       heading: 'Ask for a correction',
@@ -135,8 +134,8 @@ class PrivacyNotice {
     PrivacyPoint(
       heading: 'Object, or complain',
       body: 'You can object to how your information is used, and you can '
-          'complain to the school\'s Data Protection Officer. If you are not '
-          'satisfied, you can take a complaint further to the regulator.',
+          'complain to the school. If you are not satisfied, you can take a '
+          'complaint further to the regulator.',
     ),
   ];
 
@@ -147,7 +146,7 @@ class PrivacyNotice {
       'Attendance, guidance notes and emergency alerts are kept while the '
       'student is enrolled and for the period the school sets after that. '
       'Push notification tokens are removed when you sign out. Your school '
-      'sets the exact periods; ask its Data Protection Officer.';
+      'sets the exact periods; ask the school office.';
 
   static const String security =
       'Access is decided by your role and enforced by the database itself, '

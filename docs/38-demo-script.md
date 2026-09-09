@@ -73,7 +73,7 @@ screens."
 | **Payroll** | Next to Expenses on purpose: salaries are the larger |
 | Expenses | With spreadsheet import |
 | Audit Trail | Every edit and soft delete in the school, written by a trigger nobody can bypass |
-| System Check, Data Requests, Emergency Numbers, Leave, Timesheets | |
+| System Check, Emergency Numbers, Leave, Timesheets | |
 
 **Show Payroll.** Pick the month. Every employee, their days worked,
 absences, contributions, net pay, and the employer share the school
@@ -130,7 +130,6 @@ the SSS table, except there we do not even seed it."
 | Grading Scheme | Shared with Admin |
 | Online Payments | The review queue for family-submitted payments |
 | Payment Setup | The school's e-wallet QR |
-| Data Requests | Data Privacy Act: export everything held on a student, or request erasure |
 
 ### The admissions walkthrough
 

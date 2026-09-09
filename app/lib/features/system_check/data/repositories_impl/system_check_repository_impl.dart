@@ -435,9 +435,8 @@ class SystemCheckRepositoryImpl implements SystemCheckRepository {
 
   /// Not a deployment fault -- a readiness one.
   ///
-  /// A school let in without these has ID cards with no crest, printed
-  /// documents with no school name on them, and a privacy notice that
-  /// tells families nobody has been named to hear their complaint.
+  /// A school let in without these has ID cards with no crest and
+  /// printed documents with no school name on them.
   Future<SystemCheck> _checkBranding() async {
     try {
       final snapshot = await _firestore
@@ -455,16 +454,11 @@ class SystemCheckRepositoryImpl implements SystemCheckRepository {
       if (!branding.hasLogo) missing.add('logo');
       if (blank(branding.schoolYear)) missing.add('school year');
       if (blank(branding.principalName)) missing.add('principal');
-      if (!branding.hasDataProtectionOfficer) {
-        missing.add('Data Protection Officer');
-      }
-
       if (missing.isEmpty) {
         return SystemCheck.pass(
           id: 'branding',
           title: 'School details filled in',
-          detail: 'Name, logo, school year, principal and Data Protection '
-              'Officer are all set.',
+          detail: 'Name, logo, school year and principal are all set.',
         );
       }
       return SystemCheck.warn(

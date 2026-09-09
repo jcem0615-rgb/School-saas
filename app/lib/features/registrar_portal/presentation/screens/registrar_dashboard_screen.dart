@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../school_totals/presentation/widgets/school_totals_card.dart';
 import 'package:go_router/go_router.dart';
-import '../../../data_protection/presentation/screens/data_requests_screen.dart';
 
 import '../../../payments/presentation/screens/payment_review_screen.dart';
 import '../../../admissions/presentation/screens/admissions_screen.dart';
@@ -81,15 +80,6 @@ class RegistrarDashboardScreen extends StatelessWidget {
                   label: 'Student Records',
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const StudentListScreen())),
-                ),
-                // The registrar is the office a family actually walks up
-                // to, so the queue belongs on their dashboard as much as
-                // on the Director's.
-                GlassTile(
-                  icon: Icons.privacy_tip_outlined,
-                  label: 'Data Requests',
-                  onTap: () => Navigator.of(context)
-                      .push(MaterialPageRoute(builder: (_) => const DataRequestsScreen())),
                 ),
                 GlassTile(
                   icon: Icons.fact_check_outlined,

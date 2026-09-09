@@ -99,7 +99,6 @@ const S = () => pres.addSlide();
     { icon: 'FiCheckSquare', h: 'Approvals', b: 'One inbox for every request in the school. Every decision records who made it, when, and what they were deciding' },
     { icon: 'FiGrid', h: 'Class Schedule', b: 'The week\'s timetable for every section, read across the whole school' },
     { icon: 'FiCheckCircle', h: 'System Check', b: 'Seven readiness checks before a school goes live' },
-    { icon: 'FiShield', h: 'Data Requests', b: 'What families have asked about their data, and what was answered' },
     { icon: 'FiBarChart2', h: 'Reports', b: 'Enrolment, collections, attendance and grades - on screen, to Excel, or printed' },
     { icon: 'FiTag', h: 'Fee Schedules', b: 'Read the fee sets the cashier assesses against - the Admin defines them' },
     { icon: 'FiCreditCard', h: 'Expenses', b: 'Read school spending by category and date. The Admin records it' },
@@ -158,7 +157,6 @@ const S = () => pres.addSlide();
     { icon: 'FiCamera', h: 'Scan Attendance', b: 'Open the camera and mark whoever is scanned, in or out' },
     { icon: 'FiAlertTriangle', h: 'Emergency Alerts', b: 'See and resolve alerts raised anywhere in the school' },
     { icon: 'FiPhone', h: 'Emergency Numbers', b: 'Publish the numbers every portal can dial' },
-    { icon: 'FiShield', h: 'Data Requests', b: 'Answer a family asking what is held about their child' },
     { icon: 'FiSearch', h: 'Audit Trail', b: 'Filter every change by module, date and person' },
     { icon: 'FiCheckCircle', h: 'System Check', b: 'Prove the deployment works before the first school day' },
     { icon: 'FiUser', h: 'Profile', b: 'Your own details, QR ID, activity and notification switch' },
@@ -173,7 +171,6 @@ const S = () => pres.addSlide();
     { lede: 'Four tiles on the dashboard, and everything else opens from a student\'s own record.' });
   await cardGrid(s, [
     { icon: 'FiUsers', h: 'Student Records', b: 'Search and filter the roster by division, register a new student, import or export the list, load more as you scroll.' },
-    { icon: 'FiShield', h: 'Data Requests', b: 'The queue of families asking for access, correction, erasure or objection - each with a target answer date.' },
     { icon: 'FiFileText', h: 'Online Payments', b: 'The review queue: every GCash or bank transfer a family sent in, with the reference and the amount, to approve or reject.' },
     { icon: 'FiSettings', h: 'Payment Setup', b: 'The school\'s own account name, number, QR image and the instructions families read before they send anything.' },
   ], { cols: 4, y: 2.4, h: 3.25 });
@@ -638,14 +635,14 @@ const S = () => pres.addSlide();
 {
   const s = S(); bg(s, C.paper);
   heading(s, 'Data Privacy Act', 'What to hand your Data Protection Officer',
-    { lede: 'Schools hold minors\' records. The questions a DPO asks are answered inside the app, not in a promise.' });
+    { lede: 'Schools hold minors\' records. Your DPO asks what is held and who can reach it - and that part is answered inside the app, not in a promise.' });
   await rowList(s, [
     { icon: 'FiFileText', h: 'A privacy notice in the app', b: 'Eight categories of data, what is held, why, and who sees it' },
     { icon: 'FiCheckCircle', h: 'A recorded acknowledgement', b: 'Every account reads it before their first use, and the version they read is stored' },
-    { icon: 'FiSearch', h: 'Access requests', b: 'A family can ask what is held about their child, from their own profile' },
-    { icon: 'FiEdit3', h: 'Correction and objection', b: 'The other rights the Act names, filed the same way' },
     { icon: 'FiArchive', h: 'A retention schedule', b: 'How long each kind of record is kept, written down' },
-    { icon: 'FiClock', h: 'A clock on every request', b: 'Each one carries a target answer date and shows when it is overdue' },
+    { icon: 'FiLock', h: 'Access decided at the database', b: 'Not by what a screen shows - a screen you cannot reach is data you cannot fetch' },
+    { icon: 'FiSearch', h: 'An audit trail behind it', b: 'Every change to a record carries who made it and when' },
+    { icon: 'FiUsers', h: 'Requests handled at the office', b: 'Access, correction, erasure and objection are answered by the school, off this system' },
   ], { cols: 3, y: 2.4, rh: 1.35, gap: 0.35 });
   await callout(s, 'FiFileText',
     'A Data Processing Agreement template ships with the system, ready for your DPO to review.',
@@ -683,7 +680,7 @@ const S = () => pres.addSlide();
     { icon: 'FiSearch', h: 'Database indexes created', b: 'The queries the app depends on actually run' },
     { icon: 'FiUpload', h: 'File storage writable', b: 'A probe file is written and removed again' },
     { icon: 'FiKey', h: 'Account claims set', b: 'The signed-in account carries its role and its school' },
-    { icon: 'FiTag', h: 'School details filled in', b: 'Name, logo, year, principal and DPO - a warning, not a failure' },
+    { icon: 'FiTag', h: 'School details filled in', b: 'Name, logo, year and principal - a warning, not a failure' },
   ], { cols: 2, y: 2.25, rh: 0.98 });
   await callout(s, 'FiShield',
     'A database left in test mode behaves perfectly - right up to the day one school reads another\'s records. This is the check that catches it.',

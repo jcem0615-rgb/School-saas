@@ -221,7 +221,7 @@ add(
     ['Director', 'School-wide oversight', 'Reads everything in the school - today\'s figures, fee schedules, expenses, payroll, leave, reports, the audit trail - and changes four things: announcements, meetings, approvals, and picking up an emergency alert. Editing the school\'s records is the Admin\'s.'],
     ['Principal', 'One division, oversight only', 'Reads student records, the class schedule, teacher assignments and the leave queue for their division; decides approvals, posts announcements, calls meetings, picks up an emergency alert. No edit buttons on the records themselves.'],
     ['Admin', 'School operations - the operator', 'Employee accounts, teacher assignment, strands and programs, branding, schedules, fee schedules, receipt booklets, expenses, payroll, inventory, reports, audit trail, attendance scanning, leave requests and staff timesheets. Everything the school changes week to week.'],
-    ['Registrar / Cashier', 'The front counter', 'Enrolment, student records, fee assessment, payments and receipts, printed forms, online-payment review and setup, data requests.'],
+    ['Registrar / Cashier', 'The front counter', 'Enrolment, student records, fee assessment, payments and receipts, printed forms, online-payment review and setup.'],
     ['Faculty', 'Teaching', 'Own timetable, class registers with time in and out, coursework, answer keys, submissions, grade submission, material requests, attendance scanning, messages with parents, own leave and timesheet.'],
     ['Guidance', 'Student welfare', 'Guidance records, student summons, emergency alerts.'],
     ['Staff', 'Non-teaching staff', 'Daily checklist, daily work reports, material requests, own scannable ID, own leave and timesheet.'],
@@ -270,7 +270,6 @@ add(
     ['Approvals', 'Approvals', 'One inbox for every request filed anywhere in the school - material requests from faculty and staff, promissory notes from students. Filter by pending, approved, rejected or all; approve or reject with a reason. Each card carries the request\'s own details, and each decision records who made it. See 4.2.'],
     ['Class Schedule', 'Class Schedule', 'The week for every section. See section 17.'],
     ['System Check', 'System Check', 'Seven readiness checks. See section 25.'],
-    ['Data Requests', 'Data Requests', 'What families have asked about their data, and what was answered. See section 23.'],
     ['Reports', 'Reports', 'The four school reports, on screen, to Excel, or printed. See section 18.'],
     ['Fee Schedules', 'Fee Schedules', 'Define the named fee sets the cashier assesses against. See section 14.'],
     ['Expenses', 'Expenses', 'Record school spending with a category, description, amount, date and the receipt behind it - or import a spreadsheet of it. Financial data: readable by Director, Admin and Registrar only.'],
@@ -342,7 +341,6 @@ add(
     ['Emergency Numbers', 'Emergency Numbers', 'Publish the numbers every portal can dial.'],
     ['Class Schedule', 'Class Schedule', 'Build the week. See section 17.'],
     ['System Check', 'System Check', 'Seven readiness checks. See section 25.'],
-    ['Data Requests', 'Data Requests', 'Answer a family asking about their child\'s data. See section 23.'],
     ['Reports', 'Reports', 'The four school reports. See section 18.'],
     ['Fee Schedules', 'Fee Schedules', 'Define fee sets. See section 14.'],
     ['Announcements', 'Announcements', 'Post and pin school messages.'],
@@ -370,7 +368,6 @@ add(
     ['School year', 'Branding', 'Carried onto documents and used as the default when assessing fees.'],
     ['Principal name and signature', 'Branding', 'An uploaded signature image, printed on IDs and documents.'],
     ['Director name and signature', 'Branding', 'The same, for the school head.'],
-    ['Data Protection Officer', 'Branding', 'The name, email and phone a family is told to contact about their data.'],
     ['Save', 'Branding', 'Applies immediately - new ID cards and documents use it from that moment.'],
   ], ['Field', 'Where', 'What it affects']),
 );
@@ -383,7 +380,6 @@ add(
   H2('7.1 The dashboard buttons'),
   featureTable([
     ['Student Records', 'Student Records', 'The roster, searchable and filterable by division, loading more as you scroll. Register a new student, or import and export the whole list.'],
-    ['Data Requests', 'Data Requests', 'The queue of families asking for access, correction, erasure or objection, each with a target answer date and an overdue marker. See section 23.'],
     ['Online Payments', 'Online Payments', 'The review queue of GCash and bank transfers families have sent in. See section 15.'],
     ['Payment Setup', 'Online Payment Setup', 'The school\'s own account name, number, QR image and the instructions families read. See section 15.'],
     ['Profile', 'Profile', 'As section 3.2.'],
@@ -933,13 +929,15 @@ add(
   featureTable([
     ['A privacy notice', 'In the app', 'Eight categories of data: what is held, why it is held, and who sees it. Plus the rights the Act names, the retention position, and how the school secures and shares data.'],
     ['A recorded acknowledgement', 'First sign-in', 'Every account reads the notice before their first use, and the version they read is stored against the account.'],
-    ['Access requests', 'Profile > Privacy and my information', 'A family can ask what is held about their child, from their own account.'],
-    ['Correction, erasure, objection', 'Same screen', 'The other rights the Act names, filed the same way.'],
-    ['The queue', 'Data Requests', 'Director, Admin and Registrar see every request with its kind, its target answer date and whether it is overdue. The Admin and the Registrar answer them, as done or refused, with the reason recorded; the Director reads the queue without deciding it.'],
     ['A retention schedule', 'Shipped with the system', 'How long each kind of record is kept, written down.'],
     ['A Data Processing Agreement', 'Shipped with the system', 'A template ready for the school\'s DPO to review.'],
-    ['The DPO\'s contact details', 'Branding', 'The name, email and phone a family is told to contact.'],
+    ['Access enforced at the database', 'Throughout', 'Who can read what is decided where the data lives, not by what a screen shows - so a screen a role cannot reach is also data it cannot fetch.'],
+    ['An audit trail', 'Audit Trail', 'Every change to a record carries the account that made it and when.'],
   ], ['What a DPO asks for', 'Where it is', 'What it contains']),
+  note('Requests from families - access, correction, erasure, objection - are answered by the school office, '
+     + 'not tracked in this system. The rights are the school\'s to honour under the Act; this software holds '
+     + 'the records the office needs to answer them, and the privacy notice tells families where to ask. A '
+     + 'school that wants the queue inside the app should say so before signing: it is a build, not a setting.'),
 );
 
 // ---------------------------------------------------------------- 27 Platforms
@@ -966,7 +964,7 @@ add(
     ['Database indexes created', 'Pass', 'The queries the app depends on actually run.'],
     ['File storage writable', 'Pass', 'A probe file is written and removed again.'],
     ['Account claims set', 'Pass', 'The signed-in account carries its role and its school.'],
-    ['School details filled in', 'Warning', 'Name, logo, school year, principal and DPO. A warning rather than a failure - the system works without them, the printed documents just look unfinished.'],
+    ['School details filled in', 'Warning', 'Name, logo, school year and principal. A warning rather than a failure - the system works without them, the printed documents just look unfinished.'],
   ], ['Check', 'Result type', 'What it proves']),
   note('Every failure names its remedy. A check that cannot say what to do about it is not a check, it is '
      + 'an alarm.'),

@@ -6,7 +6,7 @@ build them.
 | File | What it is |
 |---|---|
 | `LogicClass-Demo.pptx` | 38-slide demo deck, with speaker notes on every slide |
-| `LogicClass-Feature-Guide.docx` | 59-page reference: every screen and every button, portal by portal |
+| `LogicClass-Feature-Guide.docx` | 57-page reference: every screen and every button, portal by portal |
 | `LogicClass-Demo.pdf`, `LogicClass-Feature-Guide.pdf` | The same two, for sending to somebody who will not open Office |
 
 ## The Owner portal is not in either of them

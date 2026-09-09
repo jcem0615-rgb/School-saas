@@ -750,47 +750,6 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // ---- dataRequests (what a person asked the school to do with
-      // their own information) ----
-      //
-      // Anybody in the school may raise one about themselves, and a
-      // parent about a linked child. That is the point: a right nobody
-      // can exercise without finding the right office is a right on
-      // paper only.
-      //
-      // Only the office may close one, and the close is an update rather
-      // than a delete -- a school asked how it handles these has to be
-      // able to show the ones it refused as well as the ones it granted.
-      match /dataRequests/{requestId} {
-        allow read: if belongsToSchool(schoolId)
-                      && schoolIsAccessible(schoolId)
-                      && (
-                        hasRole(schoolId, ['director', 'admin', 'registrar'])
-                        || resource.data.requestedByUid == request.auth.uid
-                      );
-
-        allow create: if belongsToSchool(schoolId)
-                        && schoolIsAccessible(schoolId)
-                        && isAccountActive()
-                        && request.resource.data.requestedByUid == request.auth.uid
-                        && request.resource.data.status == 'open'
-                        // Nobody files a request that arrives already
-                        // answered.
-                        && request.resource.data.handledByName == null
-                        && request.resource.data.outcome == null;
-
-        allow update: if hasRole(schoolId, ['admin', 'registrar'])
-                        && schoolIsAccessible(schoolId)
-                        // The request itself is what was asked; only the
-                        // answer may change.
-                        && !request.resource.data.diff(resource.data)
-                              .affectedKeys()
-                              .hasAny(['requestedByUid', 'requestedByName', 'kind',
-                                       'details', 'requestedAt', 'studentId']);
-
-        allow delete: if false;
-      }
-
       // ---- scheduleBlocks (the weekly timetable) ----
       //
       // Readable by the whole tenant, and deliberately so: a timetable
