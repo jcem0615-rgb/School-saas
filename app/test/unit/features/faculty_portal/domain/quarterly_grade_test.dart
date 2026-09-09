@@ -129,6 +129,66 @@ void main() {
       ]);
     });
 
+    test('marks the subject incomplete, because it is', () {
+      // The working figure is still computed and still honest -- what
+      // changes is that it is not yet a *final* grade, and the report
+      // card prints INC rather than a number for it.
+      final grade = compute([
+        score(90, 100),
+        score(90, 100, component: GradingComponent.performanceTask),
+      ]);
+      expect(grade.isIncomplete, isTrue);
+      expect(grade.initialGrade, 90);
+      expect(grade.finalGrade, 90);
+    });
+
+    test('a component the school weights at nothing is not missing', () {
+      // Nothing can be done about it and nothing turns on it: naming it
+      // sends a teacher looking for work that cannot move the grade.
+      final zeroQa = GradingScheme(
+        weights: const [
+          SubjectWeights(
+            label: 'Practical',
+            subjects: [],
+            writtenWork: 50,
+            performanceTask: 50,
+            quarterlyAssessment: 0,
+          ),
+        ],
+        confirmedBySchool: true,
+      );
+      final grade = computeQuarterlyGrade(
+        subject: 'Science',
+        term: '1st Quarter',
+        grades: [
+          score(90, 100),
+          score(80, 100, component: GradingComponent.performanceTask),
+        ],
+        scheme: zeroQa,
+      );
+      expect(grade.missingComponents, isEmpty);
+      expect(grade.isIncomplete, isFalse);
+      expect(grade.finalGrade, 85);
+    });
+
+    test('every component filled is not incomplete', () {
+      final grade = compute([
+        score(80, 100),
+        score(90, 100, component: GradingComponent.performanceTask),
+        score(70, 100, component: GradingComponent.quarterlyAssessment),
+      ]);
+      expect(grade.isIncomplete, isFalse);
+    });
+
+    test('a subject with nothing at all is ungraded, not incomplete', () {
+      // Different states with different answers: nothing recorded is a
+      // subject the teacher has not started, and it is left out of
+      // averages entirely rather than flagged for completion.
+      final grade = compute([]);
+      expect(grade.hasWork, isFalse);
+      expect(grade.isIncomplete, isFalse);
+    });
+
     test('a subject with nothing at all has no grade rather than a zero', () {
       final grade = compute(const []);
       expect(grade.hasWork, isFalse);
@@ -242,6 +302,20 @@ void main() {
 
     test('is nothing at all when no subject has been graded', () {
       expect(generalAverage([graded('Science', 0, hasWork: false)]), isNull);
+    });
+
+    test('leaves out an incomplete subject too', () {
+      // The report card prints INC rather than a number for it, and an
+      // average cannot include a figure the document beside it does not
+      // show.
+      final incomplete = computeQuarterlyGrade(
+        subject: 'English',
+        term: '1st Quarter',
+        grades: [score(60, 100)],
+        scheme: scheme,
+      );
+      expect(incomplete.isIncomplete, isTrue);
+      expect(generalAverage([graded('Science', 90), incomplete]), 90);
     });
   });
 }

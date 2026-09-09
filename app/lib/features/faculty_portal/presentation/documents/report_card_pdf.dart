@@ -143,7 +143,10 @@ class ReportCardPdf {
               'scheme confirmed by the school'
               '${scheme.confirmedByName == null ? '' : ' (${scheme.confirmedByName})'}'
               '. A subject with no work recorded in a quarter is left blank '
-              'rather than scored zero.',
+              'rather than scored zero. INC means a component that counts '
+              'towards the grade has nothing in it yet: the quarter is not '
+              'finished, not failed, and no final grade is issued for it '
+              'until it is.',
               style: const pw.TextStyle(fontSize: 7.5),
             ),
             pw.SizedBox(height: 10),
@@ -289,7 +292,15 @@ class ReportCardPdf {
               cell(share(grade, GradingComponent.quarterlyAssessment),
                   align: pw.TextAlign.center),
               cell(grade.initialGrade.toStringAsFixed(2), align: pw.TextAlign.center),
-              cell('${grade.finalGrade}', align: pw.TextAlign.center),
+              // INC, not a number, when a component that counts is still
+              // empty. The working figure above it is real and stays
+              // printed -- it is what the grade would be if the quarter
+              // ended now -- but a final grade is a thing the school
+              // stands behind, and this one is not final yet. Printing
+              // the number in that column is how a child ends up carrying
+              // a grade nobody meant to issue.
+              cell(grade.isIncomplete ? 'INC' : '${grade.finalGrade}',
+                  align: pw.TextAlign.center),
             ]),
       ],
     );
@@ -348,21 +359,30 @@ class ReportCardPdf {
     pw.Widget Function(String, {bool header, pw.TextAlign? align}) cell,
   ) {
     final byTerm = {for (final g in grades) g.term: g};
-    final graded = grades.where((g) => g.hasWork).toList();
-    final finalGrade = graded.isEmpty
+    // A quarter still marked INC cannot be averaged into a final grade
+    // for the subject -- there is no number to average. One incomplete
+    // quarter therefore leaves the subject's final column empty rather
+    // than averaging the quarters that are done, which would report a
+    // year's grade off three quarters as though it were four.
+    final graded = grades.where((g) => g.hasWork && !g.isIncomplete).toList();
+    final anyIncomplete = grades.any((g) => g.isIncomplete);
+    final finalGrade = graded.isEmpty || anyIncomplete
         ? null
         : (graded.fold<int>(0, (sum, g) => sum + g.finalGrade) / graded.length).round();
 
+    String forTerm(String term) {
+      final grade = byTerm[term];
+      // Blank, not zero. A subject the teacher has not entered anything
+      // for did not earn a nought.
+      if (grade == null || !grade.hasWork) return '';
+      return grade.isIncomplete ? 'INC' : '${grade.finalGrade}';
+    }
+
     return pw.TableRow(children: [
       cell(subject),
-      for (final term in terms)
-        cell(
-          // Blank, not zero. A subject the teacher has not entered
-          // anything for did not earn a nought.
-          byTerm[term]?.hasWork == true ? '${byTerm[term]!.finalGrade}' : '',
-          align: pw.TextAlign.center,
-        ),
-      cell(finalGrade == null ? '' : '$finalGrade', align: pw.TextAlign.center),
+      for (final term in terms) cell(forTerm(term), align: pw.TextAlign.center),
+      cell(finalGrade == null ? (anyIncomplete ? 'INC' : '') : '$finalGrade',
+          align: pw.TextAlign.center),
       cell(finalGrade == null ? '' : (isPassing(finalGrade) ? 'Passed' : 'Failed')),
     ]);
   }

@@ -126,6 +126,7 @@ class _ClassRecordScreenState extends ConsumerState<ClassRecordScreen> {
                   total: record.rows.length,
                   onMark: () => _showMarkSheet(_query!, record, assessment),
                   onEdit: () => _showAssessmentForm(_query!, existing: assessment),
+                  onDelete: () => _confirmDelete(assessment, record),
                 ),
               const SizedBox(height: 20),
               Text('Where each grade comes from', style: theme.textTheme.titleMedium),
@@ -210,6 +211,59 @@ class _ClassRecordScreenState extends ConsumerState<ClassRecordScreen> {
         section: _sectionController.text.trim(),
         term: _term,
       );
+
+  /// Deleting a column changes every student's grade in that component,
+  /// so the dialog says how many marks go with it before it asks.
+  ///
+  /// The count is the whole point. "Delete Quiz 1?" is a question about a
+  /// title; "Delete Quiz 1 and the 32 marks recorded against it?" is a
+  /// question about children's grades, and they are not the same
+  /// question. A teacher who is not told finds out from a parent.
+  Future<void> _confirmDelete(ClassAssessment assessment, ClassRecord record) async {
+    final marks =
+        record.rows.where((r) => r.marks.containsKey(assessment.id)).length;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Delete "${assessment.title}"?'),
+        content: Text(
+          marks == 0
+              ? 'Nothing has been marked against it yet, so no grade changes.'
+              : 'The $marks mark${marks == 1 ? '' : 's'} recorded against it '
+                  'will go too, and every one of those students\' '
+                  '${assessment.component.displayLabel} score will change.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep it'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _working = true);
+    final removed = await ref
+        .read(facultyActionControllerProvider.notifier)
+        .deleteClassAssessment(assessment.id);
+    if (!mounted) return;
+    setState(() => _working = false);
+    if (removed != null) {
+      _say(removed == 0
+          ? 'Deleted "${assessment.title}".'
+          : 'Deleted "${assessment.title}" and $removed '
+              'mark${removed == 1 ? '' : 's'}.');
+    }
+  }
 
   Future<void> _showAssessmentForm(GradeQuery query,
       {ClassAssessment? existing}) async {
@@ -553,6 +607,7 @@ class _AssessmentTile extends StatelessWidget {
   final int total;
   final VoidCallback onMark;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const _AssessmentTile({
     required this.assessment,
@@ -560,6 +615,7 @@ class _AssessmentTile extends StatelessWidget {
     required this.total,
     required this.onMark,
     required this.onEdit,
+    required this.onDelete,
   });
 
   @override
@@ -583,6 +639,12 @@ class _AssessmentTile extends StatelessWidget {
               tooltip: 'Edit',
               icon: const Icon(Icons.edit_outlined),
               onPressed: onEdit,
+            ),
+            IconButton(
+              tooltip: 'Delete',
+              icon: const Icon(Icons.delete_outline),
+              color: Theme.of(context).colorScheme.error,
+              onPressed: onDelete,
             ),
             FilledButton.tonal(onPressed: onMark, child: const Text('Marks')),
           ],
@@ -613,21 +675,49 @@ class _StudentRow extends StatelessWidget {
       ),
       child: ExpansionTile(
         title: Text(row.student.fullName),
+        // The working number stays, INC or not. A teacher mid-quarter
+        // needs to see where a child stands; what they also need to know
+        // is that this one will print INC rather than a grade if the
+        // quarter closes with a component still empty. So: the figure,
+        // and the flag beside it.
         subtitle: Text(
           grade.hasWork
-              ? '${gradeDescriptor(grade.finalGrade)} · initial '
-                  '${grade.initialGrade.toStringAsFixed(2)}'
+              ? grade.isIncomplete
+                  ? 'Incomplete · no '
+                      '${grade.missingComponents.map((c) => c.shortLabel).join(' or ')} '
+                      'yet · working figure ${grade.initialGrade.toStringAsFixed(2)}'
+                  : '${gradeDescriptor(grade.finalGrade)} · initial '
+                      '${grade.initialGrade.toStringAsFixed(2)}'
               : 'Nothing marked yet',
         ),
-        trailing: grade.hasWork
-            ? Text(
-                '${grade.finalGrade}',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: isPassing(grade.finalGrade) ? null : theme.colorScheme.error,
-                ),
-              )
-            : const Text('—'),
+        trailing: !grade.hasWork
+            ? const Text('—')
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${grade.finalGrade}',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: grade.isIncomplete
+                          ? theme.colorScheme.onSurfaceVariant
+                          : isPassing(grade.finalGrade)
+                              ? null
+                              : theme.colorScheme.error,
+                    ),
+                  ),
+                  if (grade.isIncomplete)
+                    Text(
+                      'INC',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.tertiary,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: .5,
+                      ),
+                    ),
+                ],
+              ),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),

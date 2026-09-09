@@ -74,6 +74,36 @@ list, on the student's subject page, and in the note at the foot of the
 report card — so nobody mistakes a grade computed from two of three
 components for a final one.
 
+**And the grade is marked INC until they are filled.** The rescale keeps
+the working figure honest; it does not make that figure a final grade.
+`QuarterlyGrade.isIncomplete` is true when work has been recorded but a
+component that carries weight is still empty, and it is what separates
+the two audiences:
+
+| Where | What it shows | Why |
+|---|---|---|
+| Class record, grades list | The number, with INC beside it | A teacher mid-quarter needs to see where a child stands, *and* that this one will not print as a grade yet |
+| Report card | `INC`, not the number | A final grade is a thing the school stands behind. Printing the number is how a child ends up carrying a grade nobody meant to issue |
+
+Two consequences follow from that, both deliberate:
+
+- **An incomplete subject is left out of the general average**, alongside
+  the ungraded ones. An average cannot include a figure the document
+  beside it does not print.
+- **One incomplete quarter leaves the subject's final column empty**
+  rather than averaging the quarters that are done, which would report a
+  year's grade off three quarters as though it were four.
+
+A component the school weights at **zero** is not missing anything — it
+cannot move the grade, so it is excluded from `missingComponents` and
+never triggers INC. Naming it would send a teacher looking for work that
+has nowhere to go.
+
+INC is not the same state as ungraded. A subject with nothing at all in
+it has no grade; a subject with two of three components has a grade that
+is not finished. The first is left out of everything, the second is
+marked and shown.
+
 The smaller decisions, each with a test behind it:
 
 - **Several pieces in one component are summed, not averaged.** A
@@ -123,6 +153,39 @@ percentage, the weight it carries, what that contributes, the initial
 grade and the transmuted final. A teacher asked why a child got 87 can
 point at the line. One that shows only the answer sends them back to the
 spreadsheet.
+
+### Adding, editing and removing a piece of work
+
+All three go through a callable, because all three can change grades that
+have already been recorded.
+
+**Add** creates the column before anything is marked, so every mark
+against it has the same total behind it. **Edit** renames it, moves it to
+another component, or changes what it is out of — allowed deliberately,
+because a teacher who set 20 and meant 25 has to be able to say so. It
+rescales nothing: the marks stay as typed, and any that no longer fit the
+new total are **named in the reply** rather than clamped. Either number
+could be the right one and only the teacher knows which.
+
+**Delete** takes the marks with it. That is the whole reason it is a
+callable and not a client write:
+
+- A column removed on its own would leave every mark against it still
+  summing into the component total — the class still graded on a quiz
+  that is no longer on any screen, with nothing anywhere to explain the
+  figure. The two go in **one batch**: together, or not at all.
+- Both are **soft** (`isDeleted`), which is what every read in this
+  module already filters on. A hard delete of a child's recorded score is
+  not something a teacher should be able to do from a phone, and the
+  audit entry needs something to point at.
+- The **count of marks removed comes back**, and the screen asks with it:
+  *"Delete Quiz 1?"* is a question about a title; *"the 32 marks recorded
+  against it will go too"* is a question about children's grades. A
+  teacher who is not told finds out from a parent.
+
+Delete is the teaching side's — Faculty and Admin, the same roles that
+may mark — and refuses a piece of work that is already gone rather than
+reporting a second success.
 
 ### A mark can be corrected
 
@@ -252,9 +315,10 @@ step it has not done.
 | Assembling the record | `faculty_portal/presentation/controllers/faculty_controller.dart` |
 | Settings screen | `faculty_portal/presentation/screens/grading_scheme_screen.dart` |
 | The document | `faculty_portal/presentation/documents/report_card_pdf.dart` |
-| **The write paths** | `functions/src/callable/grading/` — `saveClassAssessment`, `saveAssessmentScores`, `setClassWeights`, `postGradeMark` |
+| **The write paths** | `functions/src/callable/grading/` — `saveClassAssessment`, `deleteClassAssessment`, `saveAssessmentScores`, `setClassWeights`, `postGradeMark` |
 | Validation, keys, weights | `functions/src/shared/grading/` |
 | Firestore | `schools/{id}/settings/grading`, `classAssessments/{id}`, `classWeights/{classKey}`, `grades/{assessment}_{student}` |
+| **Tests** | `quarterly_grade_test.dart` (the arithmetic, INC, the average), `class_record_test.dart` (add, edit, delete against the demo), `gradingCallables.test.ts` (every write path against the emulator) |
 
 ### Rules
 

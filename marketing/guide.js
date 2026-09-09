@@ -410,7 +410,7 @@ add(
   featureTable([
     ['My Schedule', 'My Timetable', 'The teacher\'s own week - what they teach, when, where and to whom.'],
     ['Coursework', 'Coursework', 'Every lesson plan, lesson, assignment, project, exam and quiz they have set. See 8.2.'],
-    ['Class Record', 'Class Record', 'Where a teacher actually keeps grades: a column per piece of work, the class typed down it in one go, and the quarterly grade computed as you save. See 8.5.'],
+    ['Class Record', 'Class Record', 'Where a teacher actually keeps grades: a column per piece of work, the class typed down it in one go, and the quarterly grade computed as you save. See 8.6.'],
     ['Grade Submission', 'Grade Submission', 'The older per-student path, kept for a single late mark and for the spreadsheet import. See 8.5.'],
     ['Material Requests', 'Material Requests', 'File a request for what the classroom needs; it lands in the same approvals inbox the Director reads.'],
     ['Scan Attendance', 'Scan Attendance QR', 'Mark a class present by scanning their IDs. See section 13.'],
@@ -452,6 +452,20 @@ add(
   ], ['Control', 'Where', 'What it does']),
   note('A grade can be corrected but never reassigned: an update that would move a mark to a different '
      + 'student is refused by the database, not by the screen.'),
+  H2('8.6 The class record'),
+  P('One piece of work is one column, the class is the rows, and the teacher types down the column and '
+    + 'saves once. Every figure behind a grade is on the same screen, so a teacher asked why a child got '
+    + '87 can point at the line rather than going back to a spreadsheet.'),
+  featureTable([
+    ['Add a piece of work', 'Class Record', 'A name, which of the three components it counts towards, and what it is marked out of. Created before anything is marked, so every mark against it has the same total behind it.'],
+    ['Edit', 'Class Record', 'Rename it, move it to another component, or change the total. Marks are never rescaled: any that no longer fit the new total are named back to you, because either figure could be the right one and only you know which.'],
+    ['Delete', 'Confirmation', 'Removes the piece of work and the marks recorded against it, together. The confirmation says how many marks will go, because that is the question actually being asked.'],
+    ['Marks', 'Mark sheet', 'Type down the column for the whole class and save once. A blank means the child did not sit it and drops out of both their score and the total; a zero means they sat it and scored nothing.'],
+    ['Percentages', 'Class Record', 'Set this class\'s own three weights instead of the school scheme, or hand it back. Refused unless they total 100, and every screen then says whose weights produced the grade.'],
+  ], ['Control', 'Where', 'What it does']),
+  note('Deleting a column and keeping its marks would leave them still counting towards the component '
+     + 'total - the class graded on a quiz that is no longer on any screen. So they go together, in one '
+     + 'write on the server, and both are recoverable rather than erased.'),
 );
 
 // ---------------------------------------------------------------- 9 Guidance
@@ -1017,6 +1031,7 @@ add(
     'Each score is a raw mark out of a maximum, filed under one of the three components.',
     'A component with no work in it yet is left out of the arithmetic entirely - it is not a zero.',
     'The grade is the earned total rescaled over the weight that actually exists, and the screen names which component is still missing.',
+    'That subject is marked INC until the component is filled. The teacher still sees the working number; the report card prints INC rather than a grade, and leaves the subject out of the general average.',
     'That is the difference between "no exam has been given yet" and "every child in the school is capped at 80 until it has".',
   ]),
   H2('30.3 The report card'),

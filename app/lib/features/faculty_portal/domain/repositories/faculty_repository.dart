@@ -116,6 +116,14 @@ abstract class FacultyRepository {
     required double maxScore,
   });
 
+  /// Removes a piece of work and the marks recorded against it.
+  ///
+  /// The two go together: a column removed on its own would leave its
+  /// marks still summing into the component total, so the class would
+  /// keep being graded on a quiz that is no longer on any screen.
+  /// Returns how many marks went with it, so the teacher is told.
+  Future<Result<int>> deleteClassAssessment(String assessmentId);
+
   /// A whole column of marks at once, each replacing whatever was there.
   Future<Result<({int saved, int cleared})>> saveAssessmentScores({
     required String assessmentId,

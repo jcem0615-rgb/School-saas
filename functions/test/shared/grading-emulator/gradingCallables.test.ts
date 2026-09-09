@@ -32,6 +32,7 @@ let callSaveAssessment: any;
 let callSaveScores: any;
 let callSetWeights: any;
 let callPostMark: any;
+let callDeleteAssessment: any;
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 function db() {
@@ -83,16 +84,18 @@ describe("keeping a class record", () => {
     if (admin.apps.length === 0) {
       admin.initializeApp({projectId: "school-saas-test"});
     }
-    const [a, s, w, p] = await Promise.all([
+    const [a, s, w, p, d] = await Promise.all([
       import("../../../src/callable/grading/saveClassAssessment"),
       import("../../../src/callable/grading/saveAssessmentScores"),
       import("../../../src/callable/grading/setClassWeights"),
       import("../../../src/callable/grading/postGradeMark"),
+      import("../../../src/callable/grading/deleteClassAssessment"),
     ]);
     callSaveAssessment = fft.wrap(a.saveClassAssessment);
     callSaveScores = fft.wrap(s.saveAssessmentScores);
     callSetWeights = fft.wrap(w.setClassWeights);
     callPostMark = fft.wrap(p.postGradeMark);
+    callDeleteAssessment = fft.wrap(d.deleteClassAssessment);
   });
 
   afterAll(async () => {
@@ -482,6 +485,133 @@ describe("keeping a class record", () => {
 
       const snap = await db().collection(FirestorePaths.classWeights(SCHOOL)).get();
       expect(snap.docs).toHaveLength(1);
+    });
+  });
+
+  describe("removing a piece of work", () => {
+    const twoMarks = async () => {
+      const {assessmentId} = await callSaveAssessment({
+        data: assessment(),
+        auth: caller("faculty"),
+      } as never);
+      await callSaveScores({
+        data: {
+          schoolId: SCHOOL,
+          assessmentId,
+          scores: [
+            {studentId: "stu_1", studentName: "Bea Torres", score: 18},
+            {studentId: "stu_2", studentName: "Ana Cruz", score: 15},
+          ],
+        },
+        auth: caller("faculty"),
+      } as never);
+      return assessmentId;
+    };
+
+    it("takes its marks with it and reports how many", async () => {
+      const assessmentId = await twoMarks();
+      expect(await marksFor(assessmentId)).toHaveLength(2);
+
+      const result = await callDeleteAssessment({
+        data: {schoolId: SCHOOL, assessmentId},
+        auth: caller("faculty"),
+      } as never);
+
+      expect(result.marksRemoved).toBe(2);
+      // The whole reason this is one callable. A column removed on its
+      // own leaves its marks still summing into the component total.
+      expect(await marksFor(assessmentId)).toHaveLength(0);
+      const doc = await db()
+        .doc(`${FirestorePaths.classAssessments(SCHOOL)}/${assessmentId}`)
+        .get();
+      expect(doc.data()?.isDeleted).toBe(true);
+    });
+
+    it("is soft, so a deleted mark is recoverable and the record is not rewritten", async () => {
+      const assessmentId = await twoMarks();
+      await callDeleteAssessment({
+        data: {schoolId: SCHOOL, assessmentId},
+        auth: caller("faculty"),
+      } as never);
+
+      const raw = await db()
+        .collection(FirestorePaths.grades(SCHOOL))
+        .where("assessmentId", "==", assessmentId)
+        .get();
+      expect(raw.size).toBe(2);
+      for (const mark of raw.docs) {
+        expect(mark.data().isDeleted).toBe(true);
+        expect(mark.data().deletedBy).toBe("faculty_1");
+        expect(mark.data().score).toBeGreaterThan(0);
+      }
+    });
+
+    it("removes one with nothing marked against it, and says so", async () => {
+      const {assessmentId} = await callSaveAssessment({
+        data: assessment({title: "Unused quiz"}),
+        auth: caller("faculty"),
+      } as never);
+      const result = await callDeleteAssessment({
+        data: {schoolId: SCHOOL, assessmentId},
+        auth: caller("faculty"),
+      } as never);
+      expect(result.marksRemoved).toBe(0);
+    });
+
+    it("refuses one that is already gone, rather than reporting a second success", async () => {
+      const assessmentId = await twoMarks();
+      await callDeleteAssessment({
+        data: {schoolId: SCHOOL, assessmentId},
+        auth: caller("faculty"),
+      } as never);
+      await expect(
+        callDeleteAssessment({
+          data: {schoolId: SCHOOL, assessmentId},
+          auth: caller("faculty"),
+        } as never)
+      ).rejects.toThrow(/no longer on file/i);
+    });
+
+    it("is the teaching side's, and nobody else's", async () => {
+      const assessmentId = await twoMarks();
+      for (const role of ["registrar", "director", "principal", "student", "parent"]) {
+        await expect(
+          callDeleteAssessment({
+            data: {schoolId: SCHOOL, assessmentId},
+            auth: caller(role),
+          } as never)
+        ).rejects.toThrow(/role/i);
+      }
+      // And the marks are still there after every one of those refusals.
+      expect(await marksFor(assessmentId)).toHaveLength(2);
+    });
+
+    it("is not a teacher at another school", async () => {
+      const assessmentId = await twoMarks();
+      await expect(
+        callDeleteAssessment({
+          data: {schoolId: SCHOOL, assessmentId},
+          auth: caller("faculty", "faculty_b", OTHER_SCHOOL),
+        } as never)
+      ).rejects.toThrow(/access/i);
+    });
+
+    it("writes an audit entry naming what it took", async () => {
+      const assessmentId = await twoMarks();
+      await callDeleteAssessment({
+        data: {schoolId: SCHOOL, assessmentId},
+        auth: caller("faculty"),
+      } as never);
+
+      const log = await db()
+        .collection(FirestorePaths.auditLog(SCHOOL))
+        .where("action", "==", "assessment_deleted")
+        .get();
+      expect(log.size).toBe(1);
+      const entry = log.docs[0].data();
+      expect(entry.targetId).toBe(assessmentId);
+      expect(entry.remarks).toMatch(/2 marks/);
+      expect(entry.previousValue?.title).toBe("Quiz 1");
     });
   });
 

@@ -2645,6 +2645,39 @@ class DemoFacultyRepository implements FacultyRepository {
   }
 
   @override
+  Future<Result<int>> deleteClassAssessment(String assessmentId) async {
+    await _latency();
+    final assessment = _store.classAssessments.value
+        .where((a) => a.id == assessmentId)
+        .firstOrNull;
+    if (assessment == null) {
+      return const Error(ValidationFailure('That piece of work is no longer on file.'));
+    }
+
+    // The marks go with it, exactly as deleteClassAssessment.ts does it.
+    // Dropping the column and keeping its marks would leave them still
+    // summing into the component total -- the class graded on a quiz
+    // that is no longer on any screen.
+    final marks = _store.grades.value.where((g) => g.assessmentId == assessmentId).length;
+    _store.grades.add(
+      _store.grades.value.where((g) => g.assessmentId != assessmentId).toList(),
+    );
+    _store.classAssessments.add(
+      _store.classAssessments.value.where((a) => a.id != assessmentId).toList(),
+    );
+
+    _store.audit(
+      module: 'grading',
+      action: 'delete',
+      targetCollection: 'classAssessments',
+      targetId: assessmentId,
+      remarks: '"${assessment.title}" removed with $marks '
+          'mark${marks == 1 ? '' : 's'} recorded against it.',
+    );
+    return Success(marks);
+  }
+
+  @override
   Future<Result<({int saved, int cleared})>> saveAssessmentScores({
     required String assessmentId,
     required List<ScoreEntry> scores,

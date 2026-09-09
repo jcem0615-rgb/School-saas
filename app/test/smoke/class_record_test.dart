@@ -395,6 +395,66 @@ void main() {
     });
   });
 
+  group('deleting a piece of work', () {
+    test('takes its marks with it, and says how many', () async {
+      // The marks are the reason this is not a simple delete. Removing
+      // the column and leaving them behind would keep them summing into
+      // the component total: the class still graded on a quiz that is no
+      // longer on any screen.
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      final before = await record(container);
+      final quiz = before.assessments.firstWhere((a) => a.title == 'Quiz 1 - Quadratics');
+      final marked =
+          before.rows.where((r) => r.marks.containsKey(quiz.id)).length;
+      expect(marked, greaterThan(0), reason: 'the fixture needs marks to lose');
+
+      final removed = await actions(container).deleteClassAssessment(quiz.id);
+      expect(removed, marked);
+
+      final after = await record(container);
+      expect(after.assessments.map((a) => a.title), isNot(contains('Quiz 1 - Quadratics')));
+      expect(
+        after.rows.every((r) => !r.marks.containsKey(quiz.id)),
+        isTrue,
+        reason: 'a mark whose piece of work is gone would still be summed',
+      );
+    });
+
+    test('changes the grades it should, and only those', () async {
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      final before = await record(container);
+      final quiz = before.assessments.firstWhere((a) => a.title == 'Quiz 1 - Quadratics');
+      final marked = before.rows.firstWhere((r) => r.marks.containsKey(quiz.id));
+      final untouched =
+          before.rows.where((r) => !r.marks.containsKey(quiz.id)).firstOrNull;
+
+      await actions(container).deleteClassAssessment(quiz.id);
+      final after = await record(container);
+
+      final markedAfter =
+          after.rows.firstWhere((r) => r.student.id == marked.student.id);
+      expect(markedAfter.grade.componentFor(GradingComponent.writtenWork).possible,
+          lessThan(marked.grade.componentFor(GradingComponent.writtenWork).possible),
+          reason: 'the deleted total should no longer be in the denominator');
+
+      if (untouched != null) {
+        final same = after.rows.firstWhere((r) => r.student.id == untouched.student.id);
+        expect(same.grade.finalGrade, untouched.grade.finalGrade,
+            reason: 'a student who was never marked on it should not move');
+      }
+    });
+
+    test('a piece of work that is already gone is refused', () async {
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+      expect(await actions(container).deleteClassAssessment('as_nope'), isNull);
+    });
+  });
+
   group('the screen', () {
     testWidgets('opens a class and shows the working', (tester) async {
       tester.view.physicalSize = const Size(430 * 3, 2600 * 3);

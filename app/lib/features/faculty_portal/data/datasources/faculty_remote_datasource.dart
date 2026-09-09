@@ -315,6 +315,22 @@ class FacultyRemoteDataSource {
     }
   }
 
+  /// Removes a piece of work and the marks against it, in one batch on
+  /// the server. Returns how many marks went with it.
+  Future<int> deleteClassAssessment(String assessmentId) async {
+    try {
+      final callable = _functions.httpsCallable('deleteClassAssessment');
+      final response = await callable.call({
+        'schoolId': _actingUser.schoolId,
+        'assessmentId': assessmentId,
+      });
+      final data = (response.data as Map).cast<Object?, Object?>();
+      return (data['marksRemoved'] as num?)?.toInt() ?? 0;
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'Could not remove that piece of work.');
+    }
+  }
+
   /// A whole column of marks at once.
   ///
   /// Each lands at `{assessment}_{student}`, so typing a corrected score

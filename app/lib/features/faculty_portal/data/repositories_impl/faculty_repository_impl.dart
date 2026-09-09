@@ -198,6 +198,17 @@ class FacultyRepositoryImpl implements FacultyRepository {
   }
 
   @override
+  Future<Result<int>> deleteClassAssessment(String assessmentId) async {
+    try {
+      return Success(await _remote.deleteClassAssessment(assessmentId));
+    } on ServerException catch (e) {
+      return Error(ValidationFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
   Future<Result<({int saved, int cleared})>> saveAssessmentScores({
     required String assessmentId,
     required List<ScoreEntry> scores,

@@ -394,6 +394,20 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
     return null;
   }
 
+  /// Removes a piece of work and its marks. Returns how many marks went
+  /// with it, or null if it was refused.
+  Future<int?> deleteClassAssessment(String assessmentId) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _repository.deleteClassAssessment(assessmentId);
+    if (result case Success(:final value)) {
+      if (mounted) state = const AsyncData(null);
+      return value;
+    } else if (result case Error(:final failure)) {
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
+    }
+    return null;
+  }
+
   /// A whole column of marks at once. Each replaces whatever was there.
   Future<({int saved, int cleared})?> saveAssessmentScores({
     required String assessmentId,

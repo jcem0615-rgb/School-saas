@@ -82,6 +82,7 @@ export {setStudentBalance} from "./callable/students/setStudentBalance";
 // belong to, so entering one again replaces it.
 // ---------------------------------------------------------------------------
 export {saveClassAssessment} from "./callable/grading/saveClassAssessment";
+export {deleteClassAssessment} from "./callable/grading/deleteClassAssessment";
 export {saveAssessmentScores} from "./callable/grading/saveAssessmentScores";
 export {setClassWeights} from "./callable/grading/setClassWeights";
 export {postGradeMark} from "./callable/grading/postGradeMark";

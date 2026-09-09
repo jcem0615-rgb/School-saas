@@ -101,11 +101,32 @@ class QuarterlyGrade {
     required this.hasWork,
   });
 
-  /// Which components the teacher has not put anything in yet. Named on
-  /// the report card, because a grade computed from two of three
+  /// Which components carry weight but have nothing in them yet. Named
+  /// on the report card, because a grade computed from two of three
   /// components is not the grade the child will end with.
-  List<GradingComponent> get missingComponents =>
-      components.where((c) => !c.hasWork).map((c) => c.component).toList();
+  ///
+  /// A component the school weights at nothing is not missing anything:
+  /// it cannot move the grade, so a teacher has no work to do there and
+  /// naming it would send them looking for one.
+  List<GradingComponent> get missingComponents => components
+      .where((c) => c.weight > 0 && !c.hasWork)
+      .map((c) => c.component)
+      .toList();
+
+  /// DepEd's INC: work has been recorded, but a component that counts is
+  /// still empty.
+  ///
+  /// Deliberately not the same thing as the grade being wrong.
+  /// [initialGrade] and [finalGrade] stay computed and stay honest --
+  /// rescaled to the weight that exists, which is what a teacher needs
+  /// to see mid-quarter. This says the figure is not yet a *final*
+  /// grade, which is what a report card needs to know before it prints
+  /// one. The class record shows the number; the report card prints INC.
+  ///
+  /// A subject with nothing at all in it is not incomplete, it is
+  /// ungraded -- [hasWork] is what says so, and it is left out of
+  /// averages entirely rather than marked.
+  bool get isIncomplete => hasWork && missingComponents.isNotEmpty;
 
   ComponentScore componentFor(GradingComponent component) =>
       components.firstWhere((c) => c.component == component);
@@ -236,12 +257,17 @@ int transmute(double initialGrade, List<TransmutationBand> table) {
 /// The average across subjects, as DepEd computes it: the mean of the
 /// final grades, rounded.
 ///
-/// Subjects with no work are left out entirely rather than counted as
-/// zero. A general average dragged down by a subject nobody has graded
-/// yet is a number that will be wrong until the day the quarter closes,
-/// and it is the number parents look at first.
+/// Subjects with no work, and subjects still marked INC, are left out
+/// entirely rather than counted as zero. A general average dragged down
+/// by a subject nobody has finished grading is a number that will be
+/// wrong until the day the quarter closes, and it is the number parents
+/// look at first.
 int? generalAverage(Iterable<QuarterlyGrade> grades) {
-  final graded = grades.where((g) => g.hasWork).toList();
+  // Incomplete subjects are left out for the same reason ungraded ones
+  // are, and one more: the report card prints INC rather than a number
+  // for them, and an average cannot include a figure the document beside
+  // it does not show.
+  final graded = grades.where((g) => g.hasWork && !g.isIncomplete).toList();
   if (graded.isEmpty) return null;
   final sum = graded.fold<int>(0, (running, g) => running + g.finalGrade);
   return (sum / graded.length).round();

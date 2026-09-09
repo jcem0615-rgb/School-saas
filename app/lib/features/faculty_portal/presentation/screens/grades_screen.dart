@@ -241,7 +241,7 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
     if (missing.isEmpty) {
       return '${computed.weights.label} · all three components · $when';
     }
-    return '${computed.weights.label} · no '
+    return 'INC · ${computed.weights.label} · no '
         '${missing.map((c) => c.shortLabel).join(' or ')} yet · $when';
   }
 

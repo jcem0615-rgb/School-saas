@@ -268,7 +268,7 @@ const S = () => pres.addSlide();
   await cardGrid(s, [
     { icon: 'FiGrid', h: 'The class record', b: 'One piece of work is a column, the class is the rows. Type the marks down it once and every grade recomputes - no dialog per child, and a corrected mark replaces the wrong one rather than adding to it.' },
     { icon: 'FiPieChart', h: 'The percentages are yours', b: 'Seeded with the DepEd Order 8 s.2015 groupings and confirmed by a named person at the school - and a subject teacher can set their own split for their class, as long as it adds up to a hundred.' },
-    { icon: 'FiAlertCircle', h: 'A missing component is not a zero', b: 'In week two of a quarter no exam has been given. The grade is rescaled out of the weight that exists and names what is still missing, rather than capping every child at 80.' },
+    { icon: 'FiAlertCircle', h: 'A missing component is not a zero', b: 'In week two of a quarter no exam has been given. The grade is rescaled out of the weight that exists rather than capping every child at 80 - and the subject is marked INC until the component is filled, so a working figure is never mistaken for a final grade.' },
     { icon: 'FiFileText', h: 'The report card shows its work', b: 'Form 138 on the school\'s own letterhead, and a second page giving every component - raw over possible, the percentage, the weight, what it contributed - for the quarter being read.' },
   ], { cols: 2, y: 2.35, h: 2.3 });
   s.addNotes('Open the class record in the demo and type a mark - the grade moves as you save. Two things teachers react to: a missing exam is not a zero, and a corrected mark replaces rather than doubling. Every other system they have used gets one of those wrong.');
