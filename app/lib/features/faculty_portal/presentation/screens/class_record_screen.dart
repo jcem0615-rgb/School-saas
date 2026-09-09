@@ -720,47 +720,114 @@ class _StudentRow extends StatelessWidget {
               ),
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Every mark, so a total can be checked against the
-                // pieces it came from rather than taken on trust.
-                for (final assessment in assessments)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 1),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${assessment.title} (${assessment.component.shortLabel})',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ),
-                        Text(
-                          row.marks.containsKey(assessment.id)
-                              ? '${_trim(row.marks[assessment.id]!)} / '
-                                  '${_trim(assessment.maxScore)}'
-                              // Not "0". A child who did not sit it has
-                              // not scored nothing, and the arithmetic
-                              // leaves the work out entirely.
-                              : 'not sat',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
+                // Grouped by component rather than one flat list, because
+                // the component is what the marks are summed into. A
+                // teacher checking a percentage has to be able to see the
+                // pieces that made it without matching short labels down
+                // a column.
+                //
+                // Every component is here, including the ones with
+                // nothing in them. An empty component left out of the
+                // breakdown is one nobody can see is empty -- and it is
+                // the one that decides whether this is a grade or an INC.
+                for (final component in GradingComponent.values)
+                  if (grade.componentFor(component).weight > 0)
+                    _ComponentBlock(
+                      score: grade.componentFor(component),
+                      pieces: assessments
+                          .where((a) => a.component == component)
+                          .toList(),
+                      marks: row.marks,
                     ),
-                  ),
-                const Divider(),
+                const Divider(height: 20),
                 // The working, in the order it happens. A teacher asked
                 // why a child got 87 can point at the line.
                 for (final line in grade.workingOut)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 1),
+                    padding: const EdgeInsets.symmetric(vertical: 1.5),
                     child: Text(line, style: theme.textTheme.bodySmall),
                   ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One component for one student: what it counts for, the pieces of work
+/// inside it, and what it contributed.
+///
+/// Shown even when it is empty. A component with nothing in it is not an
+/// absence of information -- it is the reason the grade is provisional,
+/// and it needs to be as visible as the ones that are full.
+class _ComponentBlock extends StatelessWidget {
+  final ComponentScore score;
+  final List<ClassAssessment> pieces;
+  final Map<String, double> marks;
+
+  const _ComponentBlock({
+    required this.score,
+    required this.pieces,
+    required this.marks,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(score.component.displayLabel, style: theme.textTheme.labelLarge),
+          // Under the label rather than beside it, and wrapping. On a
+          // phone this line is longer than the row is wide, and a teacher
+          // reading it on the way to a staff meeting is the whole point
+          // of the screen.
+          Text(
+            score.hasWork
+                ? '${_trim(score.raw)} / ${_trim(score.possible)}  ·  '
+                    '${score.percentageScore.toStringAsFixed(2)}%  ·  '
+                    '${_trim(score.weight)}% of the grade  ·  '
+                    'contributes ${score.weightedScore.toStringAsFixed(2)}'
+                : 'nothing recorded  ·  ${_trim(score.weight)}% still to come',
+            style: score.hasWork
+                ? theme.textTheme.bodySmall
+                : muted?.copyWith(fontStyle: FontStyle.italic),
+          ),
+          if (pieces.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 12, top: 2),
+              child: Text('No piece of work added yet.', style: muted),
+            ),
+          for (final piece in pieces)
+            Padding(
+              padding: const EdgeInsets.only(left: 12, top: 2),
+              child: Row(
+                children: [
+                  Expanded(child: Text(piece.title, style: muted)),
+                  Text(
+                    marks.containsKey(piece.id)
+                        ? '${_trim(marks[piece.id]!)} / ${_trim(piece.maxScore)}'
+                        // Not "0". A child who did not sit it has not
+                        // scored nothing, and the arithmetic leaves the
+                        // work out of both their score and the total.
+                        : 'not sat',
+                    style: muted,
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

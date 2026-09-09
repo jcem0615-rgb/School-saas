@@ -495,5 +495,57 @@ void main() {
       expect(find.textContaining('WW 40%'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('opening a student shows the whole grade, missing parts included',
+        (tester) async {
+      // "Why did this child get 89?" has to be answerable on this screen
+      // or the teacher goes back to a spreadsheet. Every component, every
+      // piece of work inside it, the arithmetic, and -- the part that was
+      // missing -- the component with nothing in it that is the reason
+      // the grade is not final.
+      tester.view.physicalSize = const Size(430 * 3, 4200 * 3);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(theme: AppTheme.light(), home: const ClassRecordScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Mathematics');
+      await tester.enterText(find.byType(TextField).at(1), 'Grade 10 - Rizal');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('2nd Quarter').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Open'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Andrea Villanueva'));
+      await tester.pumpAndSettle();
+
+      // All three components named, not only the two with marks in them.
+      expect(find.text('Written Work'), findsWidgets);
+      expect(find.text('Performance Tasks'), findsWidgets);
+      expect(find.text('Quarterly Assessment'), findsWidgets);
+
+      // The empty one says what it is waiting for rather than being absent.
+      expect(find.textContaining('nothing recorded'), findsWidgets);
+
+      // The pieces of work inside a component, with this student's marks.
+      expect(find.text('Long test - Functions'), findsWidgets);
+
+      // And the arithmetic, ending in the verdict rather than a bare number.
+      expect(find.textContaining('Initial grade'), findsOneWidget);
+      expect(find.textContaining('Final grade: INC'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

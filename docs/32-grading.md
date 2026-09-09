@@ -147,12 +147,21 @@ Nobody marks forty children that way. They keep a spreadsheet and type
 the totals in at the end, which is the thing this module exists to
 replace.
 
-The record shows, for every student: each mark against each piece of
-work, then each component's raw total over what was possible, its
-percentage, the weight it carries, what that contributes, the initial
-grade and the transmuted final. A teacher asked why a child got 87 can
-point at the line. One that shows only the answer sends them back to the
-spreadsheet.
+Opening a student shows the whole grade for that subject, grouped the way
+it is computed. Each component in turn: what it counts for, the pieces of
+work inside it with this student's mark on each, the raw total over what
+was possible, the percentage, the weight, and what that contributed. Then
+the working in order, the initial grade, and the verdict.
+
+**Including the components with nothing in them.** That was the gap. The
+breakdown listed only the components that had work, so a teacher read two
+correct lines and had no way to tell a third existed — and the empty one
+is exactly what decides whether this is a grade or an INC. An empty
+component now appears with the weight still to come against it, and the
+pieces of work under it read *No piece of work added yet*.
+
+A teacher asked why a child got 87 can point at the line. One that shows
+only the answer sends them back to the spreadsheet.
 
 ### Adding, editing and removing a piece of work
 

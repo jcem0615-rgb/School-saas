@@ -461,6 +461,7 @@ add(
     ['Edit', 'Class Record', 'Rename it, move it to another component, or change the total. Marks are never rescaled: any that no longer fit the new total are named back to you, because either figure could be the right one and only you know which.'],
     ['Delete', 'Confirmation', 'Removes the piece of work and the marks recorded against it, together. The confirmation says how many marks will go, because that is the question actually being asked.'],
     ['Marks', 'Mark sheet', 'Type down the column for the whole class and save once. A blank means the child did not sit it and drops out of both their score and the total; a zero means they sat it and scored nothing.'],
+    ['Open a student', 'Class Record', 'The whole grade for that subject: every component, the pieces of work inside it with this student\'s mark on each, the raw total, the percentage, the weight and what it contributed - then the working, the initial grade, and whether it is a final grade or INC. Components with nothing in them are listed too, with the weight still to come, because that is what decides which of the two it is.'],
     ['Percentages', 'Class Record', 'Set this class\'s own three weights instead of the school scheme, or hand it back. Refused unless they total 100, and every screen then says whose weights produced the grade.'],
   ], ['Control', 'Where', 'What it does']),
   note('Deleting a column and keeping its marks would leave them still counting towards the component '

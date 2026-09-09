@@ -82,13 +82,27 @@ class QuarterlyGrade {
                 '${_trimNumber(c.possible)} = '
                 '${c.percentageScore.toStringAsFixed(2)}% '
                 'x ${_trimNumber(c.weight)}% = '
-                '${c.weightedScore.toStringAsFixed(2)}',
+                '${c.weightedScore.toStringAsFixed(2)}'
+          // Named, not dropped. A component missing from the working is
+          // one a teacher cannot see is missing -- they read two lines,
+          // both correct, and have no way to tell the third exists. It
+          // is the component with nothing in it that decides whether
+          // this is a grade or an INC.
+          else if (c.weight > 0)
+            '${c.component.displayLabel}: nothing recorded yet, '
+                '${_trimNumber(c.weight)}% of the grade still to come',
         if (availableWeight > 0 && availableWeight < 100)
           'Only ${_trimNumber(availableWeight)}% of the grade has been given '
               'out so far, so the total is taken over that rather than '
               'counting the rest as zero.',
         'Initial grade: ${initialGrade.toStringAsFixed(2)}',
-        'Final grade: $finalGrade',
+        if (isIncomplete)
+          'Final grade: INC until '
+              '${missingComponents.map((c) => c.displayLabel).join(' and ')} '
+              'has marks in it. The figure above is what it would be if the '
+              'quarter ended now.'
+        else
+          'Final grade: $finalGrade',
       ];
 
   const QuarterlyGrade({
