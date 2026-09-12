@@ -147,6 +147,18 @@ Nobody marks forty children that way. They keep a spreadsheet and type
 the totals in at the end, which is the thing this module exists to
 replace.
 
+The class is always on the screen, whether or not anything has been given
+out. That was a defect: a quarter with no pieces of work in it collapsed
+the whole record to one sentence, and the roster went with it — a teacher
+opening their own class saw nobody in it, which reads as a broken roster
+rather than "you have not set a quiz yet". The columns are what is empty,
+not the class. With nothing marked, every student is listed waiting on
+their first mark.
+
+An empty *roster* is a different problem and says so separately: it is
+almost always a section name that does not match the one on the student
+records, and a teacher staring at a blank list has no way to guess that.
+
 Opening a student shows the whole grade for that subject, grouped the way
 it is computed. Each component in turn: what it counts for, the pieces of
 work inside it with this student's mark on each, the raw total over what

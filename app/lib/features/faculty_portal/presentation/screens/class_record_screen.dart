@@ -96,22 +96,25 @@ class _ClassRecordScreenState extends ConsumerState<ClassRecordScreen> {
               onEdit: () => _showWeightsForm(_query!, record),
             ),
             const SizedBox(height: 12),
-            if (record.assessments.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Text(
-                  'Nothing has been given out in this quarter yet. Add a quiz, '
-                  'a performance task or the exam, then type the marks down '
-                  'the class in one go.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium,
-                ),
-              )
-            else ...[
-              _Summary(record: record),
-              const SizedBox(height: 12),
-              Text('The pieces of work', style: theme.textTheme.titleMedium),
+            // The two halves are independent, and used to be one branch:
+            // with no pieces of work yet the whole thing collapsed to a
+            // sentence, and the class disappeared with it. A teacher
+            // opening their own class saw no students in it, which reads
+            // as "the roster is broken" rather than "you have not set a
+            // quiz". The columns are what is empty, not the class.
+            _Summary(record: record),
+            const SizedBox(height: 12),
+            Text('The pieces of work', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            if (record.assessments.isEmpty) ...[
               const SizedBox(height: 4),
+              Text(
+                'Nothing has been given out in this quarter yet. Add a quiz, '
+                'a performance task or the exam, then type the marks down '
+                'the class in one go.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ] else ...[
               Text(
                 'Tap one to type the marks down the class.',
                 style: theme.textTheme.bodySmall,
@@ -128,8 +131,36 @@ class _ClassRecordScreenState extends ConsumerState<ClassRecordScreen> {
                   onEdit: () => _showAssessmentForm(_query!, existing: assessment),
                   onDelete: () => _confirmDelete(assessment, record),
                 ),
-              const SizedBox(height: 20),
-              Text('Where each grade comes from', style: theme.textTheme.titleMedium),
+            ],
+            const SizedBox(height: 20),
+            Text(
+              record.rows.isEmpty
+                  ? 'The class'
+                  : 'The class · ${record.rows.length} '
+                      '${record.rows.length == 1 ? 'student' : 'students'}',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            if (record.rows.isEmpty)
+              // A different problem from having no pieces of work, and it
+              // needs saying separately: an empty roster here is almost
+              // always a section name that does not match the one on the
+              // student records, and a teacher staring at a blank list has
+              // no way to guess that.
+              Text(
+                'No students are enrolled in ${_query!.section} — check the '
+                'section name matches the one on their records.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.error),
+              )
+            else ...[
+              Text(
+                record.assessments.isEmpty
+                    ? 'Everyone is here and waiting on their first mark.'
+                    : 'Tap a student for every component, every mark, and the '
+                        'working behind their grade.',
+                style: theme.textTheme.bodySmall,
+              ),
               const SizedBox(height: 8),
               for (final row in record.rows)
                 _StudentRow(row: row, assessments: record.assessments),

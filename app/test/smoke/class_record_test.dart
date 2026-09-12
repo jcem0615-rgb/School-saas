@@ -496,6 +496,47 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('shows the class even before any work has been given out',
+        (tester) async {
+      // A quarter with no pieces of work used to collapse the whole
+      // screen to one sentence, and the roster went with it: a teacher
+      // opening their own class saw nobody in it. The columns are what
+      // is empty, not the class.
+      tester.view.physicalSize = const Size(430 * 3, 3000 * 3);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(theme: AppTheme.light(), home: const ClassRecordScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // English, 1st Quarter: a real class with nothing set in it yet.
+      await tester.enterText(find.byType(TextField).first, 'English');
+      await tester.enterText(find.byType(TextField).at(1), 'Grade 10 - Rizal');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1st Quarter').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Open'));
+      await tester.pumpAndSettle();
+
+      // It says there is no work yet...
+      expect(find.textContaining('Nothing has been given out'), findsOneWidget);
+      // ...and the class is still on the screen, counted and listed.
+      expect(find.textContaining('The class ·'), findsOneWidget);
+      expect(find.text('Andrea Villanueva'), findsOneWidget);
+      expect(find.textContaining('waiting on their first mark'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('opening a student shows the whole grade, missing parts included',
         (tester) async {
       // "Why did this child get 89?" has to be answerable on this screen
