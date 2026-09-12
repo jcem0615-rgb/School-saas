@@ -89,15 +89,29 @@ class SubjectDetailScreen extends ConsumerWidget {
                       style: TextStyle(color: theme.colorScheme.onPrimaryContainer)),
                   if (latest != null) ...[
                     const SizedBox(height: 8),
+                    // INC, not the number, when a component that counts
+                    // is still empty -- the same thing the report card
+                    // will print. This is the audience most likely to
+                    // read a provisional figure as a settled one: a
+                    // student sees 89 at the top of their own subject
+                    // page and has no reason to think it is anything
+                    // other than their grade.
+                    //
+                    // The number is still here, under it, labelled as
+                    // what it would be if the quarter ended now. Hiding
+                    // it would be the opposite mistake -- a student is
+                    // entitled to know where they stand.
                     Text(
-                      '${latest.finalGrade}',
+                      latest.isIncomplete ? 'INC' : '${latest.finalGrade}',
                       style: theme.textTheme.headlineMedium?.copyWith(
                         color: theme.colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
-                      '${latest.term} · ${gradeDescriptor(latest.finalGrade)}',
+                      latest.isIncomplete
+                          ? '${latest.term} · not finished yet'
+                          : '${latest.term} · ${gradeDescriptor(latest.finalGrade)}',
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
                     ),
@@ -106,10 +120,12 @@ class SubjectDetailScreen extends ConsumerWidget {
                     // move when the exam is marked, and a student who
                     // does not know that reads a provisional number as a
                     // final one.
-                    if (latest.missingComponents.isNotEmpty)
+                    if (latest.isIncomplete)
                       Text(
+                        '${latest.initialGrade.toStringAsFixed(2)} so far, out of the '
+                        '${latest.availableWeight.toStringAsFixed(0)}% given out. '
                         'Still to come: '
-                        '${latest.missingComponents.map((c) => c.displayLabel).join(' and ')}',
+                        '${latest.missingComponents.map((c) => c.displayLabel).join(' and ')}.',
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
                       ),

@@ -222,3 +222,20 @@ Parent accounts carry a `phone` like every other account now, written by
 user document was the person editing their own profile — which requires
 signing in, which is the thing a password reset by phone exists for. See
 `docs/10-registrar-portal.md`.
+
+## The grade, not only the marks behind it
+
+A parent could open every mark their child had been given — "Quiz 1, 18
+out of 20" — and never see the quarterly grade those marks add up to.
+The child could see it on their own account; the person who has to act on
+it could not, which is the wrong way round.
+
+**Subjects and grades** opens the same subject view the student has, per
+subject and per quarter, with the components and the working. **Every
+mark** is the raw list, kept as it was. Two different questions, and a
+parent asks both.
+
+The rules already allowed it: the grading scheme lives under `settings`,
+which any member of the school reads, and a linked parent already reads
+their child's grades. Nothing needed opening up — there was simply no
+route.

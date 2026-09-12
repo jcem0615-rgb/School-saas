@@ -104,3 +104,17 @@ problem set, the actual quiz, the actual reading — inlined as data URIs
 (`DemoAttachments`). They replace a plausible-looking `example.org` link
 that failed on tap, which was worse than no attachment: a student opened
 the only piece of material on the screen and got a dead end.
+
+## A subject still being graded says so
+
+The subject page led with the computed grade as a bare number. A student
+reading 89 at the top of their own page has no reason to think it is
+anything other than their grade — and if the quarterly assessment has not
+been sat, it is not: it is what the grade would be if the quarter ended
+today, and it will move.
+
+It reads **INC** now when a component that carries weight is still empty,
+which is what the report card will print for it. The working figure stays
+underneath, labelled — *"87.50 so far, out of the 80% given out. Still to
+come: Quarterly Assessment."* Hiding the number would be the opposite
+mistake: a student is entitled to know where they stand.

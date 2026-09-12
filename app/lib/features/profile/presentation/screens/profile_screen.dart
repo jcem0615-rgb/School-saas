@@ -6,6 +6,7 @@ import '../../../../core/push/push_providers.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../controllers/profile_controller.dart';
+import '../../../../core/install/install_app_button.dart';
 
 /// Every role's Profile screen (General Requirement). Shows identity
 /// fields as read-only (name, role, email -- these are staff/admin-
@@ -250,6 +251,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             value: _pushOn ?? false,
             onChanged: _pushBusy || _pushOn == null ? null : _togglePush,
           ),
+          // Renders nothing unless this is a browser that can install,
+          // so the phone and desktop builds never show a row offering to
+          // install what is already installed. Here as well as on the
+          // sign-in screen: somebody who signed in first and only later
+          // wants it on their home screen has nowhere else to look.
+          const InstallAppButton(),
           const Divider(height: 40),
           // Spelled out, at the bottom, where a settings screen's last
           // item is always the one that ends the session.

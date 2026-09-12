@@ -395,6 +395,75 @@ void main() {
     });
   });
 
+  group('a mark entered in Grade Submission', () {
+    test('lands in the quarter the class record is looking at', () async {
+      // The bug this pins: Grade Submission shipped a free-text term box
+      // defaulting to "Q1" while the class record's dropdown offered
+      // "1st Quarter". Every query on `term` is an equality match, so
+      // the mark was saved, confirmed, and invisible.
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      final student = (await record(container)).rows.first.student;
+      final ok = await actions(container).submitGrade(
+        studentId: student.id,
+        studentName: student.fullName,
+        subject: query.subject,
+        section: query.section,
+        term: query.term!,
+        score: 17,
+        maxScore: 20,
+        component: GradingComponent.writtenWork,
+      );
+      expect(ok, isTrue);
+
+      final after = await record(container);
+      final theirs = after.rows.firstWhere((r) => r.student.id == student.id);
+      expect(
+        theirs.grade.componentFor(GradingComponent.writtenWork).possible,
+        greaterThanOrEqualTo(20),
+        reason: 'a mark posted into this quarter has to reach this record',
+      );
+    });
+
+    test('filed under a term nothing queries would be invisible', () async {
+      // The other half, and the reason the dialog is a dropdown now: a
+      // mark in "Q1" does not reach a record open on "1st Quarter". This
+      // asserts the gap is real rather than assuming it.
+      final container = await teacherContainer();
+      addTearDown(container.dispose);
+
+      final student = (await record(container)).rows.first.student;
+      final before = (await record(container))
+          .rows
+          .firstWhere((r) => r.student.id == student.id)
+          .grade
+          .componentFor(GradingComponent.writtenWork)
+          .possible;
+
+      await actions(container).submitGrade(
+        studentId: student.id,
+        studentName: student.fullName,
+        subject: query.subject,
+        section: query.section,
+        term: 'Q2', // not one of the names any screen offers
+        score: 17,
+        maxScore: 20,
+        component: GradingComponent.writtenWork,
+      );
+
+      final after = (await record(container))
+          .rows
+          .firstWhere((r) => r.student.id == student.id)
+          .grade
+          .componentFor(GradingComponent.writtenWork)
+          .possible;
+      expect(after, before,
+          reason: 'which is exactly why nothing in the app lets a teacher '
+              'type a term by hand any more');
+    });
+  });
+
   group('deleting a piece of work', () {
     test('takes its marks with it, and says how many', () async {
       // The marks are the reason this is not a simple delete. Removing

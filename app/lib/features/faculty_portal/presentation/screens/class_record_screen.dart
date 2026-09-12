@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/school_terms.dart';
 import '../../../../core/widgets/combo_field.dart';
 import '../../domain/entities/class_assessment.dart';
 import '../../domain/entities/grading_scheme.dart';
@@ -9,7 +10,8 @@ import '../controllers/faculty_controller.dart';
 import '../../domain/entities/coursework_item.dart';
 
 /// The four quarters, named the way the report card names them.
-const _terms = ['1st Quarter', '2nd Quarter', '3rd Quarter', '4th Quarter'];
+/// The quarters, from the one list every screen that writes a term uses.
+const _terms = schoolTerms;
 
 /// The class record: the screen a teacher actually keeps grades in.
 ///

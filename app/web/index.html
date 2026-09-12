@@ -35,6 +35,78 @@
 </head>
 <body>
   <script>
+    // ---- Install the app -------------------------------------------
+    //
+    // The manifest has always made this installable. What was missing is
+    // anything that *asks*: browsers put the affordance in a menu, so a
+    // parent told "it works like an app" has no way to find out it does.
+    //
+    // `beforeinstallprompt` fires once, early -- usually before Flutter
+    // has booted -- and is gone unless something calls preventDefault on
+    // it. So the page catches it and holds it, and Dart asks the page
+    // what it is holding rather than listening itself.
+    //
+    // Whether the event fires at all is the browser's call, and its
+    // criteria vary by version and platform. If it never fires, offer()
+    // says 'none' and the app shows no button, which is the right
+    // outcome: better nothing than a button that does nothing.
+    (function () {
+      var held = null;
+
+      window.addEventListener('beforeinstallprompt', function (event) {
+        // Without this the browser shows its own mini-infobar and the
+        // event is spent; holding it is what lets our own button work.
+        event.preventDefault();
+        held = event;
+      });
+
+      window.addEventListener('appinstalled', function () {
+        held = null;
+      });
+
+      function standalone() {
+        return window.matchMedia('(display-mode: standalone)').matches ||
+          // iOS does not implement the display-mode query and reports
+          // this instead.
+          window.navigator.standalone === true;
+      }
+
+      function iOS() {
+        var ua = window.navigator.userAgent;
+        // iPadOS 13+ identifies as a Mac, and is told apart by having a
+        // touch screen -- no desktop Mac reports touch points.
+        return /iPhone|iPad|iPod/.test(ua) ||
+          (/Macintosh/.test(ua) && window.navigator.maxTouchPoints > 1);
+      }
+
+      window.logicClassInstall = {
+        offer: function () {
+          if (standalone()) return 'none';
+          if (held) return 'prompt';
+          // Safari on iOS never fires the event and gives no way to
+          // trigger the sheet, so the only honest offer is to say where
+          // the button is.
+          if (iOS()) return 'instructions';
+          return 'none';
+        },
+        show: function () {
+          if (!held) return Promise.resolve(false);
+          var event = held;
+          // Single-use: whatever the answer, the event cannot be fired
+          // again, and a button that silently did nothing on the second
+          // tap would be worse than one that has gone away.
+          held = null;
+          event.prompt();
+          return event.userChoice.then(function (choice) {
+            return choice.outcome === 'accepted';
+          }).catch(function () {
+            return false;
+          });
+        }
+      };
+    })();
+  </script>
+  <script>
     // Evicts the service worker this site used to register.
     //
     // The build no longer registers one (--pwa-strategy=none in

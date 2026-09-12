@@ -208,6 +208,28 @@ Delete is the teaching side's — Faculty and Admin, the same roles that
 may mark — and refuses a piece of work that is already gone rather than
 reporting a second success.
 
+### One list of quarter names
+
+Every screen that writes a `term` takes it from `schoolTerms`. That is
+one constant because of what happened without it: the class record
+offered "1st Quarter" from a dropdown, and the grade submission dialog
+shipped a **free-text box defaulting to "Q1"**. Every query on `term` is
+an equality match, so a mark entered in one screen was invisible in the
+other — saved, confirmed, and simply never there.
+
+`report_table.dart` names this exact hazard in a comment: *"the office
+writes '1st Quarter' and the reader typed 'Q1'"*. Which is how a known
+failure survives — written down in one place, unguarded in the write
+path. Grade submission is a dropdown now, defaulting to whichever quarter
+the class is already open on.
+
+Storage is still free text, deliberately: a school running its own term
+names has to be able to, and a spreadsheet can carry anything. What
+changed is that nothing in the app hands a teacher a way to invent one by
+accident. The import runs its Term column through `canonicalTerm`, which
+maps "Q1", "1st", "first quarter" and the like onto the canonical name
+and **leaves anything it does not recognise alone**.
+
 ### A mark can be corrected
 
 This is the defect the class record was built on top of, and it was

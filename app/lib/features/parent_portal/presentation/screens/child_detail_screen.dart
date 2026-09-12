@@ -8,6 +8,7 @@ import '../../../qr_attendance/presentation/screens/attendance_history_screen.da
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../../schedules/presentation/screens/my_timetable_screen.dart';
 import '../../../student_portal/presentation/screens/my_grades_screen.dart';
+import '../../../student_portal/presentation/screens/my_subjects_screen.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
 
@@ -130,9 +131,31 @@ class ChildDetailScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              // Two different things, and a parent needs both. "Marks"
+              // is every score as it was entered -- Quiz 1, 18 out of 20.
+              // "Subjects" is the quarterly grade those marks add up to,
+              // which is the figure that reaches the report card.
+              //
+              // Only the first existed. A parent could read every mark
+              // their child had been given and never see the grade it
+              // came to, while the child could see it on their own
+              // account -- which is the wrong way round for the person
+              // who has to act on it.
+              _ActionChip(
+                icon: Icons.calculate_outlined,
+                label: 'Subjects and grades',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MySubjectsScreen(
+                      section: child.section,
+                      studentId: child.id,
+                    ),
+                  ),
+                ),
+              ),
               _ActionChip(
                 icon: Icons.grade_outlined,
-                label: 'Grades',
+                label: 'Every mark',
                 onTap: () => Navigator.of(context)
                     .push(MaterialPageRoute(builder: (_) => MyGradesScreen(studentId: child.id))),
               ),

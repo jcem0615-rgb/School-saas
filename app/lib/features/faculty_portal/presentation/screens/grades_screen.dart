@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/constants/school_terms.dart';
 import '../../../../core/data_transfer/export_import_sheet.dart';
 import '../../../../core/widgets/combo_field.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
@@ -285,10 +286,11 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
           : 'Marks are posted to ${query.subject} · ${query.section} — the '
               'class chosen above — so the file does not carry Subject or '
               'Section. Name students as they appear on the class list, or '
-              'by student number. Component is Written Work, Performance '
-              'Tasks or Quarterly Assessment (WW, PT, QA) and decides how '
-              'the mark is weighted; blank means written work. Leave Max '
-              'Score blank for a mark out of 100.',
+              'by student number. Term is a quarter — "1st Quarter", or "Q1" '
+              'and the like, which are read as the same thing. Component is '
+              'Written Work, Performance Tasks or Quarterly Assessment (WW, '
+              'PT, QA) and decides how the mark is weighted; blank means '
+              'written work. Leave Max Score blank for a mark out of 100.',
       importUnavailableNote: query == null
           ? 'Choose a subject and section above first. Marks are posted to '
               'the class on screen, and students are matched against that '
@@ -331,7 +333,12 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
                   studentName: r.studentName,
                   subject: query.subject,
                   section: query.section,
-                  term: r.term,
+                  // "Q1" in a spreadsheet means the first quarter, and
+                  // should land there rather than founding a quarter of
+                  // its own that no screen queries. A term the list does
+                  // not recognise is kept as written: a school running
+                  // its own names has to be able to.
+                  term: canonicalTerm(r.term),
                   component: r.component,
                   score: r.score,
                   maxScore: r.maxScore,
@@ -355,7 +362,12 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
     // opportunity to mis-key it onto someone else's record.
     final studentIdController = TextEditingController(text: student?.id ?? '');
     final studentNameController = TextEditingController(text: student?.fullName ?? '');
-    final termController = TextEditingController(text: 'Q1');
+    // The quarter the class record is open on, when there is one, and
+    // the first quarter otherwise. It used to be a free-text box
+    // defaulting to 'Q1', which is not one of the names the class record
+    // offers -- so a mark entered here was filed under a quarter that
+    // screen never queries, and simply never appeared.
+    var term = schoolTerms.contains(query.term) ? query.term! : schoolTerms.first;
     final scoreController = TextEditingController();
     final maxScoreController = TextEditingController(text: '100');
     var component = GradingComponent.writtenWork;
@@ -381,9 +393,17 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
                 decoration: const InputDecoration(labelText: 'Student Name'),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: termController,
-                decoration: const InputDecoration(labelText: 'Term (e.g. Q1)'),
+              DropdownButtonFormField<String>(
+                initialValue: term,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Quarter'),
+                items: [
+                  for (final option in schoolTerms)
+                    DropdownMenuItem(value: option, child: Text(option)),
+                ],
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => term = value);
+                },
               ),
               const SizedBox(height: 12),
               // Which of the three the mark counts towards. Not optional
@@ -429,7 +449,7 @@ class _GradesScreenState extends ConsumerState<GradesScreen> {
                     studentName: studentNameController.text.trim(),
                     subject: query.subject,
                     section: query.section,
-                    term: termController.text.trim(),
+                    term: term,
                     component: component,
                     score: double.tryParse(scoreController.text) ?? -1,
                     maxScore: double.tryParse(maxScoreController.text) ?? 0,
