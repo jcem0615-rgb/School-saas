@@ -6,6 +6,7 @@ import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../entities/class_assessment.dart';
 import '../entities/grade.dart';
 import '../entities/grading_scheme.dart';
+import '../entities/term_repair.dart';
 
 abstract class FacultyRepository {
   /// Scoped to the signed-in teacher's own items -- a Faculty member sees
@@ -115,6 +116,14 @@ abstract class FacultyRepository {
     required GradingComponent component,
     required double maxScore,
   });
+
+  /// Finds marks filed under a term no screen queries, and optionally
+  /// moves them.
+  ///
+  /// [apply] false reports and writes nothing, which is how it is meant
+  /// to be run first: a repair that rewrites a school's grades with no
+  /// way to see the damage beforehand is not one anybody should press.
+  Future<Result<TermRepairReport>> repairGradeTerms({required bool apply});
 
   /// Removes a piece of work and the marks recorded against it.
   ///

@@ -33,7 +33,9 @@ import '../features/faculty_portal/domain/entities/answer_key.dart';
 import '../features/faculty_portal/domain/entities/coursework_submission.dart';
 import '../features/faculty_portal/domain/entities/class_assessment.dart';
 import '../features/faculty_portal/domain/entities/grade.dart';
+import '../core/constants/school_terms.dart';
 import '../features/faculty_portal/domain/entities/grading_scheme.dart';
+import '../features/faculty_portal/domain/entities/term_repair.dart';
 import '../core/storage/upload_repository.dart';
 import '../features/faculty_portal/domain/repositories/faculty_repository.dart';
 import '../features/guidance_portal/domain/entities/guidance_record.dart';
@@ -2642,6 +2644,85 @@ class DemoFacultyRepository implements FacultyRepository {
       newValue: {'title': assessment.title, 'maxScore': maxScore},
     );
     return Success((assessmentId: id, marksOverMax: overMax));
+  }
+
+  @override
+  Future<Result<TermRepairReport>> repairGradeTerms({required bool apply}) async {
+    await _latency();
+    // The same arithmetic normaliseGradeTerms.ts does, including the
+    // collision it refuses to create -- so a demo of the repair shows
+    // what the repair actually does rather than a tidier version of it.
+    final marks = _store.grades.value;
+    String fingerprint(Grade g, String term) =>
+        [g.studentId, g.subject, term, g.component.value, g.score, g.maxScore].join(' ');
+    final occupied = {for (final g in marks) fingerprint(g, g.term)};
+
+    final moves = <String, TermRepairMove>{};
+    final skipped = <String, TermRepairMove>{};
+    final toMove = <Grade>[];
+
+    for (final mark in marks) {
+      final to = canonicalTerm(mark.term);
+      if (to == mark.term) continue;
+      final key = '${mark.term} -> $to';
+      if (mark.assessmentId == null && occupied.contains(fingerprint(mark, to))) {
+        final already = skipped[key];
+        skipped[key] = TermRepairMove(
+          from: mark.term,
+          to: to,
+          count: (already?.count ?? 0) + 1,
+          reason: 'the same student already has an identical mark in that '
+              'quarter, so moving it would count the work twice',
+        );
+        continue;
+      }
+      final already = moves[key];
+      moves[key] = TermRepairMove(from: mark.term, to: to, count: (already?.count ?? 0) + 1);
+      if (mark.assessmentId == null) occupied.add(fingerprint(mark, to));
+      toMove.add(mark);
+    }
+
+    final report = TermRepairReport(
+      scanned: marks.length,
+      moved: toMove.length,
+      applied: apply,
+      moves: moves.values.toList(),
+      skipped: skipped.values.toList(),
+    );
+    if (!apply || toMove.isEmpty) return Success(report);
+
+    final moving = {for (final g in toMove) g.id: canonicalTerm(g.term)};
+    _store.grades.add([
+      for (final g in marks)
+        if (moving.containsKey(g.id))
+          Grade(
+            id: g.id,
+            studentId: g.studentId,
+            studentName: g.studentName,
+            subject: g.subject,
+            section: g.section,
+            term: moving[g.id]!,
+            courseworkItemId: g.courseworkItemId,
+            assessmentId: g.assessmentId,
+            component: g.component,
+            score: g.score,
+            maxScore: g.maxScore,
+            remarks: g.remarks,
+            submittedByName: g.submittedByName,
+            submittedAt: g.submittedAt,
+          )
+        else
+          g,
+    ]);
+    _store.audit(
+      module: 'grading',
+      action: 'grade_terms_normalised',
+      targetCollection: 'grades',
+      targetId: 'all',
+      remarks: '${toMove.length} mark${toMove.length == 1 ? '' : 's'} moved to a '
+          'quarter the app queries.',
+    );
+    return Success(report);
   }
 
   @override

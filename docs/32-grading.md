@@ -230,6 +230,37 @@ accident. The import runs its Term column through `canonicalTerm`, which
 maps "Q1", "1st", "first quarter" and the like onto the canonical name
 and **leaves anything it does not recognise alone**.
 
+### Repairing what the old box wrote
+
+The write paths are fixed; the marks they wrote before they were fixed
+are still on file under "Q1", saved and confirmed and invisible.
+`normaliseGradeTerms` is the repair, on the Grading Scheme screen, Admin
+only.
+
+**It reports before it writes.** `apply` defaults to false and the reply
+is the same shape either way, so the dialog shows exactly what will
+happen and the same call with `apply: true` does it. A repair that
+rewrites a school's grades on one button press, with no way to see the
+damage first, is not one anybody should be handed.
+
+**It refuses to double-count.** Moving a mark into a quarter that already
+holds an identical one — same student, subject, component, score and
+maximum — is almost always the same quiz entered through both screens,
+and renaming the first turns 18/20 into 36/40. That is a wrong grade
+produced by the repair itself, so those are skipped and *listed*: a
+person has to decide which of the two is real. The same test the
+spreadsheet import uses to catch a file run twice, and for the same
+reason — without an assessment id, a mark has no other identity.
+
+Marks tied to a piece of work cannot collide by construction: they live
+at `{assessment}_{student}`, so one assessment and one student is one
+document however many times it is written. And two *wrong* marks cannot
+collide onto each other either — a moved fingerprint is claimed as it
+goes, so the second of a pair is skipped rather than landing on top of
+the first.
+
+Unrecognised terms are left exactly as written.
+
 ### A mark can be corrected
 
 This is the defect the class record was built on top of, and it was

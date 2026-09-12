@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 
 import '../../domain/entities/grading_scheme.dart';
 import '../controllers/faculty_controller.dart';
+import '../../../../core/constants/user_roles.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider;
 
 final _dateFormat = DateFormat('d MMM y');
 
@@ -83,6 +85,93 @@ class _GradingSchemeScreenState extends ConsumerState<GradingSchemeScreen> {
         .confirmGradingScheme(stored);
     if (!mounted) return;
     if (ok) _say('Confirmed. Report cards can be printed.');
+  }
+
+  bool _repairing = false;
+
+  /// Reports first, then asks. A repair that rewrites a school's grades
+  /// on one button press, with no way to see the damage beforehand, is
+  /// not one anybody should be handed.
+  Future<void> _checkTerms() async {
+    setState(() => _repairing = true);
+    final report = await ref
+        .read(facultyActionControllerProvider.notifier)
+        .repairGradeTerms(apply: false);
+    if (!mounted) return;
+    setState(() => _repairing = false);
+    if (report == null) return;
+
+    if (!report.hasWork) {
+      _say('Every mark is filed under a quarter the app queries. '
+          '${report.scanned} checked.');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Move these marks?'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${report.scanned} marks checked.'),
+              const SizedBox(height: 12),
+              if (report.moves.isNotEmpty) ...[
+                const Text('Will move:'),
+                for (final move in report.moves)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 8),
+                    child: Text(
+                      '${move.count} from "${move.from}" to "${move.to}"',
+                    ),
+                  ),
+              ],
+              // The ones it will not touch, and why. A repair that
+              // silently declined to fix something is one nobody knows to
+              // finish by hand.
+              if (report.skipped.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('Will NOT move:'),
+                for (final skip in report.skipped)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 8),
+                    child: Text(
+                      '${skip.count} from "${skip.from}" — ${skip.reason}',
+                      style: TextStyle(color: Theme.of(dialogContext).colorScheme.error),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Leave them'),
+          ),
+          FilledButton(
+            onPressed: report.moves.isEmpty
+                ? null
+                : () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Move them'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _repairing = true);
+    final done = await ref
+        .read(facultyActionControllerProvider.notifier)
+        .repairGradeTerms(apply: true);
+    if (!mounted) return;
+    setState(() => _repairing = false);
+    if (done != null) {
+      _say('${done.moved} mark${done.moved == 1 ? '' : 's'} moved. '
+          'They will show in the class record now.');
+    }
   }
 
   void _say(String message) {
@@ -210,6 +299,35 @@ class _GradingSchemeScreenState extends ConsumerState<GradingSchemeScreen> {
                 icon: const Icon(Icons.save_outlined),
                 label: const Text('Save changes'),
               ),
+
+              // Only the Admin, because the callable allows only the
+              // Admin. A button here for the Registrar would be one the
+              // server refuses.
+              if (ref.watch(authStateProvider).valueOrNull?.role == UserRole.admin) ...[
+                const Divider(height: 40),
+                Text('Marks filed under the wrong quarter',
+                    style: theme.textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(
+                  'Grade Submission used to let a teacher type the quarter, '
+                  'defaulting to "Q1" while the class record asked for "1st '
+                  'Quarter". Marks typed then were saved and are still on '
+                  'file, but no screen queries that name, so they never '
+                  'appeared. This finds them and moves them.',
+                  style: theme.textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _repairing ? null : _checkTerms,
+                  icon: const Icon(Icons.search),
+                  label: const Text('Check for misfiled marks'),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Checks and reports. Nothing is changed until you say so.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
               const SizedBox(height: 8),
               Text(
                 'Saving clears the confirmation. Somebody has to check the '

@@ -12,6 +12,7 @@ import '../../../registrar_portal/data/models/student_summary_model.dart';
 import '../models/grade_model.dart';
 import '../models/grading_scheme_model.dart';
 import '../../domain/entities/grading_scheme.dart';
+import '../../domain/entities/term_repair.dart';
 
 class ActingFaculty {
   final String uid;
@@ -312,6 +313,38 @@ class FacultyRemoteDataSource {
       );
     } on FirebaseFunctionsException catch (e) {
       throw ServerException(e.message ?? 'Could not save that piece of work.');
+    }
+  }
+
+  /// Finds, and optionally moves, marks filed under a term no screen
+  /// queries. The reply is the same shape either way.
+  Future<TermRepairReport> repairGradeTerms({required bool apply}) async {
+    try {
+      final callable = _functions.httpsCallable('normaliseGradeTerms');
+      final response = await callable.call({
+        'schoolId': _actingUser.schoolId,
+        'apply': apply,
+      });
+      final data = (response.data as Map).cast<Object?, Object?>();
+      List<TermRepairMove> group(String key) => [
+            for (final row in (data[key] as List<Object?>? ?? []))
+              if (row is Map)
+                TermRepairMove(
+                  from: row['from'] as String? ?? '',
+                  to: row['to'] as String? ?? '',
+                  count: (row['count'] as num?)?.toInt() ?? 0,
+                  reason: row['reason'] as String?,
+                ),
+          ];
+      return TermRepairReport(
+        scanned: (data['scanned'] as num?)?.toInt() ?? 0,
+        moved: (data['moved'] as num?)?.toInt() ?? 0,
+        applied: data['applied'] as bool? ?? false,
+        moves: group('moves'),
+        skipped: group('skipped'),
+      );
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'The marks could not be checked.');
     }
   }
 

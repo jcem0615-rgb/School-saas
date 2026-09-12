@@ -13,6 +13,7 @@ import '../../domain/entities/class_assessment.dart';
 import '../../domain/entities/class_weights.dart';
 import '../../domain/entities/grade.dart';
 import '../../domain/entities/grading_scheme.dart';
+import '../../domain/entities/term_repair.dart';
 import '../../domain/entities/quarterly_grade.dart';
 import '../../domain/repositories/faculty_repository.dart';
 import '../../domain/usecases/coursework_usecases.dart';
@@ -385,6 +386,20 @@ class FacultyActionController extends StateNotifier<AsyncValue<void>> {
       component: component,
       maxScore: maxScore,
     );
+    if (result case Success(:final value)) {
+      if (mounted) state = const AsyncData(null);
+      return value;
+    } else if (result case Error(:final failure)) {
+      if (mounted) state = AsyncError(failure.message, StackTrace.current);
+    }
+    return null;
+  }
+
+  /// Finds marks filed under a term no screen queries, and optionally
+  /// moves them. Null if it was refused.
+  Future<TermRepairReport?> repairGradeTerms({required bool apply}) async {
+    if (mounted) state = const AsyncLoading();
+    final result = await _repository.repairGradeTerms(apply: apply);
     if (result case Success(:final value)) {
       if (mounted) state = const AsyncData(null);
       return value;

@@ -8,6 +8,7 @@ import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../domain/entities/class_assessment.dart';
 import '../../domain/entities/grade.dart';
 import '../../domain/entities/grading_scheme.dart';
+import '../../domain/entities/term_repair.dart';
 import '../../domain/repositories/faculty_repository.dart';
 import '../datasources/faculty_remote_datasource.dart';
 
@@ -191,6 +192,17 @@ class FacultyRepositoryImpl implements FacultyRepository {
       // the children whose marks no longer fit, and a screen that
       // flattened that to "something went wrong" would leave a teacher
       // with nothing to act on.
+      return Error(ValidationFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
+  Future<Result<TermRepairReport>> repairGradeTerms({required bool apply}) async {
+    try {
+      return Success(await _remote.repairGradeTerms(apply: apply));
+    } on ServerException catch (e) {
       return Error(ValidationFailure(e.message));
     } catch (_) {
       return const Error(UnknownFailure());

@@ -83,6 +83,7 @@ export {setStudentBalance} from "./callable/students/setStudentBalance";
 // ---------------------------------------------------------------------------
 export {saveClassAssessment} from "./callable/grading/saveClassAssessment";
 export {deleteClassAssessment} from "./callable/grading/deleteClassAssessment";
+export {normaliseGradeTerms} from "./callable/grading/normaliseGradeTerms";
 export {saveAssessmentScores} from "./callable/grading/saveAssessmentScores";
 export {setClassWeights} from "./callable/grading/setClassWeights";
 export {postGradeMark} from "./callable/grading/postGradeMark";
