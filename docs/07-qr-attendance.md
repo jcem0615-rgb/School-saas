@@ -179,6 +179,27 @@ the printed card, so it has to be the same card. Geometry lives in
 consts (`_headerHeightMm` and friends) that the print and screen layouts
 both read, rather than each carrying its own guesses.
 
+### The card does not follow the app's theme
+
+Its colours are fixed — `_cardFace`, `_cardInk`, `_cardMuted` — and that
+is the point. The face used to be `theme.colorScheme.surface` while the
+ink was a hard-coded `Colors.black87`, which in **dark mode painted a
+dark navy card and left dark ink on top of it**. The name was there and
+could not be read, on the one screen whose whole job is showing a name.
+
+A card is a preview of something that comes out of a printer on white
+stock. It has to look the same to a registrar on a dark laptop and a
+parent on a light phone, because the paper does. The build method does
+not call `Theme.of` at all.
+
+The type was raised at the same time — labels from 1.15 to 1.45mm, values
+from 1.95 to 2.45mm, the school name from 2.3 to 2.6mm — because a card is
+read at arm's length across a gate, not at reading distance. Bigger text
+in a fixed-height card is exactly how a layout starts overflowing, so
+`id_assets_test.dart` renders the card with a long two-surname Filipino
+name on the narrowest phone in common use and fails on overflow, which a
+debug build throws.
+
 `buildIdCardPdf` is exposed for tests. The PDF is a separate widget tree
 from the preview and it is the artefact the school actually hands out; a
 card that comes out blank, or throws because a signature is missing, is

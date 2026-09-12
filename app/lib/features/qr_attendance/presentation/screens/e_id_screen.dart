@@ -633,7 +633,10 @@ class _CardShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    // No Theme.of here on purpose: every colour on the card is fixed.
+    // See _cardFace -- this is a preview of something that gets printed,
+    // and it has to look the same on a dark laptop and a light phone
+    // because the paper does.
 
     // The width cap has to sit OUTSIDE the AspectRatio. Inside it, the
     // AspectRatio has already taken the full width it was offered and
@@ -650,9 +653,9 @@ class _CardShell extends StatelessWidget {
             final pxPerMm = constraints.maxWidth / _cardWidthMm;
             return Container(
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
+                color: _cardFace,
                 borderRadius: BorderRadius.circular(3 * pxPerMm),
-                border: Border.all(color: theme.colorScheme.outlineVariant),
+                border: Border.all(color: _cardHairline),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.10),
@@ -710,6 +713,23 @@ class _CardScale extends InheritedWidget {
 /// change colour because the person holding the phone prefers dark mode.
 const _cardBrand = Color(0xFF3D4A7A);
 
+/// The card's own palette, deliberately not the app theme's.
+///
+/// An ID card is a preview of a printed document: it comes out of a
+/// printer on white stock with dark ink, and the preview is only useful
+/// if it shows that. The face used to be `theme.colorScheme.surface`,
+/// which in dark mode painted a dark navy card and left the hard-coded
+/// dark ink on top of it — a name that could not be read, on the one
+/// screen whose whole job is showing a name.
+///
+/// Fixed values, so the card looks the same to a registrar on a dark
+/// laptop and a parent on a light phone, and both look like the print.
+const _cardFace = Color(0xFFFFFFFF);
+const _cardInk = Color(0xFF14161C);
+const _cardMuted = Color(0xFF5B6270);
+const _cardHairline = Color(0xFFC9CEDA);
+const _cardPhotoWell = Color(0xFFEDEFF4);
+
 /// A field label: small, spaced, grey, above its value. The pairing is
 /// what makes a credential scannable by eye -- a reader looking for one
 /// field finds it without reading the others.
@@ -723,10 +743,10 @@ class _FieldLabel extends StatelessWidget {
     return Text(
       text,
       style: TextStyle(
-        fontSize: 1.15 * mm,
-        letterSpacing: 0.15 * mm,
-        fontWeight: FontWeight.bold,
-        color: Colors.grey.shade600,
+        fontSize: 1.45 * mm,
+        letterSpacing: 0.12 * mm,
+        fontWeight: FontWeight.w700,
+        color: _cardMuted,
         height: 1.2,
       ),
       maxLines: 1,
@@ -738,7 +758,7 @@ class _FieldLabel extends StatelessWidget {
 class _FieldValue extends StatelessWidget {
   final String text;
   final double sizeMm;
-  const _FieldValue(this.text, {this.sizeMm = 1.95});
+  const _FieldValue(this.text, {this.sizeMm = 2.45});
 
   @override
   Widget build(BuildContext context) {
@@ -747,8 +767,8 @@ class _FieldValue extends StatelessWidget {
       text,
       style: TextStyle(
         fontSize: sizeMm * mm,
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
+        fontWeight: FontWeight.w700,
+        color: _cardInk,
         height: 1.15,
       ),
       maxLines: 1,
@@ -787,7 +807,7 @@ class _CardHeader extends StatelessWidget {
                 Text(
                   (branding.schoolName ?? 'School').toUpperCase(),
                   style: TextStyle(
-                    fontSize: 2.3 * mm,
+                    fontSize: 2.6 * mm,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     height: 1.1,
@@ -798,7 +818,7 @@ class _CardHeader extends StatelessWidget {
                 Text(
                   details.credentialTitle,
                   style: TextStyle(
-                    fontSize: 1.2 * mm,
+                    fontSize: 1.35 * mm,
                     letterSpacing: 0.18 * mm,
                     color: Colors.white70,
                     height: 1.2,
@@ -812,7 +832,7 @@ class _CardHeader extends StatelessWidget {
           if (details.schoolYear != null)
             Text(
               'S.Y. ${details.schoolYear}',
-              style: TextStyle(fontSize: 1.6 * mm, color: Colors.white),
+              style: TextStyle(fontSize: 1.8 * mm, color: Colors.white),
             ),
         ],
       ),
@@ -910,7 +930,7 @@ class _IdCardFront extends StatelessWidget {
                     ),
                     Text(
                       'Valid only with the school seal',
-                      style: TextStyle(fontSize: 1.15 * mm, color: Colors.grey.shade600),
+                      style: TextStyle(fontSize: 1.35 * mm, color: _cardMuted),
                     ),
                   ],
                 ),
@@ -940,7 +960,7 @@ class _PhotoBox extends StatelessWidget {
       details.initials,
       style: theme.textTheme.titleLarge?.copyWith(
         fontSize: 6 * mm,
-        color: Colors.grey.shade500,
+        color: _cardMuted,
       ),
     );
 
@@ -948,7 +968,7 @@ class _PhotoBox extends StatelessWidget {
       width: _photoWidthMm * mm,
       height: _photoHeightMm * mm,
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
+        color: _cardPhotoWell,
         borderRadius: BorderRadius.circular(0.6 * mm),
         border: Border.all(color: _cardBrand.withValues(alpha: 0.45), width: 0.4 * mm),
       ),
@@ -1001,7 +1021,7 @@ class _IdCardBack extends StatelessWidget {
                   '${details.branding.schoolName ?? 'the school'} and is '
                   'non-transferable. If found, please return it to the '
                   'school office.',
-                  style: TextStyle(fontSize: 1.3 * mm, color: Colors.grey.shade700, height: 1.25),
+                  style: TextStyle(fontSize: 1.55 * mm, color: _cardMuted, height: 1.3),
                   maxLines: 3,
                 ),
                 SizedBox(height: 1.5 * mm),
@@ -1062,9 +1082,9 @@ class _Signatory extends StatelessWidget {
                   child: UploadedImage(url: signatureUrl!, fit: BoxFit.contain),
                 ),
         ),
-        Container(height: 0.25 * mm, color: Colors.grey.shade700),
+        Container(height: 0.25 * mm, color: _cardInk),
         SizedBox(height: 0.5 * mm),
-        _FieldValue(name ?? ' ', sizeMm: 1.7),
+        _FieldValue(name ?? ' ', sizeMm: 1.95),
         _FieldLabel(label.toUpperCase()),
       ],
     );

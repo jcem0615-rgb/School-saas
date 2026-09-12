@@ -121,6 +121,36 @@ void main() {
   });
 
   group('the ID card', () {
+    testWidgets('holds a long name and a narrow phone without overflowing',
+        (tester) async {
+      // The card's type was raised so a name can be read across a gate at
+      // arm's length, and bigger text in a fixed-height card is exactly
+      // how a layout starts overflowing. A Filipino name with two
+      // surnames on the narrowest phone in common use is the case that
+      // finds it: debug builds throw on overflow, so this catches it.
+      tester.view.physicalSize = const Size(320 * 3, 640 * 3);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+
+      final c = signedInAs('student@demo.ph');
+      final store = c.read(demoStoreProvider);
+      final me = store.currentUser.value!;
+      store.currentUser.add(me.copyWith(
+        firstName: 'Maria Concepcion Esperanza',
+        lastName: 'Villanueva-Buenaventura',
+      ));
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(theme: AppTheme.light(), home: const EIdScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('renders for a student without throwing, signatures and all',
         (tester) async {
       tester.view.physicalSize = const Size(390 * 3, 844 * 3);
