@@ -31,7 +31,8 @@ generic audit trigger. Attendance is different for three reasons:
    Firestore rules struggle to validate safely (you'd need the rule to
    trust the client's claim about who was scanned).
 2. **Server-computed status.** Present vs. late depends on the school's
-   configured cutoff time compared against server time in the school's
+   cutoff time (`attendanceCutoffTime`, 07:30 until the settings screen
+   below is built) compared against server time in the school's
    timezone — this must not be client-computed or a device with a wrong
    clock (or a malicious one) could mark itself present after cutoff.
 3. **Duplicate-scan handling.** The transaction in `markAttendance.ts`
@@ -138,10 +139,60 @@ happened to use.
 | Layer | File | Covers |
 |---|---|---|
 | Domain | `scan_qr_usecase_test.dart` | empty-token validation, delegation |
-| Functions | `attendanceStatus.test.ts` | present/late boundary math, cutoff parsing/fallback, what a repeat scan means |
+| Functions | `attendanceStatus.test.ts` | present/late boundary math, cutoff parsing and its clock bounds, what a repeat scan means |
+| Demo | `scanner_outcomes_test.dart` | all four outcomes parse; the four states a record can be in when an ID goes past, each set up rather than assumed |
 | Emulator | `attendance-emulator/gateAndTimetable.test.ts` | `markAttendance` against a real Firestore: the queue at the gate, the time out that is real, the day filed under the school's date |
 | Rules | `attendance.rules.test.ts` | self/staff/linked-parent read access, universal write denial |
 | Rules | `division-isolation.rules.test.ts` | a scoped teacher is refused another division's attendance, and is not refused a colleague's |
+
+## A scan means one of four things, and the app knew three
+
+`markAttendance` returns `time_in`, `time_out`, `too_soon` or
+`already_completed`. `ScanAction` carried three of them, and
+`fromString` used `firstWhere` with no fallback — so the server's
+`too_soon` did not mislabel anything, it **threw** `Bad state: No
+element` inside the scanner.
+
+That is the most common event at a gate. The queue backs up, the beep is
+missed, the same ID goes past twice inside a few seconds; the server has
+a long comment explaining precisely how carefully it handles that, and
+the client could not receive the answer. The demo never produced one
+either — its comment claimed "the same three-way outcome
+markAttendance.ts returns", which was the false sameness that kept
+anybody from noticing.
+
+Three things came out of it:
+
+- `ScanAction.tooSoon` exists, and `fromString` names a value it does not
+  recognise instead of saying "No element" — a deployed scanner meeting a
+  newer server should say what it saw.
+- The overlay distinguishes **a scan that wrote something from one that
+  did not**: a tick and the person's name for a time in or out, an
+  information mark and a different colour for the two that changed
+  nothing. Identical overlays tell somebody at a gate that a record
+  exists when none does.
+- It says how long to wait. `minimumDwellMinutes` was being sent by the
+  server for exactly that message and read by nobody, so "that did not
+  work" sent an operator tapping again instead of "already in, try again
+  in five minutes".
+
+The demo now applies the same five-minute floor and returns the same four
+outcomes. Without the floor it timed somebody out on an immediate second
+tap — demonstrating, in the demo, the exact failure the server exists to
+prevent.
+
+## A cutoff outside a real clock
+
+`parseCutoffTime` checked the shape, `\d{1,2}:\d{2}`, and nothing else.
+`"25:00"` and `"08:99"` both pass it, and both produce a cutoff later
+than any moment of the day: every scan then compares as on time and
+**nothing is ever marked late again**, for the whole school, silently.
+Nobody notices a feature that has quietly stopped having opinions.
+
+It is bounded to a real clock time now, and falls back to 07:30 rather
+than accepting one. That matters *more* while the settings screen is
+deferred, not less: the only way to set this today is to type it into
+Firestore by hand, which is exactly where a typo lands.
 
 ## Deferred to later modules
 

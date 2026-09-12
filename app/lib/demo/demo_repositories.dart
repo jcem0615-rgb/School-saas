@@ -3713,6 +3713,9 @@ class DemoQrAttendanceRepository implements QrAttendanceRepository {
   /// attendanceStatus.ts's default school-hours configuration.
   static const _lateAfterHour = 8;
 
+  /// The same floor as MINIMUM_DWELL_MINUTES in attendanceStatus.ts.
+  static const _minimumDwellMinutes = 5;
+
   @override
   Future<Result<QrScanResult>> scanQrCode({required String qrToken, String? location}) async {
     await _latency(500);
@@ -3751,8 +3754,15 @@ class DemoQrAttendanceRepository implements QrAttendanceRepository {
         .where((a) => a.personId == personId && a.date == today)
         .firstOrNull;
 
-    // Time-in on first scan of the day, time-out on the second, no-op
-    // after that -- the same three-way outcome markAttendance.ts returns.
+    // The same FOUR outcomes markAttendance.ts returns, dwell floor
+    // included. This said "the same three-way outcome" and was wrong: the
+    // server also returns `too_soon`, and because no demo scan had ever
+    // produced one, nothing caught that the app had no enum value for it
+    // and crashed on arrival.
+    //
+    // The floor matters on its own too. Without it, scanning twice in a
+    // row here times somebody out -- demonstrating, in the demo, exactly
+    // the failure the server exists to prevent.
     if (existing == null) {
       final status =
           now.hour >= _lateAfterHour ? AttendanceStatus.late : AttendanceStatus.present;
@@ -3784,6 +3794,22 @@ class DemoQrAttendanceRepository implements QrAttendanceRepository {
         action: ScanAction.timeIn,
         status: status,
         timestamp: now,
+      ));
+    }
+
+    if (existing.timestampOut == null &&
+        now.difference(existing.timestampIn).inMinutes < _minimumDwellMinutes) {
+      // Already in, and not long enough ago for a second tap to mean
+      // leaving. Nothing is written, and the scanner says how long to
+      // wait rather than just refusing.
+      return Success(QrScanResult(
+        personId: personId,
+        personName: personName,
+        personRole: personRole,
+        action: ScanAction.tooSoon,
+        status: existing.status,
+        timestamp: now,
+        minimumDwellMinutes: _minimumDwellMinutes,
       ));
     }
 

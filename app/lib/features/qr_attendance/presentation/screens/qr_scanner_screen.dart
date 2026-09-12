@@ -104,11 +104,24 @@ class _ResultOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final actionLabel = switch (result.action) {
       ScanAction.timeIn => 'Time In recorded',
       ScanAction.timeOut => 'Time Out recorded',
+      // Says how long, because the server sends the number precisely so
+      // this line can. "That did not work" sends an operator tapping
+      // again; "already in, try in five minutes" ends the question.
+      ScanAction.tooSoon =>
+        'Already timed in — scan again after ${result.minimumDwellMinutes} minutes to time out',
       ScanAction.alreadyCompleted => 'Already completed for today',
     };
+
+    // Two of these four wrote nothing. An overlay that looks identical
+    // either way tells a person at a gate that a record exists when none
+    // does -- and attendance is what a payroll and a truancy report are
+    // built from.
+    final wrote = result.action == ScanAction.timeIn ||
+        result.action == ScanAction.timeOut;
 
     return Positioned(
       left: 16,
@@ -125,14 +138,25 @@ class _ResultOverlay extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  Icon(
+                    wrote ? Icons.check_circle : Icons.info_outline,
+                    color: wrote ? theme.colorScheme.primary : theme.colorScheme.tertiary,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Text(result.personName, style: Theme.of(context).textTheme.titleMedium),
+                    child: Text(result.personName, style: theme.textTheme.titleMedium),
                   ),
                   AttendanceStatusBadge(status: result.status),
                 ],
               ),
               const SizedBox(height: 4),
-              Text('${result.personRole} · $actionLabel'),
+              Text(
+                '${result.personRole} · $actionLabel',
+                style: wrote
+                    ? null
+                    : theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.colorScheme.tertiary),
+              ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,

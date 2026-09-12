@@ -9,6 +9,7 @@ class QrScanResultModel extends QrScanResult {
     required super.action,
     required super.status,
     required super.timestamp,
+    super.minimumDwellMinutes,
   });
 
   /// Built from the raw map returned by the markAttendance callable
@@ -21,6 +22,7 @@ class QrScanResultModel extends QrScanResult {
       action: ScanAction.fromString(data['action'] as String),
       status: AttendanceStatus.fromString(data['status'] as String),
       timestamp: DateTime.parse(data['timestamp'] as String),
+      minimumDwellMinutes: (data['minimumDwellMinutes'] as num?)?.toInt() ?? 5,
     );
   }
 }

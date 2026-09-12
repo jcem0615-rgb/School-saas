@@ -16,10 +16,30 @@ export function computeAttendanceStatus(
   return scanMinutes > cutoffMinutes ? "late" : "present";
 }
 
-/** Parses "HH:mm" into {hour, minute}, falling back to a safe default. */
+/**
+ * Parses "HH:mm" into {hour, minute}, falling back to a safe default.
+ *
+ * The shape check alone was not enough. "25:00" and "08:99" both match
+ * `\d{1,2}:\d{2}`, and both produce a cutoff later than any moment of
+ * the day -- so every scan compares as on time and **nothing is ever
+ * marked late again**, for the whole school, silently. Nobody notices a
+ * feature that has quietly stopped having opinions.
+ *
+ * There is no screen for this setting yet (deferred, see docs/07), which
+ * makes the range check matter more rather than less: the only way to
+ * set it today is to type it into Firestore by hand, and that is exactly
+ * where a typo lands.
+ */
 export function parseCutoffTime(cutoff: string | undefined, fallback = "07:30"): {hour: number; minute: number} {
-  const raw = cutoff && /^\d{1,2}:\d{2}$/.test(cutoff) ? cutoff : fallback;
+  const parsed = readClockTime(cutoff);
+  return parsed ?? readClockTime(fallback) ?? {hour: 7, minute: 30};
+}
+
+function readClockTime(raw: string | undefined): {hour: number; minute: number} | null {
+  if (!raw || !/^\d{1,2}:\d{2}$/.test(raw)) return null;
   const [hour, minute] = raw.split(":").map(Number);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return null;
+  if (!Number.isInteger(minute) || minute < 0 || minute > 59) return null;
   return {hour, minute};
 }
 

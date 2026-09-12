@@ -24,6 +24,34 @@ describe("computeAttendanceStatus", () => {
   });
 });
 
+describe("a cutoff outside a real clock", () => {
+  // The shape check alone passed "25:00", and a cutoff later than any
+  // moment of the day means every scan compares as on time. Nothing is
+  // ever marked late again, for the whole school, and nobody notices a
+  // feature that has quietly stopped having opinions.
+  it("falls back rather than accepting an hour past midnight", () => {
+    expect(parseCutoffTime("25:00")).toEqual({hour: 7, minute: 30});
+    expect(parseCutoffTime("99:00")).toEqual({hour: 7, minute: 30});
+  });
+
+  it("falls back rather than accepting a minute past sixty", () => {
+    expect(parseCutoffTime("08:99")).toEqual({hour: 7, minute: 30});
+    expect(parseCutoffTime("8:60")).toEqual({hour: 7, minute: 30});
+  });
+
+  it("keeps the real edges of the clock", () => {
+    expect(parseCutoffTime("00:00")).toEqual({hour: 0, minute: 0});
+    expect(parseCutoffTime("23:59")).toEqual({hour: 23, minute: 59});
+  });
+
+  it("a bad cutoff still marks a late arrival late", () => {
+    // The point of the fallback: the feature keeps working rather than
+    // silently going quiet.
+    const {hour, minute} = parseCutoffTime("25:00");
+    expect(computeAttendanceStatus(9, 0, hour, minute)).toBe("late");
+  });
+});
+
 describe("parseCutoffTime", () => {
   it("parses a valid HH:mm string", () => {
     expect(parseCutoffTime("08:15")).toEqual({hour: 8, minute: 15});
