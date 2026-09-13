@@ -130,9 +130,15 @@ class _ParentAlertCard extends StatelessWidget {
 
     final String status;
     if (alert.isResolved) {
+      // Named, like the line above it. A parent told "Maria Santos is on
+      // the way" and then "resolved by the school" has been handed a
+      // person and then taken back to an institution, on the half of it
+      // they are most likely to ask about later.
+      final who = alert.resolvedByName?.trim();
+      final by = who == null || who.isEmpty ? 'the school' : who;
       status = alert.resolutionNote?.trim().isNotEmpty == true
-          ? 'Resolved by the school — ${alert.resolutionNote!.trim()}'
-          : 'Resolved by the school.';
+          ? 'Resolved by $by — ${alert.resolutionNote!.trim()}'
+          : 'Resolved by $by.';
     } else if (alert.isAcknowledged) {
       status = '${alert.acknowledgedByName} from the school is on the way.';
     } else {

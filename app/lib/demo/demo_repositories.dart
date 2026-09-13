@@ -3843,7 +3843,10 @@ class DemoEmergencyRepository implements EmergencyRepository {
     _store.update<EmergencyAlert>(
       _store.emergencyAlerts,
       (a) => a.id == alertId,
-      (a) => _copyAlert(a, resolvedAt: DateTime.now(), resolutionNote: note),
+      (a) => _copyAlert(a,
+          resolvedByName: _store.requireUser.fullName,
+          resolvedAt: DateTime.now(),
+          resolutionNote: note),
     );
     return const Success(null);
   }
@@ -3853,6 +3856,7 @@ EmergencyAlert _copyAlert(
   EmergencyAlert a, {
   String? acknowledgedByName,
   DateTime? acknowledgedAt,
+  String? resolvedByName,
   DateTime? resolvedAt,
   String? resolutionNote,
 }) {
@@ -3866,8 +3870,12 @@ EmergencyAlert _copyAlert(
     raisedAt: a.raisedAt,
     acknowledgedByName: acknowledgedByName ?? a.acknowledgedByName,
     acknowledgedAt: acknowledgedAt ?? a.acknowledgedAt,
+    resolvedByName: resolvedByName ?? a.resolvedByName,
     resolvedAt: resolvedAt ?? a.resolvedAt,
-    resolutionNote: resolutionNote ?? a.resolutionNote,
+    // Not `?? a.resolutionNote`: an alert is resolved once, and
+    // resolving it with the note left blank must not inherit text from
+    // somewhere else. The real datasource writes null here.
+    resolutionNote: resolutionNote,
   );
 }
 

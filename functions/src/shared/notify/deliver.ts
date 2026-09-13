@@ -194,11 +194,16 @@ async function push(
         tokens: chunk,
         notification: {title: delivery.title, body},
         data: {
+          // Caller values first, routing keys last. Spread the other way
+          // round and a caller passing `data: {link: ...}` -- or a
+          // `type`, or a `schoolId` -- silently replaces the key the app
+          // navigates by, and the notification opens somewhere else or
+          // nowhere. No caller does today; none of them can now.
+          ...(delivery.data ?? {}),
           type: delivery.kind,
           schoolId: delivery.schoolId,
           sourceId: delivery.sourceId,
           link: delivery.link,
-          ...(delivery.data ?? {}),
         },
         ...(delivery.urgent ?
           {

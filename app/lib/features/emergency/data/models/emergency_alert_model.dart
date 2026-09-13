@@ -18,6 +18,7 @@ class EmergencyAlertModel extends EmergencyAlert {
     super.locationFailure,
     super.acknowledgedByName,
     super.acknowledgedAt,
+    super.resolvedByName,
     super.resolvedAt,
     super.resolutionNote,
   });
@@ -41,6 +42,7 @@ class EmergencyAlertModel extends EmergencyAlert {
       locationFailure: LocationFailure.fromValue(data['locationFailure'] as String?),
       acknowledgedByName: data['acknowledgedByName'] as String?,
       acknowledgedAt: (data['acknowledgedAt'] as Timestamp?)?.toDate(),
+      resolvedByName: data['resolvedByName'] as String?,
       resolvedAt: (data['resolvedAt'] as Timestamp?)?.toDate(),
       resolutionNote: data['resolutionNote'] as String?,
     );

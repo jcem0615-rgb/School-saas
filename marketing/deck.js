@@ -325,7 +325,7 @@ const S = () => pres.addSlide();
     { icon: 'FiDollarSign', h: 'Statement of Account', b: 'Charges, payments and the balance - read only. Refunds stay with the school.' },
   ], { cols: 4, y: 2.5, h: 2.4 });
   await rowList(s, [
-    { icon: 'FiAlertTriangle', h: 'Emergency Alerts', b: 'An unresolved alert about their child is shown as a banner, not hidden behind an icon' },
+    { icon: 'FiAlertTriangle', h: 'Emergency Alerts', b: 'An unresolved alert about their child is a banner, not an icon - and it names who picked it up and who closed it' },
     { icon: 'FiBell', h: 'Announcements', b: 'Everything the school addressed to parents, pushed to the phone' },
     { icon: 'FiSend', h: 'Pay online', b: 'Send the fee by GCash or bank transfer and submit the reference for review' },
   ], { cols: 3, y: 5.45, rh: 0.7, gap: 0.35 });

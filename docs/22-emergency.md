@@ -95,6 +95,29 @@ editing the report of it, and an alert that can be quietly retracted is
 worth less than one that cannot, including when the pressure to retract
 comes from somebody else.
 
+## Who closed it
+
+`acknowledgedByName` and `resolvedByName` are the two halves of the same
+question, and only one of them reached a screen.
+
+`resolveAlert` wrote `resolvedByName` to Firestore on every resolve. The
+rules name it in the immutability guard, so the first account to resolve
+an alert is the one the record keeps. The rules tests write it. The
+entity did not have the field, so the model never read it, so no screen
+could show it -- and the parent's screen said *"Resolved by the school"*
+one line under *"Maria Santos from the school is on the way."* The same
+question, answered once with a person and once with an institution, on
+the record where "who decided this was over" is what gets asked
+afterwards.
+
+It is carried end to end now. Alerts resolved before this have no name
+and the screens fall back rather than printing an empty one.
+
+The staff card had a smaller version of the same gap: it rendered the
+resolution only `if (alert.isResolved && alert.resolutionNote != null)`,
+so an alert closed without a note showed nothing at all, and "this is
+over" looked the same as "acknowledged and untouched since".
+
 ## Two rules that break the pattern on purpose
 
 **`emergencyContacts` is readable by every role with no scoping at all.**
@@ -144,7 +167,7 @@ arbitrary fifty rather than the recent ones.
 | Functions | `sections/sections.test.ts` | what counts as the same class, which is what finds the adviser |
 | Emulator | `emergency-emulator/emergencyFanOut.test.ts` | the adviser found through a differently-typed section, guidance and the office told every time, the school still told when a section has no adviser, the right family and no other, no registrar, no leaver, the wording, and one notification per person however many ways they qualify |
 | Rules | `emergency.rules.test.ts` | contacts readable by everyone and editable by the office, an alert raised only as oneself and never backdated, a lapsed school still accepting one, staff-only handling, the first acknowledgement and the first resolution standing, and neither the student nor staff able to rewrite what was said |
-| Demo | `emergency_test.dart`, `parent_emergency_test.dart` | the button, the fan-out to adviser/guidance/office/parents, acknowledge-then-resolve, and what a parent sees |
+| Demo | `emergency_test.dart`, `parent_emergency_test.dart` | the button, the fan-out to adviser/guidance/office/parents, acknowledge-then-resolve with a name on both halves, resolving with no note not inheriting an old one, and what a parent sees -- including a resolved alert naming who closed it, and an older one with no name still reading as a sentence |
 
 ## Deferred
 

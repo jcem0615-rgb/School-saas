@@ -182,6 +182,58 @@ only the push half is affected.
    firebase deploy --only functions:onAnnouncementCreated,functions:onEmergencyAlertCreated,functions:onSummonsWritten
    ```
 
+## "Mark all read" that did not
+
+The bell is the only thing in the app that claims there is something
+waiting, so it has to be able to go out. It could not.
+
+`markAllRead` ran one `.limit(100).get()` over `isRead == false`, under a
+comment saying that leaving a single item unread is "a bell that will not
+go out" -- which is exactly what it did. Two things made it worse than an
+off-by-one:
+
+* The query has no `orderBy`, and Firestore returns an unordered query in
+  document-id order. These ids are `{kind}_{sourceId}`, so the hundred it
+  marked were the alphabetically first hundred -- every `announcement_*`
+  before any `emergency_*`. What was left unread was not the oldest
+  hundred-and-first, it was whatever sorted last.
+* The screen's own window is also a hundred, ordered by `createdAt`. So
+  after pressing the button the badge could still be lit, with no way to
+  tell which item was keeping it there.
+
+A parent back from a fortnight away, in a school that posts daily, is
+past a hundred easily. Pressing the button again marked another arbitrary
+hundred.
+
+It pages now, at 500 -- Firestore's per-batch write ceiling, not the
+screen's page size -- until a short page says there is nothing left.
+`maxPasses` is a stop rather than a budget: an inbox still reporting
+unread after a quarter of a million is a bug somewhere else, and a client
+loop is the wrong place to find it.
+
+The loop is `NotificationsRemoteDataSource.markEveryUnread`, with the
+Firestore calls passed in, so the paging can be driven in a plain test.
+The defect was in the paging and nowhere else.
+
+**The demo never showed it.** `DemoNotificationsRepository.markAllRead`
+marks every item in an in-memory list -- correct, and correct in a way the
+product was not. Every test of "mark all read" ran against that. This is
+the same shape as the refund row in Module 37: the demo behaving *better*
+than the thing it stands in for is how a defect stays invisible.
+
+## What a caller may not do to a push payload
+
+`deliver` builds the FCM `data` map from four routing keys -- `type`,
+`schoolId`, `sourceId`, `link` -- plus whatever the caller passes. The
+caller's map was spread *last*, so a caller passing `link` would have
+silently replaced the key the app navigates by, and the notification
+would have opened somewhere else or nowhere.
+
+No caller did. All six pass ids (`announcementId`, `summonsId`,
+`alertId`, `requestId`, `conversationId`). The order is reversed now so
+that none can, and a test in `notify-emulator/deliver.test.ts` passes a
+deliberately hostile map and asserts the four keys survive it.
+
 ## What is covered by tests
 
 * The rules — `test-rules/notifications.rules.test.ts`: a recipient reads
@@ -210,6 +262,18 @@ only the push half is affected.
 * The emergency fan-out —
   `functions/test/shared/emergency-emulator/emergencyFanOut.test.ts`,
   against a real Firestore, reading the inbox afterwards.
+* `deliver` itself — `functions/test/shared/notify-emulator/deliver.test.ts`,
+  against a real Firestore with FCM stubbed: one item per recipient and
+  nobody else, the whole body in the inbox against a 180-character push
+  preview, a second run of the same trigger writing nothing and leaving
+  an already-read item read, duplicates collapsed, the four routing keys
+  unclobberable, `urgent` reaching the priority headers, a throwing FCM
+  still leaving the inbox written, and a dead token pruned where a
+  transient failure is not.
+* The paging — `app/test/unit/features/notifications/mark_all_read_test.dart`:
+  a short page ends in one pass, an inbox exactly one page long takes a
+  second look, several pages are cleared rather than topped up, and a
+  fetch that never drains stops rather than spinning.
 * The demo — `app/test/smoke/section_announcement_test.dart` now checks
   the inbox as well as the list. The demo repositories had the list half
   only, so a class notice posted in front of a prospect rang nothing —

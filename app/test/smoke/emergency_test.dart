@@ -208,6 +208,37 @@ void main() {
       expect(alert.isResolved, isTrue);
       expect(alert.isActive, isFalse);
       expect(alert.resolutionNote, 'Taken to the clinic.');
+      // Both halves carry a name. The resolve half was being written to
+      // Firestore and read back by nothing, so the parent's screen could
+      // only manage "resolved by the school" -- one line under "Maria
+      // Santos is on the way", which is the same question answered twice,
+      // once with a person and once with an institution.
+      expect(alert.acknowledgedByName, isNotEmpty);
+      expect(alert.resolvedByName, isNotEmpty);
+    });
+
+    test('resolving with no note does not inherit somebody else\'s', () async {
+      // The real datasource writes null into `resolutionNote`. A demo
+      // copy helper that fell back to the old value would show a note
+      // against an alert nobody wrote one for -- on a record whose whole
+      // point is being able to say afterwards what happened.
+      final container = await signedInAs(UserRole.student);
+      final sub = container.listen(emergencyActionControllerProvider, (_, __) {});
+      addTearDown(sub.close);
+      await container.read(emergencyActionControllerProvider.notifier).raiseAlert(
+            studentId: 'stu_001',
+            studentName: 'Miguel Torres',
+            section: 'Grade 10 - Rizal',
+          );
+
+      final store = container.read(demoStoreProvider);
+      final id = store.emergencyAlerts.value.first.id;
+      final notifier = container.read(emergencyActionControllerProvider.notifier);
+
+      await notifier.resolveAlert(alertId: id, note: 'First note.');
+      await notifier.resolveAlert(alertId: id, note: null);
+
+      expect(store.emergencyAlerts.value.first.resolutionNote, isNull);
     });
 
     test('an alert with no message still goes', () async {

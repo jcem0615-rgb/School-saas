@@ -166,5 +166,63 @@ void main() {
 
       expect(find.text('Maria Santos from the school is on the way.'), findsOneWidget);
     });
+
+    testWidgets('and a resolved one names who closed it, not "the school"',
+        (tester) async {
+      // The line above hands the parent a person. This one used to take
+      // it back: `resolvedByName` was written to Firestore on every
+      // resolve, named in the rules' immutability guard, and dropped by
+      // the entity -- so the only sentence this screen could form was
+      // "Resolved by the school", about the one record where "who
+      // decided it was over" is what gets asked afterwards.
+      final c = asParent();
+      final store = c.read(demoStoreProvider);
+      store.prepend(
+        store.emergencyAlerts,
+        EmergencyAlert(
+          id: 'alert_done',
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+          section: 'Grade 10 - Rizal',
+          userId: 'u_student',
+          raisedAt: DateTime.now(),
+          acknowledgedByName: 'Maria Santos',
+          acknowledgedAt: DateTime.now(),
+          resolvedByName: 'Grace Mendoza',
+          resolvedAt: DateTime.now(),
+          resolutionNote: 'Brought to the clinic, parents called.',
+        ),
+      );
+      await pump(tester, c, const ParentAlertsScreen());
+
+      expect(
+        find.text('Resolved by Grace Mendoza \u2014 Brought to the clinic, '
+            'parents called.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('an older alert with no name still reads as a sentence',
+        (tester) async {
+      // Everything resolved before the name was carried. Falling back is
+      // the point: "Resolved by ." would be worse than the institution.
+      final c = asParent();
+      final store = c.read(demoStoreProvider);
+      store.prepend(
+        store.emergencyAlerts,
+        EmergencyAlert(
+          id: 'alert_old',
+          studentId: 'stu_001',
+          studentName: 'Miguel Torres',
+          section: 'Grade 10 - Rizal',
+          userId: 'u_student',
+          raisedAt: DateTime.now(),
+          resolvedAt: DateTime.now(),
+        ),
+      );
+      await pump(tester, c, const ParentAlertsScreen());
+
+      expect(find.text('Resolved by the school.'), findsOneWidget);
+    });
   });
 }

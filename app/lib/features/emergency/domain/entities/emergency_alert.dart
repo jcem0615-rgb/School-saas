@@ -56,7 +56,19 @@ class EmergencyAlert {
   final String? acknowledgedByName;
   final DateTime? acknowledgedAt;
 
-  /// Closed once the situation is over, with a note of what happened.
+  /// Who closed it, and when, and what happened.
+  ///
+  /// The name is here for the same reason [acknowledgedByName] is: "who
+  /// picked this up" and "who decided it was over" are both questions a
+  /// parent asks afterwards, and the second one is the harder of the
+  /// two to answer from memory. It was being written to Firestore on
+  /// every resolve and read back by nothing -- the field existed in the
+  /// datasource and in the rules' immutability guard, and stopped at
+  /// this class, so the parent's screen could only say "the school".
+  ///
+  /// Null on alerts resolved before it was carried; the screens fall
+  /// back rather than printing an empty name.
+  final String? resolvedByName;
   final DateTime? resolvedAt;
   final String? resolutionNote;
 
@@ -74,6 +86,7 @@ class EmergencyAlert {
     this.locationFailure,
     this.acknowledgedByName,
     this.acknowledgedAt,
+    this.resolvedByName,
     this.resolvedAt,
     this.resolutionNote,
   });

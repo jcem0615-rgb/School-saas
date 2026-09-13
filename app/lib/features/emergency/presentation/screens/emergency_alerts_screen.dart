@@ -69,6 +69,17 @@ class EmergencyAlertsScreen extends ConsumerWidget {
   }
 }
 
+/// "Resolved by Grace Mendoza - brought to the clinic, parents called."
+///
+/// Both halves are optional on older alerts, so this says whichever it
+/// has rather than printing "by null" or an empty colon.
+String _resolvedLine(EmergencyAlert alert) {
+  final who = alert.resolvedByName?.trim();
+  final note = alert.resolutionNote?.trim();
+  final by = who == null || who.isEmpty ? 'Resolved' : 'Resolved by $who';
+  return note == null || note.isEmpty ? by : '$by - $note';
+}
+
 class _AlertCard extends StatelessWidget {
   final EmergencyAlert alert;
   final WidgetRef ref;
@@ -118,11 +129,17 @@ class _AlertCard extends StatelessWidget {
                   style: theme.textTheme.bodySmall,
                 ),
               ),
-            if (alert.isResolved && alert.resolutionNote != null)
+            // Shown whenever it is resolved, not only when somebody left
+            // a note. A closed alert with no note used to render nothing
+            // at all here, so "this is over" and "nobody has touched it
+            // since acknowledging" looked the same on the card.
+            if (alert.isResolved)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text('Resolved: ${alert.resolutionNote}',
-                    style: theme.textTheme.bodySmall),
+                child: Text(
+                  _resolvedLine(alert),
+                  style: theme.textTheme.bodySmall,
+                ),
               ),
             if (alert.isActive) ...[
               const SizedBox(height: 8),
