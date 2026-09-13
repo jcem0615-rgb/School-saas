@@ -154,6 +154,7 @@ promotion decision is not theirs.
 | Firestore | `schools/{id}/promotions/{year}_{studentId}`, `schools/{id}/schoolYears/{year}` |
 
 A composite index on `grades` by `section` was added for the plan's one
-read, and the go-live preflight ([Module 21](21-system-check.md)) probes
-it — the rollover runs on one day of the year, which is exactly the kind
-of query a missing index is discovered by on the day it matters.
+read. Deploy it with the rest of `firestore.indexes.json` rather than
+waiting for the rollover to tell you it is missing — the rollover runs
+on one day of the year, which is exactly the kind of query a missing
+index is discovered by on the day it matters.

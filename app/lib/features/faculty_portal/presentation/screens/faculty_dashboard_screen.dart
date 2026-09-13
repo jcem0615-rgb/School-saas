@@ -13,7 +13,6 @@ import 'coursework_list_screen.dart';
 import 'class_record_screen.dart';
 import 'grades_screen.dart';
 import 'material_requests_screen.dart';
-import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../../../../core/widgets/glass_tile.dart';
 
 /// Landing screen for the Faculty role. Coursework (Lesson Plans/Lessons/
@@ -40,12 +39,6 @@ class FacultyDashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
             onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'My Activity',
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
           ),
         ],
       ),

@@ -15,8 +15,6 @@ import '../features/admin_portal/domain/entities/program.dart';
 import '../features/admin_portal/domain/entities/school_branding.dart';
 import '../features/admin_portal/domain/entities/teacher_assignment.dart';
 import '../features/admin_portal/domain/repositories/admin_repository.dart';
-import '../features/audit_trail/domain/entities/audit_log_entry.dart';
-import '../features/audit_trail/domain/repositories/audit_trail_repository.dart';
 import '../features/auth/domain/entities/app_user.dart';
 import '../features/auth/domain/repositories/auth_repository.dart';
 import '../features/director_portal/domain/entities/announcement.dart';
@@ -47,8 +45,6 @@ import '../features/reports/domain/repositories/reports_repository.dart';
 import '../features/schedules/domain/entities/schedule_block.dart';
 import '../features/schedules/domain/repositories/schedule_repository.dart';
 import '../features/data_protection/domain/repositories/data_protection_repository.dart';
-import '../features/system_check/domain/entities/system_check.dart';
-import '../features/system_check/domain/repositories/system_check_repository.dart';
 // See the note in demo_store.dart: unqualified PaymentMethod is the
 // student-payments enum; the platform-billing one is `billing.PaymentMethod`.
 import '../features/owner_portal/domain/entities/invoice.dart' hide PaymentMethod;
@@ -163,12 +159,6 @@ class DemoAuthRepository implements AuthRepository {
     // Not awaited: signing in must not wait on a disk write, and a failed
     // one costs a re-login after a reload rather than anything visible.
     unawaited(DemoSession.remember(match));
-    _store.audit(
-      module: 'users',
-      action: 'login',
-      targetCollection: 'users',
-      targetId: match.uid,
-    );
     return Success(match);
   }
 
@@ -198,13 +188,6 @@ class DemoAuthRepository implements AuthRepository {
     if (currentPassword != DemoStore.password) {
       return const Error(AuthFailure('wrong-password', 'Current password is incorrect.'));
     }
-    _store.audit(
-      module: 'users',
-      action: 'update',
-      targetCollection: 'users',
-      targetId: _store.requireUser.uid,
-      remarks: 'Password changed',
-    );
     return const Success(null);
   }
 
@@ -329,13 +312,6 @@ class DemoOwnerRepository implements OwnerRepository {
         suspendedAt: DateTime.now(),
       ),
     );
-    _store.audit(
-      module: 'platformSchools',
-      action: 'suspend',
-      targetCollection: 'platformSchools',
-      targetId: schoolId,
-      remarks: reason,
-    );
     return const Success(null);
   }
 
@@ -356,12 +332,6 @@ class DemoOwnerRepository implements OwnerRepository {
         // change which divisions it runs.
         educationLevels: s.educationLevels,
       ),
-    );
-    _store.audit(
-      module: 'platformSchools',
-      action: 'resume',
-      targetCollection: 'platformSchools',
-      targetId: schoolId,
     );
     return const Success(null);
   }
@@ -396,13 +366,6 @@ class DemoOwnerRepository implements OwnerRepository {
     // Mirrors the real callable: settling an invoice reactivates a school
     // that was suspended or in grace period for non-payment.
     await resumeSchool(schoolId: schoolId);
-    _store.audit(
-      module: 'platformInvoices',
-      action: 'payment',
-      targetCollection: 'platformInvoices',
-      targetId: invoiceId,
-      newValue: {'amount': amount, 'method': method.value},
-    );
     return const Success(null);
   }
 }
@@ -499,13 +462,6 @@ class DemoDirectorRepository implements DirectorRepository {
       body: body,
       sourceId: id,
     );
-    _store.audit(
-      module: 'announcements',
-      action: 'create',
-      targetCollection: 'announcements',
-      targetId: id,
-      newValue: {'title': title, 'pinned': pinned},
-    );
     return const Success(null);
   }
 
@@ -534,13 +490,6 @@ class DemoDirectorRepository implements DirectorRepository {
         createdAt: a.createdAt,
       ),
     );
-    _store.audit(
-      module: 'announcements',
-      action: 'update',
-      targetCollection: 'announcements',
-      targetId: announcementId,
-      newValue: {'title': title, 'pinned': pinned},
-    );
     return const Success(null);
   }
 
@@ -548,13 +497,6 @@ class DemoDirectorRepository implements DirectorRepository {
   Future<Result<void>> deleteAnnouncement(String announcementId) async {
     await _latency();
     _store.softDelete(_store.announcements, (a) => a.id == announcementId);
-    _store.audit(
-      module: 'announcements',
-      action: 'soft_delete',
-      targetCollection: 'announcements',
-      targetId: announcementId,
-      remarks: 'Soft deleted',
-    );
     return const Success(null);
   }
 
@@ -587,13 +529,6 @@ class DemoDirectorRepository implements DirectorRepository {
         createdByName: _store.requireUser.fullName,
       ),
     );
-    _store.audit(
-      module: 'meetings',
-      action: 'create',
-      targetCollection: 'meetings',
-      targetId: id,
-      newValue: {'title': title},
-    );
     return const Success(null);
   }
 
@@ -623,13 +558,6 @@ class DemoDirectorRepository implements DirectorRepository {
         createdByName: m.createdByName,
       ),
     );
-    _store.audit(
-      module: 'meetings',
-      action: 'update',
-      targetCollection: 'meetings',
-      targetId: meetingId,
-      newValue: {'title': title},
-    );
     return const Success(null);
   }
 
@@ -637,13 +565,6 @@ class DemoDirectorRepository implements DirectorRepository {
   Future<Result<void>> deleteMeeting(String meetingId) async {
     await _latency();
     _store.softDelete(_store.meetings, (m) => m.id == meetingId);
-    _store.audit(
-      module: 'meetings',
-      action: 'soft_delete',
-      targetCollection: 'meetings',
-      targetId: meetingId,
-      remarks: 'Soft deleted',
-    );
     return const Success(null);
   }
 
@@ -664,12 +585,6 @@ class DemoDirectorRepository implements DirectorRepository {
         status: MeetingStatus.cancelled,
         createdByName: m.createdByName,
       ),
-    );
-    _store.audit(
-      module: 'meetings',
-      action: 'cancel',
-      targetCollection: 'meetings',
-      targetId: meetingId,
     );
     return const Success(null);
   }
@@ -716,13 +631,6 @@ class DemoDirectorRepository implements DirectorRepository {
         createdAt: DateTime.now(),
       ),
     );
-    _store.audit(
-      module: 'approvals',
-      action: 'create',
-      targetCollection: 'approvals',
-      targetId: id,
-      newValue: {'type': type, 'title': title},
-    );
     return const Success(null);
   }
 
@@ -767,13 +675,6 @@ class DemoDirectorRepository implements DirectorRepository {
         createdAt: a.createdAt,
       ),
     );
-    _store.audit(
-      module: 'approvals',
-      action: approve ? 'approve' : 'reject',
-      targetCollection: 'approvals',
-      targetId: approvalId,
-      remarks: remarks,
-    );
     return const Success(null);
   }
 
@@ -804,13 +705,6 @@ class DemoDirectorRepository implements DirectorRepository {
         receiptUrl: receiptUrl,
         receiptFileName: receiptFileName,
       ),
-    );
-    _store.audit(
-      module: 'expenses',
-      action: 'create',
-      targetCollection: 'expenses',
-      targetId: id,
-      newValue: {'category': category, 'amount': amount},
     );
     return const Success(null);
   }
@@ -845,13 +739,6 @@ class DemoDirectorRepository implements DirectorRepository {
         receiptFileName: receiptFileName,
       ),
     );
-    _store.audit(
-      module: 'expenses',
-      action: 'update',
-      targetCollection: 'expenses',
-      targetId: expenseId,
-      newValue: {'category': category, 'amount': amount},
-    );
     return const Success(null);
   }
 
@@ -859,13 +746,6 @@ class DemoDirectorRepository implements DirectorRepository {
   Future<Result<void>> deleteExpense(String expenseId) async {
     await _latency();
     _store.softDelete(_store.expenses, (e) => e.id == expenseId);
-    _store.audit(
-      module: 'expenses',
-      action: 'soft_delete',
-      targetCollection: 'expenses',
-      targetId: expenseId,
-      remarks: 'Soft deleted',
-    );
     return const Success(null);
   }
 }
@@ -909,13 +789,6 @@ class DemoAdminRepository implements AdminRepository {
         employeeInfo: employeeInfo,
       ),
     );
-    _store.audit(
-      module: 'users',
-      action: 'create',
-      targetCollection: 'users',
-      targetId: uid,
-      newValue: {'role': role.value, 'email': email, 'phone': phone},
-    );
     return Success(CreateEmployeeOutcome(uid: uid, tempPassword: _tempPassword()));
   }
 
@@ -945,13 +818,6 @@ class DemoAdminRepository implements AdminRepository {
         employeeInfo: employeeInfo,
       ),
     );
-    _store.audit(
-      module: 'users',
-      action: 'update',
-      targetCollection: 'users',
-      targetId: uid,
-      newValue: {'position': employeeInfo.position, 'department': employeeInfo.department},
-    );
     return const Success(null);
   }
 
@@ -973,24 +839,12 @@ class DemoAdminRepository implements AdminRepository {
         employeeInfo: e.employeeInfo,
       ),
     );
-    _store.audit(
-      module: 'users',
-      action: active ? 'activate' : 'suspend',
-      targetCollection: 'users',
-      targetId: uid,
-    );
     return const Success(null);
   }
 
   @override
   Future<Result<String>> resetUserPassword(String uid) async {
     await _latency(600);
-    _store.audit(
-      module: 'users',
-      action: 'reset_password',
-      targetCollection: 'users',
-      targetId: uid,
-    );
     return Success(_tempPassword());
   }
 
@@ -1020,13 +874,6 @@ class DemoAdminRepository implements AdminRepository {
         isAdviser: isAdviser,
       ),
     );
-    _store.audit(
-      module: 'teacherAssignments',
-      action: 'create',
-      targetCollection: 'teacherAssignments',
-      targetId: id,
-      newValue: {'subject': subject, 'section': section},
-    );
     return const Success(null);
   }
 
@@ -1054,13 +901,6 @@ class DemoAdminRepository implements AdminRepository {
         isAdviser: isAdviser,
       ),
     );
-    _store.audit(
-      module: 'teacherAssignments',
-      action: 'update',
-      targetCollection: 'teacherAssignments',
-      targetId: assignmentId,
-      newValue: {'subject': subject, 'section': section},
-    );
     return const Success(null);
   }
 
@@ -1068,13 +908,6 @@ class DemoAdminRepository implements AdminRepository {
   Future<Result<void>> deleteTeacherAssignment(String assignmentId) async {
     await _latency();
     _store.softDelete(_store.assignments, (a) => a.id == assignmentId);
-    _store.audit(
-      module: 'teacherAssignments',
-      action: 'soft_delete',
-      targetCollection: 'teacherAssignments',
-      targetId: assignmentId,
-      remarks: 'Soft deleted',
-    );
     return const Success(null);
   }
 
@@ -1099,13 +932,6 @@ class DemoAdminRepository implements AdminRepository {
         department: department,
         educationLevel: educationLevel,
       ),
-    );
-    _store.audit(
-      module: 'programs',
-      action: 'create',
-      targetCollection: 'programs',
-      targetId: id,
-      newValue: {'name': name, 'code': code},
     );
     return const Success(null);
   }
@@ -1132,13 +958,6 @@ class DemoAdminRepository implements AdminRepository {
             educationLevel: p.educationLevel,
           ),
     );
-    _store.audit(
-      module: 'programs',
-      action: 'update',
-      targetCollection: 'programs',
-      targetId: programId,
-      newValue: {'name': name, 'code': code},
-    );
     return const Success(null);
   }
 
@@ -1146,13 +965,6 @@ class DemoAdminRepository implements AdminRepository {
   Future<Result<void>> deleteProgram(String programId) async {
     await _latency();
     _store.softDelete(_store.programs, (p) => p.id == programId);
-    _store.audit(
-      module: 'programs',
-      action: 'soft_delete',
-      targetCollection: 'programs',
-      targetId: programId,
-      remarks: 'Soft deleted',
-    );
     return const Success(null);
   }
 
@@ -1188,13 +1000,6 @@ class DemoAdminRepository implements AdminRepository {
       updatedAt: DateTime.now(),
       updatedByName: _store.requireUser.fullName,
     ));
-    _store.audit(
-      module: 'branding',
-      action: 'update',
-      targetCollection: 'settings',
-      targetId: 'branding',
-      newValue: {if (logoFileName != null) 'logoFileName': logoFileName},
-    );
     return const Success(null);
   }
 
@@ -1275,13 +1080,6 @@ class DemoInventoryRepository implements InventoryRepository {
         note: note,
       ),
     );
-    _store.audit(
-      module: 'inventory',
-      action: 'create',
-      targetCollection: 'inventory',
-      targetId: id,
-      newValue: {'name': name},
-    );
     return Success(id);
   }
 
@@ -1330,13 +1128,6 @@ class DemoInventoryRepository implements InventoryRepository {
       ),
     );
 
-    _store.audit(
-      module: 'inventory',
-      action: 'update',
-      targetCollection: 'inventoryTransactions',
-      targetId: item.id,
-      newValue: {'kind': kind.value, 'quantity': quantity},
-    );
     return const Success(null);
   }
 
@@ -1344,12 +1135,6 @@ class DemoInventoryRepository implements InventoryRepository {
   Future<Result<void>> deleteItem(String itemId) async {
     await _latency();
     _store.softDelete<InventoryItem>(_store.inventory, (i) => i.id == itemId);
-    _store.audit(
-      module: 'inventory',
-      action: 'delete',
-      targetCollection: 'inventory',
-      targetId: itemId,
-    );
     return const Success(null);
   }
 }
@@ -1389,13 +1174,6 @@ class DemoPayrollRepository implements PayrollRepository {
     } else {
       _store.prepend(_store.compensation, compensation);
     }
-    _store.audit(
-      module: 'payroll',
-      action: 'update',
-      targetCollection: 'compensation',
-      targetId: compensation.employeeUid,
-      newValue: {'basis': compensation.basis.value, 'rate': compensation.rate},
-    );
     return const Success(null);
   }
 
@@ -1506,13 +1284,6 @@ class DemoPayrollRepository implements PayrollRepository {
     }
     _store.payslips.add([..._store.payslips.value, ...payslips]);
 
-    _store.audit(
-      module: 'payroll',
-      action: 'create',
-      targetCollection: 'payslips',
-      targetId: '${payslips.first.periodFrom}_${payslips.first.periodTo}',
-      newValue: {'count': payslips.length},
-    );
     return Success(PayrollRun(
       payslips: payslips,
       committed: true,
@@ -1575,13 +1346,6 @@ class DemoAdmissionsRepository implements AdmissionsRepository {
           notes: notes,
         ),
       );
-      _store.audit(
-        module: 'admissions',
-        action: 'update',
-        targetCollection: 'applicants',
-        targetId: applicantId,
-        newValue: {'name': '$firstName $lastName'},
-      );
       return Success(SavedApplicant(applicantId: applicantId));
     }
 
@@ -1612,13 +1376,6 @@ class DemoAdmissionsRepository implements AdmissionsRepository {
         stageChangedAt: now,
         lastUpdatedByName: _store.requireUser.fullName,
       ),
-    );
-    _store.audit(
-      module: 'admissions',
-      action: 'create',
-      targetCollection: 'applicants',
-      targetId: id,
-      newValue: {'referenceNumber': reference},
     );
     return Success(SavedApplicant(applicantId: id, referenceNumber: reference));
   }
@@ -1670,13 +1427,6 @@ class DemoAdmissionsRepository implements AdmissionsRepository {
         reservationReference: reservationReference,
         notes: notes,
       ),
-    );
-    _store.audit(
-      module: 'admissions',
-      action: 'advance',
-      targetCollection: 'applicants',
-      targetId: applicantId,
-      newValue: {'from': applicant.stage.value, 'to': stage.value},
     );
     return const Success(null);
   }
@@ -1751,14 +1501,6 @@ class DemoAdmissionsRepository implements AdmissionsRepository {
         stageChangedAt: DateTime.now(),
         studentId: studentId,
       ),
-    );
-
-    _store.audit(
-      module: 'admissions',
-      action: 'enrol',
-      targetCollection: 'students',
-      targetId: studentId,
-      newValue: {'applicantId': applicantId, 'studentNumber': studentNumber},
     );
 
     return Success(EnrolledApplicant(
@@ -1913,14 +1655,6 @@ class DemoRegistrarRepository implements RegistrarRepository {
       applied++;
     }
 
-    _store.audit(
-      module: 'academics',
-      action: 'rollover',
-      targetCollection: 'promotions',
-      targetId: schoolYear,
-      newValue: {'applied': applied, 'skipped': skipped},
-    );
-
     return Success(RolloverOutcome(
       applied: applied,
       skipped: skipped,
@@ -1950,13 +1684,6 @@ class DemoRegistrarRepository implements RegistrarRepository {
       _store.students,
       (s) => s.id == studentId,
       (s) => _copyStudent(s, photoUrl: photoUrl),
-    );
-    _store.audit(
-      module: 'students',
-      action: 'set_photo',
-      targetCollection: 'students',
-      targetId: studentId,
-      newValue: {'photoUrl': 'set'},
     );
     return const Success(null);
   }
@@ -2008,14 +1735,6 @@ class DemoRegistrarRepository implements RegistrarRepository {
         remarks: remarks,
       ),
     );
-    _store.audit(
-      module: 'students',
-      action: 'release_document',
-      targetCollection: 'documentReleases',
-      targetId: studentId,
-      newValue: {'document': document.value, 'copies': copies},
-      remarks: 'Released to $releasedToName — $purpose',
-    );
     return const Success(null);
   }
 
@@ -2066,13 +1785,6 @@ class DemoRegistrarRepository implements RegistrarRepository {
         guardianContacts: guardianContacts,
       ),
     );
-    _store.audit(
-      module: 'students',
-      action: 'create',
-      targetCollection: 'students',
-      targetId: id,
-      newValue: {'studentNumber': studentNumber, 'educationLevel': educationLevel.value},
-    );
     return Success(RegisterStudentOutcome(studentId: id, studentNumber: studentNumber));
   }
 
@@ -2105,13 +1817,6 @@ class DemoRegistrarRepository implements RegistrarRepository {
         phone: phone,
       ),
     );
-    _store.audit(
-      module: 'students',
-      action: 'update',
-      targetCollection: 'students',
-      targetId: studentId,
-      newValue: {'gradeLevel': gradeLevel, 'section': section, 'status': status.value},
-    );
     return const Success(null);
   }
 
@@ -2126,14 +1831,6 @@ class DemoRegistrarRepository implements RegistrarRepository {
       _store.students,
       (s) => s.id == studentId,
       (s) => _copyStudent(s, balance: balance),
-    );
-    _store.audit(
-      module: 'students',
-      action: 'update',
-      targetCollection: 'students',
-      targetId: studentId,
-      newValue: {'balance': balance},
-      remarks: remarks,
     );
     return const Success(null);
   }
@@ -2152,13 +1849,6 @@ class DemoRegistrarRepository implements RegistrarRepository {
       _store.students,
       (s) => s.id == studentId,
       (s) => _copyStudent(s, userId: uid),
-    );
-    _store.audit(
-      module: 'students',
-      action: 'provision_account',
-      targetCollection: 'users',
-      targetId: uid,
-      newValue: {'email': email, 'phone': phone, 'linkedStudentId': studentId},
     );
     final n = DateTime.now().millisecondsSinceEpoch % 10000;
     return Success(ProvisionStudentAccountOutcome(
@@ -2218,13 +1908,6 @@ class DemoRegistrarRepository implements RegistrarRepository {
       ),
     );
     _store.setParentLink(parentUid: uid, studentId: studentId, linked: true);
-    _store.audit(
-      module: 'users',
-      action: 'create',
-      targetCollection: 'users',
-      targetId: uid,
-      newValue: {'role': 'parent', 'email': email, 'linkedStudentIds': [studentId]},
-    );
     final n = DateTime.now().millisecondsSinceEpoch % 10000;
     return Success(ProvisionStudentAccountOutcome(
       uid: uid,
@@ -2257,13 +1940,6 @@ class DemoRegistrarRepository implements RegistrarRepository {
   }) async {
     await _latency();
     _store.setParentLink(parentUid: parentUid, studentId: studentId, linked: linked);
-    _store.audit(
-      module: 'users',
-      action: linked ? 'link_parent' : 'unlink_parent',
-      targetCollection: 'users',
-      targetId: parentUid,
-      newValue: {'studentId': studentId},
-    );
     return const Success(null);
   }
 }
@@ -2406,13 +2082,6 @@ class DemoFacultyRepository implements FacultyRepository {
           gradedByName: _store.requireUser.fullName,
           gradedAt: DateTime.now()),
     );
-    _store.audit(
-      module: 'courseworkSubmissions',
-      action: 'grade',
-      targetCollection: 'courseworkSubmissions',
-      targetId: submissionId,
-      newValue: {'score': score},
-    );
     return const Success(null);
   }
 
@@ -2452,13 +2121,6 @@ class DemoFacultyRepository implements FacultyRepository {
         published: published,
         createdAt: DateTime.now(),
       ),
-    );
-    _store.audit(
-      module: 'courseworkItems',
-      action: 'create',
-      targetCollection: 'courseworkItems',
-      targetId: id,
-      newValue: {'type': type.value, 'title': title, 'published': published},
     );
     return const Success(null);
   }
@@ -2502,13 +2164,6 @@ class DemoFacultyRepository implements FacultyRepository {
         createdAt: c.createdAt,
       ),
     );
-    _store.audit(
-      module: 'courseworkItems',
-      action: 'update',
-      targetCollection: 'courseworkItems',
-      targetId: itemId,
-      newValue: {'title': title, 'published': published},
-    );
     return const Success(null);
   }
 
@@ -2516,13 +2171,6 @@ class DemoFacultyRepository implements FacultyRepository {
   Future<Result<void>> deleteCourseworkItem(String itemId) async {
     await _latency();
     _store.softDelete(_store.coursework, (c) => c.id == itemId);
-    _store.audit(
-      module: 'courseworkItems',
-      action: 'soft_delete',
-      targetCollection: 'courseworkItems',
-      targetId: itemId,
-      remarks: 'Soft deleted',
-    );
     return const Success(null);
   }
 
@@ -2636,13 +2284,6 @@ class DemoFacultyRepository implements FacultyRepository {
         .map((g) => g.studentName)
         .toList();
 
-    _store.audit(
-      module: 'grading',
-      action: assessmentId == null ? 'create' : 'update',
-      targetCollection: 'classAssessments',
-      targetId: id,
-      newValue: {'title': assessment.title, 'maxScore': maxScore},
-    );
     return Success((assessmentId: id, marksOverMax: overMax));
   }
 
@@ -2714,14 +2355,6 @@ class DemoFacultyRepository implements FacultyRepository {
         else
           g,
     ]);
-    _store.audit(
-      module: 'grading',
-      action: 'grade_terms_normalised',
-      targetCollection: 'grades',
-      targetId: 'all',
-      remarks: '${toMove.length} mark${toMove.length == 1 ? '' : 's'} moved to a '
-          'quarter the app queries.',
-    );
     return Success(report);
   }
 
@@ -2747,14 +2380,6 @@ class DemoFacultyRepository implements FacultyRepository {
       _store.classAssessments.value.where((a) => a.id != assessmentId).toList(),
     );
 
-    _store.audit(
-      module: 'grading',
-      action: 'delete',
-      targetCollection: 'classAssessments',
-      targetId: assessmentId,
-      remarks: '"${assessment.title}" removed with $marks '
-          'mark${marks == 1 ? '' : 's'} recorded against it.',
-    );
     return Success(marks);
   }
 
@@ -2817,13 +2442,6 @@ class DemoFacultyRepository implements FacultyRepository {
     }
     _store.grades.add(byId.values.toList());
 
-    _store.audit(
-      module: 'grading',
-      action: 'update',
-      targetCollection: 'grades',
-      targetId: assessmentId,
-      newValue: {'marked': saved, 'cleared': cleared},
-    );
     return Success((saved: saved, cleared: cleared));
   }
 
@@ -2849,13 +2467,6 @@ class DemoFacultyRepository implements FacultyRepository {
       next[key] = weights;
     }
     _store.classWeights.add(next);
-    _store.audit(
-      module: 'grading',
-      action: weights == null ? 'delete' : 'update',
-      targetCollection: 'classWeights',
-      targetId: key,
-      newValue: {'subject': subject, 'section': section},
-    );
     return const Success(null);
   }
 
@@ -2872,13 +2483,6 @@ class DemoFacultyRepository implements FacultyRepository {
       weights: scheme.weights,
       transmutation: scheme.transmutation,
     ));
-    _store.audit(
-      module: 'settings',
-      action: 'update',
-      targetCollection: 'settings',
-      targetId: 'grading',
-      newValue: {'groups': scheme.weights.length},
-    );
     return const Success(null);
   }
 
@@ -2893,13 +2497,6 @@ class DemoFacultyRepository implements FacultyRepository {
       confirmedByName: _store.requireUser.fullName,
       confirmedAt: DateTime.now(),
     ));
-    _store.audit(
-      module: 'settings',
-      action: 'update',
-      targetCollection: 'settings',
-      targetId: 'grading',
-      newValue: {'confirmedBySchool': true},
-    );
     return const Success(null);
   }
 
@@ -2936,13 +2533,6 @@ class DemoFacultyRepository implements FacultyRepository {
         submittedAt: DateTime.now(),
       ),
     );
-    _store.audit(
-      module: 'grades',
-      action: 'create',
-      targetCollection: 'grades',
-      targetId: id,
-      newValue: {'studentId': studentId, 'score': score, 'maxScore': maxScore},
-    );
     return const Success(null);
   }
 }
@@ -2958,8 +2548,7 @@ class DemoFacultyRepository implements FacultyRepository {
 /// same device -- the flow can be exercised end to end with no bucket, and
 /// nothing leaves the browser.
 class DemoUploadRepository implements UploadRepository {
-  final DemoStore _store;
-  DemoUploadRepository(this._store);
+  const DemoUploadRepository();
 
   @override
   Future<Result<UploadedFile>> upload({
@@ -2976,14 +2565,6 @@ class DemoUploadRepository implements UploadRepository {
     if (bytes.lengthInBytes > maxBytes) {
       return const Error(ValidationFailure('Files are limited to 10MB.'));
     }
-
-    _store.audit(
-      module: folder.folder,
-      action: 'upload',
-      targetCollection: folder.folder,
-      targetId: fileName,
-      newValue: {'fileName': fileName, 'sizeBytes': bytes.lengthInBytes},
-    );
 
     return Success(UploadedFile(
       fileName: fileName,
@@ -3098,13 +2679,6 @@ class DemoStudentRepository implements StudentRepository {
         (_) => record,
       );
     }
-    _store.audit(
-      module: 'courseworkSubmissions',
-      action: existing == null ? 'create' : 'update',
-      targetCollection: 'courseworkSubmissions',
-      targetId: id,
-      newValue: {'courseworkId': item.id, 'studentId': studentId},
-    );
     return const Success(null);
   }
 
@@ -3179,13 +2753,6 @@ class DemoPaymentRepository implements PaymentRepository {
       _store.update<FeeStructure>(
           _store.feeStructures, (f) => f.id == structureId, (_) => saved);
     }
-    _store.audit(
-      module: 'payments',
-      action: structureId == null ? 'create_fee_structure' : 'update_fee_structure',
-      targetCollection: 'feeStructures',
-      targetId: saved.id,
-      newValue: {'name': name, 'total': saved.total},
-    );
     return const Success(null);
   }
 
@@ -3256,14 +2823,6 @@ class DemoPaymentRepository implements PaymentRepository {
       (s) => s.id == studentId,
       (s) => _copyStudent(s, balance: newBalance),
     );
-    _store.audit(
-      module: 'payments',
-      action: 'assess_fees',
-      targetCollection: 'assessments',
-      targetId: id,
-      newValue: {'total': total, 'balance': newBalance},
-      remarks: sourceStructureName ?? 'Ad-hoc assessment',
-    );
     return Success(AssessmentOutcome(assessmentId: id, total: total, newBalance: newBalance));
   }
 
@@ -3309,14 +2868,6 @@ class DemoPaymentRepository implements PaymentRepository {
         (s) => _copyStudent(s, balance: _round2(s.balance - assessment.total)),
       );
     }
-    _store.audit(
-      module: 'payments',
-      action: 'void_assessment',
-      targetCollection: 'assessments',
-      targetId: assessmentId,
-      newValue: {'reversed': assessment.total},
-      remarks: reason,
-    );
     return const Success(null);
   }
 
@@ -3420,13 +2971,6 @@ class DemoPaymentRepository implements PaymentRepository {
       },
     );
 
-    _store.audit(
-      module: 'payments',
-      action: 'create',
-      targetCollection: 'payments',
-      targetId: id,
-      newValue: {'amount': amount, 'method': method.value, 'purpose': purpose.value},
-    );
     return Success(RecordPaymentOutcome(
       paymentId: id,
       receiptNumber: receiptNumber,
@@ -3486,17 +3030,6 @@ class DemoPaymentRepository implements PaymentRepository {
         status: SubmissionStatus.pending,
         submittedAt: DateTime.now(),
       ),
-    );
-    _store.audit(
-      module: 'paymentSubmissions',
-      action: 'create',
-      targetCollection: 'paymentSubmissions',
-      targetId: id,
-      newValue: {
-        'studentId': studentId,
-        'amount': amount,
-        'referenceNumber': referenceNumber,
-      },
     );
     return const Success(null);
   }
@@ -3573,14 +3106,6 @@ class DemoPaymentRepository implements PaymentRepository {
       ),
     );
 
-    _store.audit(
-      module: 'paymentSubmissions',
-      action: approve ? 'approve' : 'reject',
-      targetCollection: 'paymentSubmissions',
-      targetId: submissionId,
-      newValue: {if (paymentId != null) 'resultingPaymentId': paymentId},
-      remarks: remarks,
-    );
     return const Success(null);
   }
 
@@ -3612,13 +3137,6 @@ class DemoPaymentRepository implements PaymentRepository {
       updatedAt: DateTime.now(),
       updatedByName: _store.requireUser.fullName,
     ));
-    _store.audit(
-      module: 'paymentSettings',
-      action: 'update',
-      targetCollection: 'settings',
-      targetId: 'payments',
-      newValue: {if (qrCodeFileName != null) 'qrCodeFileName': qrCodeFileName},
-    );
     return const Success(null);
   }
 
@@ -3689,13 +3207,6 @@ class DemoPaymentRepository implements PaymentRepository {
       _store.students,
       (s) => s.id == original.studentId,
       (s) => _copyStudent(s, balance: _round2(s.balance + original.amount)),
-    );
-    _store.audit(
-      module: 'payments',
-      action: 'refund',
-      targetCollection: 'payments',
-      targetId: paymentId,
-      remarks: reason,
     );
     return const Success(null);
   }
@@ -3780,13 +3291,6 @@ class DemoQrAttendanceRepository implements QrAttendanceRepository {
           location: location,
         ),
       );
-      _store.audit(
-        module: 'attendance',
-        action: 'time_in',
-        targetCollection: 'attendance',
-        targetId: id,
-        newValue: {'personId': personId, 'status': status.value},
-      );
       return Success(QrScanResult(
         personId: personId,
         personName: personName,
@@ -3828,13 +3332,6 @@ class DemoQrAttendanceRepository implements QrAttendanceRepository {
           status: a.status,
           location: a.location,
         ),
-      );
-      _store.audit(
-        module: 'attendance',
-        action: 'time_out',
-        targetCollection: 'attendance',
-        targetId: existing.id,
-        newValue: {'personId': personId},
       );
       return Success(QrScanResult(
         personId: personId,
@@ -3887,13 +3384,6 @@ class DemoStaffRepository implements StaffRepository {
       ..._store.checklist.value,
       ChecklistItem(id: id, task: task, date: date, completed: false),
     ]);
-    _store.audit(
-      module: 'checklistItems',
-      action: 'create',
-      targetCollection: 'checklistItems',
-      targetId: id,
-      newValue: {'task': task},
-    );
     return const Success(null);
   }
 
@@ -3930,13 +3420,6 @@ class DemoStaffRepository implements StaffRepository {
         notes: c.notes,
       ),
     );
-    _store.audit(
-      module: 'checklistItems',
-      action: 'update',
-      targetCollection: 'checklistItems',
-      targetId: itemId,
-      newValue: {'task': task},
-    );
     return const Success(null);
   }
 
@@ -3944,13 +3427,6 @@ class DemoStaffRepository implements StaffRepository {
   Future<Result<void>> deleteChecklistItem(String itemId) async {
     await _latency(250);
     _store.softDelete(_store.checklist, (c) => c.id == itemId);
-    _store.audit(
-      module: 'checklistItems',
-      action: 'soft_delete',
-      targetCollection: 'checklistItems',
-      targetId: itemId,
-      remarks: 'Soft deleted',
-    );
     return const Success(null);
   }
 
@@ -3971,13 +3447,6 @@ class DemoStaffRepository implements StaffRepository {
         staffName: _store.requireUser.fullName,
         submittedAt: DateTime.now(),
       ),
-    );
-    _store.audit(
-      module: 'dailyReports',
-      action: 'create',
-      targetCollection: 'dailyReports',
-      targetId: id,
-      newValue: {'date': date},
     );
     return const Success(null);
   }
@@ -4029,15 +3498,6 @@ class DemoGuidanceRepository implements GuidanceRepository {
         recordedAt: DateTime.now(),
       ),
     );
-    _store.audit(
-      module: 'guidanceRecords',
-      action: 'create',
-      targetCollection: 'guidanceRecords',
-      targetId: id,
-      // Deliberately no note text in the audit entry -- counseling notes
-      // are confidential, and the audit log has a wider audience.
-      newValue: {'studentId': studentId, 'section': section, 'category': category.value},
-    );
     return const Success(null);
   }
 
@@ -4064,15 +3524,6 @@ class DemoGuidanceRepository implements GuidanceRepository {
         recordedAt: g.recordedAt,
       ),
     );
-    _store.audit(
-      module: 'guidanceRecords',
-      action: 'update',
-      targetCollection: 'guidanceRecords',
-      targetId: recordId,
-      // Still no note text in the audit entry -- counseling notes are
-      // confidential and the audit log has a wider audience.
-      newValue: {'category': category.value},
-    );
     return const Success(null);
   }
 
@@ -4080,13 +3531,6 @@ class DemoGuidanceRepository implements GuidanceRepository {
   Future<Result<void>> deleteGuidanceRecord(String recordId) async {
     await _latency();
     _store.softDelete(_store.guidanceRecords, (g) => g.id == recordId);
-    _store.audit(
-      module: 'guidanceRecords',
-      action: 'soft_delete',
-      targetCollection: 'guidanceRecords',
-      targetId: recordId,
-      remarks: 'Soft deleted',
-    );
     return const Success(null);
   }
 
@@ -4115,13 +3559,6 @@ class DemoGuidanceRepository implements GuidanceRepository {
         issuedByName: _store.requireUser.fullName,
         createdAt: DateTime.now(),
       ),
-    );
-    _store.audit(
-      module: 'guidanceRecords',
-      action: 'create',
-      targetCollection: 'summons',
-      targetId: id,
-      newValue: {'studentId': studentId, 'reason': reason},
     );
     // What onSummonsWritten.ts does server-side. Issued here rather than
     // left to the guidance screen, so it happens however the summons was
@@ -4157,13 +3594,6 @@ class DemoGuidanceRepository implements GuidanceRepository {
         issuedByName: s.issuedByName,
         createdAt: s.createdAt,
       ),
-    );
-    _store.audit(
-      module: 'guidanceRecords',
-      action: 'update',
-      targetCollection: 'summons',
-      targetId: summonsId,
-      newValue: {'status': status.value},
     );
     // Cancelling matters more than issuing: a family that rearranged a
     // working day around an appointment should not turn up to one that
@@ -4207,13 +3637,6 @@ class DemoGuidanceRepository implements GuidanceRepository {
         createdAt: s.createdAt,
       ),
     );
-    _store.audit(
-      module: 'guidanceRecords',
-      action: 'update',
-      targetCollection: 'summons',
-      targetId: summonsId,
-      newValue: {'reason': reason},
-    );
     return const Success(null);
   }
 
@@ -4221,13 +3644,6 @@ class DemoGuidanceRepository implements GuidanceRepository {
   Future<Result<void>> deleteSummons(String summonsId) async {
     await _latency();
     _store.softDelete(_store.summonses, (s) => s.id == summonsId);
-    _store.audit(
-      module: 'guidanceRecords',
-      action: 'soft_delete',
-      targetCollection: 'summons',
-      targetId: summonsId,
-      remarks: 'Soft deleted',
-    );
     return const Success(null);
   }
 }
@@ -4246,44 +3662,7 @@ class DemoProfileRepository implements ProfileRepository {
     final user = _store.currentUser.valueOrNull;
     if (user == null) return const Error(AuthFailure('no-current-user', 'Not signed in.'));
     if (photoUrl != null) _store.currentUser.add(user.copyWith(photoUrl: photoUrl));
-    _store.audit(
-      module: 'users',
-      action: 'update',
-      targetCollection: 'users',
-      targetId: user.uid,
-      newValue: {if (phone != null) 'phone': phone, if (photoUrl != null) 'photoUrl': photoUrl},
-    );
     return const Success(null);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Audit trail
-// ---------------------------------------------------------------------------
-
-class DemoAuditTrailRepository implements AuditTrailRepository {
-  final DemoStore _store;
-  DemoAuditTrailRepository(this._store);
-
-  @override
-  Stream<List<AuditLogEntry>> watchAuditLog({
-    String? moduleFilter,
-    DateTime? startDate,
-    DateTime? endDate,
-    String? userIdFilter,
-    int limit = 100,
-  }) {
-    return _store.auditLog.stream.map((all) {
-      var list = all.where((e) {
-        if (moduleFilter != null && e.module != moduleFilter) return false;
-        if (userIdFilter != null && e.userId != userIdFilter) return false;
-        if (startDate != null && e.timestamp.isBefore(startDate)) return false;
-        if (endDate != null && e.timestamp.isAfter(endDate)) return false;
-        return true;
-      }).toList();
-      list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      return list.take(limit).toList();
-    });
   }
 }
 
@@ -4392,13 +3771,6 @@ class DemoEmergencyRepository implements EmergencyRepository {
     } else {
       _store.prepend(_store.emergencyContacts, contact);
     }
-    _store.audit(
-      module: 'emergencyContacts',
-      action: exists ? 'update' : 'create',
-      targetCollection: 'emergencyContacts',
-      targetId: id,
-      newValue: {'label': label},
-    );
     return const Success(null);
   }
 
@@ -4406,12 +3778,6 @@ class DemoEmergencyRepository implements EmergencyRepository {
   Future<Result<void>> deleteContact(String contactId) async {
     await _latency();
     _store.softDelete<EmergencyContact>(_store.emergencyContacts, (c) => c.id == contactId);
-    _store.audit(
-      module: 'emergencyContacts',
-      action: 'delete',
-      targetCollection: 'emergencyContacts',
-      targetId: contactId,
-    );
     return const Success(null);
   }
 
@@ -4455,17 +3821,6 @@ class DemoEmergencyRepository implements EmergencyRepository {
           ? message!
           : '$studentName ($section) needs help.',
       sourceId: id,
-    );
-    _store.audit(
-      module: 'emergencyAlerts',
-      action: 'create',
-      targetCollection: 'emergencyAlerts',
-      targetId: id,
-      newValue: {
-        'studentId': studentId,
-        'section': section,
-        'hasLocation': fix != null,
-      },
     );
     return const Success(null);
   }
@@ -4516,7 +3871,6 @@ EmergencyAlert _copyAlert(
   );
 }
 
-
 // ---------------------------------------------------------------------------
 // Reports
 // ---------------------------------------------------------------------------
@@ -4566,7 +3920,6 @@ class DemoReportsRepository implements ReportsRepository {
     ));
   }
 }
-
 
 // ---------------------------------------------------------------------------
 // Timetable
@@ -4649,7 +4002,6 @@ class DemoScheduleRepository implements ScheduleRepository {
   }
 }
 
-
 // ---------------------------------------------------------------------------
 // Data protection
 // ---------------------------------------------------------------------------
@@ -4677,7 +4029,6 @@ class DemoDataProtectionRepository implements DataProtectionRepository {
     return const Success(null);
   }
 }
-
 
 // ---------------------------------------------------------------------------
 // System check
@@ -4816,17 +4167,6 @@ class DemoClassSessionRepository implements ClassSessionRepository {
     );
     _store.subjectAttendance.add([...marks, ..._store.subjectAttendance.value]);
 
-    _store.audit(
-      module: 'classSessions',
-      action: 'time_in',
-      targetCollection: 'classSessions',
-      targetId: sessionId,
-      newValue: {
-        'subject': block.subject,
-        'section': block.section,
-        'studentCount': marks.length,
-      },
-    );
     return Success(sessionId);
   }
 
@@ -4860,13 +4200,6 @@ class DemoClassSessionRepository implements ClassSessionRepository {
       (s) => _copySession(s, closedAt: closedAt, counts: RollCounts.of(marks)),
     );
 
-    _store.audit(
-      module: 'classSessions',
-      action: 'time_out',
-      targetCollection: 'classSessions',
-      targetId: sessionId,
-      newValue: {'subject': session.subject, 'section': session.section},
-    );
     return const Success(null);
   }
 
@@ -4927,13 +4260,6 @@ class DemoClassSessionRepository implements ClassSessionRepository {
       );
     }
 
-    _store.audit(
-      module: 'classSessions',
-      action: 'mark',
-      targetCollection: 'subjectAttendance',
-      targetId: '${sessionId}_$studentId',
-      newValue: {'status': status.value, 'studentId': studentId},
-    );
     return const Success(null);
   }
 
@@ -5299,13 +4625,6 @@ class DemoTimekeepingRepository implements TimekeepingRepository {
         createdAt: DateTime.now(),
       ),
     );
-    _store.audit(
-      module: 'leaveRequests',
-      action: 'create',
-      targetCollection: 'leaveRequests',
-      targetId: id,
-      newValue: {'type': type.value, 'fromDate': fromDate, 'toDate': toDate},
-    );
     return const Success(null);
   }
 
@@ -5327,13 +4646,6 @@ class DemoTimekeepingRepository implements TimekeepingRepository {
       _store.leaveRequests,
       (r) => r.id == requestId,
       (r) => _copy(r, status: LeaveStatus.cancelled),
-    );
-    _store.audit(
-      module: 'leaveRequests',
-      action: 'update',
-      targetCollection: 'leaveRequests',
-      targetId: requestId,
-      newValue: {'status': 'cancelled'},
     );
     return const Success(null);
   }
@@ -5387,13 +4699,6 @@ class DemoTimekeepingRepository implements TimekeepingRepository {
       link: '/my-leave',
     );
 
-    _store.audit(
-      module: 'leaveRequests',
-      action: 'update',
-      targetCollection: 'leaveRequests',
-      targetId: requestId,
-      newValue: {'status': approved ? 'approved' : 'declined'},
-    );
     return const Success(null);
   }
 
@@ -5529,17 +4834,6 @@ class DemoSchoolTotalsRepository implements SchoolTotalsRepository {
     ));
   }
 }
-
-class DemoSystemCheckRepository implements SystemCheckRepository {
-  DemoSystemCheckRepository();
-
-  @override
-  Future<SystemCheckReport> run() async {
-    await _latency(400);
-    return SystemCheckReport(checks: const [], ranAt: DateTime.now(), demoMode: true);
-  }
-}
-
 
 String _trimScore(double value) => value == value.roundToDouble()
     ? value.toStringAsFixed(0)

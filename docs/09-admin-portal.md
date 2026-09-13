@@ -10,11 +10,11 @@
 ## Overview
 
 Covers Employee Management, User Approval, Reset Password, and Teacher
-Assignment as new features. Announcements, Attendance Monitoring, and
-Audit Trail are wired in as navigation entries into screens already built
-in earlier modules (Director Portal, QR Attendance, and a new shared Audit
-Trail feature respectively) — Admin's rules already permitted these
-actions; this module just gives Admin a front door to them.
+Assignment as new features. Announcements and Attendance Monitoring are
+wired in as navigation entries into screens already built in earlier
+modules (Director Portal and QR Attendance) — Admin's rules already
+permitted these actions; this module just gives Admin a front door to
+them.
 
 ## Design choice: no separate `employees` collection
 
@@ -32,6 +32,40 @@ the security-sensitive ones (`role`, `schoolId`, `status`,
 "Employee Files" in the sense of *documents* (contracts, certificates,
 IDs) is a Documents module concern — this module only covers the HR data
 fields, not file attachments.
+
+## Who the Admin may create
+
+The Admin creates **every role a school has, including another Admin.**
+
+That last part is the whole point. An admin office is a department, not a
+person. The earlier matrix let an Admin create a Principal, a Registrar,
+a Faculty member, Staff and Guidance — everybody except a peer — which
+meant a school whose one Admin resigned, went on maternity leave, or lost
+the phone with their password on it had exactly one way to get another
+Admin: ask us. The Owner account is the vendor's, and it was the only
+other account in the system that could mint one. A school could not enrol
+a student or run payroll until a support ticket came back.
+
+The only role nobody may create this way is `owner`. There is one, it is
+established by `bootstrapOwner` against a server-side email, and
+`refuseProvisioning` refuses it for that reason specifically — separately
+from the matrix — so that a future edit adding `"owner"` to some row by
+accident still does not open it.
+
+The decision lives in `functions/src/shared/auth/provisioning.ts`, on its
+own and with no Firebase imports, so "can this person hand somebody else a
+password" is a question that can be asked and tested without standing up a
+Functions runtime. `provisionUser.ts` calls it and translates the refusal
+into an `HttpsError`.
+
+**The spreadsheet import is narrower on purpose.** Employee Management
+imports a staff file, and `importableEmployeeRoles` stops at Registrar,
+Faculty, Staff and Guidance. The form is one account at a time, typed,
+with the role chosen from a dropdown in front of somebody; an import is
+three hundred rows, and a role column reading `admin` all the way down —
+a mistake, or a paste from the wrong sheet — would hand out three hundred
+accounts that could each create three hundred more. Leadership accounts
+are made one at a time.
 
 ## "User Approval" — implemented as account status management
 
@@ -65,28 +99,37 @@ create/read-by-role/no-delete pattern as Announcements/Meetings/Expenses
 from Director Portal. Full **Schedules** (day/time/room grids) is a
 related but distinctly larger feature, deferred — see below.
 
-## Audit Trail (pulled forward as a shared feature)
+## The audit log (no screen, and that is deliberate)
 
-Built as its own `features/audit_trail/` module (not nested under Admin
-Portal) since the Director and the Admin need the same screen. Filters by
-module and date range via Firestore query composition; free-text search
-over `userName`/`remarks` is done client-side over the fetched page, since
-Firestore has no native substring search — full-text search infrastructure
-is a Reports-module concern if usage ever demands it at scale. PDF/Excel
-export and restore-from-soft-delete are also deferred to Reports &
-Documents.
+**The log is written. It has no reader in the app.** There were two
+screens over it — a full-school `AuditTrailScreen` for the Director and
+the Admin, and a per-user `MyActivityScreen` on every dashboard — and both
+were removed. Nothing about the writing changed: every callable still
+calls `writeAuditLog`, and the `onAnyTenantDocWrite` trigger still fires
+on every write to any direct subcollection of a school.
 
-Most entries are not written by the module that caused them. A single
-trigger, `onAnyTenantDocWrite`, fires on every write to any direct
-subcollection of a school and records it, which is what lets Announcements,
-Meetings, Approvals and Expenses take direct client writes without each one
-needing a callable purely to satisfy "every action must be logged".
+That is a strange-looking shape, so it is worth saying why it is the right
+one. What the log is *for* is answering "who changed this grade" months
+after the fact, when a parent asks the school — not browsing. A school
+asked that question opens the export, or the console, or asks us; it does
+not scroll a thousand-row list hoping to recognise the row. The screens
+were the part that nobody used; the record is the part that matters, and
+the record is intact.
+
+The trigger is also what lets Announcements, Meetings, Approvals and
+Expenses take direct client writes without each one needing a callable
+purely to satisfy "every action must be logged" — so removing it would
+have meant rewriting those, for a screen nobody opened.
 
 ### Who may read it
 
-The Director and the Admin read the whole school trail. Everyone else
-reads only the entries naming them — "My Activity History", which the spec
-asks for on every role and which is a different screen from the full trail.
+The read rule is unchanged. The Director and the Admin may read the whole
+school trail; everyone else may read only the entries naming them. No
+client code exercises either today. The grant stays because it is what an
+export run under a school leader's own credentials uses, and what a screen
+would need if one comes back — and because narrowing a person's access to
+their own record is not an improvement to make as a side effect of
+deleting a widget.
 
 `'owner'` used to sit in that first list and never once matched: the rule
 calls `hasRole()`, `hasRole()` requires `belongsToSchool()`, and the Owner
@@ -151,6 +194,7 @@ a new collection.
 |---|---|---|
 | Domain | `admin_usecases_test.dart` | employee/assignment field validation |
 | Rules | `admin-portal.rules.test.ts` | teacher assignment role gate, employeeInfo editable but status field protected |
+| Pure | `provisioning.test.ts` | who may create an account and for which role: the Admin creates every role including another Admin, the Owner creates only the first Director and Admin, a Registrar cannot promote itself, and `owner` is refused for its own reason |
 | Emulator | `auditTrail.test.ts` | the trigger names the actor on a create, an edit and a hard delete; keeps both sides of an edit; records that a conversation changed without recording what was said, and says it withheld it; still copies an ordinary record in full; says nothing about its own writes |
 | Rules | `oversight-roles.rules.test.ts` | the trail is read whole by the Director and the Admin, only own-actions by a Principal, not at all by the Owner, and written by nobody from a client |
 

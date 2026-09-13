@@ -98,15 +98,13 @@ const S = () => pres.addSlide();
     { icon: 'FiCalendar', h: 'Meeting Scheduler', b: 'Title, description, location, start and end; cancel a meeting' },
     { icon: 'FiCheckSquare', h: 'Approvals', b: 'One inbox for every request in the school. Every decision records who made it, when, and what they were deciding' },
     { icon: 'FiGrid', h: 'Class Schedule', b: 'The week\'s timetable for every section, read across the whole school' },
-    { icon: 'FiCheckCircle', h: 'System Check', b: 'Seven readiness checks before a school goes live' },
     { icon: 'FiBarChart2', h: 'Reports', b: 'Enrolment, collections, attendance and grades - on screen, to Excel, or printed' },
     { icon: 'FiTag', h: 'Fee Schedules', b: 'Read the fee sets the cashier assesses against - the Admin defines them' },
     { icon: 'FiCreditCard', h: 'Expenses', b: 'Read school spending by category and date. The Admin records it' },
     { icon: 'FiPhone', h: 'Emergency Numbers', b: 'The list every phone in the school can dial from, maintained by the Admin' },
-    { icon: 'FiSearch', h: 'Audit Trail', b: 'Every change made in the school, filterable by module and date' },
-    { icon: 'FiActivity', h: 'My Activity', b: 'The same trail, narrowed to what you did' },
+    { icon: 'FiUser', h: 'Profile', b: 'Your own details, QR ID and notification switch' },
   ], { cols: 2, y: 2.15, rh: 0.73 });
-  s.addNotes('This is the slide that answers "can the head of school see everything?" - yes, including who changed what.');
+  s.addNotes('This is the slide that answers "can the head of school see everything?" - yes. What they cannot do is change it; that is the Admin, two slides on.');
 }
 
 // ---------------------------------------------------------------- 5. Principal
@@ -133,7 +131,7 @@ const S = () => pres.addSlide();
   heading(s, 'Admin Portal . 1 of 2', 'People, academics and the school\'s identity',
     { lede: 'The operator role, and since the Director and Principal became read-only, the only one: everything the school changes week to week is changed from this account.' });
   await rowList(s, [
-    { icon: 'FiUsers', h: 'Employee Management', b: 'Create a Principal, Registrar, Faculty, Staff or Guidance account, with department, position and division scope' },
+    { icon: 'FiUsers', h: 'Employee Management', b: 'Create any account the school needs - another Admin included - with department, position and division scope' },
     { icon: 'FiKey', h: 'Reset Password', b: 'Issue a temporary password; the employee is forced to change it at next sign-in' },
     { icon: 'FiUserCheck', h: 'Activate / Suspend', b: 'Switch an account off without deleting anything it wrote' },
     { icon: 'FiUpload', h: 'Import employees', b: 'Bring a staff list in from Excel or CSV, or export the one you have' },
@@ -148,7 +146,7 @@ const S = () => pres.addSlide();
 // ---------------------------------------------------------------- 7. Admin (ops)
 {
   const s = S(); bg(s, C.paper);
-  heading(s, 'Admin Portal . 2 of 2', 'Money, safety, oversight and going live',
+  heading(s, 'Admin Portal . 2 of 2', 'Money, safety and the school\'s own numbers',
     { lede: 'The same account, on the other half of the dashboard.' });
   await rowList(s, [
     { icon: 'FiTag', h: 'Fee Schedules', b: 'Named fee sets per division, grade level and school year' },
@@ -157,11 +155,12 @@ const S = () => pres.addSlide();
     { icon: 'FiCamera', h: 'Scan Attendance', b: 'Open the camera and mark whoever is scanned, in or out' },
     { icon: 'FiAlertTriangle', h: 'Emergency Alerts', b: 'See and resolve alerts raised anywhere in the school' },
     { icon: 'FiPhone', h: 'Emergency Numbers', b: 'Publish the numbers every portal can dial' },
-    { icon: 'FiSearch', h: 'Audit Trail', b: 'Filter every change by module, date and person' },
-    { icon: 'FiCheckCircle', h: 'System Check', b: 'Prove the deployment works before the first school day' },
-    { icon: 'FiUser', h: 'Profile', b: 'Your own details, QR ID, activity and notification switch' },
+    { icon: 'FiDollarSign', h: 'Payroll', b: 'Rates, contributions and the monthly run, with printed payslips' },
+    { icon: 'FiPackage', h: 'Inventory', b: 'Stock room, movement log and reorder list' },
+    { icon: 'FiClock', h: 'Leave & Timesheets', b: 'Decide staff leave, and read the hours the scanner recorded' },
+    { icon: 'FiUser', h: 'Profile', b: 'Your own details, QR ID and notification switch' },
   ], { cols: 2, y: 2.05, rh: 0.86 });
-  s.addNotes('Admin is the operator role - the person who keeps the school configured week to week.');
+  s.addNotes('Admin is the operator role - the person who keeps the school configured week to week. Which is why an Admin can create another one: the office is a department, not one person\'s login.');
 }
 
 // ---------------------------------------------------------------- 8. Registrar
@@ -641,7 +640,7 @@ const S = () => pres.addSlide();
     { icon: 'FiCheckCircle', h: 'A recorded acknowledgement', b: 'Every account reads it before their first use, and the version they read is stored' },
     { icon: 'FiArchive', h: 'A retention schedule', b: 'How long each kind of record is kept, written down' },
     { icon: 'FiLock', h: 'Access decided at the database', b: 'Not by what a screen shows - a screen you cannot reach is data you cannot fetch' },
-    { icon: 'FiSearch', h: 'An audit trail behind it', b: 'Every change to a record carries who made it and when' },
+    { icon: 'FiSearch', h: 'An audit trail behind it', b: 'Every change to a record carries who made it and when, written automatically' },
     { icon: 'FiUsers', h: 'Requests handled at the office', b: 'Access, correction, erasure and objection are answered by the school, off this system' },
   ], { cols: 3, y: 2.4, rh: 1.35, gap: 0.35 });
   await callout(s, 'FiFileText',

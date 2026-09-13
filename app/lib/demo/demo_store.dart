@@ -12,7 +12,6 @@ import '../features/admin_portal/domain/entities/employee_summary.dart';
 import '../features/admin_portal/domain/entities/program.dart';
 import '../features/admin_portal/domain/entities/school_branding.dart';
 import '../features/admin_portal/domain/entities/teacher_assignment.dart';
-import '../features/audit_trail/domain/entities/audit_log_entry.dart';
 import '../features/auth/domain/entities/app_user.dart';
 import '../features/director_portal/domain/entities/announcement.dart';
 import '../features/director_portal/domain/entities/approval_request.dart';
@@ -423,7 +422,6 @@ class DemoStore {
   late final dailyReports = BehaviorSubject<List<DailyReport>>.seeded(_seedDailyReports());
   late final guidanceRecords = BehaviorSubject<List<GuidanceRecord>>.seeded(_seedGuidanceRecords());
   late final summonses = BehaviorSubject<List<Summons>>.seeded(_seedSummonses());
-  late final auditLog = BehaviorSubject<List<AuditLogEntry>>.seeded(_seedAuditLog());
   late final leaveRequests =
       BehaviorSubject<List<LeaveRequest>>.seeded(_seedLeaveRequests());
 
@@ -653,37 +651,6 @@ class DemoStore {
     ]);
   }
 
-  /// Records an entry in the audit trail, mirroring what the real
-  /// onAnyTenantDocWrite trigger does server-side. Demo writes call this so
-  /// the Audit Trail screen actually fills up as you click around.
-  void audit({
-    required String module,
-    required String action,
-    required String targetCollection,
-    required String targetId,
-    Map<String, dynamic>? newValue,
-    String? remarks,
-  }) {
-    final user = currentUser.valueOrNull;
-    prepend(
-      auditLog,
-      AuditLogEntry(
-        id: nextId('audit'),
-        userId: user?.uid ?? 'unknown',
-        userRole: user?.role.value ?? 'unknown',
-        userName: user?.fullName ?? 'Unknown',
-        module: module,
-        action: action,
-        targetCollection: targetCollection,
-        targetId: targetId,
-        newValue: newValue,
-        remarks: remarks,
-        success: true,
-        timestamp: DateTime.now(),
-      ),
-    );
-  }
-
   /// Delivers a notification, mirroring what
   /// functions/src/shared/notify/deliver.ts does server-side.
   ///
@@ -825,7 +792,7 @@ class DemoStore {
       inventory, inventoryMovements,
       courseworkSubmissions, answerKeys, emergencyContacts, emergencyAlerts,
       announcements, meetings, approvals, expenses, checklist,
-      dailyReports, guidanceRecords, summonses, auditLog, notifications,
+      dailyReports, guidanceRecords, summonses, notifications,
       classSessions, subjectAttendance, leaveRequests,
       conversations, messages,
       paymentSubmissions, paymentSettings, branding, documentReleases,
@@ -3270,60 +3237,6 @@ class DemoStore {
         updatedByName: 'Joel Bautista',
       );
 
-  List<AuditLogEntry> _seedAuditLog() => [
-        AuditLogEntry(
-          id: 'aud_001',
-          userId: 'u_registrar',
-          userRole: 'registrar',
-          userName: 'Joel Bautista',
-          module: 'payments',
-          action: 'create',
-          targetCollection: 'payments',
-          targetId: 'pay_003',
-          newValue: const {'amount': 7250, 'method': 'bank_transfer'},
-          success: true,
-          timestamp: _daysAgo(2),
-        ),
-        AuditLogEntry(
-          id: 'aud_002',
-          userId: 'u_admin',
-          userRole: 'admin',
-          userName: 'Grace Mendoza',
-          module: 'payments',
-          action: 'refund',
-          targetCollection: 'payments',
-          targetId: 'pay_004',
-          newValue: const {'reason': 'Duplicate charge'},
-          remarks: 'Duplicate charge',
-          success: true,
-          timestamp: _daysAgo(1),
-        ),
-        AuditLogEntry(
-          id: 'aud_003',
-          userId: 'u_faculty',
-          userRole: 'faculty',
-          userName: 'Maria Santos',
-          module: 'grades',
-          action: 'create',
-          targetCollection: 'grades',
-          targetId: 'gr_001',
-          newValue: const {'score': 34, 'maxScore': 40},
-          success: true,
-          timestamp: _daysAgo(1),
-        ),
-        AuditLogEntry(
-          id: 'aud_004',
-          userId: 'u_director',
-          userRole: 'director',
-          userName: 'Elena Cruz',
-          module: 'approvals',
-          action: 'approve',
-          targetCollection: 'approvals',
-          targetId: 'apr_003',
-          success: true,
-          timestamp: _daysAgo(2),
-        ),
-      ];
 }
 
 /// One decision the demo school made at a year end, with who made it.

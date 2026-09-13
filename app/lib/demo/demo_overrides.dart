@@ -10,7 +10,6 @@ import '../core/session/session_providers.dart';
 import '../core/storage/upload_providers.dart';
 import '../features/auth/domain/entities/app_user.dart';
 import '../features/admin_portal/presentation/controllers/admin_controller.dart';
-import '../features/audit_trail/presentation/controllers/audit_trail_controller.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/director_portal/presentation/controllers/director_controller.dart';
 import '../features/emergency/presentation/controllers/emergency_controller.dart';
@@ -28,7 +27,6 @@ import '../features/registrar_portal/presentation/controllers/registrar_controll
 import '../features/reports/presentation/controllers/reports_controller.dart';
 import '../features/schedules/presentation/controllers/schedule_controller.dart';
 import '../features/data_protection/presentation/controllers/data_protection_controller.dart';
-import '../features/system_check/presentation/controllers/system_check_controller.dart';
 import '../features/class_sessions/presentation/controllers/class_session_controller.dart';
 import '../features/auth/data/phone/phone_verifier_impl.dart' show DemoPhoneVerifier;
 import '../features/auth/presentation/controllers/phone_reset_controller.dart';
@@ -134,10 +132,7 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
       ref.watch(authStateProvider);
       return DemoFacultyRepository(ref.watch(demoStoreProvider));
     }),
-    uploadRepositoryProvider.overrideWith((ref) {
-      ref.watch(authStateProvider);
-      return DemoUploadRepository(ref.watch(demoStoreProvider));
-    }),
+    uploadRepositoryProvider.overrideWith((ref) => const DemoUploadRepository()),
     // Demo mode never initialises Firebase, and prompting a stranger's
     // browser for notification permission to look at a demo would be
     // rude even if it worked.
@@ -161,8 +156,6 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
       ref.watch(authStateProvider);
       return DemoParentRepository(ref.watch(demoStoreProvider));
     }),
-    // Not a simulation of the real one -- see DemoSystemCheckRepository.
-    systemCheckRepositoryProvider.overrideWith((ref) => DemoSystemCheckRepository()),
     schoolTotalsRepositoryProvider
         .overrideWith((ref) => DemoSchoolTotalsRepository(ref.watch(demoStoreProvider))),
     // Watches auth as well as the store, so switching demo role re-reads
@@ -220,10 +213,6 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
     profileRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoProfileRepository(ref.watch(demoStoreProvider));
-    }),
-    auditTrailRepositoryProvider.overrideWith((ref) {
-      ref.watch(authStateProvider);
-      return DemoAuditTrailRepository(ref.watch(demoStoreProvider));
     }),
   ];
 }

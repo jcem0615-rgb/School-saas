@@ -5,13 +5,11 @@ import 'package:flutter/material.dart';
 
 import 'guidance_records_screen.dart';
 import 'summons_screen.dart';
-import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../../../../core/widgets/glass_tile.dart';
 
 /// Landing screen for the Guidance role. Student Guidance Records and
 /// Student Summons are new this module. Reports is deferred to the
-/// Reports module; Audit Trail reuses MyActivityScreen (linked from the
-/// shared Profile screen, same as every other role).
+/// Reports module.
 class GuidanceDashboardScreen extends StatelessWidget {
   const GuidanceDashboardScreen({super.key});
 
@@ -30,12 +28,6 @@ class GuidanceDashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
             onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'My Activity',
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
           ),
         ],
       ),

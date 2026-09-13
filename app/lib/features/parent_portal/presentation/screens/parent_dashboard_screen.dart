@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../messaging/presentation/controllers/messaging_controller.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
-import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../../../emergency/presentation/controllers/emergency_controller.dart';
 import '../../../emergency/presentation/screens/parent_alerts_screen.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
@@ -33,12 +32,6 @@ class ParentDashboardScreen extends ConsumerWidget {
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
             onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'My Activity',
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
           ),
           // Badged, because the point of a message from a teacher is
           // that it is waiting, and an unbadged icon is one nobody taps

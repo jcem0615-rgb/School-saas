@@ -11,7 +11,6 @@ import '../../../director_portal/presentation/screens/announcements_screen.dart'
 import '../../../director_portal/presentation/screens/approvals_screen.dart';
 import '../../../director_portal/presentation/screens/meetings_screen.dart';
 import '../../../registrar_portal/presentation/screens/student_list_screen.dart';
-import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../../../../core/widgets/glass_tile.dart';
 
 /// Landing screen for the Principal role -- a division-level academic
@@ -45,12 +44,6 @@ class PrincipalDashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
             onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'My Activity',
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
           ),
         ],
       ),

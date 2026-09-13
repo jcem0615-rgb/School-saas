@@ -344,9 +344,15 @@ service cloud.firestore {
       // ---- audit log: append-only from server, read-only from client ----
       match /auditLog/{logId} {
         // The Director and the Admin see the full school trail; every
-        // other user sees only their own actions ("My Activity History"
-        // -- a General Requirement for every role per the spec, distinct
-        // from the full Audit Trail screen).
+        // other user sees only their own actions.
+        //
+        // The two screens that read this are gone. The log is not: every
+        // callable and the onAnyTenantDocWrite trigger still write it,
+        // because what it is for is answering "who changed this grade"
+        // months later, and that question is asked of the school by a
+        // parent, not of the log by a browser. This grant is what lets
+        // the school's own leadership answer it -- through an export, or
+        // a screen that comes back -- instead of having to ask us.
         //
         // 'owner' used to be in this list and never once matched:
         // hasRole() requires belongsToSchool(), and the Owner is

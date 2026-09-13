@@ -12,13 +12,41 @@ class WatchEmployeesUseCase {
   Stream<List<EmployeeSummary>> call() => _repository.watchEmployees();
 }
 
-// Roles Admin Portal is permitted to provision. Kept in sync with (but
-// intentionally a client-side subset preview of) the server-side
-// PROVISIONING_MATRIX in provisionUser.ts -- this is a UX nicety (don't
-// show a role in the dropdown the server will reject), not the security
-// boundary; the server re-validates regardless.
+// Employee roles the Admin Portal offers on the new-employee form. Kept
+// in sync with (but intentionally a client-side subset preview of) the
+// server-side PROVISIONING_MATRIX in provisionUser.ts -- this is a UX
+// nicety (don't show a role in the dropdown the server will reject), not
+// the security boundary; the server re-validates regardless.
+//
+// A subset in one direction only: the server also lets an Admin create
+// student and parent accounts, and those are not here because they are
+// not made on this form. A student account is minted against a student
+// record, in the Registrar's student detail screen, so that the account
+// and the record are linked at the moment the account exists.
 const adminProvisionableRoles = [
+  UserRole.director,
   UserRole.principal,
+  // An admin office is a department, not a person. Without this the only
+  // account that could create a second Admin was the Owner's -- the
+  // vendor's -- which made covering for one person's sick day a support
+  // ticket.
+  UserRole.admin,
+  UserRole.registrar,
+  UserRole.faculty,
+  UserRole.staff,
+  UserRole.guidance,
+];
+
+/// Roles the employee spreadsheet import will mint.
+///
+/// Deliberately narrower than [adminProvisionableRoles]: the form is one
+/// account at a time, typed, with the role picked from a dropdown in
+/// front of somebody. An import is three hundred rows from a file, and a
+/// role column that says "admin" all the way down -- a mistake, or a
+/// paste from the wrong sheet -- would hand out three hundred accounts
+/// that can each create three hundred more. Leadership accounts are made
+/// one at a time, on purpose.
+const importableEmployeeRoles = [
   UserRole.registrar,
   UserRole.faculty,
   UserRole.staff,

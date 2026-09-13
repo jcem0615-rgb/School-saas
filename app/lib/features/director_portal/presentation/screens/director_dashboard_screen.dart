@@ -9,10 +9,7 @@ import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../../../owner_portal/presentation/widgets/revenue_card.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
-import '../../../system_check/presentation/screens/system_check_screen.dart';
 import '../../../schedules/presentation/screens/schedule_screen.dart';
-import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
-import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../controllers/director_controller.dart';
 import 'announcements_screen.dart';
 import 'approvals_screen.dart';
@@ -145,12 +142,6 @@ class DirectorDashboardScreen extends ConsumerWidget {
                         .push(MaterialPageRoute(builder: (_) => const ScheduleScreen())),
                   ),
                   GlassTile(
-                    icon: Icons.checklist_rtl_outlined,
-                    label: 'System Check',
-                    onTap: () => Navigator.of(context)
-                        .push(MaterialPageRoute(builder: (_) => const SystemCheckScreen())),
-                  ),
-                  GlassTile(
                     icon: Icons.insights_outlined,
                     label: 'Reports',
                     onTap: () => Navigator.of(context)
@@ -180,10 +171,6 @@ class DirectorDashboardScreen extends ConsumerWidget {
                     onTap: () => Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const ExpensesScreen())),
                   ),
-                  // School-wide history. Every edit and soft delete made
-                  // anywhere in the portal lands here via the audit
-                  // trigger, which is what makes those actions reversible
-                  // in practice -- you can see what changed and who did it.
                   // Editing the school's emergency numbers was always
                   // permitted for this role, but reachable only through
                   // Profile -- where somebody looks for their own
@@ -193,18 +180,6 @@ class DirectorDashboardScreen extends ConsumerWidget {
                     label: 'Emergency Numbers',
                     onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const EmergencyContactsScreen())),
-                  ),
-                  GlassTile(
-                    icon: Icons.history,
-                    label: 'Audit Trail',
-                    onTap: () => Navigator.of(context)
-                        .push(MaterialPageRoute(builder: (_) => const AuditTrailScreen())),
-                  ),
-                  GlassTile(
-                    icon: Icons.person_outline,
-                    label: 'My Activity',
-                    onTap: () => Navigator.of(context)
-                        .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
                   ),
                   GlassTile(
                     icon: Icons.fact_check_outlined,

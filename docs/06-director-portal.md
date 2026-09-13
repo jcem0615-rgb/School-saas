@@ -135,8 +135,6 @@ neither does anybody reading the record.
 - Attendance Monitoring detail views (QR Attendance module — next)
 - Payments detail views (Payments module)
 - Director-side Reports/Analytics exports (Reports module)
-- Director's own audit trail search UI (Audit Trail module — data already
-  flowing in via the generic trigger)
 
 ## Importing expenses
 

@@ -52,8 +52,9 @@ convenience.
 Start in **production mode** if it offers the choice. The real rules go
 up in step 2 and replace whatever it starts with; what you must not do
 is leave it in test mode, which is world-readable and expires after
-thirty days into world-*nothing*. The preflight in
-[Module 21](21-system-check.md) checks for exactly this.
+thirty days into world-*nothing*. Nothing in the app checks this for
+you -- the in-app preflight that used to is gone -- so do it here, on
+this page, before a school's data is behind those rules.
 
 **Cloud Storage** → Get started, same region.
 

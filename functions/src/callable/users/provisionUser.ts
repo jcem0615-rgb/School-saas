@@ -6,6 +6,7 @@ import {validateContactDetails, ContactDetailsError} from "../../shared/students
 import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
 import {isValidEducationLevel} from "../../shared/education/educationLevel";
+import {refuseProvisioning} from "../../shared/auth/provisioning";
 
 interface EmployeeInfo {
   department: string;
@@ -48,33 +49,6 @@ interface ProvisionUserData {
   linkedStudentIds?: string[];
 }
 
-// Roles that are allowed to provision a new account, and which roles
-// each of them is permitted to create. Kept explicit (not "any staff can
-// create any role") so, e.g., a Registrar account can never mint itself
-// a Director account even if the client were compromised.
-const PROVISIONING_MATRIX: Record<string, string[]> = {
-  // The Owner stands up a new school's leadership: a Director to run it
-  // and an Admin to do the day-to-day setup, without having to sign in as
-  // the Director first just to create the Admin.
-  owner: ["director", "admin"],
-  // The Director does not appear here. Creating an account is an
-  // operational act -- it hands somebody a password and a role -- and the
-  // Director supervises rather than operates (see the note at the top of
-  // firestore.rules). The consequence is deliberate and worth stating:
-  // if a school's Admin leaves or is locked out, the Director cannot
-  // mint a replacement, and the Owner does it. That is the cost of the
-  // Director not being able to give themselves an operator.
-  admin: ["principal", "registrar", "faculty", "staff", "guidance"],
-  registrar: ["student", "parent"],
-};
-
-// "owner" appears in no row of the matrix above, and this makes that
-// explicit rather than incidental. There is exactly one Owner and it is
-// established once, by bootstrapOwner, against a server-side email --
-// never minted through the ordinary provisioning path. If a future edit
-// adds "owner" to some row by accident, this still refuses.
-const UNPROVISIONABLE_ROLES = ["owner"];
-
 function generateTempPassword(): string {
   // 12 random bytes -> 16 char base64url-ish string, filtered to
   // alphanumerics and padded to guarantee it passes password validation.
@@ -108,19 +82,9 @@ export const provisionUser = onCall(
       throw err;
     }
 
-    if (UNPROVISIONABLE_ROLES.includes(role)) {
-      throw new HttpsError(
-        "permission-denied",
-        `A ${role} account cannot be created this way.`
-      );
-    }
-
-    const allowedTargetRoles = PROVISIONING_MATRIX[callerClaims.role];
-    if (!allowedTargetRoles || !allowedTargetRoles.includes(role)) {
-      throw new HttpsError(
-        "permission-denied",
-        `Your role (${callerClaims.role}) cannot create a ${role} account.`
-      );
+    const refusal = refuseProvisioning(callerClaims.role, role);
+    if (refusal) {
+      throw new HttpsError("permission-denied", refusal.message);
     }
 
     // Owner (platform-level) provisions across schools by design; every

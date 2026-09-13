@@ -6,7 +6,6 @@ import '../../../faculty_portal/presentation/screens/material_requests_screen.da
 import '../../../inventory/presentation/screens/inventory_screen.dart';
 import 'checklist_screen.dart';
 import 'daily_reports_screen.dart';
-import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../../../../core/widgets/glass_tile.dart';
 
 /// Landing screen for the Staff (maintenance) role. Checklist and Daily
@@ -32,12 +31,6 @@ class StaffDashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
             onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'My Activity',
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
           ),
         ],
       ),

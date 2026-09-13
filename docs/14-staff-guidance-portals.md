@@ -86,7 +86,7 @@ schools/{schoolId}/summons/{id}           -- studentId, reason, scheduledDate, s
 ## Where the build stands
 
 All nine portals plus the shared cross-cutting infrastructure (Auth, QR
-Attendance, Payments, Audit Trail, Profile) are now built. Remaining from
+Attendance, Payments, Profile) are now built. Remaining from
 the original module order: Notifications (push), Reports (exports,
 dashboards), Documents (PDF/Excel — TOR, Form 137, Student/Employee IDs,
 receipts, certificates), the dedicated Inventory module, Security

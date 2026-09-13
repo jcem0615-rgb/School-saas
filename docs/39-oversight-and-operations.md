@@ -27,7 +27,7 @@ press.
 | Another person's profile | Director, Admin | Admin |
 | Account status (suspend / activate) | Director, Admin | Admin — and the **Owner** for a Director or Principal |
 | Password reset for staff | Owner, Director, Admin | Owner, Admin |
-| Creating accounts | Owner, Director, Admin, Registrar | Owner, Admin, Registrar |
+| Creating accounts | Owner, Director, Admin, Registrar | Owner, Admin, Registrar — and the Admin creates **every** role, another Admin included |
 | Students: register, edit, balance, parent links | Director, Admin, Registrar | Admin, Registrar |
 | Admissions: enquiry through enrolment | Director, Admin, Registrar | Admin, Registrar |
 | Payments, refunds, assessments, voids | Director, Admin, Registrar | Admin, Registrar |
@@ -46,6 +46,21 @@ press.
 | Year-end rollover | Director, Admin, Registrar | Admin, Registrar |
 | Data-subject requests | Director, Admin, Registrar | Admin, Registrar |
 | Leave decisions | Director, Principal, Admin | Admin |
+
+### The Admin creates another Admin
+
+The Admin holding every operational permission is only safe if the Admin
+is a post rather than a person. It was not: the provisioning matrix let
+an Admin create every role except a peer, so a school with one Admin who
+left had no way to appoint another without the vendor's Owner account
+doing it. That is a single point of failure written into the permission
+model — and this module put *more* weight on it, since the Director can
+no longer stand in.
+
+An Admin now creates every role a school has, `admin` and `director`
+included. Only `owner` is out of reach, and it is refused for its own
+reason rather than by omission. See
+[Module 9](09-admin-portal.md#who-the-admin-may-create).
 
 ## What they keep
 

@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../domain/entities/school_summary.dart';
-import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../controllers/owner_controller.dart';
 import '../widgets/revenue_card.dart';
 import '../widgets/school_status_badge.dart';
@@ -37,12 +36,6 @@ class OwnerDashboardScreen extends ConsumerWidget {
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
             onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'My Activity',
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
           ),
         ],
       ),

@@ -9,7 +9,6 @@ import '../../../faculty_portal/presentation/screens/grading_scheme_screen.dart'
 import 'year_end_rollover_screen.dart';
 import '../../../payments/presentation/screens/payment_settings_screen.dart';
 import 'student_list_screen.dart';
-import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../../../../core/widgets/glass_tile.dart';
 
 /// Landing screen for the Registrar/Cashier role. Student Registration
@@ -37,12 +36,6 @@ class RegistrarDashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
             onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'My Activity',
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
           ),
         ],
       ),

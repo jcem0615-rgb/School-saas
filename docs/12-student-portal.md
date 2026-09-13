@@ -3,8 +3,8 @@
 ## Overview
 
 This module is mostly consumption-side wiring — QR ID, Attendance,
-Announcements, Payments/Balance, and My Activity History are all reused
-directly from earlier modules with zero new code. What's actually new:
+Announcements and Payments/Balance are all reused directly from earlier
+modules with zero new code. What's actually new:
 a shared **Profile** feature (every role needs one, not just students),
 and Student Portal's own read-side views: Subjects, Assignments & Exams,
 Grades, and Promissory Note.

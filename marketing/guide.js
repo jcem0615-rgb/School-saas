@@ -218,9 +218,9 @@ add(
   H1('2. The nine portals at a glance'),
   P('One school runs all nine. An account belongs to exactly one of them.'),
   featureTable([
-    ['Director', 'School-wide oversight', 'Reads everything in the school - today\'s figures, fee schedules, expenses, payroll, leave, reports, the audit trail - and changes four things: announcements, meetings, approvals, and picking up an emergency alert. Editing the school\'s records is the Admin\'s.'],
+    ['Director', 'School-wide oversight', 'Reads everything in the school - today\'s figures, fee schedules, expenses, payroll, leave and reports - and changes four things: announcements, meetings, approvals, and picking up an emergency alert. Editing the school\'s records is the Admin\'s.'],
     ['Principal', 'One division, oversight only', 'Reads student records, the class schedule, teacher assignments and the leave queue for their division; decides approvals, posts announcements, calls meetings, picks up an emergency alert. No edit buttons on the records themselves.'],
-    ['Admin', 'School operations - the operator', 'Employee accounts, teacher assignment, strands and programs, branding, schedules, fee schedules, receipt booklets, expenses, payroll, inventory, reports, audit trail, attendance scanning, leave requests and staff timesheets. Everything the school changes week to week.'],
+    ['Admin', 'School operations - the operator', 'Employee accounts, teacher assignment, strands and programs, branding, schedules, fee schedules, receipt booklets, expenses, payroll, inventory, reports, attendance scanning, leave requests and staff timesheets. Everything the school changes week to week.'],
     ['Registrar / Cashier', 'The front counter', 'Enrolment, student records, fee assessment, payments and receipts, printed forms, online-payment review and setup.'],
     ['Faculty', 'Teaching', 'Own timetable, class registers with time in and out, coursework, answer keys, submissions, grade submission, material requests, attendance scanning, messages with parents, own leave and timesheet.'],
     ['Guidance', 'Student welfare', 'Guidance records, student summons, emergency alerts.'],
@@ -250,7 +250,6 @@ add(
     ['Profile', 'Your own record', 'See your name, role and email; edit your phone number and photo. Role, status and school cannot be changed here by anyone, including you.'],
     ['My QR ID', 'Your school ID', 'The card that identifies you to a scanner. Printable, and usable straight from the screen.'],
     ['Privacy and my information', 'Privacy notice', 'What the school holds, why, and who sees it - plus the button to ask about your own information.'],
-    ['My Activity History', 'Your own audit trail', 'Every action you have taken in the system, most recent first.'],
     ['My Attendance', 'Your attendance', 'Every time you were scanned, in and out.'],
     ['Emergency Numbers', 'The school\'s numbers', 'The published list, one tap to dial.'],
     ['Announcements on this device', 'Notification switch', 'Turn push notifications for this phone or computer on or off.'],
@@ -269,13 +268,10 @@ add(
     ['Meeting Scheduler', 'Meeting Scheduler', 'Schedule a meeting with a title, description, location, start and end, and the roles expected. Cancel one that is no longer happening.'],
     ['Approvals', 'Approvals', 'One inbox for every request filed anywhere in the school - material requests from faculty and staff, promissory notes from students. Filter by pending, approved, rejected or all; approve or reject with a reason. Each card carries the request\'s own details, and each decision records who made it. See 4.2.'],
     ['Class Schedule', 'Class Schedule', 'The week for every section. See section 17.'],
-    ['System Check', 'System Check', 'Seven readiness checks. See section 25.'],
     ['Reports', 'Reports', 'The four school reports, on screen, to Excel, or printed. See section 18.'],
     ['Fee Schedules', 'Fee Schedules', 'Define the named fee sets the cashier assesses against. See section 14.'],
     ['Expenses', 'Expenses', 'Record school spending with a category, description, amount, date and the receipt behind it - or import a spreadsheet of it. Financial data: readable by Director, Admin and Registrar only.'],
     ['Emergency Numbers', 'Emergency Numbers', 'Publish the numbers every portal can dial, with who answers, the number, a note and the order they appear in.'],
-    ['Audit Trail', 'Audit Trail', 'Every change made in the school, filterable by module and date range, searchable by person or remark.'],
-    ['My Activity', 'My Activity History', 'The same trail, narrowed to your own actions.'],
     ['Profile', 'Profile', 'As section 3.2.'],
   ]),
   note('Nobody decides their own request - not the Director, not the Principal, not the Admin. The rule '
@@ -334,18 +330,16 @@ add(
   P('The operator role: the account that keeps the school configured week to week.'),
   H2('6.1 The dashboard buttons'),
   featureTable([
-    ['Employee Management', 'Employee Management', 'The staff list, filterable by role and by suspended status. Create an account for any role with first and last name, email, department, position and data-access scope. Export the list or import one from a spreadsheet.'],
+    ['Employee Management', 'Employee Management', 'The staff list, filterable by role and by suspended status. Create an account for any role the school has - another Admin included - with first and last name, email, department, position and data-access scope. Export the list, or import one from a spreadsheet; an import creates Registrar, Faculty, Staff and Guidance accounts, and leadership accounts are made one at a time.'],
     ['Teacher Assignment', 'Teacher Assignment', 'Assign a teacher to a subject, section and school year, and mark one as the class adviser. Import or export the whole set.'],
     ['Strands & Programs', 'Strands & Programs', 'The Senior High strands and college degree programs students enrol into, each with a code. Elementary and Junior High have no catalogue entry - their grade level and section say everything the record needs.'],
     ['Emergency Alerts', 'Emergency Alerts', 'See and resolve alerts raised anywhere in the school.'],
     ['Emergency Numbers', 'Emergency Numbers', 'Publish the numbers every portal can dial.'],
     ['Class Schedule', 'Class Schedule', 'Build the week. See section 17.'],
-    ['System Check', 'System Check', 'Seven readiness checks. See section 25.'],
     ['Reports', 'Reports', 'The four school reports. See section 18.'],
     ['Fee Schedules', 'Fee Schedules', 'Define fee sets. See section 14.'],
     ['Announcements', 'Announcements', 'Post and pin school messages.'],
     ['Scan Attendance', 'Scan Attendance QR', 'Open the camera and mark whoever is scanned. See section 13.'],
-    ['Audit Trail', 'Audit Trail', 'Every change, filterable by module and date.'],
     ['School Branding', 'School Branding', 'The school\'s printed identity - see 6.3.'],
     ['Profile', 'Profile', 'As section 3.2.'],
   ]),
@@ -537,7 +531,6 @@ add(
     ['Pay online', 'Pay Online', 'Send the fee and submit the reference for review. See section 15.'],
     ['Emergency Alerts', 'Emergency Alerts', 'Alerts raised about their own children, with the numbers to call.'],
     ['Announcements', 'Announcements', 'Everything the school addressed to parents.'],
-    ['My Activity', 'My Activity History', 'What this account has done in the system.'],
     ['Profile', 'Profile', 'As section 3.2.'],
   ]),
   note('A parent linked to two children sees exactly those two. The query that resolves "my children" is '
@@ -928,9 +921,11 @@ add(
     ['receipt numbers', 'Only the server', 'Two cashiers at once must not be able to issue the same number.'],
   ], ['Field or record', 'Written by', 'Why']),
   H2('25.4 Everything is written down'),
-  P('Every create, edit and delete in the school lands in the audit trail with who did it and when, and it '
-    + 'is recorded automatically rather than because a screen remembered to log it. The Director and Admin '
-    + 'read the whole trail, filtered by module and date range; every account can read its own.'),
+  P('Every create, edit and delete in the school lands in the audit log with who did it and when, and it '
+    + 'is recorded automatically rather than because a screen remembered to log it. There is no browsing '
+    + 'screen over it: the question it answers - who changed this grade, and when - is asked of the school '
+    + 'months later by a parent, and answered from the record, not by scrolling. The record is produced on '
+    + 'request.'),
   note('The trail never carries content its own readers could not otherwise read. Parent-teacher '
      + 'conversations are recorded as having changed, not quoted, and the entry says so. A log read '
      + 'school-wide must not become a way around the rules on what it is logging.'),
@@ -947,7 +942,7 @@ add(
     ['A retention schedule', 'Shipped with the system', 'How long each kind of record is kept, written down.'],
     ['A Data Processing Agreement', 'Shipped with the system', 'A template ready for the school\'s DPO to review.'],
     ['Access enforced at the database', 'Throughout', 'Who can read what is decided where the data lives, not by what a screen shows - so a screen a role cannot reach is also data it cannot fetch.'],
-    ['An audit trail', 'Audit Trail', 'Every change to a record carries the account that made it and when.'],
+    ['An audit trail', 'Written automatically', 'Every change to a record carries the account that made it and when. Produced on request; there is no browsing screen over it.'],
   ], ['What a DPO asks for', 'Where it is', 'What it contains']),
   note('Requests from families - access, correction, erasure, objection - are answered by the school office, '
      + 'not tracked in this system. The rights are the school\'s to honour under the Act; this software holds '

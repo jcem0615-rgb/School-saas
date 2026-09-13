@@ -140,9 +140,9 @@ and reuses `payments`/`attendance` via cross-links from Student Detail.
   (Documents module). The *digital* Student ID (QR code) already works
   today via the existing `MyQrIdScreen` once a student has a portal account.
 - **Student History** as a dedicated audit-style timeline view — the
-  underlying data already exists (generic audit trigger logs every
-  `students` doc change); a per-student filtered view of `AuditTrailScreen`
-  is a small addition once the Audit Trail module gets its dedicated pass.
+  underlying data already exists (the generic audit trigger logs every
+  `students` doc change), but there is no screen over the log any more
+  (see [Module 9](09-admin-portal.md)), so this would be the first one.
 - **Reports** (enrollment reports, etc.) — Reports module.
 - **Parent account linking UI** — the `linkedStudentIds` validation exists
   in `provisionUser.ts` now, but the Registrar-facing "create a Parent

@@ -65,16 +65,19 @@ infrastructure with `type: 'material_request'` — any future module
 (Inventory purchase requests, Staff Portal leave requests) reuses the
 exact same mechanism.
 
-## "My Activity History" — a new personal audit view for every role
+## "My Activity History" — the personal audit view, and why it is gone
 
-The spec lists "Audit Trail" as a General Requirement for *every* user,
-which is a different thing from the full-school `AuditTrailScreen`
-(Owner/Director/Admin only). This module extends the `auditLog` security
-rule to also allow `resource.data.userId == request.auth.uid` — any user
-can read their own entries — and adds `MyActivityScreen` /
-`myActivityStreamProvider` to the shared Audit Trail feature (not
-Faculty-specific; every portal's dashboard can link to
-`/my-activity` going forward).
+This module added `MyActivityScreen`, a per-user view of the audit log,
+and widened the `auditLog` read rule to allow
+`resource.data.userId == request.auth.uid` so that any user could read
+their own entries.
+
+The screen has since been removed along with the full-school Audit Trail
+screen (see [Module 9](09-admin-portal.md)). The rule stayed: it costs
+nothing, it is the grant a returning screen would need, and narrowing a
+person's access to their *own* record is not an improvement worth making
+by accident. What is gone is the UI, not the log — every callable and the
+`onAnyTenantDocWrite` trigger still write it.
 
 ## Firestore collections added
 

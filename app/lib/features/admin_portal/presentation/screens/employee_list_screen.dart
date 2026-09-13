@@ -130,8 +130,14 @@ class EmployeeListScreen extends ConsumerWidget {
 
         final role = UserRole.values.where((r) => r.value == roleValue).firstOrNull;
         if (role == null) return ImportIssue(rowNumber, 'Unknown role "$roleValue".');
-        if (!adminProvisionableRoles.contains(role)) {
-          return ImportIssue(rowNumber, 'Admin cannot create a ${role.displayName} account.');
+        if (!importableEmployeeRoles.contains(role)) {
+          return ImportIssue(
+            rowNumber,
+            adminProvisionableRoles.contains(role)
+                ? '${role.displayName} accounts are created one at a time, '
+                    'not imported.'
+                : 'Admin cannot create a ${role.displayName} account.',
+          );
         }
         if (employees.any((e) => e.email.toLowerCase() == email.toLowerCase())) {
           return ImportIssue(rowNumber, '$email already has an account.');
@@ -184,7 +190,10 @@ class EmployeeListScreen extends ConsumerWidget {
     final departmentController = TextEditingController();
     final positionController = TextEditingController();
     final assignedDepartmentController = TextEditingController();
-    UserRole role = adminProvisionableRoles.first;
+    // Not the first entry: that list is ordered by seniority for the
+    // dropdown, and a form that opens on "Director" is one where a
+    // distracted person creates one.
+    UserRole role = UserRole.faculty;
     DateTime dateHired = DateTime.now();
     EducationLevel? assignedDivision;
 

@@ -118,4 +118,3 @@ school that has no Senior High.
 
 - Cross-school invoice list + PDF/Excel export (Reports & Documents modules)
 - Owner-side user monitoring / login history table (Security module)
-- Full Owner audit trail UI (Audit Trail module — collection already exists)

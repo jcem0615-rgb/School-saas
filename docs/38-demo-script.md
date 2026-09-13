@@ -48,7 +48,6 @@ same reason. Show it only to an investor or to yourself.
 | Active Students (all schools) | Live head count, all tenants |
 | School Management → **Add School** | A school is three documents written in one transaction — half a school is unusable, so it is all or nothing |
 | Filters: All / Active / Grace Period / Suspended | Non-payment suspends a tenant; the school sees a message, not a broken app |
-| **System Check** | The preflight. Rules deployed, every callable reachable, indexes present, storage writable, owner claim set |
 
 **The line that lands:** "Every other school-management system I have
 seen is one school. This one is a platform — you add schools, they never
@@ -72,8 +71,7 @@ screens."
 | Fee Schedules | What the school charges, per division and year |
 | **Payroll** | Next to Expenses on purpose: salaries are the larger |
 | Expenses | With spreadsheet import |
-| Audit Trail | Every edit and soft delete in the school, written by a trigger nobody can bypass |
-| System Check, Emergency Numbers, Leave, Timesheets | |
+| Emergency Numbers, Leave, Timesheets | |
 
 **Show Payroll.** Pick the month. Every employee, their days worked,
 absences, contributions, net pay, and the employer share the school
@@ -103,8 +101,8 @@ takes."
 | **Payroll** | SSS, PhilHealth, Pag-IBIG and withholding, typed by the school from its own circulars |
 | **Inventory** | Stock room, movement log, reorder list |
 | **Admissions** | The enquiry pipeline |
-| Fee Schedules, Class Schedule, Reports, Audit Trail, School Branding | |
-| System Check | Same preflight the owner has |
+| Fee Schedules, Class Schedule, Reports, School Branding | |
+| **Employee Management** | Every role a school has is created here, another Admin included — the office is a department, not one person's login |
 | Scan Attendance | The camera, for staff time in and out |
 
 **Open Grading Scheme and stop on the confirmation card.** It says: these

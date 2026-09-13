@@ -5,7 +5,6 @@ import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../audit_trail/presentation/screens/audit_trail_screen.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
 import '../../../admissions/presentation/screens/admissions_screen.dart';
@@ -13,13 +12,11 @@ import '../../../inventory/presentation/screens/inventory_screen.dart';
 import '../../../payroll/presentation/screens/payroll_run_screen.dart';
 import '../../../faculty_portal/presentation/screens/grading_scheme_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
-import '../../../system_check/presentation/screens/system_check_screen.dart';
 import '../../../schedules/presentation/screens/schedule_screen.dart';
 import 'branding_screen.dart';
 import 'employee_list_screen.dart';
 import 'programs_screen.dart';
 import 'teacher_assignments_screen.dart';
-import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../../../../core/widgets/glass_tile.dart';
 
 /// Landing screen for the Admin role. Employee Management, User Approval
@@ -49,12 +46,6 @@ class AdminDashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
             onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'My Activity',
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
           ),
         ],
       ),
@@ -120,14 +111,6 @@ class AdminDashboardScreen extends StatelessWidget {
                   onTap: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (_) => const ScheduleScreen())),
                 ),
-                // Run before a school is let in, and again after any
-                // deploy that touches rules, functions or indexes.
-                GlassTile(
-                  icon: Icons.checklist_rtl_outlined,
-                  label: 'System Check',
-                  onTap: () => Navigator.of(context)
-                      .push(MaterialPageRoute(builder: (_) => const SystemCheckScreen())),
-                ),
                 GlassTile(
                   icon: Icons.insights_outlined,
                   label: 'Reports',
@@ -188,12 +171,6 @@ class AdminDashboardScreen extends StatelessWidget {
                   icon: Icons.qr_code_scanner,
                   label: 'Scan Attendance',
                   onTap: () => context.push('/scan-attendance'),
-                ),
-                GlassTile(
-                  icon: Icons.history_outlined,
-                  label: 'Audit Trail',
-                  onTap: () => Navigator.of(context)
-                      .push(MaterialPageRoute(builder: (_) => const AuditTrailScreen())),
                 ),
 
                 GlassTile(

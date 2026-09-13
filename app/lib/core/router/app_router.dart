@@ -7,8 +7,6 @@ import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/auth/presentation/screens/force_password_change_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/admin_portal/presentation/screens/admin_dashboard_screen.dart';
-import '../../features/audit_trail/presentation/screens/audit_trail_screen.dart';
-import '../../features/audit_trail/presentation/screens/my_activity_screen.dart';
 import '../../features/data_protection/presentation/controllers/data_protection_controller.dart'
     show needsPrivacyAcknowledgementProvider;
 import '../../features/data_protection/presentation/screens/acknowledge_privacy_screen.dart';
@@ -36,7 +34,6 @@ import '../../features/qr_attendance/presentation/screens/qr_scanner_screen.dart
 import '../../features/registrar_portal/presentation/screens/registrar_dashboard_screen.dart';
 import '../../features/reports/presentation/screens/reports_screen.dart';
 import '../../features/staff_portal/presentation/screens/staff_dashboard_screen.dart';
-import '../../features/system_check/presentation/screens/system_check_screen.dart';
 import '../../features/student_portal/presentation/screens/student_dashboard_screen.dart';
 import '../constants/user_roles.dart';
 
@@ -49,11 +46,8 @@ class AppRoutes {
   static const myQrId = '/qr-id';
   static const scanAttendance = '/scan-attendance';
   static const myAttendance = '/my-attendance';
-  static const myActivity = '/my-activity';
-  static const auditTrail = '/audit-trail';
   static const reports = '/reports';
   static const privacy = '/privacy';
-  static const systemCheck = '/system-check';
   static const acknowledgePrivacy = '/privacy/acknowledge';
   static const acceptTerms = '/terms/accept';
   static const profile = '/profile';
@@ -162,15 +156,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return AppRoutes.homeFor(user.role);
       }
 
-      // Two Director/Admin surfaces. Reports is on this list for a
-      // rules reason rather than a product one: those are the only roles
-      // with an unconditional read on students, payments, grades and
-      // attendance, and a school-wide list query from any other account
-      // is refused per document. Every other role still has
-      // /my-activity, which is scoped to their own uid.
-      if ((state.matchedLocation == AppRoutes.auditTrail ||
-              state.matchedLocation == AppRoutes.reports ||
-              state.matchedLocation == AppRoutes.systemCheck) &&
+      // Reports is Director/Admin for a rules reason rather than a
+      // product one: those are the only roles with an unconditional read
+      // on students, payments, grades and attendance, and a school-wide
+      // list query from any other account is refused per document. The
+      // redirect exists so the others land on their own portal instead
+      // of a screen whose every query would be denied.
+      if (state.matchedLocation == AppRoutes.reports &&
           user.role != UserRole.director &&
           user.role != UserRole.admin) {
         return AppRoutes.homeFor(user.role);
@@ -191,13 +183,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // route existing is not the same as the action being permitted).
       GoRoute(path: AppRoutes.myQrId, builder: (context, state) => const EIdScreen()),
       GoRoute(path: AppRoutes.scanAttendance, builder: (context, state) => const QrScannerScreen()),
-      GoRoute(path: AppRoutes.myActivity, builder: (context, state) => const MyActivityScreen()),
-      // School-wide audit trail. firestore.rules lets owner/director/admin
-      // read the log, but Owner is platform-level with no schoolId, and
-      // this screen is tenant-scoped -- so Director/Admin only, and the
-      // redirect below sends anyone else back to their own portal rather
-      // than rendering a screen whose queries would be denied.
-      GoRoute(path: AppRoutes.auditTrail, builder: (context, state) => const AuditTrailScreen()),
       GoRoute(path: AppRoutes.profile, builder: (context, state) => const ProfileScreen()),
       // Reachable from the bell in every portal's app bar, and from a
       // tapped push notification -- deliver.ts sends every one of them
@@ -234,10 +219,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: AppRoutes.reports, builder: (context, state) => const ReportsScreen()),
       GoRoute(path: AppRoutes.privacy, builder: (context, state) => const PrivacyNoticeScreen()),
-      GoRoute(
-        path: AppRoutes.systemCheck,
-        builder: (context, state) => const SystemCheckScreen(),
-      ),
       GoRoute(
         path: AppRoutes.acknowledgePrivacy,
         builder: (context, state) => const AcknowledgePrivacyScreen(),

@@ -10,7 +10,6 @@ import '../../../emergency/presentation/screens/sos_screen.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
 import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
 import '../../../schedules/presentation/screens/my_timetable_screen.dart';
-import '../../../audit_trail/presentation/screens/my_activity_screen.dart';
 import '../controllers/student_controller.dart';
 import 'coursework_feed_screen.dart';
 import 'my_grades_screen.dart';
@@ -40,12 +39,6 @@ class StudentDashboardScreen extends ConsumerWidget {
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profile',
             onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'My Activity',
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const MyActivityScreen())),
           ),
         ],
       ),

@@ -194,7 +194,6 @@ void main() {
     const asRegistrar = [
       AppRoutes.myQrId,
       AppRoutes.myAttendance,
-      AppRoutes.myActivity,
       AppRoutes.profile,
       AppRoutes.notifications,
       AppRoutes.messages,
@@ -254,14 +253,12 @@ void main() {
     container.read(demoStoreProvider).acknowledgedPrivacy.add(uids);
     container.read(demoStoreProvider).acceptedTerms.add(uids);
 
-    // Director reaches the three guarded surfaces; the scanner and the
-    // privacy notice are open to everybody, and are checked as the
-    // registrar because that is who stands at a scanner all morning.
+    // Director reaches the guarded surface; the scanner and the privacy
+    // notice are open to everybody, and are checked as the registrar
+    // because that is who stands at a scanner all morning.
     const byEmail = <String, List<String>>{
       'director@demo.ph': [
-        AppRoutes.auditTrail,
         AppRoutes.reports,
-        AppRoutes.systemCheck,
       ],
       'registrar@demo.ph': [
         AppRoutes.scanAttendance,
@@ -291,14 +288,14 @@ void main() {
     }
   });
 
-  testWidgets('the three Director and Admin surfaces turn everybody else away',
+  testWidgets('the Director and Admin surface turns everybody else away',
       (tester) async {
     // The guard in app_router.dart, asserted from the outside. It is a
     // convenience rather than the security boundary -- the rules refuse
     // the underlying queries per document, which is what the rules suite
-    // proves - but a role that reached one of these screens would sit in
-    // front of a wall of permission errors, and conclude the app is
-    // broken rather than that they were somewhere they should not be.
+    // proves - but a role that reached this screen would sit in front of
+    // a wall of permission errors, and conclude the app is broken rather
+    // than that they were somewhere they should not be.
     final container = ProviderContainer(overrides: demoOverrides());
     addTearDown(container.dispose);
 
@@ -312,7 +309,7 @@ void main() {
     container.read(demoStoreProvider).acknowledgedPrivacy.add(uids);
     container.read(demoStoreProvider).acceptedTerms.add(uids);
 
-    const guarded = [AppRoutes.auditTrail, AppRoutes.reports, AppRoutes.systemCheck];
+    const guarded = [AppRoutes.reports];
     final turnedAway = DemoStore.demoAccounts.where(
       (a) => a.role != UserRole.director && a.role != UserRole.admin,
     );
