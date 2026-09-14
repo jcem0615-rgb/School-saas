@@ -34,6 +34,16 @@ abstract class InstallPrompt {
   /// when there was no prompt to fire -- the event is single-use, so a
   /// second call after a dismissal has nothing to show.
   Future<bool> show();
+
+  /// Calls [onChange] when [offer] may have changed, and returns the
+  /// function that stops listening.
+  ///
+  /// Without this the button was correct and invisible. `offer` is
+  /// re-read on build, but `beforeinstallprompt` lands well after first
+  /// paint and the sign-in screen is static -- nothing rebuilt it, so
+  /// the offer that arrived a second after load was never asked for
+  /// again. A screen cannot poll for this and should not have to.
+  void Function() listen(void Function() onChange);
 }
 
 /// Every non-web build, and the fallback when interop is unavailable.
@@ -45,4 +55,7 @@ class NoInstallPrompt extends InstallPrompt {
 
   @override
   Future<bool> show() async => false;
+
+  @override
+  void Function() listen(void Function() onChange) => () {};
 }

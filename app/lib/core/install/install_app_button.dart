@@ -8,9 +8,11 @@ import 'install_prompt_factory.dart';
 /// browser that has already installed this — an "Install" button in an
 /// installed app is a button that cannot do anything.
 ///
-/// The offer is re-read on build rather than resolved once: the browser
-/// fires `beforeinstallprompt` some time after load, so a widget that
-/// decided at construction would say "no" forever on a fast first paint.
+/// The offer is re-read on build rather than resolved once, *and* the
+/// widget subscribes to the page: the browser fires
+/// `beforeinstallprompt` well after first paint, and the sign-in screen
+/// is static, so nothing would otherwise rebuild this to notice. Reading
+/// on build alone left a button that was correct and never on screen.
 class InstallAppButton extends StatefulWidget {
   /// Set on a dark ground (the sign-in screen) so the text stays legible
   /// against it rather than taking the light theme's foreground.
@@ -24,8 +26,25 @@ class InstallAppButton extends StatefulWidget {
 
 class _InstallAppButtonState extends State<InstallAppButton> {
   final _prompt = createInstallPrompt();
+  late final void Function() _stopListening;
   bool _busy = false;
   bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _stopListening = _prompt.listen(() {
+      // The event can land while this screen is going away -- a sign-in
+      // that succeeded a moment earlier takes the route with it.
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _stopListening();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

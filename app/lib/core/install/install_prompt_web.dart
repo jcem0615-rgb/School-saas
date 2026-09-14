@@ -1,4 +1,8 @@
 import 'dart:js_interop';
+// For `has`, to feature-detect `onChange` on the page's bridge: during a
+// rollout the browser can still be holding the previous index.html, and
+// calling a method that is not there throws.
+import 'dart:js_interop_unsafe';
 
 import 'install_prompt.dart';
 
@@ -41,6 +45,17 @@ class BrowserInstallPrompt extends InstallPrompt {
     return accepted.toDart;
   }
 
+  @override
+  void Function() listen(void Function() onChange) {
+    final bridge = _bridge;
+    // An older deployed index.html has the bridge but not onChange. The
+    // button still works there -- it just falls back to being right
+    // whenever something else rebuilds it.
+    if (bridge == null || !(bridge as JSObject).has('onChange')) return () {};
+    final stop = bridge.onChange(onChange.toJS);
+    return () => stop.callAsFunction();
+  }
+
   _InstallBridge? get _bridge => _installBridge;
 }
 
@@ -48,6 +63,9 @@ class BrowserInstallPrompt extends InstallPrompt {
 extension type _InstallBridge._(JSObject _) implements JSObject {
   external JSString offer();
   external JSPromise<JSBoolean> show();
+
+  /// Returns the function that stops listening.
+  external JSFunction onChange(JSFunction callback);
 }
 
 InstallPrompt createInstallPrompt() => const BrowserInstallPrompt();

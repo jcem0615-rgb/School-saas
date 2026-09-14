@@ -77,5 +77,14 @@ fi
 # deprecated and will be removed. Offline caching is worth little to a
 # site whose whole point is being opened once from a link, and it is
 # worth a great deal less than a page that reliably loads.
+#
+# This flag does NOT mean the site ships without a service worker. It
+# means it does not ship *Flutter's*. web/app_sw.js registers instead,
+# and it exists because Chromium fires `beforeinstallprompt` -- the event
+# the Install button depends on -- only for a page that has a worker with
+# a fetch handler. With neither worker, the button could never appear on
+# Chrome, Edge or Android. app_sw.js caches one offline page and no build
+# asset, so it satisfies the browser without bringing back the stale
+# asset list this flag is here to avoid. See docs/40-install-as-an-app.md.
 echo "Building web (DEMO_MODE=$DEMO_MODE)"
 flutter build web --release --no-web-resources-cdn --pwa-strategy=none "${DEFINES[@]}"

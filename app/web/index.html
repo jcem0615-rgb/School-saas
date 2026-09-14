@@ -53,15 +53,32 @@
     (function () {
       var held = null;
 
+      // Told when the offer changes, so a screen already painted can put
+      // the button up rather than waiting for some unrelated rebuild to
+      // notice. `beforeinstallprompt` lands well after first paint --
+      // the sign-in screen is static, so without this the button was
+      // there in the code and never on the screen.
+      var listeners = [];
+
+      function announce() {
+        var current = listeners.slice();
+        for (var i = 0; i < current.length; i++) {
+          // One bad listener must not stop the others hearing.
+          try { current[i](); } catch (e) {}
+        }
+      }
+
       window.addEventListener('beforeinstallprompt', function (event) {
         // Without this the browser shows its own mini-infobar and the
         // event is spent; holding it is what lets our own button work.
         event.preventDefault();
         held = event;
+        announce();
       });
 
       window.addEventListener('appinstalled', function () {
         held = null;
+        announce();
       });
 
       function standalone() {
@@ -102,6 +119,15 @@
           }).catch(function () {
             return false;
           });
+        },
+        // Returns a function that stops listening. Dart calls this from
+        // the button's initState and the returned one from dispose.
+        onChange: function (callback) {
+          listeners.push(callback);
+          return function () {
+            var at = listeners.indexOf(callback);
+            if (at !== -1) listeners.splice(at, 1);
+          };
         }
       };
     })();
@@ -137,7 +163,13 @@
           .then(function () {
             if (!window.caches || !caches.keys) return;
             return caches.keys().then(function (keys) {
-              return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+              return Promise.all(keys
+                // Ours holds one offline page and nothing from any
+                // build, so it cannot be the stale asset list this is
+                // clearing -- and dropping it would only make the next
+                // load fetch it again.
+                .filter(function (k) { return k.indexOf('logicclass-offline-') !== 0; })
+                .map(function (k) { return caches.delete(k); }));
             });
           })
           .then(function () {
@@ -150,6 +182,48 @@
         // A blocked or unavailable service worker API is not a reason to
         // stop the app loading.
       });
+    })();
+  </script>
+  <script>
+    // Registers the one service worker this site does want.
+    //
+    // Chromium fires `beforeinstallprompt` -- the event the install
+    // button is built on -- only for a page with a registered worker
+    // that has a fetch handler able to answer offline. This build ships
+    // `--pwa-strategy=none` precisely so that Flutter's asset-caching
+    // worker is NOT that worker, which left no worker at all, which left
+    // the install button unable to appear on Chrome, Edge or Android.
+    // app_sw.js is the minimum that satisfies the browser without
+    // caching a single build asset; see the notes in it.
+    //
+    // Registered after the eviction block above on purpose: that one
+    // reloads the page when it finds a Flutter worker, and registering
+    // into a page that is about to reload is wasted work.
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
+      var evicted = false;
+      try { evicted = sessionStorage.getItem('flutter-sw-evicted') === '1'; } catch (e) {}
+
+      function register() {
+        navigator.serviceWorker.register('app_sw.js').catch(function () {
+          // A refused registration costs the install button and nothing
+          // else. The app itself never depends on this worker.
+        });
+      }
+
+      // If a Flutter worker is still registered, the block above is
+      // about to unregister it and reload; let that finish first.
+      if (!evicted) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          var flutterWorkerPresent = regs.some(function (r) {
+            var w = r.active || r.installing || r.waiting;
+            return w && w.scriptURL.indexOf('flutter_service_worker.js') !== -1;
+          });
+          if (!flutterWorkerPresent) register();
+        }).catch(register);
+      } else {
+        register();
+      }
     })();
   </script>
   <script src="flutter_bootstrap.js" async></script>

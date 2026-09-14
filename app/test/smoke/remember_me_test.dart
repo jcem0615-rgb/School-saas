@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:logicclass/core/install/install_app_button.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/features/auth/data/remembered_email.dart';
 import 'package:logicclass/features/auth/presentation/screens/login_screen.dart';
@@ -101,5 +102,26 @@ void main() {
     await tester.tap(find.byTooltip('Show password'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Hide password'), findsOneWidget);
+  });
+
+  testWidgets('the sign-in screen carries the install offer', (tester) async {
+    // It renders nothing on the VM -- there is no browser to install
+    // into -- so this pins the wiring rather than the pixels. The offer
+    // belongs on this screen because it is where somebody opening the
+    // link lands, and installing before signing in means the session
+    // they are about to start is the one in the installed app.
+    await _pump(tester);
+    expect(find.byType(InstallAppButton), findsOneWidget);
+  });
+
+  testWidgets('and it is styled for the dark card it sits on', (tester) async {
+    // White on the sign-in screen's glass, not the light theme's
+    // foreground -- which on this ground is the button being technically
+    // present and unreadable.
+    await _pump(tester);
+    expect(
+      tester.widget<InstallAppButton>(find.byType(InstallAppButton)).onDarkSurface,
+      isTrue,
+    );
   });
 }

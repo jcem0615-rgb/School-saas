@@ -54,18 +54,81 @@ compiles `package:web`, and `InstallAppButton` renders an empty box —
 an install button inside an installed app is a button that cannot do
 anything.
 
-## The thing to check on a real deployment
+## Why there is a service worker, and why it is not Flutter's
 
-Whether the browser fires `beforeinstallprompt` at all is its call, and
-the criteria vary by version. This build passes `--pwa-strategy=none` and
-actively evicts Flutter's own service worker (see the note in
-`web/index.html`), leaving `firebase-messaging-sw.js`, registered by the
-messaging SDK, as the only worker on the page.
+This is the thing the module got wrong, and it made the whole feature
+unreachable on the browsers most of a school uses.
 
-Chrome's installability criteria have historically included a service
-worker. **This has not been verified against a real deployed build**, and
-it should be before the install button is promised to a school: open the
+Chromium fires `beforeinstallprompt` — the event everything above is
+built on — only for a page with a **registered service worker whose
+fetch handler can answer when the network is gone**. This build passes
+`--pwa-strategy=none` and actively evicts Flutter's own worker, for a
+good reason: that worker precaches the build's whole asset manifest and
+serves it ahead of the network, so a visitor holding an older asset list
+keeps being served it, one entry stops matching, `main.dart.js` never
+runs, and the page is white.
+
+Both things were true, and together they meant **no worker at all** —
+so the event never fired, `offer()` returned `none` on every Chromium
+browser, and `InstallAppButton` rendered an empty box. The button was in
+the code, on the right screen, correctly styled, and could not appear.
+Only iOS Safari showed anything, because its branch is the instructions
+line and does not depend on the event.
+
+`web/app_sw.js` is the fix, and it is deliberately the smallest thing
+that satisfies the browser:
+
+* **It never caches a build asset.** Not `main.dart.js`, not canvaskit,
+  not an icon. There is nothing in it that can go stale against a new
+  deploy, so the failure `--pwa-strategy=none` exists to prevent cannot
+  come back through this door.
+* **It does not touch non-navigation requests at all** — no
+  `respondWith`, so assets are fetched exactly as they would be with no
+  worker registered.
+* **It holds one thing**: a standalone `offline.html`, served only when a
+  navigation fails. That is what satisfies "responds when offline", and
+  it is the whole of its cache.
+
+The eviction block in `index.html` is scoped to `flutter_service_worker.js`
+by script URL and its cache sweep skips `logicclass-offline-*`, so it
+clears the old worker without switching the new one off.
+
+## Telling Dart when the offer arrives
+
+`beforeinstallprompt` lands well after first paint, and the sign-in
+screen is static — nothing rebuilds it. So reading the offer on build was
+necessary and not sufficient: the offer arrived a second after load and
+nothing asked again.
+
+`window.logicClassInstall.onChange(callback)` returns an unsubscribe
+function; `InstallAppButton` subscribes in `initState` and calls it in
+`dispose`. The web implementation feature-detects `onChange` before
+using it, because during a rollout a browser can still be holding the
+previous `index.html`.
+
+## What was actually verified
+
+Against the real `flutter build web --release --pwa-strategy=none`
+output, served over HTTP and driven in Chromium:
+
+| Checked | Result |
+|---|---|
+| `app_sw.js` registers, scope `/` | yes, active |
+| What its cache holds | `offline.html`, and nothing else |
+| `main.dart.js` on reload | fetched from the server, not the worker |
+| Navigation with the network cut | the offline page |
+| Back online | the app |
+| `window.logicClassInstall` | `offer`, `show` and `onChange` all present |
+| Console | no errors |
+
+`app/test/unit/core/install_prompt_test.dart` pins the parts of that a
+test can reach — the registration line, the fetch handler, the cache
+holding no build asset, the eviction skipping our cache, the manifest's
+own criteria, and `onChange` being there. Removing the worker again
+fails there rather than silently switching the button off.
+
+**Still worth doing by hand once on a real deployment**: open the
 deployed site in Chrome on Android and on desktop and confirm the button
-appears. If it does not, the fix is a minimal fetch-handling worker rather
-than anything in the Dart code — the offer degrades to showing nothing,
-which is correct but is not the same as working.
+appears. The install prompt also depends on HTTPS and on the browser's
+own engagement heuristics, and neither of those can be exercised from a
+test.
