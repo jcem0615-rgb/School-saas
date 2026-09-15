@@ -9,6 +9,7 @@ import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../../../schedules/presentation/screens/my_timetable_screen.dart';
 import '../../../student_portal/presentation/screens/my_grades_screen.dart';
 import '../../../student_portal/presentation/screens/my_subjects_screen.dart';
+import '../../../../core/storage/uploaded_image.dart';
 
 final _currencyFormat = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
 
@@ -30,10 +31,10 @@ class ChildDetailScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              CircleAvatar(
+              UploadedImage.circle(
+                url: child.photoUrl,
                 radius: 32,
-                backgroundImage: child.photoUrl != null ? NetworkImage(child.photoUrl!) : null,
-                child: child.photoUrl == null ? const Icon(Icons.school_outlined, size: 32) : null,
+                fallback: const Icon(Icons.school_outlined, size: 32),
               ),
               const SizedBox(width: 16),
               Expanded(

@@ -829,6 +829,7 @@ class DemoStore {
       status: UserAccountStatus.active,
       mustChangePassword: false,
       qrCode: 'QR-DIR-0001',
+      phone: '+639171234501',
     ),
     const AppUser(
       uid: 'u_principal',
@@ -840,6 +841,7 @@ class DemoStore {
       status: UserAccountStatus.active,
       mustChangePassword: false,
       qrCode: 'QR-PRIN-0001',
+      phone: '+639171234502',
     ),
     const AppUser(
       uid: 'u_admin',
@@ -851,6 +853,7 @@ class DemoStore {
       status: UserAccountStatus.active,
       mustChangePassword: false,
       qrCode: 'QR-ADM-0001',
+      phone: '+639171234503',
     ),
     const AppUser(
       uid: 'u_registrar',
@@ -862,6 +865,7 @@ class DemoStore {
       status: UserAccountStatus.active,
       mustChangePassword: false,
       qrCode: 'QR-REG-0001',
+      phone: '+639171234504',
     ),
     const AppUser(
       uid: 'u_faculty',
@@ -873,6 +877,7 @@ class DemoStore {
       status: UserAccountStatus.active,
       mustChangePassword: false,
       qrCode: 'QR-FAC-0001',
+      phone: '+639171234505',
     ),
     const AppUser(
       uid: 'u_staff',
@@ -884,6 +889,7 @@ class DemoStore {
       status: UserAccountStatus.active,
       mustChangePassword: false,
       qrCode: 'QR-STF-0001',
+      phone: '+639171234508',
     ),
     const AppUser(
       uid: 'u_guidance',
@@ -895,6 +901,7 @@ class DemoStore {
       status: UserAccountStatus.active,
       mustChangePassword: false,
       qrCode: 'QR-GUI-0001',
+      phone: '+639171234509',
     ),
     const AppUser(
       uid: 'u_student',
@@ -906,6 +913,7 @@ class DemoStore {
       status: UserAccountStatus.active,
       mustChangePassword: false,
       qrCode: 'QR-STU-0001',
+      phone: '+639171234506',
     ),
     const AppUser(
       uid: 'u_parent',
@@ -917,6 +925,7 @@ class DemoStore {
       status: UserAccountStatus.active,
       mustChangePassword: false,
       qrCode: 'QR-PAR-0001',
+      phone: '+639171234507',
       linkedStudentIds: ['stu_001', 'stu_002'],
     ),
   ];

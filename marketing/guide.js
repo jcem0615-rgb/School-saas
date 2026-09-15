@@ -247,7 +247,7 @@ add(
   ], ['Control', 'Opens', 'What happens']),
   H2('3.2 Profile - on every portal\'s top bar'),
   featureTable([
-    ['Profile', 'Your own record', 'See your name, role and email; edit your phone number and photo. Role, status and school cannot be changed here by anyone, including you.'],
+    ['Profile', 'Your own record', 'See your name, role, email and the mobile number on file, and edit that number - it is what a password reset by phone matches you by. Role, status and school cannot be changed here by anyone, including you.'],
     ['My QR ID', 'Your school ID', 'The card that identifies you to a scanner. Printable, and usable straight from the screen.'],
     ['Privacy and my information', 'Privacy notice', 'What the school holds, why, and who sees it - plus the button to ask about your own information.'],
     ['My Attendance', 'Your attendance', 'Every time you were scanned, in and out.'],
@@ -356,11 +356,11 @@ add(
   P('What the school\'s printed output looks like. Everything here appears on ID cards, the Transcript of '
     + 'Records, Form 137 and the printed reports.'),
   featureTable([
-    ['Logo', 'Branding', 'Uploaded once; printed on documents and used as the background of the student ID card.'],
+    ['Logo', 'Branding', 'Uploaded, replaced or removed; printed on documents and used as the background of the student ID card.'],
     ['School name (as printed)', 'Branding', 'The name as it should appear on paper, which is not always the name in the system.'],
     ['Address line', 'Branding', 'Printed under the name.'],
     ['School year', 'Branding', 'Carried onto documents and used as the default when assessing fees.'],
-    ['Principal name and signature', 'Branding', 'An uploaded signature image, printed on IDs and documents.'],
+    ['Principal name and signature', 'Branding', 'An uploaded signature image, printed on IDs and documents. Removable, so the wrong one does not have to be lived with.'],
     ['Director name and signature', 'Branding', 'The same, for the school head.'],
     ['Save', 'Branding', 'Applies immediately - new ID cards and documents use it from that moment.'],
   ], ['Field', 'Where', 'What it affects']),

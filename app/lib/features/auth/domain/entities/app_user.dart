@@ -13,6 +13,17 @@ class AppUser {
   final String firstName;
   final String lastName;
   final String email;
+
+  /// The account's mobile number, or null when it has none.
+  ///
+  /// Carried because this is the field `resetPasswordByPhone` matches an
+  /// account by, and because Profile offers to edit it. It was written by
+  /// `provisionUser` and `registerStudent`, read by the recovery callable,
+  /// named in the rules -- and absent from this class, so Profile showed
+  /// every account "Not set" whatever was on file, and saving from that
+  /// state wrote the empty string over it.
+  final String? phone;
+
   final String? photoUrl;
   final UserAccountStatus status;
   final bool mustChangePassword;
@@ -44,6 +55,7 @@ class AppUser {
     required this.status,
     required this.mustChangePassword,
     required this.qrCode,
+    this.phone,
     this.photoUrl,
     this.linkedStudentIds,
     this.privacyNoticeVersion,
@@ -60,6 +72,7 @@ class AppUser {
     String? firstName,
     String? lastName,
     String? email,
+    String? phone,
     String? photoUrl,
     UserAccountStatus? status,
     bool? mustChangePassword,
@@ -75,6 +88,7 @@ class AppUser {
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       email: email ?? this.email,
+      phone: phone ?? this.phone,
       photoUrl: photoUrl ?? this.photoUrl,
       status: status ?? this.status,
       mustChangePassword: mustChangePassword ?? this.mustChangePassword,

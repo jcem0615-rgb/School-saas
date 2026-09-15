@@ -179,6 +179,29 @@ account to have written the document. That is not proof of who removed it,
 which is why the entry says as much in its remarks rather than presenting a
 name as a finding.
 
+### An upload could never be taken back
+
+School Branding had Upload and Replace and no Remove — for the logo and
+for both signatures. A school that put up the wrong file had it on every
+printed ID card, report card and TOR, with replacing it the only way out
+and no way back to none at all. The likeliest mistake on that screen is
+the wrong one of the two signature slots, which is exactly the case that
+wants undoing rather than overwriting.
+
+The reason there was no Remove is structural: every field on the branding
+chain is `String?` where **null already means "do not touch this one"**.
+That is what lets renaming the school leave the logo alone, so null could
+not also mean "clear it". The empty string says that instead, and no
+reader had to learn a new shape — the screens already treat an empty URL
+as nothing, and `UploadedImage` renders its fallback for one.
+
+Both uploads also used `Image.network`, which cannot fetch the `data:`
+URI an upload is in demo mode outside a browser — so the logo and the
+signatures were simply blank in the APK and the desktop build. That is
+the defect `UploadedImage` was written for in Module 13, applied then to
+the e-ID card and to nothing else. The same fix landed on the Profile and
+Parent Portal avatars in the same pass.
+
 ## Firestore collections added
 
 ```
@@ -195,6 +218,7 @@ a new collection.
 | Domain | `admin_usecases_test.dart` | employee/assignment field validation |
 | Rules | `admin-portal.rules.test.ts` | teacher assignment role gate, employeeInfo editable but status field protected |
 | Pure | `provisioning.test.ts` | who may create an account and for which role: the Admin creates every role including another Admin, the Owner creates only the first Director and Admin, a Registrar cannot promote itself, and `owner` is refused for its own reason |
+| Demo | `school_branding_test.dart` | a logo can be removed and not only replaced, clearing one signature leaves the other, renaming the school still leaves the logo alone, and the uploads render through `UploadedImage` rather than `Image.network` |
 | Emulator | `auditTrail.test.ts` | the trigger names the actor on a create, an edit and a hard delete; keeps both sides of an edit; records that a conversation changed without recording what was said, and says it withheld it; still copies an ordinary record in full; says nothing about its own writes |
 | Rules | `oversight-roles.rules.test.ts` | the trail is read whole by the Director and the Admin, only own-actions by a Principal, not at all by the Owner, and written by nobody from a client |
 

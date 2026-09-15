@@ -63,6 +63,44 @@ class UploadedImage extends StatelessWidget {
     );
   }
 
+  /// A round one, for the avatars.
+  ///
+  /// `CircleAvatar` takes an `ImageProvider`, and every caller reached for
+  /// `NetworkImage` -- which is the exact bug this class exists to fix. On
+  /// the web `Image.network` becomes an `<img src>` and the browser
+  /// decodes a `data:` URI itself; on Android, iOS and Windows it goes
+  /// through an HTTP client that cannot fetch one at all. So the photos
+  /// looked right in the browser and were simply missing on a phone, which
+  /// is the build a parent actually uses.
+  static Widget circle({
+    required String? url,
+    required double radius,
+    required Widget fallback,
+  }) {
+    if (url == null || url.isEmpty) {
+      return CircleAvatar(radius: radius, child: fallback);
+    }
+    return CircleAvatar(
+      radius: radius,
+      // Behind the image, and what shows when there is nothing to show.
+      child: ClipOval(
+        child: SizedBox(
+          width: radius * 2,
+          height: radius * 2,
+          child: UploadedImage(
+            url: url,
+            width: radius * 2,
+            height: radius * 2,
+            // cover, not contain: a portrait cropped to a circle should
+            // fill it rather than sit in a letterboxed square.
+            fit: BoxFit.cover,
+            fallback: fallback,
+          ),
+        ),
+      ),
+    );
+  }
+
   /// `data:<mime>;base64,<payload>` -- the only form anything in this app
   /// produces. A percent-encoded one is not guessed at.
   static Uint8List? _decode(String url) {

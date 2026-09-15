@@ -1,5 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
+import '../../../../core/storage/uploaded_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/result.dart';
@@ -83,6 +85,68 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
     }
   }
 
+  /// Clearing, as distinct from leaving alone.
+  ///
+  /// Every field on this chain is `String?` where null already means "do
+  /// not touch this one" -- that is what lets renaming the school leave
+  /// the logo alone. So null cannot also mean "clear it", and the empty
+  /// string is what says so. The screens already read an empty URL as
+  /// nothing (`UploadedImage` renders its fallback for one), so no reader
+  /// needs to learn a new shape.
+  static const _cleared = '';
+
+  Future<void> _confirmRemove({
+    required String what,
+    required Future<void> Function() remove,
+  }) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Remove the $what?'),
+        content: const Text(
+          'It will stop appearing on printed ID cards, report cards and '
+          'documents. You can upload another at any time.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await remove();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('The $what was removed.')));
+  }
+
+  Future<void> _removeLogo() => _confirmRemove(
+        what: 'logo',
+        remove: () => ref.read(adminActionControllerProvider.notifier).updateBranding(
+              logoUrl: _cleared,
+              logoFileName: _cleared,
+            ),
+      );
+
+  Future<void> _removeSignature({required bool principal}) => _confirmRemove(
+        what: principal ? "principal's signature" : "director's signature",
+        remove: () => ref.read(adminActionControllerProvider.notifier).updateBranding(
+              principalSignatureUrl: principal ? _cleared : null,
+              directorSignatureUrl: principal ? null : _cleared,
+            ),
+      );
+
   Future<void> _uploadLogo() => _pickAndUpload(
         folder: UploadFolder.branding,
         save: (file) => ref.read(adminActionControllerProvider.notifier).updateBranding(
@@ -135,28 +199,52 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
                 Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 160),
-                    child: Image.network(
-                      branding.logoUrl!,
-                      errorBuilder: (_, __, ___) => const Text('Logo could not be loaded.'),
+                    // Not Image.network: an upload is a Storage URL in a
+                    // real deployment and a data: URI in demo mode, and
+                    // Image.network cannot fetch the second one outside a
+                    // browser. See UploadedImage.
+                    child: UploadedImage(
+                      url: branding.logoUrl!,
+                      height: 160,
+                      fallback: const Text('Logo could not be loaded.'),
                     ),
                   ),
                 )
               else
                 Text('No logo uploaded yet.', style: theme.textTheme.bodySmall),
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _uploading ? null : _uploadLogo,
-                icon: _uploading
-                    ? const SizedBox(
-                        height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.image_outlined),
-                label: Text(
-                  _uploading
-                      ? 'Uploading…'
-                      : branding.hasLogo
-                          ? 'Replace logo'
-                          : 'Upload logo',
-                ),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _uploading ? null : _uploadLogo,
+                    icon: _uploading
+                        ? const SizedBox(
+                            height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.image_outlined),
+                    label: Text(
+                      _uploading
+                          ? 'Uploading…'
+                          : branding.hasLogo
+                              ? 'Replace logo'
+                              : 'Upload logo',
+                    ),
+                  ),
+                  // A school could upload but never remove. Getting the
+                  // wrong file up there -- last year's logo, the wrong
+                  // school's -- meant it stayed on every printed ID and
+                  // every report card, with replacing it the only way out
+                  // and no way back to none at all.
+                  if (branding.hasLogo)
+                    TextButton.icon(
+                      onPressed: _uploading ? null : _removeLogo,
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      style: TextButton.styleFrom(
+                          foregroundColor: theme.colorScheme.error),
+                      label: const Text('Remove'),
+                    ),
+                ],
               ),
               const Divider(height: 32),
               Text('School details', style: theme.textTheme.titleMedium),
@@ -199,6 +287,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
                 url: branding.principalSignatureUrl,
                 busy: _uploading,
                 onUpload: () => _uploadSignature(principal: true),
+                onRemove: () => _removeSignature(principal: true),
               ),
               const SizedBox(height: 20),
               TextField(
@@ -212,6 +301,7 @@ class _BrandingScreenState extends ConsumerState<BrandingScreen> {
                 url: branding.directorSignatureUrl,
                 busy: _uploading,
                 onUpload: () => _uploadSignature(principal: false),
+                onRemove: () => _removeSignature(principal: false),
               ),
               const SizedBox(height: 8),
               Text(
@@ -255,12 +345,14 @@ class _SignatureField extends StatelessWidget {
   final String? url;
   final bool busy;
   final VoidCallback onUpload;
+  final VoidCallback onRemove;
 
   const _SignatureField({
     required this.label,
     required this.url,
     required this.busy,
     required this.onUpload,
+    required this.onRemove,
   });
 
   @override
@@ -284,10 +376,10 @@ class _SignatureField extends StatelessWidget {
           ),
           padding: const EdgeInsets.all(4),
           child: has
-              ? Image.network(
-                  url!,
+              ? UploadedImage(
+                  url: url!,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
+                  fallback:
                       const Center(child: Icon(Icons.broken_image_outlined, size: 18)),
                 )
               : Center(
@@ -304,10 +396,27 @@ class _SignatureField extends StatelessWidget {
             children: [
               Text(label, style: theme.textTheme.bodyMedium),
               const SizedBox(height: 4),
-              OutlinedButton.icon(
-                onPressed: busy ? null : onUpload,
-                icon: const Icon(Icons.draw_outlined, size: 18),
-                label: Text(has ? 'Replace' : 'Upload'),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : onUpload,
+                    icon: const Icon(Icons.draw_outlined, size: 18),
+                    label: Text(has ? 'Replace' : 'Upload'),
+                  ),
+                  // A signature is the one upload most likely to be
+                  // wrong: the previous principal's, or the wrong one of
+                  // the two. It prints above a name on every report card.
+                  if (has)
+                    TextButton.icon(
+                      onPressed: busy ? null : onRemove,
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      style: TextButton.styleFrom(
+                          foregroundColor: theme.colorScheme.error),
+                      label: const Text('Remove'),
+                    ),
+                ],
               ),
             ],
           ),

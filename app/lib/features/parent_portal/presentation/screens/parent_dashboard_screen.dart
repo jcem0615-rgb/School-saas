@@ -10,6 +10,7 @@ import '../../../emergency/presentation/screens/parent_alerts_screen.dart';
 import '../../../registrar_portal/domain/entities/student_summary.dart';
 import '../controllers/parent_controller.dart';
 import 'child_detail_screen.dart';
+import '../../../../core/storage/uploaded_image.dart';
 
 class ParentDashboardScreen extends ConsumerWidget {
   const ParentDashboardScreen({super.key});
@@ -108,9 +109,14 @@ class ParentDashboardScreen extends ConsumerWidget {
                   side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                 ),
                 child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: child.photoUrl != null ? NetworkImage(child.photoUrl!) : null,
-                    child: child.photoUrl == null ? const Icon(Icons.school_outlined) : null,
+                  // Not NetworkImage: outside a browser it cannot fetch
+                  // the data: URI an upload is in demo mode, so every
+                  // child's photo was blank on a phone -- which is the
+                  // build a parent actually opens.
+                  leading: UploadedImage.circle(
+                    url: child.photoUrl,
+                    radius: 20,
+                    fallback: const Icon(Icons.school_outlined),
                   ),
                   title: Text(child.fullName),
                   subtitle: Text('${child.studentNumber} · ${child.classLabel}'),

@@ -7,6 +7,8 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../controllers/profile_controller.dart';
 import '../../../../core/install/install_app_button.dart';
+import '../../../../core/storage/uploaded_image.dart';
+import '../../../../core/utils/validators.dart';
 
 /// Every role's Profile screen (General Requirement). Shows identity
 /// fields as read-only (name, role, email -- these are staff/admin-
@@ -22,6 +24,18 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _phoneController = TextEditingController();
+
+  /// What the account had when this screen opened, so Cancel can put it
+  /// back and Save can tell a deliberate clear from an untouched field.
+  String _savedPhone = '';
+
+  /// Set once the signed-in user has been read. The controller cannot be
+  /// filled in `initState` -- the user is a provider, not a constructor
+  /// argument -- and refilling it on every build would fight the person
+  /// typing into it.
+  bool _phoneLoaded = false;
+
+  String? _phoneError;
   bool _editing = false;
   /// Null until we have asked the registrar. Rendering the switch off
   /// before that would show every returning user a lie for a frame.
@@ -126,19 +140,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _save() async {
-    final success =
-        await ref.read(profileActionControllerProvider.notifier).updateProfile(phone: _phoneController.text);
+    final typed = _phoneController.text.trim();
+
+    // The same check provisioning and the employee import already run,
+    // on the one screen where a person edits their own number. A number
+    // `resetPasswordByPhone` cannot match recovers nothing, and the
+    // account finds that out on the day it cannot sign in.
+    final error = Validators.optionalPhilippineMobile(typed);
+    if (error != null) {
+      setState(() => _phoneError = error);
+      return;
+    }
+
+    // Clearing it is allowed -- somebody changing numbers has to be able
+    // to -- but it is a real loss and is said out loud rather than
+    // reported as "Profile updated."
+    final clearing = typed.isEmpty && _savedPhone.isNotEmpty;
+
+    final success = await ref
+        .read(profileActionControllerProvider.notifier)
+        .updateProfile(phone: typed);
     if (!mounted) return;
-    setState(() => _editing = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(success ? 'Profile updated.' : 'Failed to update profile.')),
-    );
+
+    setState(() {
+      _phoneError = null;
+      _editing = false;
+      if (success) {
+        _savedPhone = typed;
+      } else {
+        // The write did not land, so the screen must not go on showing
+        // the new number as though it had.
+        _phoneController.text = _savedPhone;
+      }
+    });
+
+    final message = !success
+        ? 'Could not save. Your number is unchanged.'
+        : clearing
+            ? 'Phone number removed. You can no longer reset your password by phone.'
+            : 'Profile updated.';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).valueOrNull;
     if (user == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
+    // The number on file, put into the field the first time we have it.
+    //
+    // It was never put there at all: `AppUser` carried no `phone`, so the
+    // row read "Not set" for every account whatever the school had
+    // collected -- and tapping Edit then Save sent the empty string,
+    // which the datasource writes, wiping the number `resetPasswordByPhone`
+    // matches. The most natural thing to do when a field says "Not set"
+    // destroyed the account's phone recovery.
+    if (!_phoneLoaded) {
+      _phoneLoaded = true;
+      _savedPhone = user.phone ?? '';
+      _phoneController.text = _savedPhone;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -155,10 +218,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Center(
-            child: CircleAvatar(
+            child: UploadedImage.circle(
+              url: user.photoUrl,
               radius: 40,
-              backgroundImage: user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
-              child: user.photoUrl == null ? const Icon(Icons.person, size: 40) : null,
+              fallback: const Icon(Icons.person, size: 40),
             ),
           ),
           const SizedBox(height: 12),
@@ -171,17 +234,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Phone'),
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Phone',
+                errorText: _phoneError,
+                // Said here rather than discovered later. This number is
+                // how the account is recovered when the password is gone.
+                helperText: 'Used to reset your password and to reach you.',
+                hintText: '09171234567',
+              ),
+              onChanged: (_) {
+                if (_phoneError != null) setState(() => _phoneError = null);
+              },
             )
           else
-            _InfoTile(label: 'Phone', value: _phoneController.text.isEmpty ? 'Not set' : _phoneController.text),
+            _InfoTile(
+              label: 'Phone',
+              value: _savedPhone.isEmpty ? 'Not set' : _savedPhone,
+            ),
           const SizedBox(height: 16),
           if (_editing)
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => setState(() => _editing = false),
+                    // Puts back what was on file. Leaving whatever was
+                    // half-typed in the box would make the next Save
+                    // write it.
+                    onPressed: () => setState(() {
+                      _phoneController.text = _savedPhone;
+                      _phoneError = null;
+                      _editing = false;
+                    }),
                     child: const Text('Cancel'),
                   ),
                 ),
@@ -213,12 +297,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             subtitle: const Text('What the school holds, and how to ask about it'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/privacy'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.history),
-            title: const Text('My Activity History'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/my-activity'),
           ),
           ListTile(
             leading: const Icon(Icons.fact_check_outlined),

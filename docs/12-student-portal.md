@@ -19,6 +19,60 @@ from `authStateProvider` and edits only the fields the Module 4 self-edit
 rule actually permits (`phone`, `photoUrl`). Every future portal just
 links to `/profile`, the same way every portal already links to `/qr-id`.
 
+### The phone number, and how Profile was destroying it
+
+The self-edit rule permits `phone` and `photoUrl`, and Profile offered a
+Phone row from the start. It never worked, and the way it failed was
+worse than not having it.
+
+`AppUser` had no `phone` field. It was written by `provisionUser` and
+`registerStudent`, read by `resetPasswordByPhone`, named in
+`firestore.rules` — and absent from the client entity. So:
+
+* The row read **"Not set"** for every account in the school, whatever
+  number had been collected at enrolment.
+* `_phoneController` was never seeded, so tapping Edit put an empty box
+  in front of somebody.
+* `_save()` sent `_phoneController.text` — the empty string — and the
+  datasource writes any non-null value. **The number was wiped.**
+
+That is `resetPasswordByPhone`'s only way to match an account, so the
+most natural thing to do on a row that says "Not set" silently destroyed
+the account's phone recovery. Nothing caught it because
+`DemoProfileRepository.updateProfile` took the `phone` argument, returned
+Success and wrote nothing at all — the demo could not reproduce a bug it
+did not implement the behaviour for.
+
+Fixed end to end: `phone` on the entity and the model, the controller
+seeded once the user is known, Cancel restoring what was on file,
+`Validators.optionalPhilippineMobile` on save (the same check provisioning
+and the employee import already ran), and the demo writing what the real
+datasource writes. Clearing is still allowed — somebody changing numbers
+has to be able to — but it says what it costs rather than reporting
+"Profile updated."
+
+### A tile pointing at a screen that no longer exists
+
+Profile's "My Activity History" row pushed `'/my-activity'` as a bare
+string. The audit-trail screens were removed in Module 9, the route with
+them, and the sweep for that removal looked for `AppRoutes.myActivity`
+and `MyActivityScreen` — not the string literal. Every role's Profile
+kept a row that landed on the router's error page. Removed, and
+`profile_test.dart` now asserts it is gone.
+
+### Photos are read but cannot be set
+
+`updateProfile(photoUrl:)` is plumbed through the controller, the use
+case, the repository and the datasource, and **no screen passes it**. The
+avatar renders `user.photoUrl` and nothing can put one there.
+
+It is left plumbed rather than deleted because the gap is not in this
+layer: there is no `UploadFolder` for a user's own photo and
+`storage.rules` says in as many words that "only the owning user can
+write their own profile photo" is a *future* state. Self-service avatars
+are a feature — a storage path, a rule, and the tests for it — not a fix
+to this screen.
+
 ## Resolving "my student record"
 
 A signed-in Student's `uid` (Firebase Auth) is not the same ID as their
@@ -65,6 +119,7 @@ here is at the rules layer instead:
 | Layer | File | Covers |
 |---|---|---|
 | Rules | `student-portal.rules.test.ts` | grade self-access via linked record, promissory note filing, self-decision block |
+| Demo | `profile_test.dart` | the number on file is shown rather than reported missing; Edit-then-Save leaves it alone; an unusable number is refused and nothing is written; a real one saves; clearing is allowed and says what it costs; Cancel puts back what was on file; no tile points at a removed route |
 
 ## Deferred to later modules
 

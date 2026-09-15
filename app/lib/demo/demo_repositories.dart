@@ -3661,7 +3661,20 @@ class DemoProfileRepository implements ProfileRepository {
     await _latency();
     final user = _store.currentUser.valueOrNull;
     if (user == null) return const Error(AuthFailure('no-current-user', 'Not signed in.'));
-    if (photoUrl != null) _store.currentUser.add(user.copyWith(photoUrl: photoUrl));
+
+    // `phone` was dropped on the floor here: the demo took the argument,
+    // returned Success and wrote nothing. So editing a number in front of
+    // a prospect appeared to work and did not -- and, worse, it meant the
+    // real datasource's behaviour was never exercised by any test. The
+    // real one writes whatever it is given, empty string included, which
+    // is how Profile was wiping numbers.
+    //
+    // Null still means "leave it alone", matching the datasource's
+    // `if (phone != null)`. An empty string is a deliberate clear.
+    _store.currentUser.add(user.copyWith(
+      phone: phone ?? user.phone,
+      photoUrl: photoUrl ?? user.photoUrl,
+    ));
     return const Success(null);
   }
 }
