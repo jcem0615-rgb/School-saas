@@ -14,18 +14,37 @@ import 'install_prompt_factory.dart';
 /// is static, so nothing would otherwise rebuild this to notice. Reading
 /// on build alone left a button that was correct and never on screen.
 class InstallAppButton extends StatefulWidget {
-  /// Set on a dark ground (the sign-in screen) so the text stays legible
-  /// against it rather than taking the light theme's foreground.
-  final bool onDarkSurface;
+  /// Takes its colours from the theme, and used to take a
+  /// `onDarkSurface` flag from the caller instead.
+  ///
+  /// The sign-in screen passed it, which pinned the text to white -- and
+  /// the app has two themes. In the dark one that is white on deep blue
+  /// and reads at 15.7:1. In the light one the sign-in pane is white
+  /// glass over a pale sky, so it was **white on white, at 1.02:1**: the
+  /// button rendered, occupied space, and could not be seen. A device in
+  /// light mode is the common case.
+  ///
+  /// There is no flag now. A caller cannot be asked to know what the
+  /// theme already knows.
+  const InstallAppButton({super.key, this.debugPrompt});
 
-  const InstallAppButton({super.key, this.onDarkSurface = false});
+  /// Stands in for the browser, so a test can render the branches that
+  /// only exist in one.
+  ///
+  /// On the VM the real prompt always offers nothing, so both visible
+  /// branches -- the button and the iOS instructions line -- are
+  /// unreachable from a widget test without this. That is how the
+  /// white-on-white went unnoticed: the only thing a test could see was
+  /// an empty box.
+  @visibleForTesting
+  final InstallPrompt? debugPrompt;
 
   @override
   State<InstallAppButton> createState() => _InstallAppButtonState();
 }
 
 class _InstallAppButtonState extends State<InstallAppButton> {
-  final _prompt = createInstallPrompt();
+  late final InstallPrompt _prompt;
   late final void Function() _stopListening;
   bool _busy = false;
   bool _done = false;
@@ -33,6 +52,7 @@ class _InstallAppButtonState extends State<InstallAppButton> {
   @override
   void initState() {
     super.initState();
+    _prompt = widget.debugPrompt ?? createInstallPrompt();
     _stopListening = _prompt.listen(() {
       // The event can land while this screen is going away -- a sign-in
       // that succeeded a moment earlier takes the route with it.
@@ -51,7 +71,12 @@ class _InstallAppButtonState extends State<InstallAppButton> {
     if (_done) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
-    final tint = widget.onDarkSurface ? Colors.white : theme.colorScheme.onSurface;
+    // An action, so it takes the scheme's action colour. Measured against
+    // the sign-in pane it reads at 6.3:1 in light and 9.3:1 in dark --
+    // see install_contrast_test.dart, which pins both.
+    final action = theme.colorScheme.primary;
+    // Secondary text, so the quieter one. 4.6:1 and 5.9:1 at this alpha.
+    final quiet = theme.colorScheme.onSurfaceVariant;
 
     return switch (_prompt.offer) {
       InstallOffer.none => const SizedBox.shrink(),
@@ -60,15 +85,14 @@ class _InstallAppButtonState extends State<InstallAppButton> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.ios_share, size: 16, color: tint.withValues(alpha: .75)),
+              Icon(Icons.ios_share, size: 16, color: quiet),
               const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   // No button, because Safari gives nothing to press.
                   // Saying where the real one is beats a fake one.
                   'To install: tap Share, then Add to Home Screen.',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: tint.withValues(alpha: .75)),
+                  style: theme.textTheme.bodySmall?.copyWith(color: quiet),
                 ),
               ),
             ],
@@ -78,7 +102,7 @@ class _InstallAppButtonState extends State<InstallAppButton> {
           padding: const EdgeInsets.only(top: 12),
           child: TextButton.icon(
             onPressed: _busy ? null : _install,
-            style: TextButton.styleFrom(foregroundColor: tint),
+            style: TextButton.styleFrom(foregroundColor: action),
             icon: const Icon(Icons.install_mobile, size: 18),
             label: const Text('Install the app'),
           ),

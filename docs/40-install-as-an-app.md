@@ -93,6 +93,30 @@ The eviction block in `index.html` is scoped to `flutter_service_worker.js`
 by script URL and its cache sweep skips `logicclass-offline-*`, so it
 clears the old worker without switching the new one off.
 
+## It also has to be visible
+
+The button took an `onDarkSurface` flag, and the sign-in screen passed
+it, which pinned the foreground to white. That was written and checked
+against the dark theme.
+
+The app ships both themes and sets no `themeMode`, so the device decides.
+In the dark theme the sign-in pane is a film of light over deep blue and
+white reads at 15.7:1. In the light theme the pane is white glass over a
+pale sky — so it was **white on white, at 1.02:1**. The button rendered,
+took up space, and could not be seen; a device in light mode is the
+common case, so this is what most people got.
+
+The flag is gone. A caller cannot be asked to know what the theme already
+knows: the label takes `colorScheme.primary` (6.3:1 light, 9.3:1 dark
+against that pane) and the iOS instructions line takes
+`onSurfaceVariant` (4.6:1 and 5.9:1). `install_contrast_test.dart`
+computes those ratios from the real themes and holds both to WCAG AA,
+including the light-theme white case as the regression it was.
+
+Two bugs in the same button, and they rhyme: the first made it unable to
+render, the second made it render invisibly. Both were "correct on the
+machine it was written on".
+
 ## Telling Dart when the offer arrives
 
 `beforeinstallprompt` lands well after first paint, and the sign-in

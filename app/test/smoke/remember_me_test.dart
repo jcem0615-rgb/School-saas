@@ -114,14 +114,4 @@ void main() {
     expect(find.byType(InstallAppButton), findsOneWidget);
   });
 
-  testWidgets('and it is styled for the dark card it sits on', (tester) async {
-    // White on the sign-in screen's glass, not the light theme's
-    // foreground -- which on this ground is the button being technically
-    // present and unreadable.
-    await _pump(tester);
-    expect(
-      tester.widget<InstallAppButton>(find.byType(InstallAppButton)).onDarkSurface,
-      isTrue,
-    );
-  });
 }

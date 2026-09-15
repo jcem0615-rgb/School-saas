@@ -202,7 +202,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     // opening the link actually lands on, and installing
                     // before signing in means the session they are about
                     // to start is the one in the installed app.
-                    const InstallAppButton(onDarkSurface: true),
+                    const InstallAppButton(),
                     const SizedBox(height: 24),
                     const PoweredByLogicGrid(),
                   ],
