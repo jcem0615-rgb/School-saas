@@ -24,6 +24,10 @@ abstract class ClassSessionRepository {
   Future<Result<String>> openSession(String scheduleBlockId);
 
   /// Time Out.
+  /// Takes today's lesson online, or brings it back in person. Returns
+  /// the room to join, or null once it is back in person.
+  Future<Result<String?>> setMode({required String sessionId, required bool online});
+
   Future<Result<void>> closeSession(String sessionId);
 
   Future<Result<void>> mark({

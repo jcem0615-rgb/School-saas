@@ -4192,6 +4192,47 @@ class DemoClassSessionRepository implements ClassSessionRepository {
   }
 
   @override
+  Future<Result<String?>> setMode({
+    required String sessionId,
+    required bool online,
+  }) async {
+    await _latency(250);
+    final session =
+        _store.classSessions.value.where((s) => s.id == sessionId).firstOrNull;
+    if (session == null) {
+      return const Error(ServerFailure('That class has not been started yet.'));
+    }
+    if (!session.isOpen) {
+      return const Error(ServerFailure(
+        'That class has already finished. Start it again to take it online.',
+      ));
+    }
+
+    // A fresh room every time, exactly as the server does it -- a room
+    // reused across lessons is a door last term's leaver still has a key
+    // to. Random here too, so the demo cannot teach anybody that a room
+    // name is something you can work out.
+    final room = online ? 'lc-${_store.nextId('room')}${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}' : null;
+
+    _store.update<ClassSession>(
+      _store.classSessions,
+      (s) => s.id == sessionId,
+      (s) => _copySession(s, meetingRoom: room, keepRoom: false),
+    );
+    // Onto every student's own line, because that is the document a
+    // student can read -- classSessions is staff-only.
+    _store.subjectAttendance.add([
+      for (final mark in _store.subjectAttendance.value)
+        if (mark.sessionId == sessionId)
+          _copyMark(mark, meetingRoom: room, keepRoom: false)
+        else
+          mark,
+    ]);
+
+    return Success(room);
+  }
+
+  @override
   Future<Result<void>> closeSession(String sessionId) async {
     await _latency(250);
     final session =
@@ -4204,12 +4245,21 @@ class DemoClassSessionRepository implements ClassSessionRepository {
     final closedAt = DateTime.now();
     // The students who were in the room get a time out. An absent
     // student gets none, because they had no time in.
+    //
+    // Every mark loses the room though, present or not: Time Out shuts
+    // the video room as well as the register, and a child who was absent
+    // must not be left holding the way into a lesson that has ended.
     _store.subjectAttendance.add([
       for (final mark in _store.subjectAttendance.value)
-        if (mark.sessionId == sessionId && mark.wasThere)
-          _copyMark(mark, timeOut: closedAt)
+        if (mark.sessionId != sessionId)
+          mark
         else
-          mark,
+          _copyMark(
+            mark,
+            timeOut: mark.wasThere ? closedAt : null,
+            meetingRoom: null,
+            keepRoom: false,
+          ),
     ]);
 
     final marks = _store.subjectAttendance.value
@@ -4218,7 +4268,17 @@ class DemoClassSessionRepository implements ClassSessionRepository {
     _store.update<ClassSession>(
       _store.classSessions,
       (s) => s.id == sessionId,
-      (s) => _copySession(s, closedAt: closedAt, counts: RollCounts.of(marks)),
+      // keepRoom: false, so Time Out shuts the video room as well as the
+      // register -- the same write closeClassSession.ts makes. Without
+      // it the demo told a different story from the product about the
+      // one thing here that is a safeguarding question.
+      (s) => _copySession(
+        s,
+        closedAt: closedAt,
+        counts: RollCounts.of(marks),
+        meetingRoom: null,
+        keepRoom: false,
+      ),
     );
 
     return const Success(null);
@@ -4284,9 +4344,15 @@ class DemoClassSessionRepository implements ClassSessionRepository {
     return const Success(null);
   }
 
+  /// [meetingRoom] is passed through as given, not `?? old`: closing a
+  /// class has to be able to set it back to null, and a fallback would
+  /// mean the room survived Time Out -- which is the door this feature
+  /// must be able to shut.
   static SubjectAttendanceMark _copyMark(
     SubjectAttendanceMark mark, {
     DateTime? timeOut,
+    String? meetingRoom,
+    bool keepRoom = true,
   }) =>
       SubjectAttendanceMark(
         id: mark.id,
@@ -4299,12 +4365,15 @@ class DemoClassSessionRepository implements ClassSessionRepository {
         status: mark.status,
         timeIn: mark.timeIn,
         timeOut: timeOut ?? mark.timeOut,
+        meetingRoom: keepRoom ? (meetingRoom ?? mark.meetingRoom) : meetingRoom,
       );
 
   static ClassSession _copySession(
     ClassSession session, {
     DateTime? closedAt,
     RollCounts? counts,
+    String? meetingRoom,
+    bool keepRoom = true,
   }) =>
       ClassSession(
         id: session.id,
@@ -4320,6 +4389,8 @@ class DemoClassSessionRepository implements ClassSessionRepository {
         studentCount: session.studentCount,
         closedAt: closedAt ?? session.closedAt,
         counts: counts ?? session.counts,
+        meetingRoom:
+            keepRoom ? (meetingRoom ?? session.meetingRoom) : meetingRoom,
       );
 }
 

@@ -58,6 +58,20 @@ class ClassSessionRepositoryImpl implements ClassSessionRepository {
   }
 
   @override
+  Future<Result<String?>> setMode({
+    required String sessionId,
+    required bool online,
+  }) async {
+    try {
+      return Success(await _remote.setMode(sessionId: sessionId, online: online));
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
   Future<Result<void>> closeSession(String sessionId) =>
       _run(() => _remote.closeSession(sessionId));
 

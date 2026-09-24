@@ -10,6 +10,7 @@ import '../../../emergency/presentation/screens/sos_screen.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
 import '../../../qr_attendance/presentation/screens/attendance_history_screen.dart';
 import '../../../schedules/presentation/screens/my_timetable_screen.dart';
+import '../../../class_sessions/presentation/widgets/live_online_class_banner.dart';
 import '../controllers/student_controller.dart';
 import 'coursework_feed_screen.dart';
 import 'my_grades_screen.dart';
@@ -64,6 +65,9 @@ class StudentDashboardScreen extends ConsumerWidget {
               Text(student.fullName, style: Theme.of(context).textTheme.headlineSmall),
               Text('${student.studentNumber} · ${student.classLabel}'),
               const SizedBox(height: 8),
+              // Above the balance, because a lesson happening right now
+              // is the only thing on this screen with a deadline.
+              LiveOnlineClassBanner(studentId: student.id),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(

@@ -76,6 +76,19 @@ class ClassSession {
   final DateTime openedAt;
   final DateTime? closedAt;
 
+  /// The room a video class is being held in, or null when the lesson is
+  /// happening in an actual room.
+  ///
+  /// Set by the teacher during the lesson rather than by the timetable,
+  /// because the reasons are same-day ones -- a typhoon, a suspension of
+  /// classes, a teacher isolating -- and a school that has to edit its
+  /// timetable at 6am to hold a lesson will not hold the lesson.
+  ///
+  /// The name is the whole of the security: anyone holding it is in the
+  /// room. It is generated per session, never reused, cleared when the
+  /// class comes back in person and cleared again at Time Out.
+  final String? meetingRoom;
+
   /// How many were on the roll when it was built.
   final int studentCount;
 
@@ -95,11 +108,18 @@ class ClassSession {
     required this.openedAt,
     required this.studentCount,
     this.room,
+    this.meetingRoom,
     this.closedAt,
     this.counts,
   });
 
   bool get isOpen => closedAt == null;
+
+  /// Being held online right now.
+  ///
+  /// Both halves: a room on a class that has finished is a door left
+  /// open, and this is what every screen asks before offering a way in.
+  bool get isOnlineNow => isOpen && (meetingRoom?.isNotEmpty ?? false);
 
   /// Whole minutes, or null while it is still running.
   ///
@@ -136,6 +156,17 @@ class SubjectAttendanceMark {
   /// absent student has no time out because they had no time in.
   final DateTime? timeOut;
 
+  /// The video room this lesson is being held in, copied onto the mark
+  /// when the teacher takes the class online.
+  ///
+  /// Here rather than only on the session because `classSessions` is
+  /// staff-only in firestore.rules -- deliberately, since the session
+  /// document is the whole register and a student has no business
+  /// reading how the rest of the class came out. This mark is the one
+  /// document in the register that is the student's own, so it is where
+  /// the way into the lesson can live without widening a single rule.
+  final String? meetingRoom;
+
   const SubjectAttendanceMark({
     required this.id,
     required this.sessionId,
@@ -147,7 +178,11 @@ class SubjectAttendanceMark {
     required this.status,
     this.timeIn,
     this.timeOut,
+    this.meetingRoom,
   });
+
+  /// There is a live room to join.
+  bool get hasOnlineClass => meetingRoom?.isNotEmpty ?? false;
 
   bool get wasThere =>
       status == AttendanceStatus.present || status == AttendanceStatus.late;

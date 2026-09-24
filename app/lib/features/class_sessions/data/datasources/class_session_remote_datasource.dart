@@ -106,6 +106,26 @@ class ClassSessionRemoteDataSource {
     }
   }
 
+  /// Takes today's lesson online, or brings it back into the room.
+  ///
+  /// Returns the room to join, or null when the class has come back in
+  /// person. The room is never invented here: the server generates it,
+  /// because a client-chosen room name is one a compromised client can
+  /// choose to be somebody else's.
+  Future<String?> setMode({required String sessionId, required bool online}) async {
+    try {
+      final result =
+          await _functions.httpsCallable('setClassSessionMode').call<Map<String, dynamic>>({
+        'schoolId': _schoolId,
+        'sessionId': sessionId,
+        'mode': online ? 'online' : 'in_person',
+      });
+      return result.data['meetingRoom'] as String?;
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'The class could not be moved online.');
+    }
+  }
+
   Future<void> closeSession(String sessionId) async {
     try {
       await _functions.httpsCallable('closeClassSession').call<Map<String, dynamic>>({

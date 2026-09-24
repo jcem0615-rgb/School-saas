@@ -222,7 +222,7 @@ add(
     ['Principal', 'One division, oversight only', 'Reads student records, the class schedule, teacher assignments and the leave queue for their division; decides approvals, posts announcements, calls meetings, picks up an emergency alert. No edit buttons on the records themselves.'],
     ['Admin', 'School operations - the operator', 'Employee accounts, teacher assignment, strands and programs, branding, schedules, fee schedules, receipt booklets, expenses, payroll, inventory, reports, attendance scanning, leave requests and staff timesheets. Everything the school changes week to week.'],
     ['Registrar / Cashier', 'The front counter', 'Enrolment, student records, fee assessment, payments and receipts, printed forms, online-payment review and setup.'],
-    ['Faculty', 'Teaching', 'Own timetable, class registers with time in and out, coursework, answer keys, submissions, grade submission, material requests, attendance scanning, messages with parents, own leave and timesheet.'],
+    ['Faculty', 'Teaching', 'Own timetable, class registers with time in and out, holding a lesson online, coursework, answer keys, submissions, grade submission, material requests, attendance scanning, messages with parents, own leave and timesheet.'],
     ['Guidance', 'Student welfare', 'Guidance records, student summons, emergency alerts.'],
     ['Staff', 'Non-teaching staff', 'Daily checklist, daily work reports, material requests, own scannable ID, own leave and timesheet.'],
     ['Student', 'The learner', 'Subjects, timetable, coursework, grades, attendance, balance, promissory note, emergency button, announcements, QR ID.'],
@@ -566,7 +566,8 @@ add(
     ['Class Attendance', 'My classes today', 'The teacher\'s day, in order, with each class either not started, in progress or finished.'],
     ['Time in', 'The register', 'Starts the class. Everybody in the section appears, marked present.'],
     ['P / L / A / E', 'The register', 'Present, late, absent, excused - one tap per exception. Three absences is three taps, not forty.'],
-    ['Time out', 'The register', 'Ends the class. The finish time is recorded against everyone who was there.'],
+    ['Take online', 'The register', 'Holds today\'s lesson as a video class inside LogicClass. Everybody on the register gets a Join button; nobody else can reach it. One tap, no links to send, no meeting to schedule.'],
+    ['Time out', 'The register', 'Ends the class. The finish time is recorded against everyone who was there - and closes the video room, so the lesson cannot outlive the teacher.'],
     ['Subject Attendance', 'Student and Parent', 'The same records from the family\'s side, grouped by subject with a rate for each - worst subject first.'],
   ], ['Control', 'Where', 'What it does']),
   bullets([

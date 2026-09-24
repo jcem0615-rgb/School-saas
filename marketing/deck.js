@@ -360,6 +360,20 @@ const S = () => pres.addSlide();
   s.addNotes('This is the one a subject teacher asks for in the first ten minutes. Pair it with the grades screen.');
 }
 
+// ---------------------------------------------------------------- 15c. Online class
+{
+  const s = S(); bg(s, C.paper);
+  heading(s, 'When the class cannot meet', 'A lesson held inside LogicClass',
+    { lede: 'A typhoon, a suspension of classes, a teacher isolating. The teacher presses one button on the register and the lesson happens anyway.' });
+  await cardGrid(s, [
+    { icon: 'FiVideo', h: 'One button, on the register', b: 'Take online. The class the teacher already has open becomes a video lesson - no link to send, no meeting to schedule, nothing for a parent to install.' },
+    { icon: 'FiUsers', h: 'Everyone on the register, nobody else', b: 'The way in appears on each student\'s own record. There is no link to forward, and a child in another section cannot reach it.' },
+    { icon: 'FiLock', h: 'A new room every lesson', b: 'Never reused, and named nothing - not the school, not the section, not the date. A room that could be guessed from a timetable on a noticeboard is a room a stranger can walk into.' },
+    { icon: 'FiLogOut', h: 'Time out closes it', b: 'Ending the register ends the call. A lesson cannot outlive the teacher, which is the difference between a video class and a video link.' },
+  ], { cols: 2, y: 2.35, h: 2.3 });
+  s.addNotes('The question after this slide is always "which platform?" - it is Jitsi, embedded, and the school can host it themselves. Zoom and Meet refuse to be embedded at all, which is why a link is all anybody else offers.');
+}
+
 // ---------------------------------------------------------------- 16. Fees
 {
   const s = S(); bg(s, C.paper);

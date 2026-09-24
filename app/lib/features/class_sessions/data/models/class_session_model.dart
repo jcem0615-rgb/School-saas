@@ -14,6 +14,7 @@ class ClassSessionModel {
       subject: (data['subject'] as String?) ?? '',
       section: (data['section'] as String?) ?? '',
       room: data['room'] as String?,
+      meetingRoom: data['meetingRoom'] as String?,
       date: (data['date'] as String?) ?? '',
       teacherName: (data['teacherName'] as String?) ?? '',
       takenByUid: (data['takenByUid'] as String?) ?? '',
@@ -64,6 +65,7 @@ class SubjectAttendanceMarkModel {
       ),
       timeIn: (data['timeIn'] as Timestamp?)?.toDate(),
       timeOut: (data['timeOut'] as Timestamp?)?.toDate(),
+      meetingRoom: data['meetingRoom'] as String?,
     );
   }
 }

@@ -5,7 +5,7 @@ build them.
 
 | File | What it is |
 |---|---|
-| `LogicClass-Demo.pptx` | 38-slide demo deck, with speaker notes on every slide |
+| `LogicClass-Demo.pptx` | 39-slide demo deck, with speaker notes on every slide |
 | `LogicClass-Feature-Guide.docx` | 58-page reference: every screen and every button, portal by portal |
 | `LogicClass-Demo.pdf`, `LogicClass-Feature-Guide.pdf` | The same two, for sending to somebody who will not open Office |
 

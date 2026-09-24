@@ -45,6 +45,7 @@ export {markAttendance} from "./callable/attendance/markAttendance";
 // and the register is the record a grade gets argued over.
 // ---------------------------------------------------------------------------
 export {openClassSession} from "./callable/classSessions/openClassSession";
+export {setClassSessionMode} from "./callable/classSessions/setClassSessionMode";
 export {closeClassSession} from "./callable/classSessions/closeClassSession";
 export {markSubjectAttendance} from "./callable/classSessions/markSubjectAttendance";
 

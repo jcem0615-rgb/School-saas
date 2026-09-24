@@ -79,6 +79,29 @@ final studentSubjectMarksProvider = StreamProvider.autoDispose
   return ref.watch(classSessionRepositoryProvider).watchStudentMarks(studentId);
 });
 
+/// The lesson this student can walk into right now, if there is one.
+///
+/// Read off their own marks rather than the session, because
+/// `classSessions` is staff-only in firestore.rules: a student has no
+/// business reading how the rest of the class came out, and their line
+/// in the register is the one document in it that is theirs.
+///
+/// Two conditions, not one. The room is cleared when the class comes
+/// back in person and again at Time Out, so a room on a mark is normally
+/// enough -- but the date is checked as well, because a close that
+/// failed would otherwise leave yesterday's room on the screen offering
+/// a way into a lesson that ended.
+final myOnlineClassProvider = Provider.autoDispose
+    .family<SubjectAttendanceMark?, String>((ref, studentId) {
+  final marks =
+      ref.watch(studentSubjectMarksProvider(studentId)).valueOrNull ?? const [];
+  final today = DateTime.now().toIso8601String().substring(0, 10);
+  for (final mark in marks) {
+    if (mark.hasOnlineClass && mark.date == today) return mark;
+  }
+  return null;
+});
+
 /// One subject's worth of a student's marks, and how it stands.
 class SubjectAttendanceSummary {
   final String subject;
@@ -157,6 +180,25 @@ class ClassSessionActionController extends StateNotifier<AsyncValue<void>> {
   Future<String?> openSession(String scheduleBlockId) async {
     _set(const AsyncValue.loading());
     final result = await _repository().openSession(scheduleBlockId);
+    switch (result) {
+      case Success(:final value):
+        _set(const AsyncValue.data(null));
+        return value;
+      case Error(:final failure):
+        _set(AsyncValue.error(failure.message, StackTrace.current));
+        return null;
+    }
+  }
+
+  /// Takes this lesson online, or brings it back into the room.
+  ///
+  /// Returns the room to join, or null -- which means either that the
+  /// class came back in person or that it failed; the screen reads
+  /// [errorMessage] to tell those apart, the same way [openSession] is
+  /// handled a line above.
+  Future<String?> setMode({required String sessionId, required bool online}) async {
+    _set(const AsyncValue.loading());
+    final result = await _repository().setMode(sessionId: sessionId, online: online);
     switch (result) {
       case Success(:final value):
         _set(const AsyncValue.data(null));

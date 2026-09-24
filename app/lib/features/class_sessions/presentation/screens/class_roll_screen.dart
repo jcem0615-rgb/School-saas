@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../qr_attendance/domain/entities/attendance_record.dart'
     show AttendanceStatus;
 import '../../domain/entities/class_session.dart';
+import '../../../../core/meeting/online_class_screen.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider;
 import '../controllers/class_session_controller.dart';
 
 final _clock = DateFormat('h:mm a');
@@ -96,6 +98,8 @@ class ClassRollScreen extends ConsumerWidget {
         data: (marks) => Column(
           children: [
             _Summary(counts: counts),
+            if (session != null && session.isOpen)
+              _OnlineClassBar(session: session, busy: busy),
             if (marks.isEmpty)
               const Expanded(
                 child: Center(
@@ -151,6 +155,127 @@ class ClassRollScreen extends ConsumerWidget {
     final month = now.month.toString().padLeft(2, '0');
     final day = now.day.toString().padLeft(2, '0');
     return dateKey == '${now.year}-$month-$day';
+  }
+}
+
+/// Taking this lesson online, and the way back in.
+///
+/// On the register rather than the timetable because the reasons are
+/// same-day ones -- a typhoon, a suspension of classes, a teacher
+/// isolating -- and a school that has to edit its timetable at 6am to
+/// hold a lesson will not hold the lesson.
+class _OnlineClassBar extends ConsumerWidget {
+  final ClassSession session;
+  final bool busy;
+
+  const _OnlineClassBar({required this.session, required this.busy});
+
+  Future<void> _setMode(BuildContext context, WidgetRef ref, bool online) async {
+    final notifier = ref.read(classSessionActionControllerProvider.notifier);
+    final room = await notifier.setMode(sessionId: session.id, online: online);
+    if (!context.mounted) return;
+
+    final failed = notifier.errorMessage != null;
+    if (failed) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(notifier.errorMessage!)));
+      return;
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(online
+            ? 'The class is online. Everyone on the register can join it now.'
+            : 'The class is back in person and the room is closed.'),
+      ));
+    if (online && room != null && context.mounted) _join(context, ref, room);
+  }
+
+  void _join(BuildContext context, WidgetRef ref, String room) {
+    final me = ref.read(authStateProvider).valueOrNull;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => OnlineClassScreen(
+        room: room,
+        subject: session.subject,
+        section: session.section,
+        displayName: me?.fullName ?? 'Teacher',
+        // The teacher arrives un-muted and able to end it for everyone.
+        asModerator: true,
+      ),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final online = session.isOnlineNow;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: online
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
+            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        border: Border.all(
+          color: online
+              ? theme.colorScheme.primary.withValues(alpha: 0.5)
+              : theme.colorScheme.outlineVariant,
+        ),
+      ),
+      // The sentence above the buttons rather than beside them, and the
+      // buttons in a Wrap: at phone width with a large text scale, a
+      // sentence and two buttons on one line are wider than the card,
+      // and the control that holds a lesson is the last thing that
+      // should be clipped off the edge of it.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(online ? Icons.videocam : Icons.meeting_room_outlined,
+                  size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  online
+                      ? 'This class is online. Everyone on the register can join.'
+                      : 'This class is in the room.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            alignment: WrapAlignment.end,
+            children: [
+              if (online) ...[
+                TextButton(
+                  onPressed: busy ? null : () => _setMode(context, ref, false),
+                  child: const Text('End'),
+                ),
+                FilledButton.icon(
+                  onPressed:
+                      busy ? null : () => _join(context, ref, session.meetingRoom!),
+                  icon: const Icon(Icons.videocam, size: 18),
+                  label: const Text('Join'),
+                ),
+              ] else
+                FilledButton.icon(
+                  onPressed: busy ? null : () => _setMode(context, ref, true),
+                  icon: const Icon(Icons.videocam_outlined, size: 18),
+                  label: const Text('Take online'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

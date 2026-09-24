@@ -154,6 +154,14 @@ the student record it names always exists — which is why this rule can
 call `scopeAllowsStudentById` directly, where the gate-attendance one has
 to guard first (see `docs/07-qr-attendance.md`).
 
+## Holding the lesson online
+
+The register is also where a teacher takes today's class online: one
+control beside the roll, a room for everyone on it, and the room closed
+again at Time Out. It lives here rather than on the timetable because
+the reasons are same-day ones. See
+[Module 41](41-online-classes.md).
+
 ## Covered by tests
 
 * `functions/test/shared/attendance/classSession.test.ts` — the id

@@ -85,21 +85,38 @@ export const closeClassSession = onCall(
       closedAt,
       minutes,
       counts,
+      // Time Out closes the video room as well as the register.
+      //
+      // Without this the lesson ends, the teacher leaves, and the room
+      // stays open on every student's screen for as long as anybody
+      // keeps the tab -- a class of children in an unsupervised video
+      // call, reachable from a document that says the class is over.
+      // The room name is the only thing that gets into a Jitsi room, so
+      // taking it off the marks is what shuts the door.
+      deliveryMode: "in_person",
+      meetingRoom: null,
+      meetingOpenedAt: null,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedBy: request.auth!.uid,
     });
 
     for (const mark of marks.docs) {
       const status = mark.data().status as string;
-      // Only the students who were there. An absent student has no time
-      // out because they had no time in, and writing one would put a
-      // duration against a child who was not in the room.
-      if (status !== "present" && status !== "late") continue;
-      batch.update(mark.ref, {
-        timeOut: closedAt,
+      // Every mark loses the room, including the absent ones -- a child
+      // who was not in the lesson must not be left holding the way into
+      // it either.
+      const closing: Record<string, unknown> = {
+        meetingRoom: null,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: request.auth!.uid,
-      });
+      };
+      // Only the students who were there get a time out. An absent
+      // student has no time out because they had no time in, and writing
+      // one would put a duration against a child who was not in the room.
+      if (status === "present" || status === "late") {
+        closing.timeOut = closedAt;
+      }
+      batch.update(mark.ref, closing);
     }
 
     await batch.commit();
