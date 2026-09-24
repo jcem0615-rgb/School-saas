@@ -5,6 +5,8 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:ui_web' as ui_web;
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import 'package:web/web.dart' as web;
 
 import 'meeting_room.dart';
@@ -74,19 +76,49 @@ Future<bool> ensureJitsiScript() async {
 
   const id = 'jitsi-external-api';
   var script = web.document.getElementById(id) as web.HTMLScriptElement?;
-  if (script == null) {
+  if (script != null) {
+    // A previous visit already tried and the script never arrived --
+    // a filtered connection, a blocked domain. Waiting ten seconds
+    // again to reach the same answer is ten seconds of a class staring
+    // at a spinner.
+    if (script.getAttribute('data-failed') == '1') return false;
+  } else {
     script = web.document.createElement('script') as web.HTMLScriptElement;
     script.id = id;
     script.src = 'https://$meetingDomain/external_api.js';
     script.async = true;
+    // Marked on the element rather than held in a variable, because the
+    // next visit to this screen gets a new closure and the same DOM.
+    script.addEventListener(
+      'error',
+      ((web.Event _) => script!.setAttribute('data-failed', '1')).toJS,
+    );
     web.document.head!.append(script);
   }
 
   // Polled rather than driven by the load event, because the element may
   // already be in the document from a previous visit to this screen and
   // have fired its event long ago.
-  for (var waited = 0; waited < 150; waited++) {
+  for (var waited = 0; waited < 100; waited++) {
     if (_jitsiApiConstructor != null) return true;
+    if (script.getAttribute('data-failed') == '1') return false;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+  return false;
+}
+
+/// Waits for the platform view's host element to exist in the document.
+///
+/// This is the half that was missing, and it is why the screen spun
+/// forever. Flutter creates the `<div>` when it builds the
+/// `HtmlElementView`, a frame or more after the widget is asked for, so
+/// "the screen has decided to show the meeting" and "the element Jitsi
+/// attaches to is in the page" are not the same moment. Handing Jitsi a
+/// null parentNode throws inside its constructor, and a throw in an
+/// un-awaited start is a spinner that never stops.
+Future<bool> awaitJitsiHost(String room) async {
+  for (var waited = 0; waited < 50; waited++) {
+    if (web.document.getElementById('jitsi-$room') != null) return true;
     await Future<void>.delayed(const Duration(milliseconds: 100));
   }
   return false;
@@ -106,9 +138,18 @@ JitsiCall? startJitsi({
   final api = _jitsiApiConstructor;
   if (api == null) return null;
 
+  // The element the meeting is drawn into. Null means the platform view
+  // has not been built yet, and constructing against null is what hung
+  // this screen: Jitsi's constructor appends to the node it is given,
+  // throws on null, and the throw escaped an un-awaited start, so the
+  // spinner never came down. Refusing here turns that into the fallback,
+  // which at least gets the class into the lesson.
+  final host = web.document.getElementById('jitsi-$room');
+  if (host == null) return null;
+
   final options = <String, Object?>{
     'roomName': room,
-    'parentNode': web.document.getElementById('jitsi-$room'),
+    'parentNode': host,
     'userInfo': {'displayName': displayName},
     'configOverwrite': {
       'subject': subject,
@@ -116,7 +157,13 @@ JitsiCall? startJitsi({
       // into it with a live microphone.
       'startWithAudioMuted': !asModerator,
       'startWithVideoMuted': !asModerator,
+      // Both spellings. Jitsi moved this from `prejoinPageEnabled` to
+      // `prejoinConfig.enabled` and deployments run different versions;
+      // an unknown key is ignored, a missing one puts a "join meeting"
+      // screen in front of thirty children who have already pressed
+      // join once.
       'prejoinPageEnabled': false,
+      'prejoinConfig': {'enabled': false},
       'disableDeepLinking': true,
     },
     'interfaceConfigOverwrite': {
@@ -132,11 +179,19 @@ JitsiCall? startJitsi({
     },
   };
 
-  final instance = api.callAsConstructor<JSObject>(
-    meetingDomain.toJS,
-    options.jsify(),
-  );
-  return JitsiCall._(instance);
+  // Jitsi's own constructor is third-party code running against a live
+  // DOM, and every way it can fail ends in front of a class. Whatever it
+  // throws, the screen gets a null and offers the tab instead.
+  try {
+    final instance = api.callAsConstructor<JSObject>(
+      meetingDomain.toJS,
+      options.jsify(),
+    );
+    return JitsiCall._(instance);
+  } catch (error) {
+    debugPrint('The Jitsi call could not be constructed: $error');
+    return null;
+  }
 }
 
 /// A running meeting.

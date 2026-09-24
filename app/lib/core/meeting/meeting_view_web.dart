@@ -12,6 +12,8 @@ Widget buildMeetingView(String room) =>
 
 Future<bool> prepareMeetingView() => ensureJitsiScript();
 
+Future<bool> awaitMeetingHost(String room) => awaitJitsiHost(room);
+
 /// Live calls, so leaving the screen can hang up the right one.
 final _calls = <String, JitsiCall>{};
 

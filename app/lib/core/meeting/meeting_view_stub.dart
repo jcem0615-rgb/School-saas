@@ -10,6 +10,9 @@ Widget buildMeetingView(String room) => const SizedBox.shrink();
 /// No script to load where there is no browser.
 Future<bool> prepareMeetingView() async => false;
 
+/// No element to wait for where there is no view.
+Future<bool> awaitMeetingHost(String room) async => false;
+
 /// Nothing is running, so nothing hangs up.
 void disposeMeeting(String room) {}
 

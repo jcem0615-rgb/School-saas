@@ -4,7 +4,7 @@ import 'dart:async';
 
 import 'class_clock.dart';
 import 'meeting_launcher_factory.dart';
-import 'meeting_view_factory.dart';
+import 'meeting_surface.dart';
 
 /// The lesson, held in the app.
 ///
@@ -38,6 +38,14 @@ class OnlineClassScreen extends StatefulWidget {
   final DateTime? openedAt;
   final int? scheduledMinutes;
 
+  /// Stand-ins for the platform, so the embedded path can be driven from
+  /// a test. On every real build these are null and the platform's own
+  /// are used; see [MeetingSurface] for why the seam exists.
+  @visibleForTesting
+  final MeetingSurface? debugSurface;
+  @visibleForTesting
+  final MeetingLauncher? debugLauncher;
+
   const OnlineClassScreen({
     super.key,
     required this.room,
@@ -47,6 +55,8 @@ class OnlineClassScreen extends StatefulWidget {
     this.asModerator = false,
     this.openedAt,
     this.scheduledMinutes,
+    this.debugSurface,
+    this.debugLauncher,
   });
 
   @override
@@ -54,7 +64,10 @@ class OnlineClassScreen extends StatefulWidget {
 }
 
 class _OnlineClassScreenState extends State<OnlineClassScreen> {
-  final _launcher = createMeetingLauncher();
+  late final MeetingLauncher _launcher =
+      widget.debugLauncher ?? createMeetingLauncher();
+  late final MeetingSurface _surface =
+      widget.debugSurface ?? const PlatformMeetingSurface();
 
   /// Null while we are still finding out.
   bool? _ready;
@@ -111,31 +124,60 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   }
 
   Future<void> _start() async {
-    final loaded = await prepareMeetingView();
-    if (!mounted) return;
-    if (!loaded) {
-      // The script did not come. A lesson is not worth a red screen --
-      // the fallback below opens it in a tab.
+    // Ordered, and the order is the whole fix.
+    //
+    // This used to load the script, wait one frame and hand Jitsi the
+    // element it draws into -- except the element is created by the
+    // platform view, and the platform view was only built once this
+    // finished. Nothing ever built it, so `getElementById` returned null
+    // on every attempt, Jitsi threw on the null parent, the throw
+    // escaped this un-awaited future, and the screen showed a spinner
+    // until the tab was closed. A class watched it forever.
+    //
+    // The view is now in the tree behind the spinner from the first
+    // frame, so there is a real element to wait for, and every way this
+    // can fail ends at the fallback rather than at the spinner.
+    try {
+      final loaded = await _surface.prepare();
+      if (!mounted) return;
+      if (!loaded) {
+        // The script did not come. A lesson is not worth a red screen --
+        // the fallback below opens it in a tab.
+        setState(() => _ready = false);
+        return;
+      }
+
+      final host = await _surface.awaitHost(widget.room);
+      if (!mounted) return;
+      if (!host) {
+        setState(() => _ready = false);
+        return;
+      }
+
+      final started = _surface.start(
+        room: widget.room,
+        displayName: widget.displayName,
+        subject: '${widget.subject} - ${widget.section}',
+        asModerator: widget.asModerator,
+      );
+      if (started) _startClock();
+      setState(() => _ready = started);
+    } catch (error) {
+      // Swallowed deliberately, and this is the safety net rather than
+      // the fix: the failure above is now handled by value. Anything
+      // still thrown here -- third-party script, a browser that will not
+      // run it -- must land on the fallback, because the alternative is
+      // the bug this commit exists for.
+      debugPrint('The online class could not start: $error');
+      if (!mounted) return;
       setState(() => _ready = false);
-      return;
     }
-    // One frame, so the platform view exists before Jitsi is handed it.
-    await Future<void>.delayed(Duration.zero);
-    if (!mounted) return;
-    final started = startMeeting(
-      room: widget.room,
-      displayName: widget.displayName,
-      subject: '${widget.subject} - ${widget.section}',
-      asModerator: widget.asModerator,
-    );
-    if (started) _startClock();
-    setState(() => _ready = started);
   }
 
   @override
   void dispose() {
     _tick?.cancel();
-    if (_embeds) disposeMeeting(widget.room);
+    if (_embeds) _surface.leave(widget.room);
     super.dispose();
   }
 
@@ -148,12 +190,12 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   }
 
   void _toggleMute() {
-    sendMeetingCommand(widget.room, 'toggleAudio');
+    _surface.command(widget.room, 'toggleAudio');
     setState(() => _muted = !_muted);
   }
 
   void _toggleCamera() {
-    sendMeetingCommand(widget.room, 'toggleVideo');
+    _surface.command(widget.room, 'toggleVideo');
     setState(() => _cameraOff = !_cameraOff);
   }
 
@@ -161,7 +203,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     // Hangs up before popping. Popping alone tears the iframe out of the
     // page with the conference still joined, which leaves somebody in a
     // room nobody can see them in.
-    sendMeetingCommand(widget.room, 'hangup');
+    _surface.command(widget.room, 'hangup');
     Navigator.of(context).maybePop();
   }
 
@@ -221,16 +263,60 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
               onLeave: _leave,
             )
           : null,
-      body: switch (_ready) {
-        null => const Center(child: CircularProgressIndicator()),
-        true => buildMeetingView(widget.room),
-        false => _Fallback(
-            embedded: _embeds,
-            native: _native,
-            handedOff: _handedOff,
-            onOpen: _native ? _rejoinNative : _openOutside,
-          ),
-      },
+      body: _ready == false
+          ? _Fallback(
+              embedded: _embeds,
+              native: _native,
+              handedOff: _handedOff,
+              onOpen: _native ? _rejoinNative : _openOutside,
+            )
+          // The view is built while we are still connecting, not after.
+          // It is what creates the element the meeting attaches to, so
+          // leaving it out until the meeting had started was a circle
+          // with no way in. The overlay is opaque, so a half-built
+          // iframe is not on show underneath it.
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                if (_embeds) _surface.view(widget.room),
+                if (_ready == null) const _Connecting(),
+              ],
+            ),
+    );
+  }
+}
+
+/// What is on screen while the meeting is being brought up.
+///
+/// Opaque, because the platform view is live behind it from the first
+/// frame now. It says what it is waiting for: a bare spinner over a
+/// school's video class is indistinguishable from a broken one, which is
+/// exactly how this screen's failure was read.
+class _Connecting extends StatelessWidget {
+  const _Connecting();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ColoredBox(
+      color: theme.colorScheme.surface,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 20),
+            Text('Connecting to the class', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 6),
+            Text(
+              'Joining $meetingDomain. This takes a few seconds.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
