@@ -21,6 +21,27 @@ DEMO_MODE="${DEMO_MODE:-true}"
 
 DEFINES=( --dart-define=DEMO_MODE="$DEMO_MODE" )
 
+# Where the video classes are held.
+#
+# docs/41 told schools this was "one build flag" and it was not: the
+# dart-define existed in the code and nothing in this pipeline ever
+# passed it, so every deployment was pinned to the default however it
+# was configured. A flag that cannot be set from the thing that does the
+# building is a flag that does not exist.
+#
+# Left unset the app uses meet.jit.si, which is free, needs nothing set
+# up, and asks the first person into a room to sign in with a Google
+# account -- survivable for a teacher, not for a class of ten-year-olds.
+# Point this at a deployment of the school's own and that sign-in goes
+# away. It must match JITSI_DOMAIN on the Functions side, or the tokens
+# minted there are rejected by a server they were not minted for.
+if [ -n "${JITSI_DOMAIN:-}" ]; then
+  DEFINES+=( --dart-define=JITSI_DOMAIN="$JITSI_DOMAIN" )
+  echo "Video classes: $JITSI_DOMAIN"
+else
+  echo "Video classes: meet.jit.si (default; set JITSI_DOMAIN to change)"
+fi
+
 if [ "$DEMO_MODE" = "false" ]; then
   # Fail here rather than build a site that loads and then dies on a
   # missing key. The app checks this too (lib/firebase_config.dart), but

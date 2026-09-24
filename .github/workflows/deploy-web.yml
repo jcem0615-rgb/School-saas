@@ -166,6 +166,8 @@ jobs:
       #     FIREBASE_MESSAGING_SENDER_ID
       #     FIREBASE_STORAGE_BUCKET         optional
       #     FIREBASE_AUTH_DOMAIN            optional, web sign-in needs it
+      #     JITSI_DOMAIN                    optional, where video classes
+      #                                     are held; see docs/41
       #
       # Variables and not secrets, deliberately. These are client
       # identifiers: they ship inside every build, Firebase expects them
@@ -194,6 +196,13 @@ jobs:
           FIREBASE_MESSAGING_SENDER_ID: ${{ vars.FIREBASE_MESSAGING_SENDER_ID }}
           FIREBASE_STORAGE_BUCKET: ${{ vars.FIREBASE_STORAGE_BUCKET }}
           FIREBASE_AUTH_DOMAIN: ${{ vars.FIREBASE_AUTH_DOMAIN }}
+          # Where the video classes are held. Unset means meet.jit.si,
+          # which asks the first person into a room to sign in with a
+          # Google account. A school's own deployment does not, and this
+          # is how it is pointed there -- it has to match the
+          # JITSI_DOMAIN the Functions use to mint tokens, or every
+          # token is rejected by a server it was not minted for.
+          JITSI_DOMAIN: ${{ vars.JITSI_DOMAIN }}
         run: bash scripts/vercel-build.sh
 
       # Deploying built files rather than sources, so Vercel has nothing
