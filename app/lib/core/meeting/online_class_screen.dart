@@ -487,9 +487,15 @@ class _Fallback extends StatelessWidget {
                         ? 'It opened outside LogicClass. Come back here when the '
                             'lesson is over.'
                         : embedded
-                            ? 'The video could not start on this screen. Opening '
-                                'it in a new tab will still get you into the '
-                                'lesson.'
+                            // Names the deployment. When this card is
+                            // what somebody reports, "which server
+                            // would not start" is the first question,
+                            // and it used to be unanswerable from the
+                            // screenshot.
+                            ? 'The video would not start here. $meetingDomain '
+                                'did not answer, or would not run inside the '
+                                'app. Opening it in a new tab still gets you '
+                                'into the lesson.'
                             : 'The lesson opens in the Jitsi Meet app, or in '
                                 'your browser if it is not installed.',
                 style: theme.textTheme.bodyMedium,

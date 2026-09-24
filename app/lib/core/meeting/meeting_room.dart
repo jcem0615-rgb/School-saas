@@ -1,23 +1,49 @@
 /// Where the school's video classes are held.
 ///
-/// The domain is configurable rather than hardcoded, because which Jitsi
-/// a school uses is a decision about their data, not about this app. The
-/// default is the public one, which is free and needs nothing set up --
-/// good enough to try the feature the afternoon a typhoon closes the
-/// school, and not what a school should run a term on. A school that
-/// cares where its children's lessons are hosted points this at its own
-/// deployment, or at a paid tenant, with one build flag and no code
-/// change.
+/// ## Why not meet.jit.si
 ///
-/// Verify the public instance before promising it to a school: Jitsi has
-/// changed the terms of meet.jit.si more than once, including requiring
-/// the first person in to sign in before the room will start. That is
-/// survivable for a teacher and fatal for a class of ten-year-olds, and
-/// it is exactly the kind of thing that is true or false on the day
-/// rather than in documentation.
+/// It was the default, because it is free and needs nothing set up. It
+/// does not work for this, and the three complaints it produced are one
+/// cause:
+///
+///   * a sign-in page,
+///   * "waiting for a moderator",
+///   * and the lesson opening in a browser tab instead of in the app.
+///
+/// The public instance requires the person who creates a room to
+/// authenticate, and it no longer welcomes being embedded by other
+/// sites -- 8x8 sell that as a product now. So the iframe fails, the
+/// screen falls back to handing the room to the browser, and what the
+/// person meets there is the sign-in. "Inside the app" was never going
+/// to be true on that deployment.
+///
+/// ## The default now
+///
+/// A public Jitsi that asks nobody to sign in and is an ordinary Jitsi
+/// install, so it embeds. A class opens the lesson and is simply in it.
+///
+/// **This has not been reached from this environment.** The network
+/// policy here denies it, exactly as it denied meet.jit.si, so the first
+/// real check is a person on the deployed site. If it is down, or if it
+/// stops allowing this, the fix is one Actions variable and not a code
+/// change -- see below.
+///
+/// ## And why a school should still move off it
+///
+/// It is run by volunteers, for free, with no promise to anybody. A
+/// school putting its children's lessons through it is trusting a
+/// stranger's server with minors on camera, and has no contract, no
+/// support and no say if it goes away on a Monday morning. That is a
+/// reasonable way to start and a poor way to run a term.
+///
+/// Moving is one variable: `JITSI_DOMAIN`, an Actions variable passed
+/// to the build, pointed at the school's own deployment or a paid
+/// tenant. Set the matching one on the Functions side and LogicClass
+/// mints the tokens, so nobody signs in there either. See
+/// docs/41-online-classes.md.
 const meetingDomain = String.fromEnvironment(
   'JITSI_DOMAIN',
-  defaultValue: 'meet.jit.si',
+  defaultValue: 'meet.ffmuc.net',
 );
 
 /// What a client can do about joining a video class.

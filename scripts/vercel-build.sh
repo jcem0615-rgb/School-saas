@@ -29,17 +29,23 @@ DEFINES=( --dart-define=DEMO_MODE="$DEMO_MODE" )
 # was configured. A flag that cannot be set from the thing that does the
 # building is a flag that does not exist.
 #
-# Left unset the app uses meet.jit.si, which is free, needs nothing set
-# up, and asks the first person into a room to sign in with a Google
-# account -- survivable for a teacher, not for a class of ten-year-olds.
-# Point this at a deployment of the school's own and that sign-in goes
-# away. It must match JITSI_DOMAIN on the Functions side, or the tokens
-# minted there are rejected by a server they were not minted for.
+# Left unset, the app uses the default in
+# app/lib/core/meeting/meeting_room.dart -- a public Jitsi that asks
+# nobody to sign in. Point this at the school's own deployment to get
+# off a volunteer-run server. It must match JITSI_DOMAIN on the
+# Functions side, or the tokens minted there are rejected by a server
+# they were not minted for.
+#
+# The default is deliberately not repeated here. It was, and it went
+# stale the first time the default moved -- a build log confidently
+# naming the wrong server is worse than one that says nothing.
 if [ -n "${JITSI_DOMAIN:-}" ]; then
   DEFINES+=( --dart-define=JITSI_DOMAIN="$JITSI_DOMAIN" )
   echo "Video classes: $JITSI_DOMAIN"
 else
-  echo "Video classes: meet.jit.si (default; set JITSI_DOMAIN to change)"
+  DEFAULT_DOMAIN=$(sed -n "s/.*defaultValue: '\(.*\)',.*/\1/p" \
+    lib/core/meeting/meeting_room.dart | head -1)
+  echo "Video classes: ${DEFAULT_DOMAIN:-the app default} (set JITSI_DOMAIN to change)"
 fi
 
 if [ "$DEMO_MODE" = "false" ]; then

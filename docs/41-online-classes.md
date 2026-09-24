@@ -219,21 +219,47 @@ quickly, since it is a new read path into children's data.
 
 ## Where the video is hosted
 
-`JITSI_DOMAIN`, a `--dart-define`, defaulting to `meet.jit.si`.
+`JITSI_DOMAIN` — an Actions variable, passed to the build as a
+`--dart-define`, defaulting to `meet.ffmuc.net`.
 
-Configurable rather than hardcoded because which Jitsi a school uses is
-a decision about their children's data, not about this app. The default
-is free and needs nothing set up — good enough to try the afternoon a
-typhoon closes the school, and not what a school should run a term on. A
-school that cares points it at its own deployment or a paid tenant with
-one build flag.
+### It is not meet.jit.si, and that was not a preference
 
-**Verify the public instance before promising it to a school.** Jitsi
-has changed the terms of `meet.jit.si` more than once, including
-requiring the first person into a room to sign in before it will start.
-That is survivable for a teacher and fatal for a class of ten-year-olds,
-and it is the kind of thing that is true or false on the day rather than
-in documentation.
+The public Jitsi was the original default and it cannot do this job. It
+requires whoever creates a room to authenticate, and it no longer
+welcomes being embedded by other sites — 8x8 sell embedding as a product
+now. One cause, three complaints:
+
+* a sign-in page,
+* "waiting for a moderator",
+* and the lesson opening in a browser tab instead of inside the app.
+
+The iframe is refused, the screen falls back to handing the room to the
+browser, and what the person meets over there is the sign-in. "Inside
+the app" was never going to be true on that deployment.
+
+The default is now a public Jitsi that asks nobody to sign in and is an
+ordinary Jitsi install, so it embeds.
+
+### And a school should still move off it
+
+It is volunteer-run, free, and promises nobody anything. A school
+putting its pupils' lessons through it is trusting a stranger's server
+with minors on camera — no contract, no support, and no say if it
+disappears on a Monday morning. Reasonable to start on, poor to run a
+term on.
+
+Moving is one variable and no code change:
+
+> Settings → Secrets and variables → Actions → **Variables**
+>
+> | | |
+> |---|---|
+> | `JITSI_DOMAIN` | `meet.yourschool.edu.ph` |
+
+Set the matching `JITSI_DOMAIN` on the Functions side too and LogicClass
+mints the tokens, so nobody signs in there either — see below. The two
+must agree, or every token is rejected by a server it was not minted
+for.
 
 ## Nobody signs in to the video
 
@@ -318,5 +344,6 @@ today, which is why nothing here sets one.
 | Demo | `smoke/online_class_test.dart` | the same properties through the app's own repositories, plus what the student is shown — nothing when no class is on, the live lesson when their teacher starts it, nothing again once it ends |
 | Pure | `unit/core/class_clock_test.dart` | elapsed never runs backwards on a slow device clock, remaining floors at zero rather than counting past the bell, the overrun is said rather than left as arithmetic, an unknown length claims nothing, and a zero-length class is not divided by |
 | Widget | `smoke/classroom_controls_test.dart` | the classroom names its subject and section, offers a way in on a platform that cannot run the video, and fits a 360px screen at 1.3x text |
+| Pure | `unit/core/meeting_domain_test.dart` | the default is not the deployment that refuses to be embedded, it is a bare host rather than a URL, and it is only a default |
 | Widget | `unit/core/online_class_screen_test.dart` | the view is built before the meeting is started — the deadlock that made the screen spin forever; every failure landing on the fallback rather than the spinner (script refused, host absent, start refused, start throwing); the pass handed to the meeting, and absent rather than empty when the school has no key |
 | Widget | `smoke/online_class_test.dart` | the Faculty Dashboard carries the Online Class tile, and the day's list offers Start online class on every class without clipping it off a phone-width card |
