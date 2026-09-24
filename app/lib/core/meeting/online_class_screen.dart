@@ -242,7 +242,15 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   }
 
   Future<void> _openOutside() async {
-    final ok = await _launcher.handOff(widget.room, displayName: widget.displayName);
+    final ok = await _launcher.handOff(
+      widget.room,
+      displayName: widget.displayName,
+      token: widget.token,
+      // Everyone but the teacher arrives quiet. Forty microphones
+      // opening at once is how an online lesson starts badly, and the
+      // tab must not be the way round that.
+      muted: !widget.asModerator,
+    );
     if (!mounted) return;
     setState(() => _handedOff = ok);
     if (!ok) {

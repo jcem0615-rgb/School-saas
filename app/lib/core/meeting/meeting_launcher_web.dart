@@ -31,11 +31,19 @@ class BrowserMeetingLauncher extends MeetingLauncher {
   MeetingSupport get support => MeetingSupport.embedded;
 
   @override
-  Future<bool> handOff(String room, {required String displayName}) async {
+  Future<bool> handOff(
+    String room, {
+    required String displayName,
+    String? token,
+    bool muted = false,
+  }) async {
     // Reachable when a browser cannot run the embedded view -- the
     // script blocked, an unsupported engine. Opening a tab is worse than
     // staying in the app and better than missing the lesson.
-    final opened = web.window.open(urlFor(room), '_blank');
+    final opened = web.window.open(
+      urlFor(room, displayName: displayName, token: token, muted: muted),
+      '_blank',
+    );
     return opened != null;
   }
 }

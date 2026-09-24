@@ -94,7 +94,13 @@ class _EmbeddingLauncher extends MeetingLauncher {
   MeetingSupport get support => MeetingSupport.embedded;
 
   @override
-  Future<bool> handOff(String room, {required String displayName}) async => true;
+  Future<bool> handOff(
+    String room, {
+    required String displayName,
+    String? token,
+    bool muted = false,
+  }) async =>
+      true;
 }
 
 Widget _screen(_FakeSurface surface, {String? token}) => MaterialApp(

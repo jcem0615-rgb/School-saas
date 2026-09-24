@@ -31,11 +31,19 @@ class NativeMeetingLauncher extends MeetingLauncher {
       _hasSdk ? MeetingSupport.nativeSdk : MeetingSupport.handOff;
 
   @override
-  Future<bool> handOff(String room, {required String displayName}) {
+  Future<bool> handOff(
+    String room, {
+    required String displayName,
+    String? token,
+    bool muted = false,
+  }) {
     // The name is passed so the class sees who joined rather than a grid
     // of "Fellow Sailor" -- Jitsi's random default, which in a lesson
-    // that has to match names to faces is worse than useless.
-    final uri = Uri.parse('${urlFor(room)}#userInfo.displayName="$displayName"');
+    // that has to match names to faces is worse than useless. It used to
+    // be pasted straight into the fragment, which a name with a space in
+    // it -- most Filipino names -- turned into an invalid URL.
+    final uri =
+        Uri.parse(urlFor(room, displayName: displayName, token: token, muted: muted));
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 

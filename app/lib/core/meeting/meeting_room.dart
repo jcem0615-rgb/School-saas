@@ -76,11 +76,22 @@ abstract class MeetingLauncher {
   /// Built here rather than stored, so the room name is the only thing
   /// that ever travels: a stored URL would pin a school's lessons to
   /// whichever domain was configured on the day the class was opened.
-  String urlFor(String room) => 'https://$meetingDomain/$room';
+  String urlFor(
+    String room, {
+    String? displayName,
+    bool muted = false,
+    String? token,
+  }) =>
+      meetingUrl(room: room, displayName: displayName, muted: muted, token: token);
 
   /// Opens the room for a person who is not inside a screen that can
   /// embed it. Returns false when the device refused.
-  Future<bool> handOff(String room, {required String displayName});
+  Future<bool> handOff(
+    String room, {
+    required String displayName,
+    String? token,
+    bool muted = false,
+  });
 
   /// Runs the meeting inside the app on a platform with a native SDK.
   ///
@@ -94,4 +105,64 @@ abstract class MeetingLauncher {
     required bool asModerator,
   }) async =>
       false;
+}
+
+/// The full address of a lesson, for a person arriving outside the app.
+///
+/// The hand-off is what happens when the video cannot run inside
+/// LogicClass -- a deployment that refuses to be embedded, a desktop
+/// build, a browser that will not have it. It is the difference between
+/// the lesson happening somewhere else and the lesson not happening, so
+/// it is worth arriving properly rather than on a stranger's front door.
+///
+/// Both callers were getting it wrong in different ways. The browser
+/// passed the room and nothing else, so a class landed on a prejoin
+/// screen asking each child to type their name -- in a lesson whose
+/// whole point is a register that matches names to faces. The phone
+/// passed the name by pasting it into the fragment unescaped, so
+/// "Maria Dela Cruz" became a URL with spaces in it and anything with a
+/// quote in it broke the config Jitsi parses.
+///
+/// So: one builder, escaped, used by both.
+///
+///   * the name, as a JSON string, so a space or an apostrophe survives
+///     and a quote cannot break out of it;
+///   * no prejoin page, because they already pressed join;
+///   * muted on arrival for everyone but the teacher;
+///   * the token, when there is one, as a query parameter -- Jitsi
+///     reads `jwt` from the query and not from the fragment.
+String meetingUrl({
+  required String room,
+  String? displayName,
+  bool muted = false,
+  String? token,
+  String domain = meetingDomain,
+}) {
+  final config = <String>[
+    'config.prejoinPageEnabled=false',
+    'config.prejoinConfig.enabled=false',
+    if (muted) 'config.startWithAudioMuted=true',
+    if (muted) 'config.startWithVideoMuted=true',
+    if (displayName != null && displayName.isNotEmpty)
+      'userInfo.displayName=${Uri.encodeComponent(_jsonString(displayName))}',
+  ];
+  final query = token == null || token.isEmpty
+      ? ''
+      : '?jwt=${Uri.encodeQueryComponent(token)}';
+  return 'https://$domain/$room$query#${config.join('&')}';
+}
+
+/// A name as a JSON string literal.
+///
+/// Jitsi parses these fragment values as JSON, so the quotes are part
+/// of the value and anything quote-like inside has to be escaped rather
+/// than passed through. Control characters are dropped: none of them
+/// belong in a person's name, and each is a way to end the literal
+/// early.
+String _jsonString(String value) {
+  final escaped = value
+      .replaceAll(r'\', r'\\')
+      .replaceAll('"', r'\"')
+      .replaceAll(RegExp(r'[\x00-\x1f]'), '');
+  return '"$escaped"';
 }
