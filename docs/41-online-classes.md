@@ -92,17 +92,98 @@ screen the teacher already has open at the start of a class.
 
 | Platform | What happens |
 |---|---|
-| Browser (the deployed PWA) | The meeting renders inside the app, in a platform view. |
-| Android, iOS, Windows | The room is handed to the device — the Jitsi app if installed, the browser if not. |
+| Browser (the deployed PWA) | The meeting renders in the screen, in a platform view Jitsi attaches its iframe to. |
+| Android, iOS | `jitsi_meet_flutter_sdk` puts its own full-screen conference in front of the person, in this app's process. No browser, no second app. |
+| Windows, macOS, Linux | No SDK exists, so the room goes to the operating system — the Jitsi app if installed, the browser if not. The screen says so. |
 
-The phone build hands off rather than embeds, and the screen says so
-instead of implying otherwise. Embedding video on a handset wants a
-native SDK (`jitsi_meet_flutter_sdk`), which is a dependency to add
-deliberately and test on a real device rather than slip in behind a
-seam. **The seam is built**: `MeetingLauncher` and the
-`meeting_view_factory` conditional export are the same shape as
-`install_prompt_factory` and `location_probe_factory`. Adding the native
-SDK later means writing one more implementation and changing no screen.
+The native SDK is not a Flutter widget: it draws over the classroom
+screen rather than inside it. So `OnlineClassScreen` stays mounted
+underneath, and what somebody sees when they leave the call is that
+screen offering to rejoin — which is what you want when a child leaves
+by accident with forty minutes of the lesson left.
+
+The seam is `MeetingLauncher` plus the `meeting_view_factory`
+conditional export, the same shape as `install_prompt_factory` and
+`location_probe_factory`. `MeetingSupport` names the three cases so a
+screen never has to guess which it is in.
+
+### What the SDK cost
+
+* **Android `minSdk` went 23 → 24.** The Jitsi Android SDK does not
+  support 23. That drops Android 6.0 Marshmallow, which for a school
+  with very old handsets is a real cost — written down in
+  `build.gradle.kts` rather than quietly bumped.
+* **Three permissions**: `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, and
+  `BLUETOOTH_CONNECT`. The last is the one that gets forgotten: without
+  it Android 12+ will not let the SDK see a paired headset, and a
+  student wearing earphones hears the lesson through the loudspeaker in
+  a room with other people.
+* **iOS** needs `NSMicrophoneUsageDescription`, which is now in
+  `Info.plist`. It also needs `platform :ios, '15.1'` or later in the
+  Podfile — **there is no Podfile in the repo yet**, because iOS has
+  never been built here; whoever runs the first `pod install` on a Mac
+  has to set it.
+
+**Neither mobile build has been compiled.** There is no Android SDK and
+no Xcode in the environment this was written in, so the Gradle and
+CocoaPods sides of this are unverified. The web build was rebuilt and
+booted clean with the plugin in the pubspec, which is what proves the
+plugin does not break the deployed surface — and nothing more than that.
+
+## The classroom around the call
+
+A class has a bell. A video call does not, and a lesson held in one runs
+over because nobody in it can see the clock the timetable is keeping.
+
+So the screen carries its own controls under the call — Mute, Camera
+off, Leave, and the class clock: elapsed against the timetabled length,
+a bar, and the minutes remaining in words. They are Flutter rather than
+Jitsi's own toolbar because that toolbar lives in the iframe and scales
+with it; at phone width it becomes a row of icons a ten-year-old has to
+guess at. These are labelled and they wrap.
+
+`ClassClock` is pure and takes `now` as an argument, so the behaviour
+that is easy to get subtly wrong is under test: elapsed never runs
+backwards on a device whose clock is behind the server's, remaining
+floors at zero rather than counting past the bell, and the bar clamps.
+
+The teacher's classroom gets the timetabled length from the schedule
+block. **A student's does not** — their mark carries when the lesson
+started, not what the timetable gives it — so a student sees elapsed
+time and no countdown. `remainingLabel` returns null rather than a
+sentence saying there is no set length, because that would be a claim
+about the timetable rather than about what the screen can see. The bell
+is the teacher's to keep.
+
+Mute and Camera off mirror their state locally rather than reading it
+back from Jitsi: the iframe API reports those through events, and a
+control that waits for a round trip before it looks pressed feels broken
+on a school's connection. Leave hangs up *before* popping — popping
+alone tears the iframe out of the page with the conference still joined,
+which leaves somebody in a room nobody can see them in.
+
+Chat, screen share, raise hand and tile view are Jitsi's own, in the
+call's toolbar. Rebuilding them in Flutter would mean rebuilding
+WebRTC.
+
+## What the classroom mock asks for that is not built
+
+The reference design is a full tutoring classroom: a work area beside
+the call with tabs for **Whiteboard, PDF / image, Equations, Shared
+document, Pronunciation** and **Session**. None of those are built, and
+they are each a feature rather than a tab.
+
+The whiteboard is the one worth naming a blocker for, because it looks
+like the smallest and is not. A shared board needs a document both the
+teacher and every student in the section can read and write. Today that
+is not expressible in `firestore.rules`: a **student's** user document
+carries no link back to their student record, so a rule cannot resolve
+"which student is this uid" and therefore cannot ask "is this child in
+this class". Only parents carry `linkedStudentIds`. Making a shared
+board safe means first putting `linkedStudentId` on the student user
+document — a schema addition, a migration for every existing student
+account, and rules — and that is worth doing carefully rather than
+quickly, since it is a new read path into children's data.
 
 ## Where the video is hosted
 
@@ -146,3 +227,5 @@ today, which is why nothing here sets one.
 | Pure | `meeting/room.test.ts` | a different name every time, nothing about the class in it, long enough not to be guessed, characters every deployment accepts, and a recogniser that refuses anything that arrived another way |
 | Emulator | `attendance-emulator/onlineClass.test.ts` | the room reaches every student's own line and only there; a fresh one each time; never written to the audit log; cleared by coming back in person, by Time Out, and for the absent student too; refused on a finished class; the teacher and the covering Admin only, never a student, never another school |
 | Demo | `smoke/online_class_test.dart` | the same properties through the app's own repositories, plus what the student is shown — nothing when no class is on, the live lesson when their teacher starts it, nothing again once it ends |
+| Pure | `unit/core/class_clock_test.dart` | elapsed never runs backwards on a slow device clock, remaining floors at zero rather than counting past the bell, the overrun is said rather than left as arithmetic, an unknown length claims nothing, and a zero-length class is not divided by |
+| Widget | `smoke/classroom_controls_test.dart` | the classroom names its subject and section, offers a way in on a platform that cannot run the video, and fits a 360px screen at 1.3x text |

@@ -18,6 +18,17 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
 
+    <!-- The online class (jitsi_meet_flutter_sdk). A video lesson needs
+         the microphone as well as the camera declared above; the audio
+         settings permission is what lets the SDK move the call between
+         the earpiece, the speaker and a headset, and BLUETOOTH_CONNECT is
+         what Android 12+ requires before it may see a paired headset at
+         all. Without the last one a student wearing earphones hears the
+         lesson through the loudspeaker in a room with other people. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+
     <!-- The emergency alert's location. Coarse is declared alongside fine
          because Android 12+ lets the student grant only approximate
          location, and an approximate position on an emergency alert is

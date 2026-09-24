@@ -368,9 +368,11 @@ const S = () => pres.addSlide();
   await cardGrid(s, [
     { icon: 'FiVideo', h: 'One button, on the register', b: 'Take online. The class the teacher already has open becomes a video lesson - no link to send, no meeting to schedule, nothing for a parent to install.' },
     { icon: 'FiUsers', h: 'Everyone on the register, nobody else', b: 'The way in appears on each student\'s own record. There is no link to forward, and a child in another section cannot reach it.' },
-    { icon: 'FiLock', h: 'A new room every lesson', b: 'Never reused, and named nothing - not the school, not the section, not the date. A room that could be guessed from a timetable on a noticeboard is a room a stranger can walk into.' },
+    { icon: 'FiLock', h: 'A new room every lesson', b: 'Never reused, and named nothing - not the school, not the section, not the date. A room guessable from a timetable is one a stranger walks into.' },
     { icon: 'FiLogOut', h: 'Time out closes it', b: 'Ending the register ends the call. A lesson cannot outlive the teacher, which is the difference between a video class and a video link.' },
-  ], { cols: 2, y: 2.35, h: 2.3 });
+    { icon: 'FiClock', h: 'The class has a bell', b: 'A video call does not, so the classroom shows one: time elapsed against the period the timetable gives it, and the minutes left in words.' },
+    { icon: 'FiSmartphone', h: 'In the app on a phone', b: 'Android and iPhone run the lesson inside LogicClass itself - no browser, nothing else to install. On a computer it runs in the page.' },
+  ], { cols: 3, y: 2.05, h: 2.35 });
   s.addNotes('The question after this slide is always "which platform?" - it is Jitsi, embedded, and the school can host it themselves. Zoom and Meet refuse to be embedded at all, which is why a link is all anybody else offers.');
 }
 

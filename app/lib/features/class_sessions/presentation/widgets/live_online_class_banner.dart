@@ -42,6 +42,11 @@ class LiveOnlineClassBanner extends ConsumerWidget {
               // Their real name. A register that has to match faces to
               // names cannot do it against a grid of nicknames.
               displayName: me?.fullName ?? mark.studentName,
+              // When the lesson started, from their own mark. The
+              // timetabled length is not on it, so a student sees time
+              // elapsed and no countdown -- the bell is the teacher's to
+              // keep.
+              openedAt: mark.timeIn,
             ),
           )),
           child: Padding(
@@ -77,6 +82,7 @@ class LiveOnlineClassBanner extends ConsumerWidget {
                       subject: mark.subject,
                       section: mark.section,
                       displayName: me?.fullName ?? mark.studentName,
+                      openedAt: mark.timeIn,
                     ),
                   )),
                   child: const Text('Join'),

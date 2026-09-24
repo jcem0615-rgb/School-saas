@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Used to scan attendance QR codes and to photograph payment receipts and ID photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used so your teacher and classmates can hear you in an online class.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Sent with an emergency alert so your school can find you. Only used when you press the emergency button.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

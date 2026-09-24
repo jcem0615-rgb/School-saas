@@ -42,3 +42,13 @@ bool startMeeting({
 void disposeMeeting(String room) {
   _calls.remove(room)?.dispose();
 }
+
+/// Drives the running call from the app's own controls.
+///
+/// The buttons in the classroom are Flutter, the call is Jitsi's, and
+/// this is the join between them. Silently does nothing when the room
+/// is not running -- a control that throws because the call already
+/// ended is worse than one that does nothing.
+void sendMeetingCommand(String room, String command) {
+  _calls[room]?.executeCommand(command);
+}

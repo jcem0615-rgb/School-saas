@@ -7,6 +7,8 @@ import '../../../qr_attendance/domain/entities/attendance_record.dart'
 import '../../domain/entities/class_session.dart';
 import '../../../../core/meeting/online_class_screen.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider;
+import '../../../schedules/presentation/controllers/schedule_controller.dart'
+    show scheduleProvider;
 import '../controllers/class_session_controller.dart';
 
 final _clock = DateFormat('h:mm a');
@@ -194,6 +196,14 @@ class _OnlineClassBar extends ConsumerWidget {
 
   void _join(BuildContext context, WidgetRef ref, String room) {
     final me = ref.read(authStateProvider).valueOrNull;
+    // The timetabled length, so the classroom can show a clock. Null
+    // when the block has gone -- an unknown length shows elapsed time
+    // alone rather than a made-up total.
+    final block = ref
+        .read(scheduleProvider)
+        .valueOrNull
+        ?.where((b) => b.id == session.scheduleBlockId)
+        .firstOrNull;
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => OnlineClassScreen(
         room: room,
@@ -202,6 +212,8 @@ class _OnlineClassBar extends ConsumerWidget {
         displayName: me?.fullName ?? 'Teacher',
         // The teacher arrives un-muted and able to end it for everyone.
         asModerator: true,
+        openedAt: session.openedAt,
+        scheduledMinutes: block?.durationMinutes,
       ),
     ));
   }

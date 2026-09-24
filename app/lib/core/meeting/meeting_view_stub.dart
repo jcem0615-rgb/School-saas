@@ -21,3 +21,6 @@ bool startMeeting({
   required bool asModerator,
 }) =>
     false;
+
+/// Nothing is running, so no command reaches anything.
+void sendMeetingCommand(String room, String command) {}

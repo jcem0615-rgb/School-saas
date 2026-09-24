@@ -22,12 +22,20 @@ const meetingDomain = String.fromEnvironment(
 
 /// What a client can do about joining a video class.
 enum MeetingSupport {
-  /// The meeting renders inside the app. Web today.
+  /// The meeting renders inside a LogicClass screen. Web, through an
+  /// iframe Jitsi drives itself.
   embedded,
 
-  /// The app hands the room to the device -- the Jitsi app if it is
-  /// installed, the browser otherwise. Honest, and not the same thing:
-  /// the person leaves LogicClass to attend the lesson.
+  /// The meeting runs in the app, full-screen, through the native Jitsi
+  /// SDK. Android and iOS. Not a Flutter widget -- the SDK puts its own
+  /// conference in front of the person -- but it is this app's process,
+  /// there is no browser, and Leave comes back to the screen behind.
+  nativeSdk,
+
+  /// The app hands the room to the operating system -- the Jitsi app if
+  /// it is installed, the browser otherwise. Desktop, and the fallback
+  /// anywhere the other two fail. Honest, and not the same thing: the
+  /// person leaves LogicClass to attend the lesson.
   handOff,
 }
 
@@ -47,4 +55,17 @@ abstract class MeetingLauncher {
   /// Opens the room for a person who is not inside a screen that can
   /// embed it. Returns false when the device refused.
   Future<bool> handOff(String room, {required String displayName});
+
+  /// Runs the meeting inside the app on a platform with a native SDK.
+  ///
+  /// Returns false where there is none, or where it would not start --
+  /// the screen then falls back to [handOff] rather than leaving
+  /// somebody looking at a button that does nothing.
+  Future<bool> joinInApp({
+    required String room,
+    required String displayName,
+    required String subject,
+    required bool asModerator,
+  }) async =>
+      false;
 }

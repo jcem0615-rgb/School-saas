@@ -27,7 +27,13 @@ android {
         // Pinned rather than taken from flutter.minSdkVersion: firebase_auth
         // 5.x requires 23, and inheriting the Flutter default silently
         // drops below that when the SDK moves.
-        minSdk = 23
+        //
+        // Raised to 24 for jitsi_meet_flutter_sdk, whose Android SDK does
+        // not support 23. That drops Android 6.0 Marshmallow, which is a
+        // real cost for a school with very old handsets -- worth knowing
+        // before a rollout, and the reason it is written down here rather
+        // than simply bumped.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
