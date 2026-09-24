@@ -10,6 +10,8 @@ import 'package:logicclass/features/qr_attendance/domain/entities/attendance_rec
     show AttendanceStatus;
 import 'package:logicclass/features/class_sessions/presentation/controllers/class_session_controller.dart';
 import 'package:logicclass/features/class_sessions/presentation/screens/class_roll_screen.dart';
+import 'package:logicclass/features/class_sessions/presentation/screens/todays_classes_screen.dart';
+import 'package:logicclass/features/faculty_portal/presentation/screens/faculty_dashboard_screen.dart';
 
 /// Holding a lesson online, and shutting the door afterwards.
 ///
@@ -329,6 +331,61 @@ void main() {
       expect(find.text('End'), findsOneWidget);
       expect(find.textContaining('Everyone on the register can join'),
           findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('finding it in the first place', () {
+    testWidgets('the faculty dashboard has a way in', (tester) async {
+      // It was reachable only through Class Attendance -> the day's list
+      // -> Time In -> the register. That is a path nobody guesses at on
+      // the morning classes are suspended.
+      tester.view.physicalSize = const Size(1200, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final c = ProviderContainer(overrides: demoOverrides());
+      addTearDown(c.dispose);
+      c.read(demoAuthRepositoryProvider).signInAs(
+            DemoStore.demoAccounts.firstWhere((a) => a.role == UserRole.faculty),
+          );
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: c,
+        child: const MaterialApp(home: FacultyDashboardScreen()),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Online Class'), findsOneWidget);
+    });
+
+    testWidgets('and the day list offers to start one on every class',
+        (tester) async {
+      tester.view.physicalSize = const Size(420, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final c = ProviderContainer(overrides: demoOverrides());
+      addTearDown(c.dispose);
+      c.read(demoAuthRepositoryProvider).signInAs(
+            DemoStore.demoAccounts.firstWhere((a) => a.role == UserRole.faculty),
+          );
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: c,
+        child: const MaterialApp(home: TodaysClassesScreen()),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // One tap, not three: a lesson cannot be held online without a
+      // register, so the button opens the session, takes it online and
+      // goes in. The teacher should not have to know that order.
+      expect(find.text('Start online class'), findsWidgets);
+      expect(find.text('Time in'), findsWidgets);
+      // And it fits a phone rather than clipping the control that
+      // starts the lesson off the edge of the card.
       expect(tester.takeException(), isNull);
     });
   });

@@ -568,6 +568,7 @@ add(
     ['P / L / A / E', 'The register', 'Present, late, absent, excused - one tap per exception. Three absences is three taps, not forty.'],
     ['Take online', 'The register', 'Holds today\'s lesson as a video class inside LogicClass. Everybody on the register gets a Join button; nobody else can reach it. One tap, no links to send, no meeting to schedule.'],
     ['The classroom', 'Online class', 'The lesson runs in the app - in the page on a computer, and in the app itself on Android and iPhone. Mute, camera and leave are labelled buttons rather than icons, and the class clock shows how much of the period is left.'],
+    ['Online Class (tile)', 'Faculty dashboard', 'Opens the day\'s classes with a Start online class on each. One tap: it starts the register, takes the class online and puts the teacher in it.'],
     ['Time out', 'The register', 'Ends the class. The finish time is recorded against everyone who was there - and closes the video room, so the lesson cannot outlive the teacher.'],
     ['Subject Attendance', 'Student and Parent', 'The same records from the family\'s side, grouped by subject with a rate for each - worst subject first.'],
   ], ['Control', 'Where', 'What it does']),

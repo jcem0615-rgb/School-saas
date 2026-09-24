@@ -79,6 +79,38 @@ session **and** from every mark:
   including for students marked absent — a child who was not in the
   lesson must not be left holding the way into it either.
 
+## How a teacher gets to it
+
+**Faculty Dashboard → Online Class.** Its own tile, beside Class
+Attendance.
+
+It was reachable only through Class Attendance → the day's list → Time
+In → the register → Take online. That is four steps under a tile called
+"Class Attendance", which is not a path anybody guesses at on the
+morning classes are suspended — and a feature nobody can find is a
+feature that is not there.
+
+The tile opens the same screen Class Attendance does, because the day's
+classes are what you need either way. What changed is that every class
+on it now carries **Start online class** next to Time in.
+
+That button is one tap rather than three. A lesson cannot be held online
+without a register — the room is stamped onto each student's mark, which
+is how they reach it — so it opens the session if it is not open, takes
+it online if it is not online, and goes in. A teacher who has just been
+told classes are suspended should not have to know that order. If the
+class is already online it says **Join online class** and goes straight
+in, rather than opening a second room and stranding whoever is waiting
+in the first.
+
+It is not offered on a class that has finished: the server refuses to
+open a room on a closed register, and a button whose only outcome is an
+error message is worse than no button.
+
+A student needs no tile. The banner on their dashboard appears when
+their teacher starts the class and goes away when it ends, which is the
+only time there is anything to join.
+
 ## The teacher decides, not the timetable
 
 Per session, by the teacher, because the reasons are same-day ones: a
@@ -229,3 +261,4 @@ today, which is why nothing here sets one.
 | Demo | `smoke/online_class_test.dart` | the same properties through the app's own repositories, plus what the student is shown — nothing when no class is on, the live lesson when their teacher starts it, nothing again once it ends |
 | Pure | `unit/core/class_clock_test.dart` | elapsed never runs backwards on a slow device clock, remaining floors at zero rather than counting past the bell, the overrun is said rather than left as arithmetic, an unknown length claims nothing, and a zero-length class is not divided by |
 | Widget | `smoke/classroom_controls_test.dart` | the classroom names its subject and section, offers a way in on a platform that cannot run the video, and fits a 360px screen at 1.3x text |
+| Widget | `smoke/online_class_test.dart` | the Faculty Dashboard carries the Online Class tile, and the day's list offers Start online class on every class without clipping it off a phone-width card |

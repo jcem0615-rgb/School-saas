@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/meeting/online_class_screen.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart'
+    show authStateProvider;
 import '../../../schedules/domain/entities/schedule_block.dart';
 import '../../domain/entities/class_session.dart';
 import '../controllers/class_session_controller.dart';
@@ -80,6 +83,64 @@ class _ClassCard extends ConsumerWidget {
     ));
   }
 
+  /// Start teaching this class online, from wherever it currently is.
+  ///
+  /// One button rather than three steps. A lesson cannot be held online
+  /// without a register -- the room is stamped onto each student's mark,
+  /// which is how they reach it -- so this opens the session if it is
+  /// not open, takes it online if it is not online, and goes in. The
+  /// teacher who has just been told classes are suspended should not
+  /// have to know that order.
+  Future<void> _startOnline(
+    BuildContext context,
+    WidgetRef ref,
+    ClassSession? existing,
+  ) async {
+    final controller = ref.read(classSessionActionControllerProvider.notifier);
+
+    var sessionId = existing?.id;
+    if (sessionId == null) {
+      sessionId = await controller.openSession(block.id);
+      if (!context.mounted) return;
+      if (sessionId == null) {
+        _say(context, controller.errorMessage ?? 'The class could not be started.');
+        return;
+      }
+    }
+
+    // Already online: go straight in rather than opening a second room,
+    // which would strand anybody already waiting in the first.
+    var room = existing?.meetingRoom;
+    if (room == null || room.isEmpty) {
+      room = await controller.setMode(sessionId: sessionId, online: true);
+      if (!context.mounted) return;
+      if (room == null) {
+        _say(context, controller.errorMessage ?? 'The class could not be moved online.');
+        return;
+      }
+    }
+
+    final me = ref.read(authStateProvider).valueOrNull;
+    if (!context.mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => OnlineClassScreen(
+        room: room!,
+        subject: block.subject,
+        section: block.section,
+        displayName: me?.fullName ?? 'Teacher',
+        asModerator: true,
+        openedAt: existing?.openedAt ?? DateTime.now(),
+        scheduledMinutes: block.durationMinutes,
+      ),
+    ));
+  }
+
+  static void _say(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -121,34 +182,55 @@ class _ClassCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 10),
-            if (session == null)
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.icon(
-                  onPressed: busy ? null : () => _timeIn(context, ref),
-                  icon: const Icon(Icons.login, size: 18),
-                  label: const Text('Time in'),
+            if (session != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Started ${_clock.format(session.openedAt)}'
+                  '${session.closedAt == null ? '' : ', ended ${_clock.format(session.closedAt!)}'}',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
-              )
-            else
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              ),
+            // Wrap and right-aligned: three actions and a sentence do not
+            // fit one line on a phone, and the control that starts a
+            // lesson is the last thing that should be clipped off a card.
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Text(
-                    'Started ${_clock.format(session.openedAt)}'
-                    '${session.closedAt == null ? '' : ', ended ${_clock.format(session.closedAt!)}'}',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(width: 10),
-                  OutlinedButton(
-                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => ClassRollScreen(sessionId: session.id),
-                    )),
-                    child: Text(session.isOpen ? 'Open register' : 'View register'),
-                  ),
+                  if (session == null)
+                    OutlinedButton.icon(
+                      onPressed: busy ? null : () => _timeIn(context, ref),
+                      icon: const Icon(Icons.login, size: 18),
+                      label: const Text('Time in'),
+                    )
+                  else
+                    OutlinedButton(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => ClassRollScreen(sessionId: session.id),
+                      )),
+                      child: Text(session.isOpen ? 'Open register' : 'View register'),
+                    ),
+                  // Not offered on a class that has finished: the server
+                  // refuses to open a room on a closed register, and a
+                  // button whose only outcome is an error message is
+                  // worse than no button.
+                  if (session == null || session.isOpen)
+                    FilledButton.icon(
+                      onPressed: busy ? null : () => _startOnline(context, ref, session),
+                      icon: const Icon(Icons.videocam, size: 18),
+                      label: Text(session?.isOnlineNow == true
+                          ? 'Join online class'
+                          : 'Start online class'),
+                    ),
                 ],
               ),
+            ),
           ],
         ),
       ),

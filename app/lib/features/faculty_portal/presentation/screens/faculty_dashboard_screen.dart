@@ -87,6 +87,19 @@ class FacultyDashboardScreen extends StatelessWidget {
                   onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const TodaysClassesScreen())),
                 ),
+                // Its own tile, beside the register rather than inside
+                // it. Holding a lesson online was reachable only through
+                // Class Attendance -> the day's list -> Time In -> the
+                // register, which is a path nobody guesses at on the
+                // morning classes are suspended. Same screen as Class
+                // Attendance -- the day's classes are what you need
+                // either way -- and a Start online class on every row.
+                GlassTile(
+                  icon: Icons.videocam_outlined,
+                  label: 'Online Class',
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const TodaysClassesScreen())),
+                ),
                 GlassTile(
                   icon: Icons.menu_book_outlined,
                   label: 'Coursework',
