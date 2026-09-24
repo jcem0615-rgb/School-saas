@@ -32,6 +32,7 @@ abstract class MeetingSurface {
     required String displayName,
     required String subject,
     required bool asModerator,
+    String? token,
   });
 
   void leave(String room);
@@ -57,12 +58,14 @@ class PlatformMeetingSurface extends MeetingSurface {
     required String displayName,
     required String subject,
     required bool asModerator,
+    String? token,
   }) =>
       startMeeting(
         room: room,
         displayName: displayName,
         subject: subject,
         asModerator: asModerator,
+        token: token,
       );
 
   @override

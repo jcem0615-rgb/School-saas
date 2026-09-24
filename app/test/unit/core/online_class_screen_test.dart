@@ -47,14 +47,19 @@ class _FakeSurface extends MeetingSurface {
     return hostResult;
   }
 
+  /// What the screen handed Jitsi. Null is the unconfigured school.
+  String? startedWithToken;
+
   @override
   bool start({
     required String room,
     required String displayName,
     required String subject,
     required bool asModerator,
+    String? token,
   }) {
     calls.add('start');
+    startedWithToken = token;
     viewBuiltBeforeStart = viewBuilt;
     if (throwOnStart) throw StateError('parentNode is null');
     return startResult;
@@ -83,12 +88,13 @@ class _EmbeddingLauncher extends MeetingLauncher {
   Future<bool> handOff(String room, {required String displayName}) async => true;
 }
 
-Widget _screen(_FakeSurface surface) => MaterialApp(
+Widget _screen(_FakeSurface surface, {String? token}) => MaterialApp(
       home: OnlineClassScreen(
         room: 'lc-abcdefghijklmnopqrst',
         subject: 'Mathematics',
         section: 'Grade 10 - Rizal',
         displayName: 'Ms Santos',
+        token: token,
         asModerator: true,
         openedAt: DateTime(2026, 9, 24, 8),
         scheduledMinutes: 60,
@@ -165,6 +171,30 @@ void main() {
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.text('Join the class'), findsWidgets);
+    });
+  });
+
+  group('the pass that replaces the sign-in', () {
+    testWidgets('is handed to the meeting', (tester) async {
+      // Without it the lesson opens onto Jitsi's own sign-in, and a
+      // ten-year-old is asked for a Google account to attend their own
+      // school's class.
+      final surface = _FakeSurface();
+      await tester.pumpWidget(_screen(surface, token: 'header.claims.signature'));
+      await _settle(tester);
+
+      expect(surface.startedWithToken, 'header.claims.signature');
+    });
+
+    testWidgets('is absent, not empty, when the school has no key',
+        (tester) async {
+      // An unconfigured school joins without one. An empty string is
+      // not the same thing: Jitsi reads it as a token and rejects it.
+      final surface = _FakeSurface();
+      await tester.pumpWidget(_screen(surface));
+      await _settle(tester);
+
+      expect(surface.startedWithToken, isNull);
     });
   });
 

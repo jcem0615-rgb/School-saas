@@ -48,6 +48,7 @@ export {openClassSession} from "./callable/classSessions/openClassSession";
 export {setClassSessionMode} from "./callable/classSessions/setClassSessionMode";
 export {closeClassSession} from "./callable/classSessions/closeClassSession";
 export {markSubjectAttendance} from "./callable/classSessions/markSubjectAttendance";
+export {issueMeetingToken} from "./callable/classSessions/issueMeetingToken";
 
 // ---------------------------------------------------------------------------
 // Module: Payments

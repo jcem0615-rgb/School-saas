@@ -32,6 +32,12 @@ class OnlineClassScreen extends StatefulWidget {
   /// The teacher, who starts un-muted and can end the call for everyone.
   final bool asModerator;
 
+  /// The signed pass from LogicClass, so the meeting never asks who
+  /// this is. Null where the school has configured no signing key, and
+  /// the room is joined without one -- which is what happened before
+  /// tokens existed and is right on a deployment that does not ask.
+  final String? token;
+
   /// When the teacher pressed Time In, and how long the timetable says
   /// this class is. Both optional: the classroom works without a clock,
   /// it just cannot show one.
@@ -52,6 +58,7 @@ class OnlineClassScreen extends StatefulWidget {
     required this.subject,
     required this.section,
     required this.displayName,
+    this.token,
     this.asModerator = false,
     this.openedAt,
     this.scheduledMinutes,
@@ -159,6 +166,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
         displayName: widget.displayName,
         subject: '${widget.subject} - ${widget.section}',
         asModerator: widget.asModerator,
+        token: widget.token,
       );
       if (started) _startClock();
       setState(() => _ready = started);

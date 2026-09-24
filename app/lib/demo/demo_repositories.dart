@@ -4233,6 +4233,25 @@ class DemoClassSessionRepository implements ClassSessionRepository {
   }
 
   @override
+  Future<Result<String?>> meetingToken(String sessionId) async {
+    await _latency(150);
+    // The demo has no signing key and no Jitsi tenant behind it, so it
+    // answers what an unconfigured school answers: no token, join
+    // without one. Deliberately not a fake token -- a demo that returns
+    // a signature nothing can verify teaches that the sign-in is solved
+    // when it is a deployment away from being solved.
+    final session =
+        _store.classSessions.value.where((s) => s.id == sessionId).firstOrNull;
+    if (session == null) {
+      return const Error(ServerFailure('That class has not been started yet.'));
+    }
+    if (session.meetingRoom == null) {
+      return const Error(ServerFailure('That class is not online.'));
+    }
+    return const Success(null);
+  }
+
+  @override
   Future<Result<void>> closeSession(String sessionId) async {
     await _latency(250);
     final session =

@@ -72,6 +72,17 @@ class ClassSessionRepositoryImpl implements ClassSessionRepository {
   }
 
   @override
+  Future<Result<String?>> meetingToken(String sessionId) async {
+    try {
+      return Success(await _remote.meetingToken(sessionId));
+    } on ServerException catch (e) {
+      return Error(ServerFailure(e.message));
+    } catch (_) {
+      return const Error(UnknownFailure());
+    }
+  }
+
+  @override
   Future<Result<void>> closeSession(String sessionId) =>
       _run(() => _remote.closeSession(sessionId));
 

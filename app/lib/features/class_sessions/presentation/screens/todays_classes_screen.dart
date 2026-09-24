@@ -120,6 +120,17 @@ class _ClassCard extends ConsumerWidget {
       }
     }
 
+    // The pass, so the lesson does not open onto a sign-in page. The
+    // teacher signed in to LogicClass; asking them to hold a Google
+    // account as well to teach their own class is the thing this
+    // removes.
+    final pass = await controller.meetingToken(sessionId);
+    if (!context.mounted) return;
+    if (!pass.allowed) {
+      _say(context, pass.refusal ?? 'You could not be let into the class.');
+      return;
+    }
+
     final me = ref.read(authStateProvider).valueOrNull;
     if (!context.mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(
@@ -128,6 +139,7 @@ class _ClassCard extends ConsumerWidget {
         subject: block.subject,
         section: block.section,
         displayName: me?.fullName ?? 'Teacher',
+        token: pass.token,
         asModerator: true,
         openedAt: existing?.openedAt ?? DateTime.now(),
         scheduledMinutes: block.durationMinutes,

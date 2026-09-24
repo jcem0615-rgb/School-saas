@@ -22,6 +22,7 @@ bool startMeeting({
   required String displayName,
   required String subject,
   required bool asModerator,
+  String? token,
 }) =>
     false;
 

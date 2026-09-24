@@ -209,6 +209,24 @@ class ClassSessionActionController extends StateNotifier<AsyncValue<void>> {
     }
   }
 
+  /// The pass into this lesson, so nothing asks who the person is.
+  ///
+  /// A null return is not an error and the screen must not treat it as
+  /// one: a school that has configured no signing key joins its Jitsi
+  /// without a token, which is what every deployment did before this
+  /// existed. A refusal -- not on the register, class not online -- is
+  /// an error, and [MeetingPass.refused] is how the screen tells those
+  /// two apart without inspecting a message.
+  Future<MeetingPass> meetingToken(String sessionId) async {
+    final result = await _repository().meetingToken(sessionId);
+    switch (result) {
+      case Success(:final value):
+        return MeetingPass(token: value);
+      case Error(:final failure):
+        return MeetingPass.refused(failure.message);
+    }
+  }
+
   Future<bool> closeSession(String sessionId) =>
       _run(() => _repository().closeSession(sessionId));
 
@@ -254,3 +272,19 @@ final classSessionActionControllerProvider =
   // user's stream emits.
   return ClassSessionActionController(() => ref.read(classSessionRepositoryProvider));
 });
+
+/// The answer to "may this person into this lesson, and as whom".
+///
+/// Three states, and collapsing any two of them is a bug waiting:
+/// admitted with a token, admitted without one because the school has
+/// configured none, and refused. The middle one is the common case
+/// today and must not read as a failure.
+class MeetingPass {
+  final String? token;
+  final String? refusal;
+
+  const MeetingPass({this.token}) : refusal = null;
+  const MeetingPass.refused(String this.refusal) : token = null;
+
+  bool get allowed => refusal == null;
+}

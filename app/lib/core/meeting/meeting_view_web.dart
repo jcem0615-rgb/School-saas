@@ -22,6 +22,7 @@ bool startMeeting({
   required String displayName,
   required String subject,
   required bool asModerator,
+  String? token,
 }) {
   if (_calls.containsKey(room)) return true;
   final call = startJitsi(
@@ -29,6 +30,7 @@ bool startMeeting({
     displayName: displayName,
     subject: subject,
     asModerator: asModerator,
+    token: token,
   );
   if (call == null) return false;
   _calls[room] = call;

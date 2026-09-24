@@ -134,6 +134,7 @@ JitsiCall? startJitsi({
   required String displayName,
   required String subject,
   required bool asModerator,
+  String? token,
 }) {
   final api = _jitsiApiConstructor;
   if (api == null) return null;
@@ -151,6 +152,13 @@ JitsiCall? startJitsi({
     'roomName': room,
     'parentNode': host,
     'userInfo': {'displayName': displayName},
+    // The whole of the sign-in, answered before it is asked. LogicClass
+    // already knows who this is -- they signed in to it -- so it says
+    // so in a token the deployment accepts, and nobody is sent to
+    // Google to prove they are allowed into their own school's lesson.
+    // Null on a school that has configured no key, which joins the way
+    // it always did.
+    if (token != null) 'jwt': token,
     'configOverwrite': {
       'subject': subject,
       // The class is the lesson, not a social call: nobody is dropped
@@ -165,14 +173,35 @@ JitsiCall? startJitsi({
       'prejoinPageEnabled': false,
       'prejoinConfig': {'enabled': false},
       'disableDeepLinking': true,
+      // A lobby is a second waiting room in front of the register, and
+      // the register already decided who is in this class.
+      'lobby': {'enableChat': false, 'autoKnock': true},
+      // The name comes from the LogicClass account and is not the
+      // child's to edit: the register is the point of the lesson.
+      'requireDisplayName': false,
+      'readOnlyName': true,
+      // Nothing that offers a Jitsi identity to manage.
+      'disableProfile': true,
+      'hideEmailInSettings': true,
     },
     'interfaceConfigOverwrite': {
+      // No sign-in, sign-out or profile anywhere in the interface. On a
+      // deployment that needs no authentication these do nothing; on
+      // one reached before the token arrives they are the difference
+      // between a child pressing "log in" and a child waiting. A pupil
+      // account has no Jitsi identity to manage and should not be shown
+      // a door to one.
+      'AUTHENTICATION_ENABLE': false,
+      'SETTINGS_SECTIONS': <String>['devices'],
       // No invite button. Who is in a lesson is decided by who is on the
       // register, and a share-link button in a child's hand is the one
       // control that would undo that.
       'TOOLBAR_BUTTONS': <String>[
         'microphone', 'camera', 'desktop', 'fullscreen', 'hangup',
         'chat', 'raisehand', 'tileview', 'settings',
+        // Deliberately absent, beyond the invite button: 'profile'
+        // (a Jitsi identity nobody here has), 'recording' and
+        // 'livestreaming' (refused in the token as well).
       ],
       'SHOW_JITSI_WATERMARK': false,
       'MOBILE_APP_PROMO': false,

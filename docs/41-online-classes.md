@@ -235,6 +235,61 @@ That is survivable for a teacher and fatal for a class of ten-year-olds,
 and it is the kind of thing that is true or false on the day rather than
 in documentation.
 
+## Nobody signs in to the video
+
+They already signed in — to LogicClass. So LogicClass says who they are,
+in a token the deployment accepts, and the video call never asks.
+
+This matters more than it sounds. The alternative is a pupil meeting a
+Google, Facebook or GitHub sign-in on the way into their own school's
+lesson: most children do not have one of those accounts, and the ones
+who do would be handing a third party an identity to attend a class.
+
+`issueMeetingToken` mints it, per person, per lesson. It re-asks the
+access question rather than taking the room on trust — the caller names
+a *session*, never a room, and the room is read from the document that
+proves they belong in it: the session for staff, the student's own line
+in the register for a child. A wildcard token is never issued, because
+one would be a key to every lesson the school will ever hold.
+
+The token carries a display name, whether this person runs the lesson,
+and the one room. No email unless the account has one, no student
+number, no section, no school name: a JWT is signed, not encrypted, and
+everything in it is readable by anyone who sees the URL. Recording,
+livestreaming and transcription are refused *in the token* rather than
+hidden in the toolbar, because a hidden button is one a determined
+teenager finds.
+
+### Turning it on
+
+Five environment variables on the Functions deployment. Set none and
+nothing breaks: the app joins without a token, exactly as it did before
+this existed — right on a deployment that asks for none, and Jitsi's own
+sign-in on one that does.
+
+| | |
+|---|---|
+| `JITSI_APP_ID` | the tenant. `app_id` self-hosted, the AppID on JaaS |
+| `JITSI_APP_SECRET` | self-hosted: the matching `app_secret` (HS256) |
+| `JITSI_PRIVATE_KEY` | JaaS instead: the RSA private key, PEM (RS256) |
+| `JITSI_KEY_ID` | JaaS: the key's id, which goes in the JWT header |
+| `JITSI_DOMAIN` | the deployment, for the `sub` claim |
+
+A secret belongs in `firebase functions:secrets:set`, not in a variable
+and not in this repository. A PEM pasted into an environment variable
+arrives with its newlines escaped more often than not; the config reader
+puts them back, so paste it as it comes.
+
+Set `JITSI_DOMAIN` in **two** places — here for the token's `sub`, and
+as the `--dart-define` above for where the app actually connects. They
+must agree, or every token is rejected by a server that was not the one
+it was minted for.
+
+The client also turns off every sign-in-shaped control it can reach:
+no prejoin page, no lobby, no profile section, no authentication UI in
+the toolbar. Those are belt and braces. They hide a door; the token is
+what means there is nothing behind it.
+
 ## Not verified here
 
 **The live embed has not been run.** This environment's network policy
@@ -257,8 +312,11 @@ today, which is why nothing here sets one.
 | Layer | File | Covers |
 |---|---|---|
 | Pure | `meeting/room.test.ts` | a different name every time, nothing about the class in it, long enough not to be guessed, characters every deployment accepts, and a recogniser that refuses anything that arrived another way |
+| Pure | `meeting/token.test.ts` | good for one room and never `*`; nothing about the child beyond a name; no empty email claim; the teacher moderator and nobody else; recording and streaming refused; it expires and allows for a server clock that is not ours; HS256 verifies against the secret and not a forged one; RS256 names its key; URL-safe throughout; an unconfigured or half-configured school yields no config at all |
+| Emulator | `attendance-emulator/meetingToken.test.ts` | the teacher of the class as moderator, another teacher refused, the covering Admin allowed, a student on the register as a participant, a student who is not on it refused, an account with no student record refused, another school refused; a token never carries a room the caller did not earn; refused once the class comes back in person and for a room that did not come from this app; an unconfigured school gets no token *and* no relaxation of the access check; nothing written to the audit log |
 | Emulator | `attendance-emulator/onlineClass.test.ts` | the room reaches every student's own line and only there; a fresh one each time; never written to the audit log; cleared by coming back in person, by Time Out, and for the absent student too; refused on a finished class; the teacher and the covering Admin only, never a student, never another school |
 | Demo | `smoke/online_class_test.dart` | the same properties through the app's own repositories, plus what the student is shown — nothing when no class is on, the live lesson when their teacher starts it, nothing again once it ends |
 | Pure | `unit/core/class_clock_test.dart` | elapsed never runs backwards on a slow device clock, remaining floors at zero rather than counting past the bell, the overrun is said rather than left as arithmetic, an unknown length claims nothing, and a zero-length class is not divided by |
 | Widget | `smoke/classroom_controls_test.dart` | the classroom names its subject and section, offers a way in on a platform that cannot run the video, and fits a 360px screen at 1.3x text |
+| Widget | `unit/core/online_class_screen_test.dart` | the view is built before the meeting is started — the deadlock that made the screen spin forever; every failure landing on the fallback rather than the spinner (script refused, host absent, start refused, start throwing); the pass handed to the meeting, and absent rather than empty when the school has no key |
 | Widget | `smoke/online_class_test.dart` | the Faculty Dashboard carries the Online Class tile, and the day's list offers Start online class on every class without clipping it off a phone-width card |

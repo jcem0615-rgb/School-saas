@@ -126,6 +126,24 @@ class ClassSessionRemoteDataSource {
     }
   }
 
+  /// The pass that gets this person into this lesson without signing in.
+  ///
+  /// Null is a normal answer, not a failure: a school that has not
+  /// configured a signing key joins its Jitsi without a token, which is
+  /// what this app did before tokens existed.
+  Future<String?> meetingToken(String sessionId) async {
+    try {
+      final result =
+          await _functions.httpsCallable('issueMeetingToken').call<Map<String, dynamic>>({
+        'schoolId': _schoolId,
+        'sessionId': sessionId,
+      });
+      return result.data['token'] as String?;
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(e.message ?? 'You could not be let into the class.');
+    }
+  }
+
   Future<void> closeSession(String sessionId) async {
     try {
       await _functions.httpsCallable('closeClassSession').call<Map<String, dynamic>>({

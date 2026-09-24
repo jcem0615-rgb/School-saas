@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/meeting/online_class_screen.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider;
+import '../../domain/entities/class_session.dart';
 import '../controllers/class_session_controller.dart';
 
 /// "Mathematics is on now." The way into a lesson being held online.
@@ -19,6 +20,51 @@ class LiveOnlineClassBanner extends ConsumerWidget {
 
   const LiveOnlineClassBanner({super.key, required this.studentId});
 
+  /// Goes in, having first asked LogicClass for the pass.
+  ///
+  /// The child is already signed in -- to this app -- so the video call
+  /// is told who they are rather than asking them. Without this a pupil
+  /// meets a sign-in page belonging to a company they have no account
+  /// with, on the way into their own school's lesson.
+  ///
+  /// One method for both the card and the Join button: they were two
+  /// copies of the same push, and a second copy is where a fix like
+  /// this one gets applied to one of them.
+  Future<void> _join(
+    BuildContext context,
+    WidgetRef ref,
+    SubjectAttendanceMark mark,
+    String displayName,
+  ) async {
+    final pass = await ref
+        .read(classSessionActionControllerProvider.notifier)
+        .meetingToken(mark.sessionId);
+    if (!context.mounted) return;
+    if (!pass.allowed) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(pass.refusal ?? 'You could not be let into the class.'),
+        ));
+      return;
+    }
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => OnlineClassScreen(
+        room: mark.meetingRoom!,
+        subject: mark.subject,
+        section: mark.section,
+        // Their real name. A register that has to match faces to names
+        // cannot do it against a grid of nicknames.
+        displayName: displayName,
+        token: pass.token,
+        // When the lesson started, from their own mark. The timetabled
+        // length is not on it, so a student sees time elapsed and no
+        // countdown -- the bell is the teacher's to keep.
+        openedAt: mark.timeIn,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mark = ref.watch(myOnlineClassProvider(studentId));
@@ -34,21 +80,8 @@ class LiveOnlineClassBanner extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => OnlineClassScreen(
-              room: mark.meetingRoom!,
-              subject: mark.subject,
-              section: mark.section,
-              // Their real name. A register that has to match faces to
-              // names cannot do it against a grid of nicknames.
-              displayName: me?.fullName ?? mark.studentName,
-              // When the lesson started, from their own mark. The
-              // timetabled length is not on it, so a student sees time
-              // elapsed and no countdown -- the bell is the teacher's to
-              // keep.
-              openedAt: mark.timeIn,
-            ),
-          )),
+          onTap: () =>
+              _join(context, ref, mark, me?.fullName ?? mark.studentName),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -76,15 +109,8 @@ class LiveOnlineClassBanner extends ConsumerWidget {
                   ),
                 ),
                 FilledButton(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => OnlineClassScreen(
-                      room: mark.meetingRoom!,
-                      subject: mark.subject,
-                      section: mark.section,
-                      displayName: me?.fullName ?? mark.studentName,
-                      openedAt: mark.timeIn,
-                    ),
-                  )),
+                  onPressed: () =>
+                      _join(context, ref, mark, me?.fullName ?? mark.studentName),
                   child: const Text('Join'),
                 ),
               ],

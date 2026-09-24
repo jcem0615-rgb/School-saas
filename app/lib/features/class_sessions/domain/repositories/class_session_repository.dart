@@ -28,6 +28,12 @@ abstract class ClassSessionRepository {
   /// the room to join, or null once it is back in person.
   Future<Result<String?>> setMode({required String sessionId, required bool online});
 
+  /// The signed pass into a lesson, so the video call never asks a
+  /// person who they are -- they are already signed in to LogicClass.
+  /// A null token inside a Success means the school has configured no
+  /// signing key, and the class is joined without one.
+  Future<Result<String?>> meetingToken(String sessionId);
+
   Future<Result<void>> closeSession(String sessionId);
 
   Future<Result<void>> mark({
