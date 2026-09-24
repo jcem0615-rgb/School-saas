@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logicclass/core/meeting/meeting_room.dart';
+import 'package:logicclass/features/class_sessions/data/datasources/class_session_remote_datasource.dart';
 import 'package:logicclass/core/meeting/meeting_surface.dart';
 import 'package:logicclass/core/meeting/online_class_screen.dart';
 
@@ -223,6 +224,8 @@ void main() {
     });
   });
 
+  _notDeployed();
+
   group('leaving', () {
     testWidgets('hangs up before the screen goes away', (tester) async {
       final surface = _FakeSurface();
@@ -244,4 +247,35 @@ class _SlowSurface extends _FakeSurface {
     calls.add('prepare');
     return Completer<bool>().future;
   }
+}
+
+/// The window between deploying the site and deploying the functions.
+///
+/// The two ship separately, and in that window the app asks for a token
+/// from a callable that is not there. Turning that into a refusal would
+/// stop every lesson in the school -- strictly worse than the sign-in
+/// this feature removes.
+void _notDeployed() {
+  group('a token callable that is not deployed yet', () {
+    test('is not treated as a refusal', () {
+      expect(ClassSessionRemoteDataSource.meansNotDeployed('not-found'), isTrue);
+      expect(ClassSessionRemoteDataSource.meansNotDeployed('unimplemented'), isTrue);
+    });
+
+    test('is told apart from every refusal we actually issue', () {
+      // These are answers to be shown to somebody, not gaps to paper
+      // over: a child who is not on the register must be told so.
+      for (final code in const [
+        'permission-denied',
+        'failed-precondition',
+        'unauthenticated',
+        'invalid-argument',
+        'internal',
+        'unavailable',
+      ]) {
+        expect(ClassSessionRemoteDataSource.meansNotDeployed(code), isFalse,
+            reason: '$code is a real answer and must reach the person');
+      }
+    });
+  });
 }

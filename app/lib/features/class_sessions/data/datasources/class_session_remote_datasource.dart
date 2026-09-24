@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -140,9 +141,29 @@ class ClassSessionRemoteDataSource {
       });
       return result.data['token'] as String?;
     } on FirebaseFunctionsException catch (e) {
+      // A callable that is not deployed is not a refusal, and must not
+      // be turned into one. The web app and the functions ship
+      // separately, so there is a window -- minutes at best, a forgotten
+      // `firebase deploy` at worst -- where the site asks for a token
+      // from something that is not there yet. Refusing then would stop
+      // every lesson in the school rather than degrade one feature: the
+      // sign-in comes back, which is where we were, instead of the class
+      // not opening at all.
+      if (meansNotDeployed(e.code)) return null;
       throw ServerException(e.message ?? 'You could not be let into the class.');
     }
   }
+
+  /// Whether a callable error means "no such function" rather than "no".
+  ///
+  /// Kept as a named decision because the two look identical at the call
+  /// site and only one of them should ever stop a lesson. Our own
+  /// refusals come back as permission-denied, failed-precondition,
+  /// unauthenticated or invalid-argument, and every one of those is a
+  /// real answer to be shown to somebody.
+  @visibleForTesting
+  static bool meansNotDeployed(String code) =>
+      code == 'not-found' || code == 'unimplemented';
 
   Future<void> closeSession(String sessionId) async {
     try {
