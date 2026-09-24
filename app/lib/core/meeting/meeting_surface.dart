@@ -35,6 +35,13 @@ abstract class MeetingSurface {
     String? token,
   });
 
+  /// Waits until the class is genuinely in the room.
+  ///
+  /// Separate from [start] because constructing the meeting and joining
+  /// it are different events, and treating the first as the second is
+  /// what put a dead video frame inside a working classroom.
+  Future<bool> awaitJoined(String room);
+
   void leave(String room);
 
   void command(String room, String command);
@@ -67,6 +74,9 @@ class PlatformMeetingSurface extends MeetingSurface {
         asModerator: asModerator,
         token: token,
       );
+
+  @override
+  Future<bool> awaitJoined(String room) => awaitMeetingJoined(room);
 
   @override
   void leave(String room) => disposeMeeting(room);

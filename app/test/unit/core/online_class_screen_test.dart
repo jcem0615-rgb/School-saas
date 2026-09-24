@@ -18,12 +18,14 @@ class _FakeSurface extends MeetingSurface {
     this.prepareResult = true,
     this.hostResult = true,
     this.startResult = true,
+    this.joinedResult = true,
     this.throwOnStart = false,
   });
 
   final bool prepareResult;
   final bool hostResult;
   final bool startResult;
+  final bool joinedResult;
   final bool throwOnStart;
 
   /// The order the screen does things in, which is where the bug was.
@@ -64,6 +66,12 @@ class _FakeSurface extends MeetingSurface {
     viewBuiltBeforeStart = viewBuilt;
     if (throwOnStart) throw StateError('parentNode is null');
     return startResult;
+  }
+
+  @override
+  Future<bool> awaitJoined(String room) async {
+    calls.add('awaitJoined');
+    return joinedResult;
   }
 
   @override
@@ -123,7 +131,8 @@ void main() {
       // built. Building it after start is the deadlock.
       expect(surface.viewBuiltBeforeStart, isTrue,
           reason: 'the meeting was started before its view existed');
-      expect(surface.calls, <String>['prepare', 'awaitHost', 'start']);
+      expect(surface.calls,
+          <String>['prepare', 'awaitHost', 'start', 'awaitJoined']);
     });
 
     testWidgets('a started meeting shows the classroom controls', (tester) async {
@@ -221,6 +230,40 @@ void main() {
       expect(find.textContaining(meetingDomain), findsOneWidget);
       // And the view is already in the tree -- that is the whole point.
       expect(surface.viewBuilt, isTrue);
+    });
+  });
+
+  group('a room that will not have us', () {
+    testWidgets('is not a classroom with a dead video in it', (tester) async {
+      // The shape of the bug: a deployment that refuses to be embedded
+      // fails inside the iframe, where nothing here can see. Treating
+      // the constructor returning as "we are in the lesson" put a
+      // running clock and live controls around a grey rectangle.
+      final surface = _FakeSurface(joinedResult: false);
+      await tester.pumpWidget(_screen(surface));
+      await _settle(tester);
+
+      expect(find.text('Mute'), findsNothing);
+      expect(find.text('Leave'), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('Join the class'), findsWidgets);
+    });
+
+    testWidgets('takes the dead frame back out of the page', (tester) async {
+      final surface = _FakeSurface(joinedResult: false);
+      await tester.pumpWidget(_screen(surface));
+      await _settle(tester);
+
+      expect(surface.calls, contains('leave'));
+    });
+
+    testWidgets('names the deployment that would not start', (tester) async {
+      // When this card is what somebody reports, "which server" is the
+      // first question and a screenshot could not answer it.
+      await tester.pumpWidget(_screen(_FakeSurface(joinedResult: false)));
+      await _settle(tester);
+
+      expect(find.textContaining(meetingDomain), findsOneWidget);
     });
   });
 

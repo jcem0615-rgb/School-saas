@@ -168,8 +168,29 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
         asModerator: widget.asModerator,
         token: widget.token,
       );
-      if (started) _startClock();
-      setState(() => _ready = started);
+      if (!started) {
+        setState(() => _ready = false);
+        return;
+      }
+
+      // Constructed is not joined. The iframe belongs to another origin
+      // and a deployment that refuses to be embedded fails inside it,
+      // where nothing here can see -- which is how a blocked frame came
+      // to render as a furnished classroom with a dead grey rectangle
+      // in the middle of it. Jitsi says when it is in; until it does,
+      // this is still connecting.
+      final joined = await _surface.awaitJoined(widget.room);
+      if (!mounted) return;
+      if (!joined) {
+        // Take the dead frame out rather than leave it behind the
+        // fallback card.
+        _surface.leave(widget.room);
+        setState(() => _ready = false);
+        return;
+      }
+
+      _startClock();
+      setState(() => _ready = true);
     } catch (error) {
       // Swallowed deliberately, and this is the safety net rather than
       // the fix: the failure above is now handled by value. Anything

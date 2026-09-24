@@ -227,4 +227,10 @@ JitsiCall? startJitsi({
 extension type JitsiCall._(JSObject _api) implements JSObject {
   external void dispose();
   external void executeCommand(String command);
+
+  /// Jitsi's own events. The only way to learn whether the conference
+  /// actually came up: the iframe is another origin, so nothing about
+  /// what happened inside it is readable from here except what the API
+  /// chooses to tell us.
+  external void addListener(String event, JSFunction listener);
 }

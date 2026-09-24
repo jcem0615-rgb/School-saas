@@ -13,6 +13,9 @@ Future<bool> prepareMeetingView() async => false;
 /// No element to wait for where there is no view.
 Future<bool> awaitMeetingHost(String room) async => false;
 
+/// Nothing was started, so nothing ever joins.
+Future<bool> awaitMeetingJoined(String room) async => false;
+
 /// Nothing is running, so nothing hangs up.
 void disposeMeeting(String room) {}
 

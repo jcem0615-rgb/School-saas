@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:js_interop';
+
 import 'package:flutter/material.dart';
 
 import 'meeting_launcher_web.dart';
@@ -35,6 +38,46 @@ bool startMeeting({
   if (call == null) return false;
   _calls[room] = call;
   return true;
+}
+
+/// Waits until the class is actually in the room.
+///
+/// Constructing the API is not joining. Jitsi's constructor builds an
+/// iframe and returns; whether the conference ever comes up is decided
+/// afterwards, inside a frame this code cannot see into. A deployment
+/// that refuses to be embedded -- `X-Frame-Options`, a
+/// `frame-ancestors` policy -- fails exactly there, and the screen used
+/// to call that success: a classroom with its clock running, its
+/// controls live, and a dead grey rectangle where the lesson should be.
+///
+/// So the screen waits for Jitsi to say it is in. If it never does, the
+/// room is treated as unreachable and the person is offered the tab,
+/// which on a deployment that asks nobody to sign in still gets them
+/// into the lesson.
+Future<bool> awaitMeetingJoined(
+  String room, {
+  Duration timeout = const Duration(seconds: 20),
+}) {
+  final call = _calls[room];
+  if (call == null) return Future<bool>.value(false);
+
+  final settled = Completer<bool>();
+  void finish(bool joined) {
+    if (!settled.isCompleted) settled.complete(joined);
+  }
+
+  call.addListener('videoConferenceJoined', ((JSObject _) => finish(true)).toJS);
+  // Said by Jitsi when it knows itself that it failed. Faster than the
+  // timeout and the common case on a deployment that is up but will not
+  // have us.
+  call.addListener('errorOccurred', ((JSObject _) => finish(false)).toJS);
+  call.addListener('connectionFailed', ((JSObject _) => finish(false)).toJS);
+
+  // Generous, because it is also the time a class on a school's
+  // connection needs on a bad morning, and cutting a lesson off at five
+  // seconds would be its own bug.
+  Timer(timeout, () => finish(false));
+  return settled.future;
 }
 
 /// Hangs up and tears the iframe down.
