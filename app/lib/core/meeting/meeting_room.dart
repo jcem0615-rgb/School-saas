@@ -166,3 +166,27 @@ String _jsonString(String value) {
       .replaceAll(RegExp(r'[\x00-\x1f]'), '');
   return '"$escaped"';
 }
+
+/// What to conclude when the wait for a joined conference runs out.
+///
+/// The rule that was got backwards, and the cost of getting it backwards
+/// is tearing down a lesson that was about to work.
+///
+/// Two different failures look the same from outside the iframe: a
+/// deployment that refuses to be embedded, where nothing ever happens at
+/// all, and a slow join -- a cold room on a distant server from a
+/// school's connection -- which is simply taking its time. Treating the
+/// second as the first calls `dispose()` on a live conference and the
+/// class watches Jitsi say "you have been disconnected", because it has
+/// been, by us.
+///
+/// So the signal is not "did it join in time" but **did anything happen
+/// at all**. A frame that has spoken once is a frame that is alive, and
+/// a live call is Jitsi's to manage: its own reconnection notice is a
+/// better thing to show a class than a screen that kills the lesson at
+/// twenty seconds and offers a tab.
+///
+/// Only silence -- no event of any kind -- means the frame is dead and
+/// worth taking down.
+bool meetingIsWorthKeeping({required bool anySignal, required bool joined}) =>
+    joined || anySignal;

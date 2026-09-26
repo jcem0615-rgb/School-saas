@@ -19,6 +19,7 @@ class _FakeSurface extends MeetingSurface {
     this.hostResult = true,
     this.startResult = true,
     this.joinedResult = true,
+    this.aliveBeforeJoin = false,
     this.throwOnStart = false,
   });
 
@@ -26,6 +27,10 @@ class _FakeSurface extends MeetingSurface {
   final bool hostResult;
   final bool startResult;
   final bool joinedResult;
+
+  /// The frame showed signs of running before it finished joining --
+  /// a cold room on a distant server, which is slow and not broken.
+  final bool aliveBeforeJoin;
   final bool throwOnStart;
 
   /// The order the screen does things in, which is where the bug was.
@@ -69,8 +74,9 @@ class _FakeSurface extends MeetingSurface {
   }
 
   @override
-  Future<bool> awaitJoined(String room) async {
+  Future<bool> awaitJoined(String room, {void Function()? onAlive}) async {
     calls.add('awaitJoined');
+    if (aliveBeforeJoin) onAlive?.call();
     return joinedResult;
   }
 
@@ -328,6 +334,35 @@ void main() {
       await _settle(tester);
 
       expect(find.textContaining(meetingDomain), findsOneWidget);
+    });
+  });
+
+  group('a slow join is not a dead one', () {
+    testWidgets('the meeting takes the screen as soon as it is alive',
+        (tester) async {
+      // The overlay used to sit on top of a working call until it had
+      // joined, and then tear the call down if that took too long. The
+      // class watched Jitsi announce a disconnection this app had
+      // caused.
+      final surface = _FakeSurface(aliveBeforeJoin: true, joinedResult: true);
+      await tester.pumpWidget(_screen(surface));
+      await _settle(tester);
+
+      expect(find.text('Connecting to the class'), findsNothing);
+      expect(find.text('Leave'), findsOneWidget);
+      expect(surface.calls, isNot(contains('leave')));
+    });
+
+    testWidgets('a live frame that never finishes joining is still kept',
+        (tester) async {
+      // Alive but not joined is Jitsi's problem to narrate, not this
+      // screen's to end. Nothing may be disposed.
+      final surface = _FakeSurface(aliveBeforeJoin: true, joinedResult: true);
+      await tester.pumpWidget(_screen(surface));
+      await _settle(tester);
+
+      expect(find.text('Join the class'), findsNothing);
+      expect(surface.calls, isNot(contains('leave')));
     });
   });
 

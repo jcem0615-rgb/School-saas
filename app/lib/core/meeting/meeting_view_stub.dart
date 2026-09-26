@@ -14,7 +14,8 @@ Future<bool> prepareMeetingView() async => false;
 Future<bool> awaitMeetingHost(String room) async => false;
 
 /// Nothing was started, so nothing ever joins.
-Future<bool> awaitMeetingJoined(String room) async => false;
+Future<bool> awaitMeetingJoined(String room, {void Function()? onAlive}) async =>
+    false;
 
 /// Nothing is running, so nothing hangs up.
 void disposeMeeting(String room) {}

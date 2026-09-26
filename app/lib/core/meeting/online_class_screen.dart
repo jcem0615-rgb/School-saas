@@ -196,7 +196,14 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
       // to render as a furnished classroom with a dead grey rectangle
       // in the middle of it. Jitsi says when it is in; until it does,
       // this is still connecting.
-      final joined = await _surface.awaitJoined(widget.room);
+      final joined = await _surface.awaitJoined(
+        widget.room,
+        // Stand aside as soon as there is a meeting to look at, rather
+        // than holding an overlay over a working call until it finishes
+        // joining. A cold room on a distant server takes its time, and
+        // Jitsi narrates that better than a spinner does.
+        onAlive: _reveal,
+      );
       if (!mounted) return;
       if (!joined) {
         // Take the dead frame out rather than leave it behind the
@@ -206,8 +213,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
         return;
       }
 
-      _startClock();
-      setState(() => _ready = true);
+      _reveal();
     } catch (error) {
       // Swallowed deliberately, and this is the safety net rather than
       // the fix: the failure above is now handled by value. Anything
@@ -226,6 +232,16 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     _patience?.cancel();
     if (_embeds) _surface.leave(widget.room);
     super.dispose();
+  }
+
+  /// Hands the screen over to the meeting.
+  ///
+  /// Idempotent: it is called both on the first sign of life and again
+  /// on the join, and the second call must not restart anything.
+  void _reveal() {
+    if (!mounted || _ready == true) return;
+    _startClock();
+    setState(() => _ready = true);
   }
 
   /// Starts the clock, once there is something to time.

@@ -40,7 +40,10 @@ abstract class MeetingSurface {
   /// Separate from [start] because constructing the meeting and joining
   /// it are different events, and treating the first as the second is
   /// what put a dead video frame inside a working classroom.
-  Future<bool> awaitJoined(String room);
+  /// [onAlive] fires the moment the meeting shows any sign of running,
+  /// which is before it has joined. The screen uses it to get out of the
+  /// way: from then on what is happening is Jitsi's to say.
+  Future<bool> awaitJoined(String room, {void Function()? onAlive});
 
   void leave(String room);
 
@@ -76,7 +79,8 @@ class PlatformMeetingSurface extends MeetingSurface {
       );
 
   @override
-  Future<bool> awaitJoined(String room) => awaitMeetingJoined(room);
+  Future<bool> awaitJoined(String room, {void Function()? onAlive}) =>
+      awaitMeetingJoined(room, onAlive: onAlive);
 
   @override
   void leave(String room) => disposeMeeting(room);
