@@ -6,6 +6,7 @@ import 'package:logicclass/core/constants/user_roles.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
 import 'package:logicclass/features/class_sessions/domain/entities/class_session.dart';
+import 'package:logicclass/features/schedules/domain/entities/schedule_block.dart';
 import 'package:logicclass/features/qr_attendance/domain/entities/attendance_record.dart'
     show AttendanceStatus;
 import 'package:logicclass/features/class_sessions/presentation/controllers/class_session_controller.dart';
@@ -18,6 +19,37 @@ import 'package:logicclass/features/faculty_portal/presentation/screens/faculty_
 /// The room name is the whole of the security -- anyone holding it is in
 /// a video call with a class of children -- so most of what is pinned
 /// here is about when it exists and when it stops existing.
+/// Puts a class on today's timetable, whatever day the tests run on.
+///
+/// These used to read whatever the demo happened to have on the current
+/// weekday, and the demo timetable runs Monday to Friday -- so the whole
+/// group failed every Saturday and Sunday, on a calendar nothing in the
+/// test controlled. A suite that is red at weekends is a suite people
+/// learn to scroll past, which is worse than one test fewer.
+void _ensureAClassToday(ProviderContainer c) {
+  final store = c.read(demoStoreProvider);
+  final today = DateTime.now().weekday;
+  if (store.scheduleBlocks.value.any((b) =>
+      b.dayOfWeek == today && b.teacherId == 'u_faculty')) {
+    return;
+  }
+  store.scheduleBlocks.add([
+    ...store.scheduleBlocks.value,
+    ScheduleBlock(
+      id: 'sched_today_under_test',
+      subject: 'Mathematics',
+      section: 'Grade 10 - Rizal',
+      teacherId: 'u_faculty',
+      teacherName: 'Maria Santos',
+      room: 'Room 201',
+      dayOfWeek: today,
+      startMinute: 8 * 60,
+      endMinute: 9 * 60,
+      schoolYear: '${DateTime.now().year}-${DateTime.now().year + 1}',
+    ),
+  ]);
+}
+
 void main() {
   Future<ProviderContainer> signedInAs(UserRole role) async {
     final c = ProviderContainer(overrides: demoOverrides());
@@ -44,12 +76,13 @@ void main() {
   /// disposes it before the schedule has emitted and it answers "no
   /// classes" forever.
   Future<String> openAClass(ProviderContainer c) async {
+    _ensureAClassToday(c);
     final held = c.listen(myClassesTodayProvider, (_, __) {});
     addTearDown(held.close);
     await Future<void>.delayed(const Duration(milliseconds: 120));
 
     final blocks = c.read(myClassesTodayProvider);
-    expect(blocks, isNotEmpty, reason: 'the demo needs a class on today');
+    expect(blocks, isNotEmpty, reason: 'a class should have been seeded for today');
     final id = await actions(c).openSession(blocks.first.id);
     expect(id, isNotNull);
     return id!;
@@ -371,6 +404,7 @@ void main() {
       c.read(demoAuthRepositoryProvider).signInAs(
             DemoStore.demoAccounts.firstWhere((a) => a.role == UserRole.faculty),
           );
+      _ensureAClassToday(c);
 
       await tester.pumpWidget(UncontrolledProviderScope(
         container: c,

@@ -90,6 +90,20 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   /// seconds.
   Timer? _tick;
 
+  /// Set once connecting has gone on long enough to be worth doubting.
+  ///
+  /// The embed is still being attempted -- this only puts the way out on
+  /// screen. A deployment that refuses to be framed takes the full
+  /// timeout to say so, and a class should not spend it watching a
+  /// spinner with nothing to press.
+  bool _slow = false;
+  Timer? _patience;
+
+  /// How long before the way out appears. Long enough that a lesson on a
+  /// good connection never sees it, short enough that a lesson on a bad
+  /// morning is not held hostage to the timeout.
+  static const _patienceWindow = Duration(seconds: 6);
+
   bool get _embeds => _launcher.support == MeetingSupport.embedded;
   bool get _native => _launcher.support == MeetingSupport.nativeSdk;
 
@@ -97,6 +111,9 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   void initState() {
     super.initState();
     if (_embeds) {
+      _patience = Timer(_patienceWindow, () {
+        if (mounted && _ready == null) setState(() => _slow = true);
+      });
       _start();
     } else if (_native) {
       _startNative();
@@ -206,6 +223,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   @override
   void dispose() {
     _tick?.cancel();
+    _patience?.cancel();
     if (_embeds) _surface.leave(widget.room);
     super.dispose();
   }
@@ -239,6 +257,19 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   Future<void> _rejoinNative() async {
     setState(() => _ready = null);
     await _startNative();
+  }
+
+  /// Gives up on the embed and takes the lesson to a tab.
+  ///
+  /// Also reachable from the connecting overlay, so nobody waits out a
+  /// timeout to reach it. The frame is torn down first: an iframe left
+  /// in the page with a conference still joined is somebody in a room
+  /// nobody can see them in, and here it would be a second copy of the
+  /// person who has just walked into the tab.
+  Future<void> _giveUpAndOpen() async {
+    if (_embeds) _surface.leave(widget.room);
+    setState(() => _ready = false);
+    await _openOutside();
   }
 
   Future<void> _openOutside() async {
@@ -316,7 +347,8 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
               fit: StackFit.expand,
               children: [
                 if (_embeds) _surface.view(widget.room),
-                if (_ready == null) const _Connecting(),
+                if (_ready == null)
+                  _Connecting(onOpenOutside: _slow ? _giveUpAndOpen : null),
               ],
             ),
     );
@@ -330,7 +362,13 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
 /// school's video class is indistinguishable from a broken one, which is
 /// exactly how this screen's failure was read.
 class _Connecting extends StatelessWidget {
-  const _Connecting();
+  /// Offered once this has gone on long enough to doubt. Null while it
+  /// is still within the time a lesson normally takes to come up --
+  /// an escape hatch shown immediately reads as an expectation of
+  /// failure.
+  final VoidCallback? onOpenOutside;
+
+  const _Connecting({this.onOpenOutside});
 
   @override
   Widget build(BuildContext context) {
@@ -351,6 +389,20 @@ class _Connecting extends StatelessWidget {
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
+            if (onOpenOutside != null) ...[
+              const SizedBox(height: 24),
+              Text(
+                'Taking longer than it should.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: onOpenOutside,
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: const Text('Open the class in a new tab'),
+              ),
+            ],
           ],
         ),
       ),

@@ -214,6 +214,64 @@ void main() {
     });
   });
 
+  group('nobody waits out the timeout', () {
+    /// A deployment that refuses to be framed takes the full timeout to
+    /// say so. A class should not spend it watching a spinner with
+    /// nothing to press.
+    Widget slow() => MaterialApp(
+          home: OnlineClassScreen(
+            room: 'lc-abcdefghijklmnopqrst',
+            subject: 'Mathematics',
+            section: 'Grade 10 - Rizal',
+            displayName: 'Ms Santos',
+            debugSurface: _SlowSurface(),
+            debugLauncher: const _EmbeddingLauncher(),
+          ),
+        );
+
+    testWidgets('the way out is not offered straight away', (tester) async {
+      // Shown immediately it reads as an expectation of failure, on a
+      // lesson that is simply taking four seconds.
+      await tester.pumpWidget(slow());
+      await tester.pump(const Duration(seconds: 3));
+
+      expect(find.text('Open the class in a new tab'), findsNothing);
+      expect(find.text('Connecting to the class'), findsOneWidget);
+    });
+
+    testWidgets('it appears once this has gone on too long', (tester) async {
+      await tester.pumpWidget(slow());
+      await tester.pump(const Duration(seconds: 8));
+
+      expect(find.text('Open the class in a new tab'), findsOneWidget);
+      // Still trying underneath -- this is an offer, not a surrender.
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('taking it tears the dead frame out first', (tester) async {
+      // An iframe left in the page with a conference still joined is a
+      // second copy of the person who just walked into the tab.
+      final surface = _SlowSurface();
+      await tester.pumpWidget(MaterialApp(
+        home: OnlineClassScreen(
+          room: 'lc-abcdefghijklmnopqrst',
+          subject: 'Mathematics',
+          section: 'Grade 10 - Rizal',
+          displayName: 'Ms Santos',
+          debugSurface: surface,
+          debugLauncher: const _EmbeddingLauncher(),
+        ),
+      ));
+      await tester.pump(const Duration(seconds: 8));
+      await tester.tap(find.text('Open the class in a new tab'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(surface.calls, contains('leave'));
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+  });
+
   group('while it is connecting', () {
     testWidgets('it says what it is waiting for', (tester) async {
       // Never resolves within the pumps below, so the connecting state

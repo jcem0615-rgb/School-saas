@@ -1459,6 +1459,39 @@ class DemoStore {
           end: 14 * 60 + 30,
           term: '2nd Semester',
         ),
+      // Saturday.
+      //
+      // The timetable ran Monday to Friday, so anybody opening the demo
+      // at a weekend -- which is when somebody being shown a product
+      // has time to look at it -- found "nothing on your timetable" on
+      // every screen that starts from the day's classes, and no way to
+      // try the online class at all.
+      //
+      // It is also simply what these schools do. A Saturday remedial
+      // for the pupils who need it, and a college section timetabled
+      // for the students who work during the week, are both ordinary
+      // here rather than invented to fill a gap.
+      block(
+        subject: 'Mathematics (Remedial)',
+        section: rizal,
+        teacherId: maria,
+        teacherName: 'Maria Santos',
+        room: 'Room 201',
+        day: DateTime.saturday,
+        start: 8 * 60,
+        end: 9 * 60 + 30,
+      ),
+      block(
+        subject: 'Capstone Project',
+        section: bscs,
+        teacherId: dennis,
+        teacherName: 'Dennis Pascual',
+        room: 'Computer Lab',
+        day: DateTime.saturday,
+        start: 9 * 60,
+        end: 12 * 60,
+        term: '2nd Semester',
+      ),
     ];
   }
 
