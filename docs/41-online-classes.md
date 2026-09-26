@@ -248,6 +248,11 @@ with minors on camera — no contract, no support, and no say if it
 disappears on a Monday morning. Reasonable to start on, poor to run a
 term on.
 
+**The install steps are written down**: docs/42-hosting-the-video.md
+takes a bare VPS to a token-only Jitsi the app embeds, in about ninety
+minutes, and ends with the verification order that tells you which half
+is wrong when something is.
+
 Moving is one variable and no code change:
 
 > Settings → Secrets and variables → Actions → **Variables**
@@ -338,7 +343,7 @@ today, which is why nothing here sets one.
 | Layer | File | Covers |
 |---|---|---|
 | Pure | `meeting/room.test.ts` | a different name every time, nothing about the class in it, long enough not to be guessed, characters every deployment accepts, and a recogniser that refuses anything that arrived another way |
-| Pure | `meeting/token.test.ts` | good for one room and never `*`; nothing about the child beyond a name; no empty email claim; the teacher moderator and nobody else; recording and streaming refused; it expires and allows for a server clock that is not ours; HS256 verifies against the secret and not a forged one; RS256 names its key; URL-safe throughout; an unconfigured or half-configured school yields no config at all |
+| Pure | `meeting/token.test.ts` | the two deployments' different names for `iss`/`aud`/`sub`; good for one room and never `*`; nothing about the child beyond a name; no empty email claim; the teacher moderator and nobody else; recording and streaming refused; it expires and allows for a server clock that is not ours; HS256 verifies against the secret and not a forged one; RS256 names its key; URL-safe throughout; an unconfigured or half-configured school yields no config at all |
 | Emulator | `attendance-emulator/meetingToken.test.ts` | the teacher of the class as moderator, another teacher refused, the covering Admin allowed, a student on the register as a participant, a student who is not on it refused, an account with no student record refused, another school refused; a token never carries a room the caller did not earn; refused once the class comes back in person and for a room that did not come from this app; an unconfigured school gets no token *and* no relaxation of the access check; nothing written to the audit log |
 | Emulator | `attendance-emulator/onlineClass.test.ts` | the room reaches every student's own line and only there; a fresh one each time; never written to the audit log; cleared by coming back in person, by Time Out, and for the absent student too; refused on a finished class; the teacher and the covering Admin only, never a student, never another school |
 | Demo | `smoke/online_class_test.dart` | the same properties through the app's own repositories, plus what the student is shown — nothing when no class is on, the live lesson when their teacher starts it, nothing again once it ends |

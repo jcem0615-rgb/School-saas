@@ -114,6 +114,39 @@ describe("the pass that gets one person into one lesson", () => {
     });
   });
 
+  describe("the two deployments name the same claims differently", () => {
+    it("a self-hosted Jitsi is told its own app id, and the domain", () => {
+      // It checks iss and aud against the app_id in its prosody config
+      // and reads sub as the domain the room lives on.
+      const claims = buildMeetingClaims(
+        {name: "Ana", moderator: false, room: "lc-a", now: NOW},
+        hs256
+      );
+      expect(claims.iss).toBe("logicclass");
+      expect(claims.aud).toBe("logicclass");
+      expect(claims.sub).toBe("meet.example.ph");
+    });
+
+    it("JaaS is told the fixed strings it insists on, and the tenant", () => {
+      // It ignores app_id in iss/aud entirely and wants "chat" and
+      // "jitsi", with the tenant in sub. Sending it the self-hosted
+      // shape gets every token rejected with no clue why -- which is
+      // what this used to do.
+      const claims = buildMeetingClaims(
+        {name: "Ana", moderator: false, room: "lc-a", now: NOW},
+        {
+          appId: "vpaas-magic-cookie-1234",
+          privateKey: "-----BEGIN PRIVATE KEY-----",
+          keyId: "vpaas-magic-cookie-1234/abc123",
+          audienceDomain: "8x8.vc",
+        }
+      );
+      expect(claims.iss).toBe("chat");
+      expect(claims.aud).toBe("jitsi");
+      expect(claims.sub).toBe("vpaas-magic-cookie-1234");
+    });
+  });
+
   describe("how it is signed", () => {
     it("is verifiable with the shared secret, and only that one", () => {
       const token = signMeetingToken(

@@ -88,10 +88,20 @@ export function buildMeetingClaims(
   identity: MeetingIdentity,
   config: MeetingTokenConfig
 ): Record<string, unknown> {
+  // Two deployments, two sets of names for the same three claims, and
+  // getting them wrong means every token is rejected with no clue why.
+  //
+  // A self-hosted Jitsi checks `iss` and `aud` against the `app_id` in
+  // its prosody config, and reads `sub` as the domain the room lives
+  // on. JaaS ignores all of that and wants fixed strings -- `chat` and
+  // `jitsi` -- with the tenant in `sub` instead.
+  //
+  // Which one is in front of us is decided by the key: JaaS issues an
+  // RSA private key, a self-hosted install has a shared secret.
   return {
-    aud: config.appId,
-    iss: config.appId,
-    sub: config.audienceDomain,
+    aud: config.privateKey ? "jitsi" : config.appId,
+    iss: config.privateKey ? "chat" : config.appId,
+    sub: config.privateKey ? config.appId : config.audienceDomain,
     // The room, not "*". A wildcard token is a key to every lesson the
     // school will ever hold, handed to a ten-year-old.
     room: identity.room,
