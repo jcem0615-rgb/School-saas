@@ -16,10 +16,16 @@ Then, in order:
 
 **Upgrade to Blaze.** Project settings → Usage and billing → Modify
 plan. Cloud Functions will not deploy on the free Spark plan, and this
-app is thirty-seven callables and triggers. Blaze is pay-as-you-go with
-the free tier still applied underneath — a school of a thousand students
-costs a few dollars a month — but it wants a card before it will run a
-single function. Set a budget alert while you are on that page.
+app is **forty-eight** of them — thirty-nine callables, seven Firestore
+triggers and two scheduled jobs. Blaze is pay-as-you-go with the free
+tier still applied underneath — a school of a thousand students costs a
+few dollars a month — but it wants a card before it will run a single
+function. Set a budget alert while you are on that page.
+
+Be aware of what a budget alert is: it emails you when you cross a
+figure. It does not stop the meter. Capping spend outright is a Cloud
+Billing budget wired to a function that disables billing, which is its
+own piece of work and takes the project offline when it fires.
 
 > **If you have no card yet**, everything else on this page can still be
 > done on the free Spark plan: create the project, enable Email/Password,
@@ -27,12 +33,19 @@ single function. Set a budget alert while you are on that page.
 > web app. Only `firebase deploy --only functions` needs Blaze.
 >
 > What you cannot do is go live in the meantime. Signing in, creating any
-> account, recording a payment, running the rollover and enrolling an
-> applicant are all callables, so an app pointed at a project with no
-> functions is a login screen and nothing behind it. **Leave `DEMO_MODE`
+> account, recording a payment, running the rollover, enrolling an
+> applicant and joining an online class are all callables, so an app
+> pointed at a project with no functions is a login screen and nothing
+> behind it. **Leave `DEMO_MODE`
 > unset until the functions are deployed** — the demo is a complete
 > school with twelve accounts and needs no billing at all, which is the
 > right thing to be showing anybody until then.
+
+**Online classes, if the school will hold them.** Three values in
+`functions/.env` from a LiveKit project — `LIVEKIT_URL`,
+`LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`. Leave them out and everything
+else works; the classroom says live video is not set up rather than
+failing. See docs/44-a-class-of-sixty.md.
 
 **Authentication** → Get started → **Email/Password**. Enable it.
 Nothing else: no Google sign-in, no anonymous. The app provisions
