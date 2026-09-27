@@ -86,9 +86,17 @@ class _FakeSurface extends MeetingSurface {
   @override
   void command(String room, String command) => commands.add(command);
 
+  /// How many times the screen has asked for the meeting widget.
+  ///
+  /// The number that matters. Each rebuild of the subtree holding a
+  /// platform view is a chance for Flutter to reparent its host element,
+  /// and a browser reloads an iframe that moves in the DOM.
+  int viewBuilds = 0;
+
   @override
   Widget view(String room) {
     viewBuilt = true;
+    viewBuilds++;
     return const ColoredBox(color: Color(0xFF000000));
   }
 }
@@ -162,7 +170,7 @@ void main() {
       await _settle(tester);
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Join the class'), findsWidgets);
+      expect(find.text('Try joining again'), findsWidgets);
       // Never asked to start something that could not be prepared.
       expect(surface.calls, <String>['prepare']);
     });
@@ -174,7 +182,7 @@ void main() {
       await _settle(tester);
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Join the class'), findsWidgets);
+      expect(find.text('Try joining again'), findsWidgets);
       expect(surface.calls, <String>['prepare', 'awaitHost']);
     });
 
@@ -184,7 +192,7 @@ void main() {
       await _settle(tester);
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Join the class'), findsWidgets);
+      expect(find.text('Try joining again'), findsWidgets);
     });
 
     testWidgets('a refused start lands on the fallback', (tester) async {
@@ -192,7 +200,7 @@ void main() {
       await _settle(tester);
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Join the class'), findsWidgets);
+      expect(find.text('Try joining again'), findsWidgets);
     });
   });
 
@@ -241,7 +249,7 @@ void main() {
       await tester.pumpWidget(slow());
       await tester.pump(const Duration(seconds: 3));
 
-      expect(find.text('Open the class in a new tab'), findsNothing);
+      expect(find.text('Try joining again'), findsNothing);
       expect(find.text('Connecting to the class'), findsOneWidget);
     });
 
@@ -249,14 +257,14 @@ void main() {
       await tester.pumpWidget(slow());
       await tester.pump(const Duration(seconds: 8));
 
-      expect(find.text('Open the class in a new tab'), findsOneWidget);
+      expect(find.text('Try joining again'), findsOneWidget);
       // Still trying underneath -- this is an offer, not a surrender.
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
     testWidgets('taking it tears the dead frame out first', (tester) async {
-      // An iframe left in the page with a conference still joined is a
-      // second copy of the person who just walked into the tab.
+      // Retrying on top of a half-built frame is how two connections to
+      // the same room appear.
       final surface = _SlowSurface();
       await tester.pumpWidget(MaterialApp(
         home: OnlineClassScreen(
@@ -269,12 +277,11 @@ void main() {
         ),
       ));
       await tester.pump(const Duration(seconds: 8));
-      await tester.tap(find.text('Open the class in a new tab'));
+      await tester.tap(find.text('Try joining again'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(surface.calls, contains('leave'));
-      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
   });
 
@@ -361,8 +368,63 @@ void main() {
       await tester.pumpWidget(_screen(surface));
       await _settle(tester);
 
-      expect(find.text('Join the class'), findsNothing);
+      expect(find.text('Try joining again'), findsNothing);
       expect(surface.calls, isNot(contains('leave')));
+    });
+  });
+
+  group('the clock must not touch the meeting', () {
+    testWidgets('a minute of ticks rebuilds no part of the call',
+        (tester) async {
+      // This is the disconnection. The clock ran setState(() {}) on a
+      // one-second timer, rebuilding the whole screen -- the Stack, and
+      // with it the platform view holding Jitsi's iframe. A browser
+      // reloads an iframe that is moved in the DOM. The lesson was
+      // being re-scened once a second on a connection that was fine.
+      final surface = _FakeSurface();
+      await tester.pumpWidget(_screen(surface));
+      await _settle(tester);
+
+      final afterJoin = surface.viewBuilds;
+      for (var second = 0; second < 60; second++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+
+      expect(surface.viewBuilds, afterJoin,
+          reason: 'the meeting was rebuilt by the clock');
+    });
+
+    testWidgets('the clock is fed by a notifier, not by setState',
+        (tester) async {
+      // The structural half of the same fix, and the one a future edit
+      // is most likely to undo: the clock must reach the screen through
+      // something only the control bar listens to. Put it back on the
+      // State and everything above rebuilds with it, the meeting
+      // included.
+      //
+      // (Its ticking cannot be asserted here -- the label comes from
+      // DateTime.now(), and a widget test's real clock does not move.
+      // What the clock reads is class_clock_test's job.)
+      await tester.pumpWidget(_screen(_FakeSurface()));
+      await _settle(tester);
+
+      expect(find.text('CLASS TIME'), findsOneWidget);
+      expect(find.byType(ValueListenableBuilder<DateTime>), findsOneWidget);
+    });
+
+    testWidgets('and pressing Mute does not rebuild the call either',
+        (tester) async {
+      final surface = _FakeSurface();
+      await tester.pumpWidget(_screen(surface));
+      await _settle(tester);
+
+      final afterJoin = surface.viewBuilds;
+      await tester.tap(find.text('Mute'));
+      await tester.pump();
+
+      expect(find.text('Unmute'), findsOneWidget);
+      expect(surface.viewBuilds, afterJoin);
+      expect(surface.commands, contains('toggleAudio'));
     });
   });
 

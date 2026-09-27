@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 import 'dart:async';
@@ -83,11 +84,25 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   /// Mirrored rather than read back from Jitsi: the iframe API reports
   /// these through events, and a control that waits for a round trip
   /// before it looks pressed feels broken on a slow connection.
-  bool _muted = false;
-  bool _cameraOff = false;
+  ///
+  /// Notifiers rather than fields, for the same reason as the clock
+  /// below: nothing about a button may rebuild the meeting.
+  final _muted = ValueNotifier(false);
+  final _cameraOff = ValueNotifier(false);
 
-  /// Ticks the class clock. One second, because the thing it shows is
-  /// seconds.
+  /// Drives the class clock, and **only** the class clock.
+  ///
+  /// This was `setState(() {})` on a one-second timer, which rebuilt the
+  /// whole screen -- the Stack, and with it the platform view holding
+  /// Jitsi's iframe. A browser reloads an iframe that is moved in the
+  /// DOM, and Flutter reparents a platform view's host element when the
+  /// scene around it changes. So the lesson was being re-scened once a
+  /// second, and what the class saw was Jitsi announcing it had been
+  /// disconnected, over and over, on a connection that was fine.
+  ///
+  /// A notifier the controls listen to instead. The meeting is not in
+  /// that subtree and never rebuilds for a tick.
+  final _now = ValueNotifier(DateTime.now());
   Timer? _tick;
 
   /// Set once connecting has gone on long enough to be worth doubting.
@@ -230,6 +245,9 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   void dispose() {
     _tick?.cancel();
     _patience?.cancel();
+    _now.dispose();
+    _muted.dispose();
+    _cameraOff.dispose();
     if (_embeds) _surface.leave(widget.room);
     super.dispose();
   }
@@ -248,18 +266,19 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   void _startClock() {
     if (_tick != null || widget.openedAt == null) return;
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      // Deliberately not setState. See [_now].
+      if (mounted) _now.value = DateTime.now();
     });
   }
 
   void _toggleMute() {
     _surface.command(widget.room, 'toggleAudio');
-    setState(() => _muted = !_muted);
+    _muted.value = !_muted.value;
   }
 
   void _toggleCamera() {
     _surface.command(widget.room, 'toggleVideo');
-    setState(() => _cameraOff = !_cameraOff);
+    _cameraOff.value = !_cameraOff.value;
   }
 
   void _leave() {
@@ -275,17 +294,28 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     await _startNative();
   }
 
-  /// Gives up on the embed and takes the lesson to a tab.
+  /// Throws the meeting away and builds it again, in place.
   ///
-  /// Also reachable from the connecting overlay, so nobody waits out a
-  /// timeout to reach it. The frame is torn down first: an iframe left
-  /// in the page with a conference still joined is somebody in a room
-  /// nobody can see them in, and here it would be a second copy of the
-  /// person who has just walked into the tab.
-  Future<void> _giveUpAndOpen() async {
+  /// This used to open a browser tab. It does not any more: the lesson
+  /// is meant to happen in this app, and sending a class out to a tab is
+  /// the thing the whole module exists to avoid -- it loses the class
+  /// clock, the register beside it, and on a phone it loses the app.
+  ///
+  /// So the way out of a failed attempt is another attempt. The old
+  /// frame is disposed first, because retrying on top of a half-built
+  /// one is how two connections to the same room appear.
+  Future<void> _retry() async {
     if (_embeds) _surface.leave(widget.room);
-    setState(() => _ready = false);
-    await _openOutside();
+    if (!mounted) return;
+    setState(() {
+      _ready = null;
+      _slow = false;
+    });
+    _patience?.cancel();
+    _patience = Timer(_patienceWindow, () {
+      if (mounted && _ready == null) setState(() => _slow = true);
+    });
+    await _start();
   }
 
   Future<void> _openOutside() async {
@@ -333,13 +363,9 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
       // thing Jitsi cannot know -- how much of the lesson is left.
       bottomNavigationBar: _ready == true
           ? _ClassroomControls(
-              clock: widget.openedAt == null
-                  ? null
-                  : ClassClock(
-                      openedAt: widget.openedAt!,
-                      now: DateTime.now(),
-                      scheduledMinutes: widget.scheduledMinutes,
-                    ),
+              openedAt: widget.openedAt,
+              scheduledMinutes: widget.scheduledMinutes,
+              now: _now,
               muted: _muted,
               cameraOff: _cameraOff,
               onMute: _toggleMute,
@@ -352,7 +378,15 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
               embedded: _embeds,
               native: _native,
               handedOff: _handedOff,
-              onOpen: _native ? _rejoinNative : _openOutside,
+              // Web never leaves the app: another attempt, in place.
+              // The hand-off remains only for a desktop build, where
+              // there is no embedded view and no SDK, so a tab is the
+              // only thing there is rather than a shortcut out of one.
+              onOpen: _native
+                  ? _rejoinNative
+                  : _embeds
+                      ? _retry
+                      : _openOutside,
             )
           // The view is built while we are still connecting, not after.
           // It is what creates the element the meeting attaches to, so
@@ -362,9 +396,17 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
           : Stack(
               fit: StackFit.expand,
               children: [
-                if (_embeds) _surface.view(widget.room),
+                // Keyed, so a rebuild matches this to the same element
+                // and Flutter has no reason to make a new platform view.
+                // A new host element means a new iframe, and a new
+                // iframe means the lesson starts again.
+                if (_embeds)
+                  KeyedSubtree(
+                    key: ValueKey('meeting-${widget.room}'),
+                    child: _surface.view(widget.room),
+                  ),
                 if (_ready == null)
-                  _Connecting(onOpenOutside: _slow ? _giveUpAndOpen : null),
+                  _Connecting(onRetry: _slow ? _retry : null),
               ],
             ),
     );
@@ -380,11 +422,10 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
 class _Connecting extends StatelessWidget {
   /// Offered once this has gone on long enough to doubt. Null while it
   /// is still within the time a lesson normally takes to come up --
-  /// an escape hatch shown immediately reads as an expectation of
-  /// failure.
-  final VoidCallback? onOpenOutside;
+  /// a retry offered immediately reads as an expectation of failure.
+  final VoidCallback? onRetry;
 
-  const _Connecting({this.onOpenOutside});
+  const _Connecting({this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -405,7 +446,7 @@ class _Connecting extends StatelessWidget {
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
-            if (onOpenOutside != null) ...[
+            if (onRetry != null) ...[
               const SizedBox(height: 24),
               Text(
                 'Taking longer than it should.',
@@ -414,9 +455,9 @@ class _Connecting extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                onPressed: onOpenOutside,
-                icon: const Icon(Icons.open_in_new, size: 18),
-                label: const Text('Open the class in a new tab'),
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Try joining again'),
               ),
             ],
           ],
@@ -427,16 +468,25 @@ class _Connecting extends StatelessWidget {
 }
 
 /// The lesson's own controls, and its clock.
+///
+/// Takes notifiers rather than values, so a tick of the clock or a press
+/// of Mute rebuilds this bar and nothing else. The meeting must not be
+/// in any subtree that a second hand can rebuild -- see [_now] on the
+/// screen for what that cost.
 class _ClassroomControls extends StatelessWidget {
-  final ClassClock? clock;
-  final bool muted;
-  final bool cameraOff;
+  final DateTime? openedAt;
+  final int? scheduledMinutes;
+  final ValueListenable<DateTime> now;
+  final ValueListenable<bool> muted;
+  final ValueListenable<bool> cameraOff;
   final VoidCallback onMute;
   final VoidCallback onCamera;
   final VoidCallback onLeave;
 
   const _ClassroomControls({
-    required this.clock,
+    required this.openedAt,
+    required this.scheduledMinutes,
+    required this.now,
     required this.muted,
     required this.cameraOff,
     required this.onMute,
@@ -447,7 +497,7 @@ class _ClassroomControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final c = clock;
+    final started = openedAt;
 
     return SafeArea(
       child: Padding(
@@ -456,64 +506,39 @@ class _ClassroomControls extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (c != null) ...[
-              Row(
-                children: [
-                  Text('CLASS TIME',
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(letterSpacing: 1.2)),
-                  const SizedBox(width: 10),
-                  Text(
-                    c.scheduledLabel == null
-                        ? c.elapsedLabel
-                        : '${c.elapsedLabel} / ${c.scheduledLabel}',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+            if (started != null)
+              ValueListenableBuilder<DateTime>(
+                valueListenable: now,
+                builder: (context, tick, _) => _Clock(
+                  clock: ClassClock(
+                    openedAt: started,
+                    now: tick,
+                    scheduledMinutes: scheduledMinutes,
                   ),
-                ],
+                ),
               ),
-              const SizedBox(height: 6),
-              if (c.progress != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: c.progress,
-                    minHeight: 4,
-                    // Red once the slot is used up. The class does not
-                    // stop -- ending it is the teacher's decision, not a
-                    // timer's -- but nobody should have to work out that
-                    // they are over.
-                    color: c.overrunning ? theme.colorScheme.error : null,
-                  ),
-                ),
-              if (c.remainingLabel != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  c.remainingLabel!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: c.overrunning ? theme.colorScheme.error : null,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 10),
-            ],
             // Wrap, so a narrow phone stacks the controls instead of
             // clipping Leave off the edge.
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                OutlinedButton.icon(
-                  onPressed: onMute,
-                  icon: Icon(muted ? Icons.mic_off : Icons.mic, size: 18),
-                  label: Text(muted ? 'Unmute' : 'Mute'),
+                ValueListenableBuilder<bool>(
+                  valueListenable: muted,
+                  builder: (context, off, _) => OutlinedButton.icon(
+                    onPressed: onMute,
+                    icon: Icon(off ? Icons.mic_off : Icons.mic, size: 18),
+                    label: Text(off ? 'Unmute' : 'Mute'),
+                  ),
                 ),
-                OutlinedButton.icon(
-                  onPressed: onCamera,
-                  icon: Icon(cameraOff ? Icons.videocam_off : Icons.videocam,
-                      size: 18),
-                  label: Text(cameraOff ? 'Camera on' : 'Camera off'),
+                ValueListenableBuilder<bool>(
+                  valueListenable: cameraOff,
+                  builder: (context, off, _) => OutlinedButton.icon(
+                    onPressed: onCamera,
+                    icon: Icon(off ? Icons.videocam_off : Icons.videocam,
+                        size: 18),
+                    label: Text(off ? 'Camera on' : 'Camera off'),
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: onLeave,
@@ -527,6 +552,60 @@ class _ClassroomControls extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Elapsed against the timetabled length, and what is left of it.
+class _Clock extends StatelessWidget {
+  final ClassClock clock;
+  const _Clock({required this.clock});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('CLASS TIME',
+                style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 1.2)),
+            const SizedBox(width: 10),
+            Text(
+              clock.scheduledLabel == null
+                  ? clock.elapsedLabel
+                  : '${clock.elapsedLabel} / ${clock.scheduledLabel}',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        if (clock.progress != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: clock.progress,
+              minHeight: 4,
+              // Red once the slot is used up. The class does not stop --
+              // ending it is the teacher's decision, not a timer's --
+              // but nobody should have to work out that they are over.
+              color: clock.overrunning ? theme.colorScheme.error : null,
+            ),
+          ),
+        if (clock.remainingLabel != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            clock.remainingLabel!,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: clock.overrunning ? theme.colorScheme.error : null,
+            ),
+          ),
+        ],
+        const SizedBox(height: 10),
+      ],
     );
   }
 }
@@ -589,10 +668,9 @@ class _Fallback extends StatelessWidget {
                             // would not start" is the first question,
                             // and it used to be unanswerable from the
                             // screenshot.
-                            ? 'The video would not start here. $meetingDomain '
-                                'did not answer, or would not run inside the '
-                                'app. Opening it in a new tab still gets you '
-                                'into the lesson.'
+                            ? 'The video would not start. $meetingDomain did '
+                                'not answer. The lesson is still running -- '
+                                'try joining it again.'
                             : 'The lesson opens in the Jitsi Meet app, or in '
                                 'your browser if it is not installed.',
                 style: theme.textTheme.bodyMedium,
@@ -601,12 +679,14 @@ class _Fallback extends StatelessWidget {
               const SizedBox(height: 20),
               FilledButton.icon(
                 onPressed: onOpen,
-                icon: Icon(native ? Icons.videocam : Icons.open_in_new),
+                icon: Icon(native || embedded ? Icons.videocam : Icons.open_in_new),
                 label: Text(native
                     ? 'Rejoin the class'
-                    : handedOff
-                        ? 'Open it again'
-                        : 'Join the class'),
+                    : embedded
+                        ? 'Try joining again'
+                        : handedOff
+                            ? 'Open it again'
+                            : 'Join the class'),
               ),
             ],
           ),
