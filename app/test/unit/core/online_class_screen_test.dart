@@ -333,9 +333,12 @@ void main() {
 
       expect(find.textContaining('has not started the class inside the app'),
           findsOneWidget);
-      // And it names what actually fixes it, rather than asking a
-      // teacher to keep pressing a button that will not help.
-      expect(find.textContaining('the school needs its own'), findsOneWidget);
+      // Names what actually fixes it, rather than asking a teacher to
+      // keep pressing a button that cannot help -- and says it in words
+      // meant for somebody in front of a class, not a file path.
+      expect(find.textContaining('the school needs its own video server'),
+          findsOneWidget);
+      expect(find.textContaining('docs/'), findsNothing);
       expect(find.text('Try again'), findsOneWidget);
     });
 

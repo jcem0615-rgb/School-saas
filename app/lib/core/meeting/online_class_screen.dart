@@ -655,10 +655,17 @@ class _ClassroomControls extends StatelessWidget {
                               // a teacher staring at a grey box
                               // deserves to be told which, and what
                               // actually fixes it.
+                              // Written for the teacher in front of a
+                              // class, not for whoever will fix it. The
+                              // first version named a markdown file in
+                              // a git repository, which is a developer
+                              // artifact and useless to the person
+                              // reading it at half past eight with
+                              // thirty children waiting.
                               '$meetingDomain has not started the class inside '
-                              'the app. If the area above stays blank, this '
-                              'server does not allow it and the school needs '
-                              'its own (see docs/42-hosting-the-video.md).',
+                              'the app. If the area above stays blank, hold the '
+                              'lesson another way today and tell the office -- '
+                              'the school needs its own video server.',
                               style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant),
                             ),
