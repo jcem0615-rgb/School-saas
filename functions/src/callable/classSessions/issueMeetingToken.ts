@@ -8,6 +8,11 @@ import {
   meetingTokenConfig,
   signMeetingToken,
 } from "../../shared/meeting/token";
+import {
+  buildLiveKitClaims,
+  liveKitConfig,
+  signLiveKitToken,
+} from "../../shared/meeting/livekit";
 
 interface IssueTokenData {
   schoolId: string;
@@ -119,8 +124,37 @@ export const issueMeetingToken = onCall(
       throw new HttpsError("failed-precondition", "That class is not online.");
     }
 
+    // A media server first, where the school has one. It is the only
+    // shape that carries a class of sixty -- everybody sends once and it
+    // forwards -- and the app draws the video itself, so there is no
+    // third-party document for anybody to refuse to embed.
+    const live = liveKitConfig();
+    if (live) {
+      return {
+        provider: "livekit",
+        url: live.url,
+        room,
+        token: signLiveKitToken(
+          buildLiveKitClaims(
+            {
+              name: (request.auth!.token.name as string) || "LogicClass",
+              // Stable per person, so rejoining after a dropped
+              // connection replaces them in the room rather than
+              // leaving a ghost beside them.
+              identity: uid,
+              room,
+              moderator,
+              now: Math.floor(Date.now() / 1000),
+            },
+            live
+          ),
+          live
+        ),
+      };
+    }
+
     const config = meetingTokenConfig();
-    if (!config) return {token: null, room};
+    if (!config) return {provider: "none", token: null, room};
 
     const token = signMeetingToken(
       buildMeetingClaims(
@@ -140,6 +174,6 @@ export const issueMeetingToken = onCall(
     // a room, the log is read school-wide, and the room name is the
     // whole of what keeps a stranger out of a class of children. That a
     // lesson went online is already recorded, by setClassSessionMode.
-    return {token, room};
+    return {provider: "jitsi", token, room};
   }
 );

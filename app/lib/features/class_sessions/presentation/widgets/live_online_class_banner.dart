@@ -57,6 +57,8 @@ class LiveOnlineClassBanner extends ConsumerWidget {
         // cannot do it against a grid of nicknames.
         displayName: displayName,
         token: pass.token,
+        provider: pass.provider,
+        serverUrl: pass.url,
         // When the lesson started, from their own mark. The timetabled
         // length is not on it, so a student sees time elapsed and no
         // countdown -- the bell is the teacher's to keep.

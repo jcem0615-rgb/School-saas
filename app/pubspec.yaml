@@ -49,7 +49,7 @@ dependencies:
   flutter_local_notifications: ^17.2.2
 
   # Connectivity / offline
-  connectivity_plus: ^6.0.5
+  connectivity_plus: ^7.0.0
 
   # Browser APIs (Geolocation, for the emergency alert's location).
   # Reached only through lib/core/location/location_probe_factory.dart's
@@ -75,6 +75,8 @@ dependencies:
   image: ^4.3.0
   flutter_svg: ^2.3.0
   diacritic: ^0.1.6
+  flutter_webrtc: ^1.6.2+hotfix.3
+  livekit_client: ^2.13.0
 
 dev_dependencies:
   flutter_test:

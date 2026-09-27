@@ -74,7 +74,7 @@ class ClassSessionRepositoryImpl implements ClassSessionRepository {
   }
 
   @override
-  Future<Result<String?>> meetingToken(String sessionId) async {
+  Future<Result<MeetingAdmission>> meetingToken(String sessionId) async {
     try {
       return Success(await _remote.meetingToken(sessionId));
     } on ServerException catch (e) {

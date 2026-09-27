@@ -1,0 +1,116 @@
+import {signHs256} from "./token";
+
+/**
+ * The pass into a class held through a media server.
+ *
+ * A mesh call -- every browser sending its own video to every other --
+ * carries about six people. A Philippine secondary class is sixty, which
+ * in a mesh is fifty-nine uploads from one laptop: not slow, impossible.
+ * A media server (an SFU) takes one stream from each person and forwards
+ * it, so a class of sixty costs a participant what a call of six does.
+ *
+ * LiveKit is that server. What matters here is that **the app draws the
+ * video itself** -- Flutter widgets over tracks, no iframe -- so there is
+ * no third-party document for a server to refuse to embed, which is the
+ * wall two public Jitsi deployments put the whole feature into.
+ *
+ * The token is the entitlement this school already decided, said in the
+ * form LiveKit reads. Same rule as everywhere else in this module: the
+ * caller names a session, the server reads the room off the document
+ * that proves they belong in it, and the token is good for that one
+ * room.
+ */
+export interface LiveKitGrant {
+  /** Shown to the class, and written on the register. */
+  name: string;
+  /** Stable per person, so a rejoin replaces rather than duplicates. */
+  identity: string;
+  /** The one room this opens. */
+  room: string;
+  /** The teacher, who may remove somebody from the lesson. */
+  moderator: boolean;
+  /** Seconds since the epoch. Injected so the claims can be tested. */
+  now: number;
+}
+
+export interface LiveKitConfig {
+  apiKey: string;
+  apiSecret: string;
+  /** The server the client connects to, e.g. wss://x.livekit.cloud. */
+  url: string;
+}
+
+/** As long as a very long lesson, and no longer. */
+const LIFETIME_SECONDS = 6 * 60 * 60;
+
+/** Jitter between this server's clock and LiveKit's. */
+const CLOCK_SKEW_SECONDS = 30;
+
+/**
+ * The claims LiveKit reads, and nothing beyond them.
+ *
+ * `roomJoin` with a named `room` is the whole of the access control: a
+ * token cannot be used to enter a different lesson, and `roomCreate` is
+ * absent so it cannot be used to invent one.
+ */
+export function buildLiveKitClaims(
+  grant: LiveKitGrant,
+  config: LiveKitConfig
+): Record<string, unknown> {
+  return {
+    iss: config.apiKey,
+    sub: grant.identity,
+    nbf: grant.now - CLOCK_SKEW_SECONDS,
+    exp: grant.now + LIFETIME_SECONDS,
+    // Shown to the class. A register that matches faces to names cannot
+    // do it against a grid of nicknames.
+    name: grant.name,
+    video: {
+      room: grant.room,
+      roomJoin: true,
+      // Absent on purpose: a token that can create rooms is a token
+      // that can hold a lesson nobody is on the register for.
+      canPublish: true,
+      canSubscribe: true,
+      // No data channel. Chat, if it ever exists, belongs on the
+      // school's own record rather than in an untracked side channel
+      // between children.
+      canPublishData: false,
+      // The teacher can remove somebody from the lesson. A child who
+      // can do that to the teacher is a child who will.
+      roomAdmin: grant.moderator,
+    },
+  };
+}
+
+/** Signs [claims]. LiveKit verifies HS256 against the API secret. */
+export function signLiveKitToken(
+  claims: Record<string, unknown>,
+  config: LiveKitConfig
+): string {
+  return signHs256({alg: "HS256", typ: "JWT"}, claims, config.apiSecret);
+}
+
+/**
+ * The deployment's media server, or null when there is none.
+ *
+ * Null is a supported state and not a failure: without it the app falls
+ * back to a direct call between browsers, which works and carries about
+ * six people. It is what a school gets before it has configured
+ * anything, and it is why the class-size ceiling is a thing the screens
+ * talk about.
+ *
+ *   LIVEKIT_URL         wss://<project>.livekit.cloud, or your own
+ *   LIVEKIT_API_KEY     from the LiveKit console
+ *   LIVEKIT_API_SECRET  its secret. Anyone holding it can mint entry
+ *                       to any lesson.
+ */
+export function liveKitConfig(
+  env: NodeJS.ProcessEnv = process.env
+): LiveKitConfig | null {
+  const url = env.LIVEKIT_URL?.trim();
+  const apiKey = env.LIVEKIT_API_KEY?.trim();
+  const apiSecret = env.LIVEKIT_API_SECRET?.trim();
+  if (!url || !apiKey || !apiSecret) return null;
+  return {url, apiKey, apiSecret};
+}

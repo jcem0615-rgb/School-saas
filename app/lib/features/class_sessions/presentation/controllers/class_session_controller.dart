@@ -223,7 +223,11 @@ class ClassSessionActionController extends StateNotifier<AsyncValue<void>> {
     final result = await _repository().meetingToken(sessionId);
     switch (result) {
       case Success(:final value):
-        return MeetingPass(token: value);
+        return MeetingPass(
+          token: value.token,
+          provider: value.provider,
+          url: value.url,
+        );
       case Error(:final failure):
         return MeetingPass.refused(failure.message);
     }
@@ -285,8 +289,20 @@ class MeetingPass {
   final String? token;
   final String? refusal;
 
-  const MeetingPass({this.token}) : refusal = null;
-  const MeetingPass.refused(String this.refusal) : token = null;
+  /// Which kind of meeting this pass opens: `livekit` when the school
+  /// has a media server, `jitsi` for the embedded path, `none` when
+  /// nothing is configured.
+  final String provider;
+
+  /// The media server to connect to. Only for `livekit`.
+  final String? url;
+
+  const MeetingPass({this.token, this.provider = 'none', this.url})
+      : refusal = null;
+  const MeetingPass.refused(String this.refusal)
+      : token = null,
+        provider = 'none',
+        url = null;
 
   bool get allowed => refusal == null;
 }

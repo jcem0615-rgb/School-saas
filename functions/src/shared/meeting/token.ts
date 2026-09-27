@@ -135,7 +135,7 @@ export function buildMeetingClaims(
   };
 }
 
-function base64url(value: Buffer | string): string {
+export function base64url(value: Buffer | string): string {
   return Buffer.from(value)
     .toString("base64")
     .replace(/\+/g, "-")
@@ -154,6 +154,17 @@ function base64url(value: Buffer | string): string {
  * uses. RS256 when a private key is, which is what JaaS issues. Neither
  * configured is not an error: see [meetingTokenConfig].
  */
+/** HS256 over `header.claims`, the shape every JWT here uses. */
+export function signHs256(
+  header: Record<string, unknown>,
+  claims: Record<string, unknown>,
+  secret: string
+): string {
+  const input =
+    `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(claims))}`;
+  return `${input}.${base64url(createHmac("sha256", secret).update(input).digest())}`;
+}
+
 export function signMeetingToken(
   claims: Record<string, unknown>,
   config: MeetingTokenConfig

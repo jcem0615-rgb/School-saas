@@ -4239,7 +4239,7 @@ class DemoClassSessionRepository implements ClassSessionRepository {
   }
 
   @override
-  Future<Result<String?>> meetingToken(String sessionId) async {
+  Future<Result<MeetingAdmission>> meetingToken(String sessionId) async {
     await _latency(150);
     // The demo has no signing key and no Jitsi tenant behind it, so it
     // answers what an unconfigured school answers: no token, join
@@ -4254,7 +4254,7 @@ class DemoClassSessionRepository implements ClassSessionRepository {
     if (session.meetingRoom == null) {
       return const Error(ServerFailure('That class is not online.'));
     }
-    return const Success(null);
+    return const Success(MeetingAdmission.none);
   }
 
   @override

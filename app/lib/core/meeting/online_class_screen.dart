@@ -6,6 +6,7 @@ import 'dart:async';
 import 'class_clock.dart';
 import 'meeting_launcher_factory.dart';
 import 'meeting_surface.dart';
+import 'webrtc/livekit_surface.dart';
 
 /// The lesson, held in the app.
 ///
@@ -39,6 +40,14 @@ class OnlineClassScreen extends StatefulWidget {
   /// tokens existed and is right on a deployment that does not ask.
   final String? token;
 
+  /// How this school holds a lesson: `livekit` for a media server,
+  /// which carries a whole class and is drawn by this app; `jitsi` for
+  /// the embedded path; `none` for neither.
+  final String provider;
+
+  /// The media server to connect to. Only `livekit` has one.
+  final String? serverUrl;
+
   /// When the teacher pressed Time In, and how long the timetable says
   /// this class is. Both optional: the classroom works without a clock,
   /// it just cannot show one.
@@ -60,6 +69,8 @@ class OnlineClassScreen extends StatefulWidget {
     required this.section,
     required this.displayName,
     this.token,
+    this.provider = 'none',
+    this.serverUrl,
     this.asModerator = false,
     this.openedAt,
     this.scheduledMinutes,
@@ -74,8 +85,17 @@ class OnlineClassScreen extends StatefulWidget {
 class _OnlineClassScreenState extends State<OnlineClassScreen> {
   late final MeetingLauncher _launcher =
       widget.debugLauncher ?? createMeetingLauncher();
-  late final MeetingSurface _surface =
-      widget.debugSurface ?? const PlatformMeetingSurface();
+  late final MeetingSurface _surface = widget.debugSurface ??
+      // A media server where the school has one: it is the only shape
+      // that carries a class of sixty, and this app draws it, so no
+      // deployment can decline to be embedded.
+      (widget.provider == 'livekit' && widget.serverUrl != null
+          ? LiveKitMeetingSurface(url: widget.serverUrl!)
+          : const PlatformMeetingSurface());
+
+  /// A media server needs no page of somebody else's, so none of the
+  /// embedded path's failure modes apply to it.
+  bool get _forwarded => widget.provider == 'livekit' && widget.serverUrl != null;
 
   /// Null while we are still finding out.
   bool? _ready;
@@ -158,8 +178,10 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   static const _giveUpAfter = Duration(seconds: 40);
   Timer? _watchdog;
 
-  bool get _embeds => _launcher.support == MeetingSupport.embedded;
-  bool get _native => _launcher.support == MeetingSupport.nativeSdk;
+  bool get _embeds =>
+      _forwarded || _launcher.support == MeetingSupport.embedded;
+  bool get _native =>
+      !_forwarded && _launcher.support == MeetingSupport.nativeSdk;
 
   @override
   void initState() {

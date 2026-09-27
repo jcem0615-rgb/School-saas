@@ -133,14 +133,18 @@ class ClassSessionRemoteDataSource {
   /// Null is a normal answer, not a failure: a school that has not
   /// configured a signing key joins its Jitsi without a token, which is
   /// what this app did before tokens existed.
-  Future<String?> meetingToken(String sessionId) async {
+  Future<MeetingAdmission> meetingToken(String sessionId) async {
     try {
       final result =
           await _functions.httpsCallable('issueMeetingToken').call<Map<String, dynamic>>({
         'schoolId': _schoolId,
         'sessionId': sessionId,
       });
-      return result.data['token'] as String?;
+      return MeetingAdmission(
+        provider: (result.data['provider'] as String?) ?? 'none',
+        token: result.data['token'] as String?,
+        url: result.data['url'] as String?,
+      );
     } on FirebaseFunctionsException catch (e) {
       // A callable that is not deployed is not a refusal, and must not
       // be turned into one. The web app and the functions ship
@@ -150,7 +154,7 @@ class ClassSessionRemoteDataSource {
       // every lesson in the school rather than degrade one feature: the
       // sign-in comes back, which is where we were, instead of the class
       // not opening at all.
-      if (meansNotDeployed(e.code)) return null;
+      if (meansNotDeployed(e.code)) return MeetingAdmission.none;
       throw ServerException(e.message ?? 'You could not be let into the class.');
     }
   }

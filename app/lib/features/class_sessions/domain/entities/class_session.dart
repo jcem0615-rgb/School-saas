@@ -222,3 +222,25 @@ DateTime? timeInForMark(
   if (status != AttendanceStatus.late) return null;
   return markedAt.isBefore(sessionOpenedAt) ? sessionOpenedAt : markedAt;
 }
+
+/// What the server says about how to join a lesson.
+///
+/// Three shapes, and the screen needs to tell them apart: a media
+/// server that carries a whole class, the embedded path for a school
+/// on its own Jitsi, and nothing configured at all.
+class MeetingAdmission {
+  /// `livekit`, `jitsi`, or `none`.
+  final String provider;
+  final String? token;
+
+  /// Where to connect. Only a media server has one.
+  final String? url;
+
+  const MeetingAdmission({
+    required this.provider,
+    this.token,
+    this.url,
+  });
+
+  static const none = MeetingAdmission(provider: 'none');
+}

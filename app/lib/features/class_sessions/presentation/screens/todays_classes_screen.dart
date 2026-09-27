@@ -79,6 +79,8 @@ Future<void> startOnlineClass({
       section: block.section,
       displayName: me?.fullName ?? 'Teacher',
       token: pass.token,
+      provider: pass.provider,
+      serverUrl: pass.url,
       asModerator: true,
       openedAt: existing?.openedAt ?? DateTime.now(),
       scheduledMinutes: block.durationMinutes,

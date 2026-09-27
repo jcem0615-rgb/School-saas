@@ -36,7 +36,7 @@ abstract class ClassSessionRepository {
   /// person who they are -- they are already signed in to LogicClass.
   /// A null token inside a Success means the school has configured no
   /// signing key, and the class is joined without one.
-  Future<Result<String?>> meetingToken(String sessionId);
+  Future<Result<MeetingAdmission>> meetingToken(String sessionId);
 
   Future<Result<void>> closeSession(String sessionId);
 
