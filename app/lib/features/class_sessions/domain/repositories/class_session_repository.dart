@@ -21,7 +21,11 @@ abstract class ClassSessionRepository {
   /// Time In. Returns the session id, whether it was opened now or was
   /// already running -- pressing twice is what happens when the first
   /// press is slow, and it must not produce two registers.
-  Future<Result<String>> openSession(String scheduleBlockId);
+  /// [unscheduled] holds the class although the timetable does not put
+  /// it today -- a make-up lesson, a review session, the Saturday that
+  /// replaces a day lost to a typhoon. Asked for deliberately, and
+  /// recorded on the register as such.
+  Future<Result<String>> openSession(String scheduleBlockId, {bool unscheduled});
 
   /// Time Out.
   /// Takes today's lesson online, or brings it back in person. Returns

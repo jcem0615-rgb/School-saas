@@ -14,6 +14,15 @@ import {schoolDateKey, schoolTimezone} from "../../shared/attendance/schoolClock
 interface OpenClassSessionData {
   schoolId: string;
   scheduleBlockId: string;
+  /**
+   * Hold this class although the timetable does not put it today.
+   *
+   * A make-up lesson, a review session before an exam, the Saturday
+   * that replaces a day lost to a typhoon. Off by default, so a screen
+   * listing today's classes keeps the guard it has always had; the
+   * teacher asks for it deliberately, from a screen that says as much.
+   */
+  unscheduled?: boolean;
 }
 
 /**
@@ -92,8 +101,22 @@ export const openClassSession = onCall(
 
     // A screen listing today's classes is not a guarantee: a stale list,
     // or a phone that slept through midnight, would otherwise file a
-    // day's marks under the wrong date.
-    if (!blockRunsOn(block.dayOfWeek as number, dateKey)) {
+    // day's marks under the wrong date. So the guard stays on that
+    // path, and a teacher who means it steps around it deliberately.
+    //
+    // Because the timetable is not the whole of a school year. A
+    // make-up lesson for the day a typhoon closed the school, a review
+    // session on the Sunday before an exam, a class moved an afternoon
+    // because the hall was needed -- all of them are a teacher holding
+    // a real lesson that no timetable has a row for, and refusing them
+    // means the feature works on the days it is least needed.
+    //
+    // The date is the server's `now` either way, so a lesson held out
+    // of its slot is still filed under the day it actually happened.
+    // What it is not is silent: the session says it was unscheduled,
+    // and so does the log.
+    const offTimetable = !blockRunsOn(block.dayOfWeek as number, dateKey);
+    if (offTimetable && request.data?.unscheduled !== true) {
       throw new HttpsError(
         "failed-precondition",
         `${block.subject ?? "That class"} is not timetabled today.`
@@ -158,6 +181,11 @@ export const openClassSession = onCall(
       takenByUid: request.auth!.uid,
       takenByName: (request.auth!.token.name as string) ?? "",
       date: dateKey,
+      // Held outside its timetabled slot. Recorded on the register
+      // itself as well as in the log, because "why is there a
+      // Mathematics register dated a Sunday" is asked of the record
+      // months later, by somebody who cannot ask the teacher.
+      unscheduled: offTimetable,
       openedAt,
       closedAt: null,
       status: "open",
@@ -224,8 +252,15 @@ export const openClassSession = onCall(
         subject: block.subject,
         section: block.section,
         studentCount: roster.size,
+        unscheduled: offTimetable,
       },
       success: true,
+      // A lesson the timetable has no row for is the one a parent asks
+      // about afterwards, so the log says it in words rather than
+      // leaving it to a boolean nobody reads.
+      remarks: offTimetable ?
+        `${block.subject ?? "A class"} held outside its timetabled slot.` :
+        undefined,
     });
 
     return {

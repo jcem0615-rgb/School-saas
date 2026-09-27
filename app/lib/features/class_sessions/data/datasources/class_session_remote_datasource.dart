@@ -93,13 +93,14 @@ class ClassSessionRemoteDataSource {
             .toList());
   }
 
-  Future<String> openSession(String scheduleBlockId) async {
+  Future<String> openSession(String scheduleBlockId, {bool unscheduled = false}) async {
     try {
       final result = await _functions
           .httpsCallable('openClassSession')
           .call<Map<String, dynamic>>({
         'schoolId': _schoolId,
         'scheduleBlockId': scheduleBlockId,
+        'unscheduled': unscheduled,
       });
       return result.data['sessionId'] as String;
     } on FirebaseFunctionsException catch (e) {

@@ -6,11 +6,85 @@ import '../../../../core/meeting/online_class_screen.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart'
     show authStateProvider;
 import '../../../schedules/domain/entities/schedule_block.dart';
+import '../../../schedules/presentation/controllers/schedule_controller.dart'
+    show teacherScheduleProvider;
 import '../../domain/entities/class_session.dart';
 import '../controllers/class_session_controller.dart';
 import 'class_roll_screen.dart';
 
 final _clock = DateFormat('h:mm a');
+
+void _say(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+}
+
+/// Start teaching this class online, from wherever it currently is.
+///
+/// One call rather than four steps. A lesson cannot be held online
+/// without a register -- the room is stamped onto each student's mark,
+/// which is how they reach it -- so this opens the session if it is not
+/// open, takes it online if it is not online, collects the pass and goes
+/// in. The teacher who has just been told classes are suspended should
+/// not have to know that order.
+///
+/// [unscheduled] carries through to the server, which otherwise refuses
+/// a class the timetable does not put today.
+Future<void> startOnlineClass({
+  required BuildContext context,
+  required WidgetRef ref,
+  required ScheduleBlock block,
+  ClassSession? existing,
+  bool unscheduled = false,
+}) async {
+  final controller = ref.read(classSessionActionControllerProvider.notifier);
+
+  var sessionId = existing?.id;
+  if (sessionId == null) {
+    sessionId = await controller.openSession(block.id, unscheduled: unscheduled);
+    if (!context.mounted) return;
+    if (sessionId == null) {
+      _say(context, controller.errorMessage ?? 'The class could not be started.');
+      return;
+    }
+  }
+
+  // Already online: go straight in rather than opening a second room,
+  // which would strand anybody already waiting in the first.
+  var room = existing?.meetingRoom;
+  if (room == null || room.isEmpty) {
+    room = await controller.setMode(sessionId: sessionId, online: true);
+    if (!context.mounted) return;
+    if (room == null) {
+      _say(context, controller.errorMessage ?? 'The class could not be moved online.');
+      return;
+    }
+  }
+
+  // The pass, so the lesson does not open onto a sign-in page.
+  final pass = await controller.meetingToken(sessionId);
+  if (!context.mounted) return;
+  if (!pass.allowed) {
+    _say(context, pass.refusal ?? 'You could not be let into the class.');
+    return;
+  }
+
+  final me = ref.read(authStateProvider).valueOrNull;
+  if (!context.mounted) return;
+  await Navigator.of(context).push(MaterialPageRoute(
+    builder: (_) => OnlineClassScreen(
+      room: room!,
+      subject: block.subject,
+      section: block.section,
+      displayName: me?.fullName ?? 'Teacher',
+      token: pass.token,
+      asModerator: true,
+      openedAt: existing?.openedAt ?? DateTime.now(),
+      scheduledMinutes: block.durationMinutes,
+    ),
+  ));
+}
 
 /// The teacher's day, with a Time In on each class.
 ///
@@ -34,20 +108,47 @@ class TodaysClassesScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My classes today')),
+      appBar: AppBar(
+        title: const Text('My classes today'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.videocam_outlined),
+            tooltip: 'Hold an online class',
+            onPressed: () => _pickAClass(context, ref),
+          ),
+        ],
+      ),
       body: classes.isEmpty
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(
-                  // Two different reasons for an empty list, and a
-                  // teacher can tell them apart: a Saturday is obvious,
-                  // a missing timetable is the office's to fix.
-                  'Nothing on your timetable for '
-                  '${weekdayLabel(DateTime.now().weekday)}. If that is wrong, '
-                  'the office keeps the timetable.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      // Two different reasons for an empty list, and a
+                      // teacher can tell them apart: a Saturday is
+                      // obvious, a missing timetable is the office's to
+                      // fix.
+                      'Nothing on your timetable for '
+                      '${weekdayLabel(DateTime.now().weekday)}. If that is wrong, '
+                      'the office keeps the timetable.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 20),
+                    // The timetable is not the whole of a school year.
+                    // A make-up lesson for the day a typhoon closed the
+                    // school, a review session on the Sunday before an
+                    // exam -- a teacher who needs one of those was
+                    // being told to go away by a screen that had no
+                    // other button on it.
+                    FilledButton.icon(
+                      onPressed: () => _pickAClass(context, ref),
+                      icon: const Icon(Icons.videocam, size: 18),
+                      label: const Text('Hold an online class anyway'),
+                    ),
+                  ],
                 ),
               ),
             )
@@ -60,6 +161,102 @@ class TodaysClassesScreen extends ConsumerWidget {
             ),
     );
   }
+}
+
+/// Pick any class this teacher takes and hold it online now.
+///
+/// The day's list is the ordinary way in and stays the ordinary way in.
+/// This is the other one, and it exists because a timetable describes an
+/// ordinary week rather than a school year: the lessons that most need
+/// to be held online -- the make-up for the day a typhoon closed the
+/// school, the review session before an exam, the class moved because
+/// the hall was needed -- are exactly the ones no timetable has a row
+/// for. A teacher meeting "nothing on your timetable for Sunday" with no
+/// other button on the screen has been told the feature is unavailable
+/// on the days it is most wanted.
+Future<void> _pickAClass(BuildContext context, WidgetRef ref) async {
+  final uid = ref.read(authStateProvider).valueOrNull?.uid;
+  if (uid == null) return;
+
+  // Every class this teacher takes, one row per subject and section --
+  // the same subject four times over in a week is four rows on a
+  // timetable and one decision here.
+  final week = ref.read(teacherScheduleProvider(uid));
+  final seen = <String>{};
+  final choices = <ScheduleBlock>[];
+  for (final block in week) {
+    if (seen.add('${block.subject}|${block.section}')) choices.add(block);
+  }
+  choices.sort((a, b) {
+    final bySubject = a.subject.compareTo(b.subject);
+    return bySubject != 0 ? bySubject : a.section.compareTo(b.section);
+  });
+
+  if (choices.isEmpty) {
+    _say(context, 'You have no classes on the timetable yet. The office keeps it.');
+    return;
+  }
+
+  final today = DateTime.now().weekday;
+  final picked = await showModalBottomSheet<ScheduleBlock>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (sheet) {
+      final theme = Theme.of(sheet);
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+              child: Text('Hold an online class',
+                  style: theme.textTheme.titleMedium),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text(
+                'The register opens today, whatever day the timetable '
+                'gives the class.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final block in choices)
+                    ListTile(
+                      leading: const Icon(Icons.videocam_outlined),
+                      title: Text(block.subject),
+                      subtitle: Text(
+                        block.dayOfWeek == today
+                            ? '${block.section} · on today\'s timetable'
+                            : '${block.section} · usually ${weekdayLabel(block.dayOfWeek)}',
+                      ),
+                      onTap: () => Navigator.of(sheet).pop(block),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      );
+    },
+  );
+
+  if (picked == null || !context.mounted) return;
+  await startOnlineClass(
+    context: context,
+    ref: ref,
+    block: picked,
+    // Only when it really is off the timetable. A class picked here on
+    // its own day is an ordinary register and is recorded as one.
+    unscheduled: picked.dayOfWeek != DateTime.now().weekday,
+  );
 }
 
 class _ClassCard extends ConsumerWidget {
@@ -81,76 +278,6 @@ class _ClassCard extends ConsumerWidget {
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ClassRollScreen(sessionId: sessionId),
     ));
-  }
-
-  /// Start teaching this class online, from wherever it currently is.
-  ///
-  /// One button rather than three steps. A lesson cannot be held online
-  /// without a register -- the room is stamped onto each student's mark,
-  /// which is how they reach it -- so this opens the session if it is
-  /// not open, takes it online if it is not online, and goes in. The
-  /// teacher who has just been told classes are suspended should not
-  /// have to know that order.
-  Future<void> _startOnline(
-    BuildContext context,
-    WidgetRef ref,
-    ClassSession? existing,
-  ) async {
-    final controller = ref.read(classSessionActionControllerProvider.notifier);
-
-    var sessionId = existing?.id;
-    if (sessionId == null) {
-      sessionId = await controller.openSession(block.id);
-      if (!context.mounted) return;
-      if (sessionId == null) {
-        _say(context, controller.errorMessage ?? 'The class could not be started.');
-        return;
-      }
-    }
-
-    // Already online: go straight in rather than opening a second room,
-    // which would strand anybody already waiting in the first.
-    var room = existing?.meetingRoom;
-    if (room == null || room.isEmpty) {
-      room = await controller.setMode(sessionId: sessionId, online: true);
-      if (!context.mounted) return;
-      if (room == null) {
-        _say(context, controller.errorMessage ?? 'The class could not be moved online.');
-        return;
-      }
-    }
-
-    // The pass, so the lesson does not open onto a sign-in page. The
-    // teacher signed in to LogicClass; asking them to hold a Google
-    // account as well to teach their own class is the thing this
-    // removes.
-    final pass = await controller.meetingToken(sessionId);
-    if (!context.mounted) return;
-    if (!pass.allowed) {
-      _say(context, pass.refusal ?? 'You could not be let into the class.');
-      return;
-    }
-
-    final me = ref.read(authStateProvider).valueOrNull;
-    if (!context.mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => OnlineClassScreen(
-        room: room!,
-        subject: block.subject,
-        section: block.section,
-        displayName: me?.fullName ?? 'Teacher',
-        token: pass.token,
-        asModerator: true,
-        openedAt: existing?.openedAt ?? DateTime.now(),
-        scheduledMinutes: block.durationMinutes,
-      ),
-    ));
-  }
-
-  static void _say(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -234,7 +361,14 @@ class _ClassCard extends ConsumerWidget {
                   // worse than no button.
                   if (session == null || session.isOpen)
                     FilledButton.icon(
-                      onPressed: busy ? null : () => _startOnline(context, ref, session),
+                      onPressed: busy
+                          ? null
+                          : () => startOnlineClass(
+                                context: context,
+                                ref: ref,
+                                block: block,
+                                existing: session,
+                              ),
                       icon: const Icon(Icons.videocam, size: 18),
                       label: Text(session?.isOnlineNow == true
                           ? 'Join online class'

@@ -4127,7 +4127,8 @@ class DemoClassSessionRepository implements ClassSessionRepository {
       });
 
   @override
-  Future<Result<String>> openSession(String scheduleBlockId) async {
+  Future<Result<String>> openSession(String scheduleBlockId,
+      {bool unscheduled = false}) async {
     await _latency();
     final block = _store.scheduleBlocks.value
         .where((b) => b.id == scheduleBlockId)
@@ -4136,7 +4137,12 @@ class DemoClassSessionRepository implements ClassSessionRepository {
       return const Error(ServerFailure('That class is not on the timetable.'));
     }
     final now = DateTime.now();
-    if (block.dayOfWeek != now.weekday) {
+    // The same rule the server keeps: refused from the day's list, and
+    // allowed when the teacher asks for it deliberately. A timetable is
+    // not the whole of a school year, and the lessons held outside it
+    // are the ones this feature is most needed for.
+    final offTimetable = block.dayOfWeek != now.weekday;
+    if (offTimetable && !unscheduled) {
       return Error(ServerFailure('${block.subject} is not timetabled today.'));
     }
 

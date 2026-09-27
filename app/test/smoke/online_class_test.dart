@@ -368,6 +368,118 @@ void main() {
     });
   });
 
+  group('a class the timetable does not have today', () {
+    test('is refused when it was not asked for deliberately', () async {
+      // The day's list keeps the guard it has always had: a stale
+      // screen, or a phone that slept through midnight, must not file a
+      // day's marks against a class that is not running.
+      final c = await signedInAs(UserRole.faculty);
+      final store = c.read(demoStoreProvider);
+      final other = store.scheduleBlocks.value.firstWhere(
+        (b) => b.teacherId == 'u_faculty' && b.dayOfWeek != DateTime.now().weekday,
+      );
+
+      final id = await actions(c).openSession(other.id);
+      expect(id, isNull);
+      expect(actions(c).errorMessage, contains('not timetabled today'));
+    });
+
+    test('is allowed when the teacher means it', () async {
+      // A make-up lesson for the day a typhoon closed the school, a
+      // review session on the Sunday before an exam. The lessons most
+      // worth holding online are the ones no timetable has a row for.
+      final c = await signedInAs(UserRole.faculty);
+      final store = c.read(demoStoreProvider);
+      final other = store.scheduleBlocks.value.firstWhere(
+        (b) => b.teacherId == 'u_faculty' && b.dayOfWeek != DateTime.now().weekday,
+      );
+
+      final id = await actions(c).openSession(other.id, unscheduled: true);
+      expect(id, isNotNull);
+
+      // And it can then be taken online like any other class.
+      final room = await actions(c).setMode(sessionId: id!, online: true);
+      expect(room, isNotNull);
+      expect(room, startsWith('lc-'));
+    });
+
+    test('is filed under the day it actually happened', () async {
+      // Not under the day the timetable gives the class. The register
+      // is a record of a lesson, and the lesson is today.
+      final c = await signedInAs(UserRole.faculty);
+      final store = c.read(demoStoreProvider);
+      final other = store.scheduleBlocks.value.firstWhere(
+        (b) => b.teacherId == 'u_faculty' && b.dayOfWeek != DateTime.now().weekday,
+      );
+
+      final id = await actions(c).openSession(other.id, unscheduled: true);
+      expect(sessionOf(c, id!).date, store.dateKeyOf(DateTime.now()));
+    });
+  });
+
+  group('the way in does not depend on the day', () {
+    testWidgets('the empty day still offers to hold one', (tester) async {
+      // The screenshot that prompted this: "Nothing on your timetable
+      // for Sunday", and no other button on the screen. A teacher was
+      // being told the feature is unavailable on the days it is most
+      // wanted.
+      tester.view.physicalSize = const Size(420, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final c = ProviderContainer(overrides: demoOverrides());
+      addTearDown(c.dispose);
+      c.read(demoAuthRepositoryProvider).signInAs(
+            DemoStore.demoAccounts.firstWhere((a) => a.role == UserRole.faculty),
+          );
+      // Deliberately no class today: the empty state is the subject.
+      final store = c.read(demoStoreProvider);
+      store.scheduleBlocks.add([
+        for (final b in store.scheduleBlocks.value)
+          if (b.dayOfWeek != DateTime.now().weekday) b,
+      ]);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: c,
+        child: const MaterialApp(home: TodaysClassesScreen()),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.textContaining('Nothing on your timetable'), findsOneWidget);
+      expect(find.text('Hold an online class anyway'), findsOneWidget);
+    });
+
+    testWidgets('and it lists every class the teacher takes', (tester) async {
+      tester.view.physicalSize = const Size(420, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final c = ProviderContainer(overrides: demoOverrides());
+      addTearDown(c.dispose);
+      c.read(demoAuthRepositoryProvider).signInAs(
+            DemoStore.demoAccounts.firstWhere((a) => a.role == UserRole.faculty),
+          );
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: c,
+        child: const MaterialApp(home: TodaysClassesScreen()),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await tester.tap(find.byTooltip('Hold an online class'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('Hold an online class'), findsWidgets);
+      // One row per subject and section, not one per timetable slot:
+      // the same subject four times a week is one decision here.
+      expect(find.byIcon(Icons.videocam_outlined), findsWidgets);
+      expect(find.textContaining('usually '), findsWidgets);
+    });
+  });
+
   group('finding it in the first place', () {
     testWidgets('the faculty dashboard has a way in', (tester) async {
       // It was reachable only through Class Attendance -> the day's list

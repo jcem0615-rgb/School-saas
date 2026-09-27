@@ -177,9 +177,11 @@ class ClassSessionActionController extends StateNotifier<AsyncValue<void>> {
       : super(const AsyncValue.data(null));
 
   /// Returns the session id, or null when it could not be started.
-  Future<String?> openSession(String scheduleBlockId) async {
+  Future<String?> openSession(String scheduleBlockId,
+      {bool unscheduled = false}) async {
     _set(const AsyncValue.loading());
-    final result = await _repository().openSession(scheduleBlockId);
+    final result = await _repository()
+        .openSession(scheduleBlockId, unscheduled: unscheduled);
     switch (result) {
       case Success(:final value):
         _set(const AsyncValue.data(null));

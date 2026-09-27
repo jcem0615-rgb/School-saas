@@ -217,6 +217,34 @@ document — a schema addition, a migration for every existing student
 account, and rules — and that is worth doing carefully rather than
 quickly, since it is a new read path into children's data.
 
+## The timetable is not the whole of a school year
+
+A teacher can hold an online class for any class they take, on any day,
+whether or not the timetable has a row for it today.
+
+It has to work that way. The lessons most worth holding online are
+exactly the ones no timetable anticipates: the make-up for the day a
+typhoon closed the school, the review session on the Sunday before an
+exam, the class moved because the hall was needed. A feature that is
+available only when the timetable already expected the lesson is
+unavailable on the days it is most wanted.
+
+**Faculty Dashboard → Online Class → the camera button in the bar**, or
+the button on the empty day, opens a list of every class the teacher
+takes — one row per subject and section, not one per timetable slot.
+
+The guard on the day's list is unchanged, and deliberately: a stale
+screen, or a phone that slept through midnight, must not file a day's
+marks against a class that is not running. Stepping around it is a
+separate, explicit request (`unscheduled: true`), and the server refuses
+it otherwise. It is not a way around whose class it is — another
+teacher's class is still refused.
+
+The register is filed under the day the lesson actually happened, and
+carries `unscheduled: true`, which the audit log repeats in words.
+"Why is there a Mathematics register dated a Sunday" gets asked of the
+record months later, by somebody who cannot ask the teacher.
+
 ## Where the video is hosted
 
 `JITSI_DOMAIN` — an Actions variable, passed to the build as a

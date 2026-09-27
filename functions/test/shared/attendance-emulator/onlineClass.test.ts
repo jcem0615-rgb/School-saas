@@ -20,6 +20,7 @@ const SESSION = "2026-09-23_blk_math";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let setMode: any;
 let closeSession: any;
+let openSession: any;
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 function db() {
@@ -98,6 +99,33 @@ async function seed({status = "open"} = {}) {
   );
 }
 
+/** A block on a day that is not today, and a roll to open against it. */
+async function seedOffTimetableBlock() {
+  const notToday = ((new Date().getDay() + 3) % 7) || 7;
+  await db().doc(FirestorePaths.scheduleBlockDoc(SCHOOL, "blk_makeup")).set({
+    id: "blk_makeup",
+    schoolId: SCHOOL,
+    subject: "Mathematics",
+    section: "Grade 10 - Rizal",
+    teacherId: "faculty_1",
+    teacherName: "faculty one",
+    room: "Room 201",
+    dayOfWeek: notToday,
+    startMinute: 8 * 60,
+    endMinute: 9 * 60,
+    schoolYear: "2026-2027",
+    isDeleted: false,
+  });
+  await db().doc(FirestorePaths.studentDoc(SCHOOL, "stu_makeup")).set({
+    id: "stu_makeup",
+    firstName: "Ana",
+    lastName: "Cruz",
+    section: "Grade 10 - Rizal",
+    status: "enrolled",
+    isDeleted: false,
+  });
+}
+
 describe("taking a lesson online", () => {
   beforeAll(async () => {
     if (admin.apps.length === 0) {
@@ -109,10 +137,106 @@ describe("taking a lesson online", () => {
     closeSession = fft.wrap(
       (await import("../../../src/callable/classSessions/closeClassSession")).closeClassSession
     );
+    openSession = fft.wrap(
+      (await import("../../../src/callable/classSessions/openClassSession")).openClassSession
+    );
   });
 
   afterAll(() => fft.cleanup());
   beforeEach(() => seed());
+
+  describe("a lesson the timetable does not put today", () => {
+    beforeEach(seedOffTimetableBlock);
+
+    it("is refused when nobody asked for it deliberately", async () => {
+      // The day's list keeps the guard it has always had: a stale
+      // screen, or a phone that slept through midnight, must not file a
+      // day's marks against a class that is not running.
+      await expect(
+        openSession({
+          data: {schoolId: SCHOOL, scheduleBlockId: "blk_makeup"},
+          auth: caller("faculty"),
+        } as never)
+      ).rejects.toThrow(/not timetabled today/);
+    });
+
+    it("is held when the teacher means it", async () => {
+      // A make-up for the day a typhoon closed the school, a review
+      // session before an exam. The lessons most worth holding online
+      // are the ones no timetable has a row for, and refusing them
+      // means the feature works on the days it is least needed.
+      const result = await openSession({
+        data: {schoolId: SCHOOL, scheduleBlockId: "blk_makeup", unscheduled: true},
+        auth: caller("faculty"),
+      } as never);
+
+      expect(result.sessionId).toBeTruthy();
+      const doc = await db()
+        .doc(FirestorePaths.classSessionDoc(SCHOOL, result.sessionId))
+        .get();
+      expect(doc.data()!.status).toBe("open");
+      // Filed under the day it actually happened, not the day the
+      // timetable gives the class.
+      expect(doc.data()!.date).toBe(new Date().toISOString().slice(0, 10));
+    });
+
+    it("says on the register that it was not on the timetable", async () => {
+      // "Why is there a Mathematics register dated a Sunday" is asked
+      // of the record months later, by somebody who cannot ask the
+      // teacher.
+      const result = await openSession({
+        data: {schoolId: SCHOOL, scheduleBlockId: "blk_makeup", unscheduled: true},
+        auth: caller("faculty"),
+      } as never);
+
+      const doc = await db()
+        .doc(FirestorePaths.classSessionDoc(SCHOOL, result.sessionId))
+        .get();
+      expect(doc.data()!.unscheduled).toBe(true);
+    });
+
+    it("leaves an ordinary register saying nothing of the kind", async () => {
+      const result = await openSession({
+        data: {schoolId: SCHOOL, scheduleBlockId: "blk_makeup", unscheduled: true},
+        auth: caller("faculty"),
+      } as never);
+      expect(result.sessionId).toBeTruthy();
+
+      // Same class, on its own day, is an ordinary lesson.
+      await db().doc(FirestorePaths.scheduleBlockDoc(SCHOOL, "blk_today")).set({
+        id: "blk_today",
+        schoolId: SCHOOL,
+        subject: "Science",
+        section: "Grade 10 - Rizal",
+        teacherId: "faculty_1",
+        teacherName: "faculty one",
+        dayOfWeek: new Date().getDay() === 0 ? 7 : new Date().getDay(),
+        startMinute: 10 * 60,
+        endMinute: 11 * 60,
+        schoolYear: "2026-2027",
+        isDeleted: false,
+      });
+      const ordinary = await openSession({
+        data: {schoolId: SCHOOL, scheduleBlockId: "blk_today"},
+        auth: caller("faculty"),
+      } as never);
+      const doc = await db()
+        .doc(FirestorePaths.classSessionDoc(SCHOOL, ordinary.sessionId))
+        .get();
+      expect(doc.data()!.unscheduled).toBe(false);
+    });
+
+    it("still refuses another teacher's class", async () => {
+      // Stepping around the timetable is not stepping around whose
+      // class it is.
+      await expect(
+        openSession({
+          data: {schoolId: SCHOOL, scheduleBlockId: "blk_makeup", unscheduled: true},
+          auth: caller("faculty", "faculty_2"),
+        } as never)
+      ).rejects.toThrow(/faculty one's/);
+    });
+  });
 
   describe("opening the room", () => {
     it("gives the class a room nobody could have guessed", async () => {

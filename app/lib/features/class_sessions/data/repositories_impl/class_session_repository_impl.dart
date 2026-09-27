@@ -47,9 +47,11 @@ class ClassSessionRepositoryImpl implements ClassSessionRepository {
       _remote.watchStudentMarks(studentId);
 
   @override
-  Future<Result<String>> openSession(String scheduleBlockId) async {
+  Future<Result<String>> openSession(String scheduleBlockId,
+      {bool unscheduled = false}) async {
     try {
-      return Success(await _remote.openSession(scheduleBlockId));
+      return Success(
+          await _remote.openSession(scheduleBlockId, unscheduled: unscheduled));
     } on ServerException catch (e) {
       return Error(ServerFailure(e.message));
     } catch (_) {
