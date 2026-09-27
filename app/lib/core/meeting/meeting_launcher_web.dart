@@ -157,7 +157,10 @@ JitsiCall? startJitsi({
   if (host == null) return null;
 
   final options = <String, Object?>{
-    'roomName': room,
+    // The tenant's path where the deployment has one. A bare room name
+    // on a hosted tenant does not fail loudly -- it creates a
+    // conference somewhere else, and the class is simply not in it.
+    'roomName': meetingRoomPath(room),
     'parentNode': host,
     'userInfo': {'displayName': displayName},
     // The whole of the sign-in, answered before it is asked. LogicClass

@@ -39,9 +39,17 @@ DEFINES=( --dart-define=DEMO_MODE="$DEMO_MODE" )
 # The default is deliberately not repeated here. It was, and it went
 # stale the first time the default moved -- a build log confidently
 # naming the wrong server is worse than one that says nothing.
+if [ -n "${JITSI_TENANT:-}" ]; then
+  # A hosted tenant (8x8's JaaS) puts every room beneath its AppID:
+  # the conference is <tenant>/<room>. Missing, the room name is still
+  # accepted and a conference is created somewhere nobody was invited
+  # to, which looks exactly like a network problem.
+  DEFINES+=( --dart-define=JITSI_TENANT="$JITSI_TENANT" )
+fi
+
 if [ -n "${JITSI_DOMAIN:-}" ]; then
   DEFINES+=( --dart-define=JITSI_DOMAIN="$JITSI_DOMAIN" )
-  echo "Video classes: $JITSI_DOMAIN"
+  echo "Video classes: $JITSI_DOMAIN${JITSI_TENANT:+ (tenant $JITSI_TENANT)}"
 else
   DEFAULT_DOMAIN=$(sed -n "s/.*defaultValue: '\(.*\)',.*/\1/p" \
     lib/core/meeting/meeting_room.dart | head -1)

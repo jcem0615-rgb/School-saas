@@ -46,6 +46,26 @@ const meetingDomain = String.fromEnvironment(
   defaultValue: 'meet.ffmuc.net',
 );
 
+/// The tenant a hosted deployment puts every room under.
+///
+/// Empty for a self-hosted Jitsi and for a public one, where a room is
+/// addressed by its name alone. On 8x8's hosted service (JaaS) it is the
+/// AppID -- `vpaas-magic-cookie-` followed by a hex string -- and every
+/// room lives beneath it: the conference is `<tenant>/<room>`, not
+/// `<room>`.
+///
+/// Getting this wrong does not fail loudly. The room name is accepted,
+/// a conference is created under the wrong path, and nobody the school
+/// invited is in it.
+const meetingTenant = String.fromEnvironment('JITSI_TENANT');
+
+/// How this deployment addresses [room].
+///
+/// Pure, and separated from everything that uses it, because it is one
+/// slash and the failure it causes looks like a network problem.
+String meetingRoomPath(String room) =>
+    meetingTenant.isEmpty ? room : '$meetingTenant/$room';
+
 /// What a client can do about joining a video class.
 enum MeetingSupport {
   /// The meeting renders inside a LogicClass screen. Web, through an
@@ -149,7 +169,7 @@ String meetingUrl({
   final query = token == null || token.isEmpty
       ? ''
       : '?jwt=${Uri.encodeQueryComponent(token)}';
-  return 'https://$domain/$room$query#${config.join('&')}';
+  return 'https://$domain/${meetingRoomPath(room)}$query#${config.join('&')}';
 }
 
 /// A name as a JSON string literal.

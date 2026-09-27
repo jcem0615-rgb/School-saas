@@ -276,9 +276,19 @@ served separately from the static script, and no client-side change
 touches it.
 
 So the position, having tried two public instances, is that **a school
-that wants the lesson inside the app needs a Jitsi it controls.** That
-is docs/42-hosting-the-video.md, and it is the recommendation rather
-than a fallback. A public instance remains fine for a teacher willing to
+that wants the lesson inside the app needs a Jitsi that permits it.**
+Two ways, and the same token code serves both:
+
+* **docs/43-the-hosted-tenant.md** — 8x8's JaaS. No server to run, and
+  embedding is the product. Set `JITSI_DOMAIN`, `JITSI_TENANT` and three
+  Functions variables. About thirty minutes.
+* **docs/42-hosting-the-video.md** — the school's own server. Ninety
+  minutes and a small VPS, and nobody else holds the pupils on camera.
+
+`JITSI_TENANT` matters only for the first, and it is the one that fails
+quietly: a hosted tenant puts every room beneath its AppID, so the
+conference is `<tenant>/<room>`. Send the bare name and a conference is
+created at the wrong path with nobody in it. A public instance remains fine for a teacher willing to
 hold the lesson in a browser tab; it is not fine for the thing this
 module was built for.
 
