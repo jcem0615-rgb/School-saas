@@ -114,10 +114,40 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   bool _slow = false;
   Timer? _patience;
 
+  /// Which step of coming up we are on, and how long it has taken.
+  ///
+  /// On screen, deliberately. Every failure in this module so far has
+  /// been diagnosed from a screenshot of a spinner, which is the least
+  /// informative thing a screen can show: "loading" is true of fetching
+  /// a script, of waiting for a frame that will never exist, and of
+  /// joining a room on a slow morning, and those want three different
+  /// answers. Naming the step turns a screenshot into a bug report.
+  ///
+  /// Notifiers, and the counter is driven off one, because rebuilding
+  /// this screen on a timer is what was disconnecting the class.
+  final _stage = ValueNotifier('Starting');
+  final _elapsed = ValueNotifier(0);
+  Timer? _counting;
+
+  /// Where it got to, kept for the failure card.
+  String _failedAt = '';
+
   /// How long before the way out appears. Long enough that a lesson on a
   /// good connection never sees it, short enough that a lesson on a bad
   /// morning is not held hostage to the timeout.
-  static const _patienceWindow = Duration(seconds: 6);
+  static const _patienceWindow = Duration(seconds: 4);
+
+  /// The point at which connecting has definitively failed, whatever the
+  /// steps below believe.
+  ///
+  /// Every path through [_start] is bounded, and it still ended up on
+  /// screen as an endless spinner -- so this exists because reasoning
+  /// about the bounds was not enough. A class must always be able to
+  /// leave a loading screen, including through a bug nobody has found
+  /// yet. Longer than the sum of the individual waits, so it only fires
+  /// when one of them has not.
+  static const _giveUpAfter = Duration(seconds: 40);
+  Timer? _watchdog;
 
   bool get _embeds => _launcher.support == MeetingSupport.embedded;
   bool get _native => _launcher.support == MeetingSupport.nativeSdk;
@@ -128,6 +158,17 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     if (_embeds) {
       _patience = Timer(_patienceWindow, () {
         if (mounted && _ready == null) setState(() => _slow = true);
+      });
+      _counting = Timer.periodic(const Duration(seconds: 1), (t) {
+        // Notifier, not setState. See [_now].
+        _elapsed.value = t.tick;
+      });
+      _watchdog = Timer(_giveUpAfter, () {
+        if (!mounted || _ready != null) return;
+        _failedAt = 'Gave up ${_stage.value.toLowerCase()} after '
+            '${_giveUpAfter.inSeconds} seconds.';
+        if (_embeds) _surface.leave(widget.room);
+        setState(() => _ready = false);
       });
       _start();
     } else if (_native) {
@@ -177,18 +218,22 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     // frame, so there is a real element to wait for, and every way this
     // can fail ends at the fallback rather than at the spinner.
     try {
+      _stage.value = 'Loading the video service';
       final loaded = await _surface.prepare();
       if (!mounted) return;
       if (!loaded) {
+        _failedAt = '$meetingDomain did not send its video service.';
         // The script did not come. A lesson is not worth a red screen --
         // the fallback below opens it in a tab.
         setState(() => _ready = false);
         return;
       }
 
+      _stage.value = 'Preparing the meeting frame';
       final host = await _surface.awaitHost(widget.room);
       if (!mounted) return;
       if (!host) {
+        _failedAt = 'The app could not make room for the video.';
         setState(() => _ready = false);
         return;
       }
@@ -201,6 +246,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
         token: widget.token,
       );
       if (!started) {
+        _failedAt = 'The meeting would not start in this browser.';
         setState(() => _ready = false);
         return;
       }
@@ -211,6 +257,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
       // to render as a furnished classroom with a dead grey rectangle
       // in the middle of it. Jitsi says when it is in; until it does,
       // this is still connecting.
+      _stage.value = 'Joining the room';
       final joined = await _surface.awaitJoined(
         widget.room,
         // Stand aside as soon as there is a meeting to look at, rather
@@ -221,6 +268,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
       );
       if (!mounted) return;
       if (!joined) {
+        _failedAt = '$meetingDomain never answered from inside the page.';
         // Take the dead frame out rather than leave it behind the
         // fallback card.
         _surface.leave(widget.room);
@@ -237,6 +285,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
       // the bug this commit exists for.
       debugPrint('The online class could not start: $error');
       if (!mounted) return;
+      _failedAt = 'Something went wrong while ${_stage.value.toLowerCase()}.';
       setState(() => _ready = false);
     }
   }
@@ -245,6 +294,10 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   void dispose() {
     _tick?.cancel();
     _patience?.cancel();
+    _counting?.cancel();
+    _watchdog?.cancel();
+    _stage.dispose();
+    _elapsed.dispose();
     _now.dispose();
     _muted.dispose();
     _cameraOff.dispose();
@@ -258,6 +311,8 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   /// on the join, and the second call must not restart anything.
   void _reveal() {
     if (!mounted || _ready == true) return;
+    _watchdog?.cancel();
+    _counting?.cancel();
     _startClock();
     setState(() => _ready = true);
   }
@@ -314,6 +369,19 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     _patience?.cancel();
     _patience = Timer(_patienceWindow, () {
       if (mounted && _ready == null) setState(() => _slow = true);
+    });
+    _elapsed.value = 0;
+    _counting?.cancel();
+    _counting = Timer.periodic(const Duration(seconds: 1), (t) {
+      _elapsed.value = t.tick;
+    });
+    _watchdog?.cancel();
+    _watchdog = Timer(_giveUpAfter, () {
+      if (!mounted || _ready != null) return;
+      _failedAt = 'Gave up ${_stage.value.toLowerCase()} after '
+          '${_giveUpAfter.inSeconds} seconds.';
+      if (_embeds) _surface.leave(widget.room);
+      setState(() => _ready = false);
     });
     await _start();
   }
@@ -378,6 +446,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
               embedded: _embeds,
               native: _native,
               handedOff: _handedOff,
+              reason: _failedAt,
               // Web never leaves the app: another attempt, in place.
               // The hand-off remains only for a desktop build, where
               // there is no embedded view and no SDK, so a tab is the
@@ -406,7 +475,11 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
                     child: _surface.view(widget.room),
                   ),
                 if (_ready == null)
-                  _Connecting(onRetry: _slow ? _retry : null),
+                  _Connecting(
+                    stage: _stage,
+                    elapsed: _elapsed,
+                    onRetry: _slow ? _retry : null,
+                  ),
               ],
             ),
     );
@@ -425,7 +498,15 @@ class _Connecting extends StatelessWidget {
   /// a retry offered immediately reads as an expectation of failure.
   final VoidCallback? onRetry;
 
-  const _Connecting({this.onRetry});
+  /// The step being waited on, and for how long.
+  final ValueListenable<String> stage;
+  final ValueListenable<int> elapsed;
+
+  const _Connecting({
+    required this.stage,
+    required this.elapsed,
+    this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -445,6 +526,25 @@ class _Connecting extends StatelessWidget {
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            // The step, and the seconds. A spinner says "loading", which
+            // is equally true of a script that will never arrive, a
+            // frame that cannot exist and a room that is simply slow --
+            // three problems with three different answers. This says
+            // which.
+            ValueListenableBuilder<String>(
+              valueListenable: stage,
+              builder: (context, step, _) => ValueListenableBuilder<int>(
+                valueListenable: elapsed,
+                builder: (context, seconds, _) => Text(
+                  '$step... ${seconds}s',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 24),
@@ -623,12 +723,17 @@ class _Fallback extends StatelessWidget {
   /// "something went wrong".
   final bool native;
   final bool handedOff;
+
+  /// What went wrong, in the words of the step it failed at. Empty when
+  /// there is nothing to add.
+  final String reason;
   final VoidCallback onOpen;
 
   const _Fallback({
     required this.embedded,
     required this.native,
     required this.handedOff,
+    required this.reason,
     required this.onOpen,
   });
 
@@ -668,9 +773,9 @@ class _Fallback extends StatelessWidget {
                             // would not start" is the first question,
                             // and it used to be unanswerable from the
                             // screenshot.
-                            ? 'The video would not start. $meetingDomain did '
-                                'not answer. The lesson is still running -- '
-                                'try joining it again.'
+                            ? '${reason.isEmpty ? 'The video would not start.' : reason} '
+                                'The lesson is still running -- try joining '
+                                'it again.'
                             : 'The lesson opens in the Jitsi Meet app, or in '
                                 'your browser if it is not installed.',
                 style: theme.textTheme.bodyMedium,

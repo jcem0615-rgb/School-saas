@@ -428,6 +428,56 @@ void main() {
     });
   });
 
+  group('a class can always leave the loading screen', () {
+    /// The screen that prompted this: "Connecting to the class", and it
+    /// stayed there. Every path through _start is bounded and it still
+    /// happened, so reasoning about the bounds was not enough.
+    Widget stuck(_SlowSurface surface) => MaterialApp(
+          home: OnlineClassScreen(
+            room: 'lc-abcdefghijklmnopqrst',
+            subject: 'Mathematics',
+            section: 'Grade 10 - Rizal',
+            displayName: 'Ms Santos',
+            debugSurface: surface,
+            debugLauncher: const _EmbeddingLauncher(),
+          ),
+        );
+
+    testWidgets('a step that never returns still ends in the card',
+        (tester) async {
+      final surface = _SlowSurface();
+      await tester.pumpWidget(stuck(surface));
+      await tester.pump(const Duration(seconds: 45));
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('Try joining again'), findsWidgets);
+      // And the dead frame is not left in the page.
+      expect(surface.calls, contains('leave'));
+    });
+
+    testWidgets('the card says where it gave up', (tester) async {
+      // So a screenshot of the failure is a bug report rather than
+      // another round of guessing.
+      await tester.pumpWidget(stuck(_SlowSurface()));
+      await tester.pump(const Duration(seconds: 45));
+
+      expect(find.textContaining('Gave up'), findsOneWidget);
+      expect(find.textContaining('loading the video service'), findsOneWidget);
+    });
+
+    testWidgets('while it waits it names the step and counts the seconds',
+        (tester) async {
+      // "Loading" is equally true of a script that will never arrive, a
+      // frame that cannot exist, and a room that is simply slow. Three
+      // problems, three answers, one word on screen.
+      await tester.pumpWidget(stuck(_SlowSurface()));
+      await tester.pump(const Duration(seconds: 3));
+
+      expect(find.textContaining('Loading the video service'), findsOneWidget);
+      expect(find.textContaining('3s'), findsOneWidget);
+    });
+  });
+
   _notDeployed();
 
   group('leaving', () {
