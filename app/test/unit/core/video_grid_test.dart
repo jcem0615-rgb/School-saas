@@ -66,6 +66,9 @@ void _wording() {
       // And says what does work, so the feature is not written off on
       // the strength of one blank screen.
       expect(demo.toLowerCase(), contains('register'));
+      // "not switched on", not "demos cannot do video" -- a demo with
+      // the endpoint deployed does carry a real class.
+      expect(demo.toLowerCase(), contains('switched on'));
     });
 
     test('and tells a real school what is missing', () {

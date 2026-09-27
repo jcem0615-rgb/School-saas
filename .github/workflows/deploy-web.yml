@@ -226,6 +226,20 @@ jobs:
       # is the shape a blank page with nothing in the console takes.
       - name: Write the deployment config
         run: |
+          # The demo's video pass comes from here rather than from a
+          # Cloud Function, because Functions need Firebase's Blaze plan
+          # and a card, and a demo that cannot show a lesson cannot sell
+          # the feature. The secret stays in Vercel's environment; see
+          # vercel/api/livekit-token.js.
+          #
+          # Nothing is copied if the directory is absent, so the site
+          # still deploys without it.
+          if [ -d vercel/api ]; then
+            mkdir -p app/build/web/api
+            cp vercel/api/*.js app/build/web/api/
+            echo "Bundled the demo token endpoint:"
+            ls app/build/web/api
+          fi
           cat > app/build/web/vercel.json <<'JSON'
           {
             "framework": null,
@@ -233,7 +247,7 @@ jobs:
             "buildCommand": "",
             "outputDirectory": ".",
             "rewrites": [
-              { "source": "/((?!.*\\.).*)", "destination": "/index.html" }
+              { "source": "/((?!api/)(?!.*\\.).*)", "destination": "/index.html" }
             ]
           }
           JSON

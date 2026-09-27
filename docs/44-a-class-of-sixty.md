@@ -38,25 +38,57 @@ server; **LogicClass draws the video itself**, in Flutter widgets over
 video tracks (`video_grid.dart`). There is no third-party document, so
 there is nothing to be refused by.
 
-## The demo cannot show this, and that is not a bug
+## The demo can show it, without Firebase billing
 
-The deployed demo has no server behind it -- that is what makes it a
-demo -- so it answers "no video configured" however LiveKit is set up.
-Configuring LiveKit and then testing on the demo will change nothing,
-and the screen now says so in the demo's own words rather than sending
-somebody off to fix a school that does not exist.
+A pass has to be signed with the API secret, a secret cannot live in a
+browser, and the app's real signer is a Cloud Function -- which needs
+Firebase's Blaze plan and a card. So for a while the demo showed every
+part of holding a lesson except the lesson.
 
-There is no shortcut here worth taking. A pass has to be signed with the
-API secret, which cannot live in a browser, so it has to come from the
-Functions. A single pass baked into the build would not work either:
-every pass carries one identity, and two people sharing one identity is
-LiveKit disconnecting the first when the second arrives -- which is
-exactly the two-browser test anybody would run first.
+The site is already deployed on Vercel, so the smallest server that
+solves it is one file there:
+**`vercel/api/livekit-token.js`**. The deploy copies it into the
+uploaded directory, the secret stays in Vercel's environment, and the
+app asks for a pass at `/api/livekit-token` on its own origin -- no
+CORS, no build flag, nothing to configure in the app.
 
-So seeing the video work means running the real thing: `DEMO_MODE=false`
-with the Firebase settings, and the Functions deployed. Everything else
-about the lesson -- starting it, who may join, the register, the clock --
-works in the demo already.
+### Switching it on
+
+**Vercel project → Settings → Environment Variables**, the same three
+values as below:
+
+```
+LIVEKIT_URL         wss://<project>.livekit.cloud
+LIVEKIT_API_KEY     API…
+LIVEKIT_API_SECRET  …
+```
+
+Redeploy, and the demo holds a real class. Leave them out and the
+endpoint answers 404, which the app reads as "live video is not
+switched on for this demo" -- so a demo without them still deploys and
+still works for everything else.
+
+### What the demo's pass does not do
+
+It is not the product's security model and does not pretend to be. The
+endpoint checks that the room looks like one this app generates and
+nothing else, because there is no register behind the demo to check a
+person against. Nobody is a moderator, so a stranger who found the room
+cannot remove the person demonstrating it.
+
+What keeps a stranger out of a demonstration is what keeps them out of a
+real lesson: the room name is 120 random bits, generated per session,
+and shown to nobody who was not given it.
+
+It is also a token endpoint anybody who can reach the demo can call. For
+a demo on a free LiveKit project that is a quota, not a breach -- but
+use a throwaway LiveKit project for it, not the one a school will run
+on, and rotate the key if the demo goes quiet.
+
+**The real product does not use any of this.** With Blaze,
+`issueMeetingToken` checks the register first -- the teacher from the
+session, a student from their own line on it -- and this endpoint is
+never called, because demo mode is the only thing that calls it.
 
 ## Setting it up
 

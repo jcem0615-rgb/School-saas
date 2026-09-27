@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../core/errors/result.dart';
+import '../core/meeting/demo_video.dart';
 import '../features/admin_portal/domain/entities/employee_summary.dart';
 import '../features/admin_portal/domain/entities/program.dart';
 import '../features/admin_portal/domain/entities/school_branding.dart';
@@ -4241,20 +4242,37 @@ class DemoClassSessionRepository implements ClassSessionRepository {
   @override
   Future<Result<MeetingAdmission>> meetingToken(String sessionId) async {
     await _latency(150);
-    // The demo has no signing key and no Jitsi tenant behind it, so it
-    // answers what an unconfigured school answers: no token, join
-    // without one. Deliberately not a fake token -- a demo that returns
-    // a signature nothing can verify teaches that the sign-in is solved
-    // when it is a deployment away from being solved.
     final session =
         _store.classSessions.value.where((s) => s.id == sessionId).firstOrNull;
     if (session == null) {
       return const Error(ServerFailure('That class has not been started yet.'));
     }
-    if (session.meetingRoom == null) {
+    final room = session.meetingRoom;
+    if (room == null) {
       return const Error(ServerFailure('That class is not online.'));
     }
-    return const Success(MeetingAdmission.none);
+
+    // A real pass, from the one serverless file deployed beside this
+    // site. The product mints these in a Cloud Function that checks the
+    // register first; Cloud Functions need Firebase's Blaze plan, and
+    // until a school has one the demo would show every part of holding
+    // a lesson except the lesson.
+    //
+    // Deliberately a real token rather than a fake one: a demo that
+    // hands back a signature nothing can verify teaches that the video
+    // works when it does not. If no endpoint answers -- a demo run from
+    // a laptop, or deployed without the LiveKit values -- this comes
+    // back as none and the classroom says live video is not set up,
+    // which is true.
+    final me = _store.requireUser;
+    return Success(await DemoVideo.passFor(
+      room: room,
+      // The signed-in demo account, so a teacher and a student in two
+      // browsers are two people in the room rather than one identity
+      // arriving twice and knocking itself out.
+      identity: me.uid,
+      name: me.fullName,
+    ));
   }
 
   @override

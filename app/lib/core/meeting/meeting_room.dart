@@ -39,10 +39,8 @@ bool schoolHasVideo(String provider, String? url) =>
 /// class waiting, or somebody evaluating the product -- rather than for
 /// the person who will do the configuring.
 String videoNotConfigured({required bool demo}) => demo
-    ? 'This is the demo, which does not carry live video -- there is no '
-        'server behind it. Everything else about holding a class works '
-        'here: starting it, who may join, and the register. A school '
-        'running LogicClass for real connects a video server and the '
-        'lesson happens on this screen.'
+    ? 'Live video is not switched on for this demo. Everything else '
+        'about holding a class works here: starting it, who may join, '
+        'and the register.'
     : 'Online classes are not set up yet. The school needs to connect a '
         'video server before a lesson can be held here.';

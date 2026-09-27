@@ -76,6 +76,7 @@ dependencies:
   diacritic: ^0.1.6
   flutter_webrtc: ^1.6.2+hotfix.3
   livekit_client: ^2.13.0
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
