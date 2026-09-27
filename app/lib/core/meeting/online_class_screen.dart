@@ -646,8 +646,19 @@ class _ClassroomControls extends StatelessWidget {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Still connecting to $meetingDomain. If the video '
-                              'stays blank, try joining again.',
+                              // Says the likely answer rather than
+                              // "still connecting" forever. Twenty
+                              // seconds of total silence, with the
+                              // browser showing a broken frame, is a
+                              // server refusing to be embedded far more
+                              // often than it is a slow morning -- and
+                              // a teacher staring at a grey box
+                              // deserves to be told which, and what
+                              // actually fixes it.
+                              '$meetingDomain has not started the class inside '
+                              'the app. If the area above stays blank, this '
+                              'server does not allow it and the school needs '
+                              'its own (see docs/42-hosting-the-video.md).',
                               style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant),
                             ),

@@ -81,7 +81,7 @@ const _signsOfLife = <String>[
 Future<bool> awaitMeetingJoined(
   String room, {
   void Function()? onAlive,
-  Duration silence = const Duration(seconds: 25),
+  Duration silence = const Duration(seconds: 20),
   Duration join = const Duration(seconds: 90),
 }) {
   // Already in this room. Re-entering the screen -- backing out and

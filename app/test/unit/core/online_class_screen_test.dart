@@ -331,8 +331,11 @@ void main() {
       await tester.pumpWidget(_screen(surface));
       await _settle(tester);
 
-      expect(find.textContaining('Still connecting'), findsOneWidget);
-      expect(find.textContaining(meetingDomain), findsOneWidget);
+      expect(find.textContaining('has not started the class inside the app'),
+          findsOneWidget);
+      // And it names what actually fixes it, rather than asking a
+      // teacher to keep pressing a button that will not help.
+      expect(find.textContaining('the school needs its own'), findsOneWidget);
       expect(find.text('Try again'), findsOneWidget);
     });
 
@@ -341,7 +344,8 @@ void main() {
       await tester.pumpWidget(_screen(_FakeSurface(joinedResult: true)));
       await _settle(tester);
 
-      expect(find.textContaining('Still connecting'), findsNothing);
+      expect(find.textContaining('has not started the class inside the app'),
+          findsNothing);
       expect(find.text('Leave'), findsOneWidget);
     });
   });

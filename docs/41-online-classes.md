@@ -265,8 +265,22 @@ The iframe is refused, the screen falls back to handing the room to the
 browser, and what the person meets over there is the sign-in. "Inside
 the app" was never going to be true on that deployment.
 
-The default is now a public Jitsi that asks nobody to sign in and is an
-ordinary Jitsi install, so it embeds.
+The default is a public Jitsi that asks nobody to sign in.
+
+**It does not embed either.** Tested on the deployed site: its
+`external_api.js` loads, the frame is created and attached, and the
+browser then refuses the document inside it -- a grey box with a broken
+page icon, and not one Jitsi event ever reaching the page. That is
+`X-Frame-Options` or a `frame-ancestors` policy on the app document,
+served separately from the static script, and no client-side change
+touches it.
+
+So the position, having tried two public instances, is that **a school
+that wants the lesson inside the app needs a Jitsi it controls.** That
+is docs/42-hosting-the-video.md, and it is the recommendation rather
+than a fallback. A public instance remains fine for a teacher willing to
+hold the lesson in a browser tab; it is not fine for the thing this
+module was built for.
 
 ### And a school should still move off it
 
