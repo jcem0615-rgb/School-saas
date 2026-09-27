@@ -83,7 +83,6 @@ Future<void> startOnlineClass({
       serverUrl: pass.url,
       asModerator: true,
       openedAt: existing?.openedAt ?? DateTime.now(),
-      scheduledMinutes: block.durationMinutes,
     ),
   ));
 }

@@ -1,4 +1,4 @@
-import {signHs256} from "./token";
+import {createHmac} from "crypto";
 
 /**
  * The pass into a class held through a media server.
@@ -83,12 +83,30 @@ export function buildLiveKitClaims(
   };
 }
 
-/** Signs [claims]. LiveKit verifies HS256 against the API secret. */
+function base64url(value: Buffer | string): string {
+  return Buffer.from(value)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+/**
+ * Signs [claims]. LiveKit verifies HS256 against the API secret.
+ *
+ * Node's own crypto rather than a JWT library: the whole of it is three
+ * base64url segments and a signature, and a dependency that signs
+ * things is a dependency worth not having.
+ */
 export function signLiveKitToken(
   claims: Record<string, unknown>,
   config: LiveKitConfig
 ): string {
-  return signHs256({alg: "HS256", typ: "JWT"}, claims, config.apiSecret);
+  const input =
+    `${base64url(JSON.stringify({alg: "HS256", typ: "JWT"}))}.` +
+    `${base64url(JSON.stringify(claims))}`;
+  const signature = createHmac("sha256", config.apiSecret).update(input).digest();
+  return `${input}.${base64url(signature)}`;
 }
 
 /**

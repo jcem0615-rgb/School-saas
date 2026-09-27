@@ -112,26 +112,37 @@ describe("the pass into a lesson", () => {
 
   afterAll(() => fft.cleanup());
   beforeEach(async () => {
-    delete process.env.JITSI_APP_ID;
-    delete process.env.JITSI_APP_SECRET;
+    delete process.env.LIVEKIT_URL;
+    delete process.env.LIVEKIT_API_KEY;
+    delete process.env.LIVEKIT_API_SECRET;
     await seed();
   });
 
+  /** A school that has connected a media server. */
+  function withMediaServer() {
+    process.env.LIVEKIT_URL = "wss://school.livekit.cloud";
+    process.env.LIVEKIT_API_KEY = "APIabc123";
+    process.env.LIVEKIT_API_SECRET = "shhh";
+  }
+
   describe("who may have one", () => {
     it("gives the teacher of the class the room, as moderator", async () => {
-      process.env.JITSI_APP_ID = "logicclass";
-      process.env.JITSI_APP_SECRET = "shhh";
+      withMediaServer();
 
       const result = await issueToken({
         data: {schoolId: SCHOOL, sessionId: SESSION},
         auth: caller("faculty", "faculty_1", "Ms Santos"),
       } as never);
 
+      expect(result.provider).toBe("livekit");
+      expect(result.url).toBe("wss://school.livekit.cloud");
       const claims = claimsOf(result.token);
-      expect(claims.room).toBe(ROOM);
-      const user = (claims.context as Record<string, Record<string, unknown>>).user;
-      expect(user.moderator).toBe(true);
-      expect(user.name).toBe("Ms Santos");
+      const video = claims.video as Record<string, unknown>;
+      expect(video.room).toBe(ROOM);
+      expect(video.roomJoin).toBe(true);
+      // The teacher can remove somebody from the lesson.
+      expect(video.roomAdmin).toBe(true);
+      expect(claims.name).toBe("Ms Santos");
     });
 
     it("refuses another teacher's class", async () => {
@@ -144,19 +155,18 @@ describe("the pass into a lesson", () => {
     });
 
     it("lets an admin cover it", async () => {
-      process.env.JITSI_APP_ID = "logicclass";
-      process.env.JITSI_APP_SECRET = "shhh";
+      withMediaServer();
 
       const result = await issueToken({
         data: {schoolId: SCHOOL, sessionId: SESSION},
         auth: caller("admin"),
       } as never);
-      expect(claimsOf(result.token).room).toBe(ROOM);
+      const video = claimsOf(result.token).video as Record<string, unknown>;
+      expect(video.room).toBe(ROOM);
     });
 
     it("gives a student on the register the room, not as moderator", async () => {
-      process.env.JITSI_APP_ID = "logicclass";
-      process.env.JITSI_APP_SECRET = "shhh";
+      withMediaServer();
 
       const result = await issueToken({
         data: {schoolId: SCHOOL, sessionId: SESSION},
@@ -164,11 +174,12 @@ describe("the pass into a lesson", () => {
       } as never);
 
       const claims = claimsOf(result.token);
-      expect(claims.room).toBe(ROOM);
-      const user = (claims.context as Record<string, Record<string, unknown>>).user;
-      // A child who can mute the teacher and end the lesson for the
-      // class is a child who will.
-      expect(user.moderator).toBe(false);
+      const video = claims.video as Record<string, unknown>;
+      expect(video.room).toBe(ROOM);
+      // A child who can remove the teacher from the lesson is a child
+      // who will.
+      expect(video.roomAdmin).toBe(false);
+      expect(claims.name).toBe("Ana Cruz");
     });
 
     it("refuses a student who is not on that register", async () => {
@@ -206,8 +217,7 @@ describe("the pass into a lesson", () => {
 
   describe("what it opens", () => {
     it("never carries a room the caller did not earn", async () => {
-      process.env.JITSI_APP_ID = "logicclass";
-      process.env.JITSI_APP_SECRET = "shhh";
+      withMediaServer();
 
       // Ana is on the Mathematics register and not the Science one.
       // Asking for Science must not hand her the Science room.
@@ -245,15 +255,17 @@ describe("the pass into a lesson", () => {
     });
   });
 
-  describe("a school that has configured no signing key", () => {
+  describe("a school that has connected no media server", () => {
     it("gets no token and no error", async () => {
-      // Still a lesson. It just joins the way it did before tokens
-      // existed, which is right on a deployment that does not ask.
+      // The screens say so plainly rather than sending a class at
+      // something that cannot work, which is what the embedded
+      // fallback did until it was removed.
       const result = await issueToken({
         data: {schoolId: SCHOOL, sessionId: SESSION},
         auth: caller("faculty", "faculty_1"),
       } as never);
 
+      expect(result.provider).toBe("none");
       expect(result.token).toBeNull();
       expect(result.room).toBe(ROOM);
     });
@@ -271,8 +283,7 @@ describe("the pass into a lesson", () => {
   });
 
   it("keeps the room out of the audit log", async () => {
-    process.env.JITSI_APP_ID = "logicclass";
-    process.env.JITSI_APP_SECRET = "shhh";
+    withMediaServer();
     await clear(FirestorePaths.auditLog(SCHOOL));
 
     await issueToken({

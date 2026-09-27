@@ -1,18 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:logicclass/core/meeting/class_clock.dart';
 import 'package:logicclass/core/meeting/online_class_screen.dart';
+import 'package:logicclass/core/meeting/webrtc/classroom_call.dart';
 
-/// The classroom's own controls, at the width a child actually holds.
+/// The classroom at the width a child actually holds.
 ///
-/// They sit under the call rather than inside it: Jitsi's toolbar is in
-/// the iframe and scales with it, and on a phone-width browser it
-/// becomes a row of icons to guess at. These are labelled, and they
-/// carry the one thing Jitsi cannot know -- how much of the lesson is
-/// left.
+/// The controls are the app's own, under the call, and they are
+/// labelled: a row of bare icons is a row a ten-year-old has to guess
+/// at, in the middle of a lesson.
+class _StillCall implements ClassroomCall {
+  @override
+  Future<bool> join({
+    required String url,
+    required String token,
+    required bool asModerator,
+  }) async =>
+      true;
+
+  @override
+  Future<void> leave() async {}
+
+  @override
+  Future<void> setMicrophone(bool on) async {}
+
+  @override
+  Future<void> setCamera(bool on) async {}
+
+  @override
+  Widget view() => const ColoredBox(color: Color(0xFF101010));
+}
+
 void main() {
-  Future<void> pumpClassroom(WidgetTester tester, {int? minutes}) async {
+  Future<void> pumpClassroom(WidgetTester tester) async {
     tester.view.physicalSize = const Size(360, 780);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -25,8 +45,12 @@ void main() {
           subject: 'Mathematics',
           section: 'Grade 10 - Rizal',
           displayName: 'Miguel Torres',
+          token: 'a.b.c',
+          asModerator: true,
+          provider: 'livekit',
+          serverUrl: 'wss://school.livekit.cloud',
           openedAt: DateTime.now().subtract(const Duration(minutes: 9)),
-          scheduledMinutes: minutes,
+          debugCall: _StillCall(),
         ),
       ),
     ));
@@ -35,48 +59,33 @@ void main() {
   }
 
   testWidgets('the class it is opens the screen, named', (tester) async {
-    await pumpClassroom(tester, minutes: 60);
-    // A teacher takes the same subject four times over and needs to know
-    // which one they are in.
+    await pumpClassroom(tester);
+    // A teacher takes the same subject four times over and needs to
+    // know which one they are in.
     expect(find.text('Mathematics'), findsOneWidget);
     expect(find.text('Grade 10 - Rizal'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('and offers a way in when the video cannot run here',
+  testWidgets('fits a 360px screen at 1.3x text without clipping',
       (tester) async {
-    // On the VM there is no browser and no SDK, so this is the
-    // hand-off path -- which is what a desktop build does, and what any
-    // platform falls back to when the call will not start. It must be a
-    // way into the lesson, not a dead end.
-    await pumpClassroom(tester, minutes: 60);
-    expect(find.text('Join the class'), findsWidgets);
+    // The width and text size a school phone actually has. Leave is the
+    // control that must never be the one pushed off the edge.
+    await pumpClassroom(tester);
+
+    expect(find.text('Mute'), findsOneWidget);
+    expect(find.text('Camera off'), findsOneWidget);
+    expect(find.text('Leave'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  group('the clock it shows', () {
-    test('counts against the timetabled length', () {
-      final start = DateTime(2026, 9, 24, 7, 30);
-      final c = ClassClock(
-        openedAt: start,
-        now: start.add(const Duration(minutes: 9)),
-        scheduledMinutes: 60,
-      );
-      expect(c.elapsedLabel, '09:00');
-      expect(c.scheduledLabel, '1:00:00');
-      expect(c.remainingLabel, '51:00 left of 60 minutes.');
-    });
+  testWidgets('shows how long the lesson has run, and no deadline',
+      (tester) async {
+    await pumpClassroom(tester);
 
-    test('and shows a student elapsed time with nothing invented', () {
-      // A student's mark carries when the lesson started, not how long
-      // the timetable gives it.
-      final start = DateTime(2026, 9, 24, 7, 30);
-      final c = ClassClock(
-        openedAt: start,
-        now: start.add(const Duration(minutes: 9)),
-      );
-      expect(c.elapsedLabel, '09:00');
-      expect(c.remainingLabel, isNull);
-    });
+    expect(find.text('CLASS TIME'), findsOneWidget);
+    expect(find.textContaining('09:'), findsOneWidget);
+    // No limit: a lesson is not over because an hour passed.
+    expect(find.textContaining('left of'), findsNothing);
   });
 }

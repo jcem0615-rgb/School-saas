@@ -68,7 +68,6 @@ dependencies:
   # iframe instead (core/meeting/meeting_launcher_web.dart); this plugin
   # is never registered for web and the conditional export keeps it out
   # of that build entirely.
-  jitsi_meet_flutter_sdk: ^13.1.1
   geolocator: ^14.0.2
   camera_windows: ^0.2.6+4
   zxing2: ^0.2.4

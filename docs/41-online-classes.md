@@ -245,133 +245,33 @@ carries `unscheduled: true`, which the audit log repeats in words.
 "Why is there a Mathematics register dated a Sunday" gets asked of the
 record months later, by somebody who cannot ask the teacher.
 
-## Where the video is hosted
+## Where the video is held
 
-`JITSI_DOMAIN` — an Actions variable, passed to the build as a
-`--dart-define`, defaulting to `meet.ffmuc.net`.
+Through a media server the school connects, and **LogicClass draws the
+video itself** -- Flutter widgets over video tracks, no embedded page.
 
-### It is not meet.jit.si, and that was not a preference
+That is one decision doing two jobs. A media server means everybody
+sends one stream rather than one per classmate, which is what carries a
+class of sixty. Drawing it ourselves means there is no third-party
+document, so no server can decline to be embedded -- which is exactly
+what ended the previous approach.
 
-The public Jitsi was the original default and it cannot do this job. It
-requires whoever creates a room to authenticate, and it no longer
-welcomes being embedded by other sites — 8x8 sell embedding as a product
-now. One cause, three complaints:
+The embedded path is gone. Two public Jitsi deployments were tried on
+the deployed site and both refused the frame; a header on somebody
+else's server is not something client code reaches across, and keeping a
+fallback that could not work meant lessons broke instead of saying so.
+Unconfigured now says: *online classes are not set up yet.*
 
-* a sign-in page,
-* "waiting for a moderator",
-* and the lesson opening in a browser tab instead of inside the app.
+Three values on the Functions deployment, no rebuild of the site, and
+the server's address travels with the pass. See
+**docs/44-a-class-of-sixty.md**.
 
-The iframe is refused, the screen falls back to handing the room to the
-browser, and what the person meets over there is the sign-in. "Inside
-the app" was never going to be true on that deployment.
+## How long a lesson runs
 
-The default is a public Jitsi that asks nobody to sign in.
-
-**It does not embed either.** Tested on the deployed site: its
-`external_api.js` loads, the frame is created and attached, and the
-browser then refuses the document inside it -- a grey box with a broken
-page icon, and not one Jitsi event ever reaching the page. That is
-`X-Frame-Options` or a `frame-ancestors` policy on the app document,
-served separately from the static script, and no client-side change
-touches it.
-
-So the position, having tried two public instances, is that **a school
-that wants the lesson inside the app needs a Jitsi that permits it.**
-Two ways, and the same token code serves both:
-
-* **docs/43-the-hosted-tenant.md** — 8x8's JaaS. No server to run, and
-  embedding is the product. Set `JITSI_DOMAIN`, `JITSI_TENANT` and three
-  Functions variables. About thirty minutes.
-* **docs/42-hosting-the-video.md** — the school's own server. Ninety
-  minutes and a small VPS, and nobody else holds the pupils on camera.
-
-`JITSI_TENANT` matters only for the first, and it is the one that fails
-quietly: a hosted tenant puts every room beneath its AppID, so the
-conference is `<tenant>/<room>`. Send the bare name and a conference is
-created at the wrong path with nobody in it. A public instance remains fine for a teacher willing to
-hold the lesson in a browser tab; it is not fine for the thing this
-module was built for.
-
-### And a school should still move off it
-
-It is volunteer-run, free, and promises nobody anything. A school
-putting its pupils' lessons through it is trusting a stranger's server
-with minors on camera — no contract, no support, and no say if it
-disappears on a Monday morning. Reasonable to start on, poor to run a
-term on.
-
-**The install steps are written down**: docs/42-hosting-the-video.md
-takes a bare VPS to a token-only Jitsi the app embeds, in about ninety
-minutes, and ends with the verification order that tells you which half
-is wrong when something is.
-
-Moving is one variable and no code change:
-
-> Settings → Secrets and variables → Actions → **Variables**
->
-> | | |
-> |---|---|
-> | `JITSI_DOMAIN` | `meet.yourschool.edu.ph` |
-
-Set the matching `JITSI_DOMAIN` on the Functions side too and LogicClass
-mints the tokens, so nobody signs in there either — see below. The two
-must agree, or every token is rejected by a server it was not minted
-for.
-
-## Nobody signs in to the video
-
-They already signed in — to LogicClass. So LogicClass says who they are,
-in a token the deployment accepts, and the video call never asks.
-
-This matters more than it sounds. The alternative is a pupil meeting a
-Google, Facebook or GitHub sign-in on the way into their own school's
-lesson: most children do not have one of those accounts, and the ones
-who do would be handing a third party an identity to attend a class.
-
-`issueMeetingToken` mints it, per person, per lesson. It re-asks the
-access question rather than taking the room on trust — the caller names
-a *session*, never a room, and the room is read from the document that
-proves they belong in it: the session for staff, the student's own line
-in the register for a child. A wildcard token is never issued, because
-one would be a key to every lesson the school will ever hold.
-
-The token carries a display name, whether this person runs the lesson,
-and the one room. No email unless the account has one, no student
-number, no section, no school name: a JWT is signed, not encrypted, and
-everything in it is readable by anyone who sees the URL. Recording,
-livestreaming and transcription are refused *in the token* rather than
-hidden in the toolbar, because a hidden button is one a determined
-teenager finds.
-
-### Turning it on
-
-Five environment variables on the Functions deployment. Set none and
-nothing breaks: the app joins without a token, exactly as it did before
-this existed — right on a deployment that asks for none, and Jitsi's own
-sign-in on one that does.
-
-| | |
-|---|---|
-| `JITSI_APP_ID` | the tenant. `app_id` self-hosted, the AppID on JaaS |
-| `JITSI_APP_SECRET` | self-hosted: the matching `app_secret` (HS256) |
-| `JITSI_PRIVATE_KEY` | JaaS instead: the RSA private key, PEM (RS256) |
-| `JITSI_KEY_ID` | JaaS: the key's id, which goes in the JWT header |
-| `JITSI_DOMAIN` | the deployment, for the `sub` claim |
-
-A secret belongs in `firebase functions:secrets:set`, not in a variable
-and not in this repository. A PEM pasted into an environment variable
-arrives with its newlines escaped more often than not; the config reader
-puts them back, so paste it as it comes.
-
-Set `JITSI_DOMAIN` in **two** places — here for the token's `sub`, and
-as the `--dart-define` above for where the app actually connects. They
-must agree, or every token is rejected by a server that was not the one
-it was minted for.
-
-The client also turns off every sign-in-shaped control it can reach:
-no prejoin page, no lobby, no profile section, no authentication UI in
-the toolbar. Those are belt and braces. They hide a door; the token is
-what means there is nothing behind it.
+As long as the teacher runs it. The clock counts up and there is no
+limit: a lesson is not over because an hour passed, and a screen telling
+a teacher in front of thirty children that their time is up is making a
+decision that is not its to make.
 
 ## Not verified here
 

@@ -213,7 +213,6 @@ class _OnlineClassBar extends ConsumerWidget {
         // The teacher arrives un-muted and able to end it for everyone.
         asModerator: true,
         openedAt: session.openedAt,
-        scheduledMinutes: block?.durationMinutes,
       ),
     ));
   }

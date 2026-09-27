@@ -4,11 +4,6 @@ import {requireCallerClaims, requireSameSchool} from "../../shared/auth/claims";
 import {FirestorePaths} from "../../shared/firestore-paths";
 import {isMeetingRoom} from "../../shared/meeting/room";
 import {
-  buildMeetingClaims,
-  meetingTokenConfig,
-  signMeetingToken,
-} from "../../shared/meeting/token";
-import {
   buildLiveKitClaims,
   liveKitConfig,
   signLiveKitToken,
@@ -153,27 +148,9 @@ export const issueMeetingToken = onCall(
       };
     }
 
-    const config = meetingTokenConfig();
-    if (!config) return {provider: "none", token: null, room};
-
-    const token = signMeetingToken(
-      buildMeetingClaims(
-        {
-          name: (request.auth!.token.name as string) || "LogicClass",
-          email: (request.auth!.token.email as string) || undefined,
-          moderator,
-          room,
-          now: Math.floor(Date.now() / 1000),
-        },
-        config
-      ),
-      config
-    );
-
-    // Deliberately not audit-logged. Every join would write a row naming
-    // a room, the log is read school-wide, and the room name is the
-    // whole of what keeps a stranger out of a class of children. That a
-    // lesson went online is already recorded, by setClassSessionMode.
-    return {provider: "jitsi", token, room};
+    // No media server configured. The screens say so plainly rather
+    // than sending a class at something that will not work, which is
+    // what the embedded fallback did until it was removed.
+    return {provider: "none", token: null, room};
   }
 );

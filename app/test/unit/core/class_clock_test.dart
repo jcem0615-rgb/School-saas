@@ -1,88 +1,51 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logicclass/core/meeting/class_clock.dart';
 
-/// A class has a bell. A video call does not, and a lesson held in one
-/// runs over because nobody in it can see the clock the timetable keeps.
+/// How long the lesson has been running, and nothing about when it ends.
+///
+/// The countdown was removed on purpose: a lesson is not over because an
+/// hour passed, and a screen telling a teacher in front of thirty
+/// children that their time is up is making a decision that is not its
+/// to make.
 void main() {
-  final start = DateTime(2026, 9, 24, 7, 30);
-  ClassClock at(Duration into, {int? minutes = 60}) => ClassClock(
-        openedAt: start,
-        now: start.add(into),
-        scheduledMinutes: minutes,
-      );
+  final opened = DateTime(2026, 9, 28, 8);
 
-  group('what it counts', () {
-    test('elapsed, from when the teacher pressed Time In', () {
-      expect(at(const Duration(minutes: 12, seconds: 7)).elapsedLabel, '12:07');
+  ClassClock at(Duration into) =>
+      ClassClock(openedAt: opened, now: opened.add(into));
+
+  group('the class clock', () {
+    test('counts up from the register opening', () {
+      expect(at(const Duration(minutes: 8, seconds: 12)).elapsedLabel, '08:12');
     });
 
-    test('and never backwards when the device clock is behind', () {
-      // A phone a few seconds behind the server would otherwise show a
-      // class that has not started yet.
+    test('never runs backwards on a device behind the server', () {
+      // A phone a few seconds slow would otherwise show a lesson that
+      // has not started yet.
       final behind = ClassClock(
-        openedAt: start,
-        now: start.subtract(const Duration(seconds: 30)),
-        scheduledMinutes: 60,
+        openedAt: opened,
+        now: opened.subtract(const Duration(seconds: 30)),
       );
       expect(behind.elapsed, Duration.zero);
       expect(behind.elapsedLabel, '00:00');
     });
 
-    test('past an hour it grows an hours field', () {
-      // And minutes stay two digits either way, so the number does not
-      // jump width as it counts.
-      expect(at(const Duration(hours: 1, minutes: 7, seconds: 2)).elapsedLabel,
-          '1:07:02');
-      expect(at(const Duration(minutes: 7, seconds: 2)).elapsedLabel, '07:02');
-    });
-  });
-
-  group('what is left', () {
-    test('is said in words, not left as arithmetic', () {
-      expect(at(const Duration(seconds: 9)).remainingLabel,
-          '59:51 left of 60 minutes.');
+    test('shows hours only once there are some', () {
+      // Eight minutes padded to 0:08:12 is noise; ninety minutes shown
+      // as 90:00 leaves somebody doing arithmetic.
+      expect(at(const Duration(minutes: 45)).elapsedLabel, '45:00');
+      expect(at(const Duration(hours: 1, minutes: 30)).elapsedLabel, '1:30:00');
     });
 
-    test('floors at zero rather than counting backwards', () {
-      final over = at(const Duration(minutes: 75));
-      expect(over.remaining, Duration.zero);
-      expect(over.progress, 1.0);
+    test('keeps going past an hour without complaint', () {
+      // The whole point. There is no limit, so nothing runs out and
+      // nothing turns red.
+      final long = at(const Duration(hours: 3, minutes: 12, seconds: 5));
+      expect(long.elapsedLabel, '3:12:05');
+      expect(long.elapsed.inHours, 3);
     });
 
-    test('and says so once the slot is used up', () {
-      // The class does not stop -- ending it is the teacher's decision,
-      // not a timer's -- but nobody should have to work out that they
-      // are over.
-      expect(at(const Duration(minutes: 60, seconds: 5)).overrunning, isTrue);
-      expect(at(const Duration(minutes: 60, seconds: 5)).remainingLabel,
-          'The 60 minutes are up.');
-      expect(at(const Duration(minutes: 68)).remainingLabel,
-          '08:00 past the 60 minutes.');
-    });
-
-    test('is not claimed at all when the length is unknown', () {
-      // A student's classroom knows when the lesson started but not what
-      // the timetable gives it. Saying "no set length" would be a claim
-      // about the timetable rather than about what the screen can see.
-      final unknown = at(const Duration(minutes: 5), minutes: null);
-      expect(unknown.remainingLabel, isNull);
-      expect(unknown.progress, isNull);
-      expect(unknown.scheduledLabel, isNull);
-      expect(unknown.overrunning, isFalse);
-      // The half it does know still works.
-      expect(unknown.elapsedLabel, '05:00');
-    });
-  });
-
-  group('the bar', () {
-    test('runs nought to one across the lesson', () {
-      expect(at(Duration.zero).progress, 0.0);
-      expect(at(const Duration(minutes: 30)).progress, 0.5);
-      expect(at(const Duration(minutes: 60)).progress, 1.0);
-    });
-
-    test('and a zero-length class does not divide by it', () {
-      expect(at(const Duration(minutes: 5), minutes: 0).progress, isNull);
+    test('pads the seconds so the number does not jump about', () {
+      expect(at(const Duration(minutes: 1, seconds: 5)).elapsedLabel, '01:05');
     });
   });
 }

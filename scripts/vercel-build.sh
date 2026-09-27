@@ -21,40 +21,11 @@ DEMO_MODE="${DEMO_MODE:-true}"
 
 DEFINES=( --dart-define=DEMO_MODE="$DEMO_MODE" )
 
-# Where the video classes are held.
-#
-# docs/41 told schools this was "one build flag" and it was not: the
-# dart-define existed in the code and nothing in this pipeline ever
-# passed it, so every deployment was pinned to the default however it
-# was configured. A flag that cannot be set from the thing that does the
-# building is a flag that does not exist.
-#
-# Left unset, the app uses the default in
-# app/lib/core/meeting/meeting_room.dart -- a public Jitsi that asks
-# nobody to sign in. Point this at the school's own deployment to get
-# off a volunteer-run server. It must match JITSI_DOMAIN on the
-# Functions side, or the tokens minted there are rejected by a server
-# they were not minted for.
-#
-# The default is deliberately not repeated here. It was, and it went
-# stale the first time the default moved -- a build log confidently
-# naming the wrong server is worse than one that says nothing.
-if [ -n "${JITSI_TENANT:-}" ]; then
-  # A hosted tenant (8x8's JaaS) puts every room beneath its AppID:
-  # the conference is <tenant>/<room>. Missing, the room name is still
-  # accepted and a conference is created somewhere nobody was invited
-  # to, which looks exactly like a network problem.
-  DEFINES+=( --dart-define=JITSI_TENANT="$JITSI_TENANT" )
-fi
-
-if [ -n "${JITSI_DOMAIN:-}" ]; then
-  DEFINES+=( --dart-define=JITSI_DOMAIN="$JITSI_DOMAIN" )
-  echo "Video classes: $JITSI_DOMAIN${JITSI_TENANT:+ (tenant $JITSI_TENANT)}"
-else
-  DEFAULT_DOMAIN=$(sed -n "s/.*defaultValue: '\(.*\)',.*/\1/p" \
-    lib/core/meeting/meeting_room.dart | head -1)
-  echo "Video classes: ${DEFAULT_DOMAIN:-the app default} (set JITSI_DOMAIN to change)"
-fi
+# Where the video classes are held is no longer a build-time choice.
+# The server's address arrives with the pass from issueMeetingToken, so
+# a school moves to a different one -- or to its own -- with three
+# values on the Functions deployment and no rebuild of this site. See
+# docs/44-a-class-of-sixty.md.
 
 if [ "$DEMO_MODE" = "false" ]; then
   # Fail here rather than build a site that loads and then dies on a
