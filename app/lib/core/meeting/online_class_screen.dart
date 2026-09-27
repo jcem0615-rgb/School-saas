@@ -132,6 +132,15 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   /// Where it got to, kept for the failure card.
   String _failedAt = '';
 
+  /// The meeting is on screen but has not said a word to us.
+  ///
+  /// Not a failure and not treated as one. Jitsi's events only start
+  /// once the app inside the iframe has finished downloading itself and
+  /// opened a channel back to this page -- several megabytes, from a
+  /// server that may be a continent away. Silence means "still coming",
+  /// and the class can watch it come.
+  final _stalled = ValueNotifier(false);
+
   /// How long before the way out appears. Long enough that a lesson on a
   /// good connection never sees it, short enough that a lesson on a bad
   /// morning is not held hostage to the timeout.
@@ -257,6 +266,17 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
       // to render as a furnished classroom with a dead grey rectangle
       // in the middle of it. Jitsi says when it is in; until it does,
       // this is still connecting.
+      // On screen now. The constructor returned with a real parent, so
+      // the iframe exists and is loading Jitsi; what happens next is
+      // Jitsi's to show, and it shows it better than a spinner does.
+      //
+      // This used to wait for an event first. Nothing arrived -- the
+      // app inside the frame was still downloading -- and the wait
+      // ended by disposing a conference that was on its way up. The
+      // class was kept from a working lesson by a screen insisting it
+      // had not heard anything yet.
+      _reveal();
+
       _stage.value = 'Joining the room';
       final joined = await _surface.awaitJoined(
         widget.room,
@@ -267,16 +287,13 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
         onAlive: _reveal,
       );
       if (!mounted) return;
-      if (!joined) {
-        _failedAt = '$meetingDomain never answered from inside the page.';
-        // Take the dead frame out rather than leave it behind the
-        // fallback card.
-        _surface.leave(widget.room);
-        setState(() => _ready = false);
-        return;
-      }
-
-      _reveal();
+      if (!mounted) return;
+      // Still nothing heard. The frame stays -- it may be a lesson that
+      // is simply slow, and tearing it down would end one that was
+      // working. What changes is that the class is told, and offered
+      // another go, over the top of the meeting rather than instead of
+      // it.
+      _stalled.value = !joined;
     } catch (error) {
       // Swallowed deliberately, and this is the safety net rather than
       // the fix: the failure above is now handled by value. Anything
@@ -298,6 +315,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     _watchdog?.cancel();
     _stage.dispose();
     _elapsed.dispose();
+    _stalled.dispose();
     _now.dispose();
     _muted.dispose();
     _cameraOff.dispose();
@@ -371,6 +389,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
       if (mounted && _ready == null) setState(() => _slow = true);
     });
     _elapsed.value = 0;
+    _stalled.value = false;
     _counting?.cancel();
     _counting = Timer.periodic(const Duration(seconds: 1), (t) {
       _elapsed.value = t.tick;
@@ -431,6 +450,8 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
       // thing Jitsi cannot know -- how much of the lesson is left.
       bottomNavigationBar: _ready == true
           ? _ClassroomControls(
+              stalled: _stalled,
+              onRetry: _retry,
               openedAt: widget.openedAt,
               scheduledMinutes: widget.scheduledMinutes,
               now: _now,
@@ -574,6 +595,11 @@ class _Connecting extends StatelessWidget {
 /// in any subtree that a second hand can rebuild -- see [_now] on the
 /// screen for what that cost.
 class _ClassroomControls extends StatelessWidget {
+  /// The meeting is up but has never spoken to us. Says so, over the
+  /// meeting rather than instead of it: a lesson that is merely slow
+  /// must not be ended by a screen that has not heard from it.
+  final ValueListenable<bool> stalled;
+  final VoidCallback onRetry;
   final DateTime? openedAt;
   final int? scheduledMinutes;
   final ValueListenable<DateTime> now;
@@ -584,6 +610,8 @@ class _ClassroomControls extends StatelessWidget {
   final VoidCallback onLeave;
 
   const _ClassroomControls({
+    required this.stalled,
+    required this.onRetry,
     required this.openedAt,
     required this.scheduledMinutes,
     required this.now,
@@ -606,6 +634,34 @@ class _ClassroomControls extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            ValueListenableBuilder<bool>(
+              valueListenable: stalled,
+              builder: (context, quiet, _) => quiet
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline,
+                              size: 16, color: theme.colorScheme.onSurfaceVariant),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Still connecting to $meetingDomain. If the video '
+                              'stays blank, try joining again.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: onRetry,
+                            child: const Text('Try again'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
             if (started != null)
               ValueListenableBuilder<DateTime>(
                 valueListenable: now,

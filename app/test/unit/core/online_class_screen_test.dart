@@ -310,37 +310,39 @@ void main() {
     });
   });
 
-  group('a room that will not have us', () {
-    testWidgets('is not a classroom with a dead video in it', (tester) async {
-      // The shape of the bug: a deployment that refuses to be embedded
-      // fails inside the iframe, where nothing here can see. Treating
-      // the constructor returning as "we are in the lesson" put a
-      // running clock and live controls around a grey rectangle.
+  group('a meeting that has not spoken to us', () {
+    testWidgets('is kept, not torn down', (tester) async {
+      // Jitsi's events only start once the app inside the iframe has
+      // downloaded itself -- megabytes, from a server that may be a
+      // continent away. Silence means "still coming", and ending the
+      // lesson over it is how a working class was stopped.
       final surface = _FakeSurface(joinedResult: false);
       await tester.pumpWidget(_screen(surface));
       await _settle(tester);
 
-      expect(find.text('Mute'), findsNothing);
-      expect(find.text('Leave'), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Join the class'), findsWidgets);
+      expect(surface.calls, isNot(contains('leave')));
+      expect(find.text('Leave'), findsOneWidget);
+      expect(surface.viewBuilt, isTrue);
     });
 
-    testWidgets('takes the dead frame back out of the page', (tester) async {
+    testWidgets('says so over the meeting, and offers another go',
+        (tester) async {
       final surface = _FakeSurface(joinedResult: false);
       await tester.pumpWidget(_screen(surface));
       await _settle(tester);
 
-      expect(surface.calls, contains('leave'));
-    });
-
-    testWidgets('names the deployment that would not start', (tester) async {
-      // When this card is what somebody reports, "which server" is the
-      // first question and a screenshot could not answer it.
-      await tester.pumpWidget(_screen(_FakeSurface(joinedResult: false)));
-      await _settle(tester);
-
+      expect(find.textContaining('Still connecting'), findsOneWidget);
       expect(find.textContaining(meetingDomain), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
+    });
+
+    testWidgets('a meeting that does speak says nothing of the kind',
+        (tester) async {
+      await tester.pumpWidget(_screen(_FakeSurface(joinedResult: true)));
+      await _settle(tester);
+
+      expect(find.textContaining('Still connecting'), findsNothing);
+      expect(find.text('Leave'), findsOneWidget);
     });
   });
 
@@ -358,6 +360,17 @@ void main() {
       expect(find.text('Connecting to the class'), findsNothing);
       expect(find.text('Leave'), findsOneWidget);
       expect(surface.calls, isNot(contains('leave')));
+    });
+
+    testWidgets('and it is on screen before any event at all', (tester) async {
+      // The reveal moved ahead of the join. Waiting for a first event
+      // kept the class off a meeting that was merely still loading.
+      final surface = _FakeSurface(aliveBeforeJoin: false, joinedResult: false);
+      await tester.pumpWidget(_screen(surface));
+      await _settle(tester);
+
+      expect(find.text('Connecting to the class'), findsNothing);
+      expect(find.text('Leave'), findsOneWidget);
     });
 
     testWidgets('a live frame that never finishes joining is still kept',

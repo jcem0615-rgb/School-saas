@@ -81,7 +81,7 @@ const _signsOfLife = <String>[
 Future<bool> awaitMeetingJoined(
   String room, {
   void Function()? onAlive,
-  Duration silence = const Duration(seconds: 12),
+  Duration silence = const Duration(seconds: 25),
   Duration join = const Duration(seconds: 90),
 }) {
   // Already in this room. Re-entering the screen -- backing out and
@@ -130,7 +130,10 @@ Future<bool> awaitMeetingJoined(
     }).toJS);
   }
 
-  // Silent this long and nothing is coming: the frame was refused.
+  // Silent this long and it is worth saying so. No longer worth acting
+  // on: the app inside the frame is several megabytes from a server
+  // that may be a continent away, and twelve seconds of quiet was
+  // ending lessons that were still downloading.
   Timer(silence, () {
     if (!alive) finish(false);
   });
