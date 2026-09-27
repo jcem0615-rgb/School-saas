@@ -38,6 +38,26 @@ server; **LogicClass draws the video itself**, in Flutter widgets over
 video tracks (`video_grid.dart`). There is no third-party document, so
 there is nothing to be refused by.
 
+## The demo cannot show this, and that is not a bug
+
+The deployed demo has no server behind it -- that is what makes it a
+demo -- so it answers "no video configured" however LiveKit is set up.
+Configuring LiveKit and then testing on the demo will change nothing,
+and the screen now says so in the demo's own words rather than sending
+somebody off to fix a school that does not exist.
+
+There is no shortcut here worth taking. A pass has to be signed with the
+API secret, which cannot live in a browser, so it has to come from the
+Functions. A single pass baked into the build would not work either:
+every pass carries one identity, and two people sharing one identity is
+LiveKit disconnecting the first when the second arrives -- which is
+exactly the two-browser test anybody would run first.
+
+So seeing the video work means running the real thing: `DEMO_MODE=false`
+with the Firebase settings, and the Functions deployed. Everything else
+about the lesson -- starting it, who may join, the register, the clock --
+works in the demo already.
+
 ## Setting it up
 
 LiveKit Cloud has a free tier and there is no server to run; a

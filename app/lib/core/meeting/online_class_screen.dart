@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
+import '../../main.dart' show kDemoMode;
 import 'class_clock.dart';
 import 'meeting_room.dart';
 import 'webrtc/classroom_call.dart';
@@ -177,9 +178,11 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
             action: 'Try joining again',
             onAction: _retry,
           ),
-        _Phase.notConfigured => const _Message(
-            title: 'Online classes are not set up',
-            body: videoNotConfigured,
+        _Phase.notConfigured => _Message(
+            title: kDemoMode
+                ? 'Live video is not part of the demo'
+                : 'Online classes are not set up',
+            body: videoNotConfigured(demo: kDemoMode),
           ),
       },
     );

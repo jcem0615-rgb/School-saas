@@ -127,8 +127,12 @@ void main() {
       await _settle(tester);
 
       expect(call.calls, isEmpty);
-      expect(find.textContaining('not set up'), findsWidgets);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      // Tests run with DEMO_MODE at its default, so this is the
+      // demo's wording. It must not send somebody off to configure a
+      // school that does not exist.
+      expect(find.textContaining('demo'), findsWidgets);
+      expect(find.textContaining('The school needs to connect'), findsNothing);
     });
 
     testWidgets('and a pass without a server is not enough either',

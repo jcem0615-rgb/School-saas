@@ -27,10 +27,22 @@ library;
 bool schoolHasVideo(String provider, String? url) =>
     provider == 'livekit' && url != null && url.isNotEmpty;
 
-/// What to tell somebody when it has not been set up.
+/// What to tell somebody when there is no video here.
 ///
-/// Written for whoever is reading it -- a teacher with a class waiting,
-/// not the person who will configure it.
-const videoNotConfigured =
-    'Online classes are not set up yet. The school needs to connect a '
-    'video server before a lesson can be held here.';
+/// Two different reasons, and telling them apart matters because the
+/// demo is where people look at this product first. A demo has no
+/// school and no server to connect, so saying "the school needs to
+/// connect a video server" to somebody trying the demo sends them off
+/// to fix something that is not broken.
+///
+/// Written for whoever is reading it either way -- a teacher with a
+/// class waiting, or somebody evaluating the product -- rather than for
+/// the person who will do the configuring.
+String videoNotConfigured({required bool demo}) => demo
+    ? 'This is the demo, which does not carry live video -- there is no '
+        'server behind it. Everything else about holding a class works '
+        'here: starting it, who may join, and the register. A school '
+        'running LogicClass for real connects a video server and the '
+        'lesson happens on this screen.'
+    : 'Online classes are not set up yet. The school needs to connect a '
+        'video server before a lesson can be held here.';
