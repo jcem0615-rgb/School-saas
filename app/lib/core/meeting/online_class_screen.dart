@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../main.dart' show kDemoMode;
 import 'class_clock.dart';
+import 'demo_video.dart';
 import 'meeting_room.dart';
 import 'webrtc/classroom_call.dart';
 import 'webrtc/livekit_call.dart';
@@ -174,7 +175,17 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
         _Phase.failed => _Message(
             title: 'The class could not start',
             body: 'The video server did not let this device in. The lesson '
-                'is still running -- try joining it again.',
+                'is still running -- try joining it again.'
+                // Only on a demo, where whoever is looking at this card
+                // is also the person who can fix it. `invalid token`
+                // means the three LiveKit values are wrong rather than
+                // absent, and the endpoint will say which are the wrong
+                // shape without printing any of them. A real school's
+                // teacher can do nothing with that and should not be
+                // shown it.
+                '${kDemoMode ? '\n\nIf it keeps happening, open '
+                    '${DemoVideo.endpoint} in a browser. It says what this '
+                    'deployment holds, and prints no secret.' : ''}',
             // The server's own words, so the two ways this goes wrong
             // are told apart without opening a browser console: an
             // address that is https where it should be wss, and a key

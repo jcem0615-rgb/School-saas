@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logicclass/core/meeting/demo_video.dart';
 import 'package:logicclass/core/meeting/online_class_screen.dart';
 import 'package:logicclass/core/meeting/webrtc/classroom_call.dart';
 
@@ -109,6 +110,21 @@ void main() {
       await _settle(tester);
 
       expect(find.textContaining('invalid token'), findsOneWidget);
+    });
+
+    testWidgets('and points a demo at the one page that can explain it',
+        (tester) async {
+      // `invalid token` means the three LiveKit values are present and
+      // wrong, which is the one failure the endpoint cannot see from a
+      // POST. A GET on it names which are the wrong shape and prints no
+      // value -- and on a demo, the person reading this card is the
+      // person who can act on that.
+      await tester.pumpWidget(_screen(
+        _FakeCall(joins: false, failure: 'ConnectException: invalid token'),
+      ));
+      await _settle(tester);
+
+      expect(find.textContaining(DemoVideo.endpoint), findsOneWidget);
     });
 
     testWidgets('and says nothing extra when there is nothing to add',

@@ -129,6 +129,15 @@ jobs:
           echo "Create a token at vercel.com/account/tokens."
           exit 1
 
+      # The demo's token endpoint ships with this deploy and runs on
+      # Vercel, where nothing else tests it. It has been wrong in front
+      # of a class three times -- unset variables, a room name the wrong
+      # shape, a pass LiveKit would not accept -- and every one of them
+      # was found by deploying and watching it fail. These tests need no
+      # LiveKit account and no network, and they run in under a second.
+      - name: Test the demo token endpoint
+        run: node --test vercel/test/*.test.js
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.47.1

@@ -181,7 +181,7 @@ Gradle file.
 
 ## Running the tests
 
-Three independent suites, each covering a different layer:
+Four independent suites, each covering a different layer:
 
 ```bash
 # 1. Flutter/Dart unit tests (domain layer: entities, use cases, validation)
@@ -199,6 +199,11 @@ npm run test:emulator   # the suites that need a real Firestore
 # from the repo root:
 npm install
 npm run test:rules
+
+# 4. The demo's video-token endpoint, which runs on Vercel rather than
+#    Firebase and so is covered by nothing above. No network, no
+#    LiveKit account, no dependencies -- Node's own test runner:
+node --test vercel/test/*.test.js
 ```
 
 `test:emulator` covers what a stubbed database cannot show: receipt

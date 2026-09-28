@@ -1,0 +1,294 @@
+// The demo's token endpoint, checked without a LiveKit account.
+//
+// Run: node --test vercel/test
+//
+// This file is deliberately outside vercel/api. The deploy workflow
+// copies vercel/api/*.js into the site, and anything it copies there
+// Vercel treats as a live endpoint.
+//
+// It earns its place: this one file has been wrong in three different
+// ways in front of a class -- unset variables, a room name the wrong
+// shape, and a pass LiveKit would not accept -- and each one cost a
+// deploy to find out.
+
+const {test} = require('node:test');
+const assert = require('node:assert/strict');
+const {createHmac} = require('node:crypto');
+
+const ENDPOINT = require.resolve('../api/livekit-token.js');
+
+const URL = 'wss://logicclass-demo.livekit.cloud';
+const KEY = 'APIdemokey123';
+const SECRET = 'a'.repeat(43);
+const ROOM = 'lc-abcdefghij0123456789abcd';
+
+/** Loads the handler with exactly the environment given, and no other. */
+function endpointWith(env) {
+  const saved = {};
+  for (const name of ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET']) {
+    saved[name] = process.env[name];
+    // Assigning undefined would set the four letters "undefined", which
+    // is a value, and a variable with a value is not a missing one.
+    if (env[name] === undefined) delete process.env[name];
+    else process.env[name] = env[name];
+  }
+  delete require.cache[ENDPOINT];
+  const handler = require(ENDPOINT);
+  return {
+    handler,
+    restore() {
+      for (const [name, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    },
+  };
+}
+
+/** Calls the endpoint and returns the status and the body it answered. */
+async function call({env = {}, method = 'POST', body} = {}) {
+  const loaded = endpointWith({
+    LIVEKIT_URL: URL,
+    LIVEKIT_API_KEY: KEY,
+    LIVEKIT_API_SECRET: SECRET,
+    ...env,
+  });
+  const answer = {status: 0, body: undefined, headers: {}};
+  const res = {
+    setHeader(name, value) {
+      answer.headers[name.toLowerCase()] = value;
+    },
+    status(code) {
+      answer.status = code;
+      return this;
+    },
+    json(value) {
+      answer.body = value;
+    },
+  };
+  try {
+    await loaded.handler({method, body}, res);
+  } finally {
+    loaded.restore();
+  }
+  return answer;
+}
+
+function decode(part) {
+  return JSON.parse(Buffer.from(part, 'base64url').toString());
+}
+
+/** Verifies the pass the way a server does, from the secret up. */
+function verify(token, secret) {
+  const [header, payload, signature] = token.split('.');
+  const expected = createHmac('sha256', secret)
+    .update(header + '.' + payload)
+    .digest('base64url');
+  return {
+    header: decode(header),
+    claims: decode(payload),
+    signed: signature === expected,
+  };
+}
+
+test('mints a pass a LiveKit server can verify', async () => {
+  const answer = await call({body: {room: ROOM, identity: 'u1', name: 'Miss Cruz'}});
+
+  assert.equal(answer.status, 200);
+  assert.equal(answer.body.url, URL);
+  assert.equal(answer.headers['cache-control'], 'no-store');
+
+  const {header, claims, signed} = verify(answer.body.token, SECRET);
+  assert.deepEqual(header, {alg: 'HS256', typ: 'JWT'});
+  assert.ok(signed, 'the signature must verify against the secret it was signed with');
+  assert.equal(claims.iss, KEY);
+  assert.equal(claims.sub, 'u1');
+  assert.equal(claims.name, 'Miss Cruz');
+  assert.equal(claims.video.room, ROOM);
+  assert.equal(claims.video.roomJoin, true);
+  assert.equal(claims.video.canPublish, true);
+  assert.equal(claims.video.canSubscribe, true);
+  assert.equal(claims.video.roomAdmin, false, 'nobody moderates the demo');
+  assert.ok(claims.nbf <= Math.floor(Date.now() / 1000), 'the pass is valid now');
+  assert.ok(claims.exp > claims.nbf, 'and for a while yet');
+});
+
+// The failure that cost the most: a key pasted out of the dashboard
+// brings the newline that ended its line, and nothing shows it. LiveKit
+// then cannot find a key by that name, and says "invalid token" --
+// which reads as a signing bug and is not one.
+test('a pasted newline does not change the pass', async () => {
+  const pasted = await call({
+    env: {LIVEKIT_API_KEY: KEY + '\n', LIVEKIT_API_SECRET: '  ' + SECRET + '\n'},
+    body: {room: ROOM, identity: 'u1'},
+  });
+  const clean = await call({body: {room: ROOM, identity: 'u1'}});
+
+  assert.equal(pasted.status, 200);
+  assert.equal(verify(pasted.body.token, SECRET).claims.iss, KEY);
+  assert.ok(verify(pasted.body.token, SECRET).signed);
+  assert.equal(
+    verify(pasted.body.token, SECRET).claims.video.room,
+    verify(clean.body.token, SECRET).claims.video.room
+  );
+});
+
+test('a value saved inside quotes is read without them', async () => {
+  const answer = await call({
+    env: {LIVEKIT_API_KEY: `"${KEY}"`, LIVEKIT_URL: `'${URL}'`},
+    body: {room: ROOM},
+  });
+
+  assert.equal(answer.status, 200);
+  assert.equal(answer.body.url, URL);
+  assert.equal(verify(answer.body.token, SECRET).claims.iss, KEY);
+});
+
+test('an https:// project address is dialled as wss://', async () => {
+  const answer = await call({
+    env: {LIVEKIT_URL: 'https://logicclass-demo.livekit.cloud'},
+    body: {room: ROOM},
+  });
+
+  assert.equal(answer.status, 200);
+  assert.equal(answer.body.url, 'wss://logicclass-demo.livekit.cloud');
+});
+
+test('names the variables that never arrived', async () => {
+  const none = await call({
+    env: {LIVEKIT_URL: undefined, LIVEKIT_API_KEY: undefined, LIVEKIT_API_SECRET: undefined},
+  });
+
+  assert.equal(none.status, 404);
+  assert.deepEqual(none.body.missing, [
+    'LIVEKIT_URL',
+    'LIVEKIT_API_KEY',
+    'LIVEKIT_API_SECRET',
+  ]);
+  assert.match(none.body.hint, /deployment has been made/);
+
+  const one = await call({env: {LIVEKIT_API_SECRET: undefined}});
+  assert.equal(one.status, 404);
+  assert.deepEqual(one.body.missing, ['LIVEKIT_API_SECRET']);
+});
+
+test('a value that is only whitespace counts as missing', async () => {
+  const answer = await call({env: {LIVEKIT_API_SECRET: '   \n'}});
+
+  assert.equal(answer.status, 404);
+  assert.deepEqual(answer.body.missing, ['LIVEKIT_API_SECRET']);
+});
+
+test('signs only for rooms this app generates', async () => {
+  for (const room of [
+    undefined,
+    '',
+    'lc-short',
+    'lc-room_0001k3j9x2p1',
+    'lc-ABCDEFGHIJ0123456789abcd',
+    'someone-elses-conference',
+    'lc-' + 'a'.repeat(41),
+  ]) {
+    const answer = await call({body: {room}});
+    assert.equal(answer.status, 400, `should refuse ${JSON.stringify(room)}`);
+    assert.equal(answer.body.error, 'not a LogicClass room');
+  }
+});
+
+test('reads a body that arrived as text', async () => {
+  const answer = await call({body: JSON.stringify({room: ROOM, name: 'Ana'})});
+
+  assert.equal(answer.status, 200);
+  assert.equal(verify(answer.body.token, SECRET).claims.name, 'Ana');
+});
+
+test('bounds the names it will put in front of a class', async () => {
+  const answer = await call({body: {room: ROOM, name: 'x'.repeat(500)}});
+
+  assert.equal(answer.status, 200);
+  assert.equal(verify(answer.body.token, SECRET).claims.name.length, 60);
+});
+
+test('a method that is neither GET nor POST is refused', async () => {
+  const answer = await call({method: 'DELETE', body: {room: ROOM}});
+
+  assert.equal(answer.status, 405);
+  assert.equal(answer.body.error, 'POST only');
+});
+
+test('a GET describes the configuration and hands back no pass', async () => {
+  const answer = await call({method: 'GET'});
+
+  assert.equal(answer.status, 200);
+  assert.equal(answer.body.configured, true);
+  assert.equal(answer.body.token, undefined);
+  assert.deepEqual(answer.body.problems, []);
+  assert.match(answer.body.verdict, /not a matching set/);
+  assert.equal(answer.body.values.LIVEKIT_API_KEY.characters, KEY.length);
+  assert.equal(answer.body.values.LIVEKIT_API_KEY.beginsWithAPI, true);
+  assert.equal(answer.body.values.LIVEKIT_API_SECRET.beginsWithAPI, false);
+  assert.equal(answer.body.values.LIVEKIT_URL.scheme, 'wss');
+});
+
+// The point of the report is that it can be opened from a phone in the
+// middle of a demo. That is only safe while it contains no value.
+test('the report never prints a value', async () => {
+  const answer = await call({
+    method: 'GET',
+    env: {LIVEKIT_API_KEY: KEY + '\n', LIVEKIT_API_SECRET: SECRET},
+  });
+  const printed = JSON.stringify(answer.body);
+
+  for (const secret of [SECRET, KEY, URL, 'logicclass-demo', 'livekit.cloud']) {
+    assert.ok(!printed.includes(secret), `the report leaked ${secret}`);
+  }
+  assert.equal(answer.body.values.LIVEKIT_API_KEY.hadSurroundingSpace, true);
+});
+
+test('the report names the mistakes shape can see', async () => {
+  const swapped = await call({
+    method: 'GET',
+    env: {LIVEKIT_API_KEY: SECRET, LIVEKIT_API_SECRET: KEY},
+  });
+  assert.ok(
+    swapped.body.problems.some((p) => /look swapped/.test(p)),
+    JSON.stringify(swapped.body.problems)
+  );
+
+  const halfSecret = await call({method: 'GET', env: {LIVEKIT_API_SECRET: 'abcdef'}});
+  assert.ok(halfSecret.body.problems.some((p) => /at least 32/.test(p)));
+
+  const pair = await call({
+    method: 'GET',
+    env: {LIVEKIT_API_SECRET: SECRET + ' ' + SECRET},
+  });
+  assert.ok(pair.body.problems.some((p) => /pasted into one box/.test(p)));
+
+  const notAWebsocket = await call({
+    method: 'GET',
+    env: {LIVEKIT_URL: 'logicclass-demo.livekit.cloud'},
+  });
+  assert.ok(notAWebsocket.body.problems.some((p) => /does not begin with wss/.test(p)));
+
+  const dashboardPage = await call({
+    method: 'GET',
+    env: {LIVEKIT_URL: 'https://cloud.livekit.io/projects/p_123/settings/keys'},
+  });
+  assert.ok(dashboardPage.body.problems.some((p) => /path after the host/.test(p)));
+
+  const dashboardHost = await call({
+    method: 'GET',
+    env: {LIVEKIT_URL: 'wss://cloud.livekit.io'},
+  });
+  assert.ok(dashboardHost.body.problems.some((p) => /dashboard you sign in to/.test(p)));
+
+  const fine = await call({method: 'GET'});
+  assert.deepEqual(fine.body.problems, []);
+});
+
+test('a GET on an unconfigured deployment still says so', async () => {
+  const answer = await call({method: 'GET', env: {LIVEKIT_API_KEY: undefined}});
+
+  assert.equal(answer.status, 404);
+  assert.deepEqual(answer.body.missing, ['LIVEKIT_API_KEY']);
+});

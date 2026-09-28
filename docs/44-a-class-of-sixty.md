@@ -129,13 +129,47 @@ https://logicclass.vercel.app/api/livekit-token
 
 | What you see | What it means |
 |---|---|
-| `{"error":"POST only"}` — **405** | Correct. The variables are set and the endpoint is live. A browser sends GET; the app sends POST. |
+| `{"configured":true, …}` — **200** | The variables are set and the endpoint is live. Read `problems` — see below. |
 | `{"error":"not configured"}` — **404** | The reply names which of the three are missing. **All three** means none reached this deployment: they were saved on a different Vercel project, or scoped to Preview instead of Production, or nothing has been deployed since saving them. **One** means that name is misspelled. |
 | The LogicClass app loads | The rewrite is swallowing `/api`. Should not happen — `vercel.json` excludes it — but it would mean an old deployment. |
 | Vercel's own 404 page | The endpoint was not bundled. Check the deploy log for "Bundled the demo token endpoint". |
 
-Getting **405** is the whole test. Then open a class: Faculty → Online
-Class → Start online class.
+A GET describes what the deployment holds and never mints a pass. It
+prints no value — only lengths, prefixes and punctuation, so it is safe
+to open from a phone in front of a class:
+
+```json
+{
+  "configured": true,
+  "values": {
+    "LIVEKIT_URL": {"characters": 38, "scheme": "wss", "hadSurroundingSpace": false, "hadSurroundingQuotes": false},
+    "LIVEKIT_API_KEY": {"characters": 13, "beginsWithAPI": true, …},
+    "LIVEKIT_API_SECRET": {"characters": 43, "beginsWithAPI": false, …}
+  },
+  "problems": [],
+  "verdict": "All three are the right shape. …"
+}
+```
+
+`problems` is empty when nothing is visibly wrong. When it is not, each
+line names one mistake and its fix. It catches the pair pasted into each
+other's boxes, a secret shorter than the 32 characters LiveKit requires,
+two values pasted into one box, and a `LIVEKIT_URL` that is a page in
+the dashboard rather than the project's own address.
+
+**What shape cannot see is a value that is well-formed and wrong.** Three
+good-looking values taken from two different LiveKit projects are
+indistinguishable here, and LiveKit rejects the pass with `invalid
+token` — which appears on the app's failure card. If `problems` is empty
+and a class still says the video server would not let it in, copy all
+three again from one project's **Settings → Keys** page.
+
+Values pasted with a trailing newline or wrapped in quotes are read
+without them, so the commonest paste accident is no longer fatal. An
+`https://` project address is dialled as `wss://`.
+
+With `problems` empty, open a class: Faculty → Online Class → Start
+online class.
 
 ### What the demo's pass does not do
 
