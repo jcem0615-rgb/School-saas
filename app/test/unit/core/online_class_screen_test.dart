@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logicclass/core/meeting/demo_video.dart';
 import 'package:logicclass/core/meeting/online_class_screen.dart';
 import 'package:logicclass/core/meeting/webrtc/classroom_call.dart';
 
@@ -57,6 +56,7 @@ Widget _screen(
   String provider = 'livekit',
   String? url = 'wss://school.livekit.cloud',
   String? token = 'a.b.c',
+  Future<String?> Function()? configuration,
 }) =>
     MaterialApp(
       home: OnlineClassScreen(
@@ -70,6 +70,7 @@ Widget _screen(
         asModerator: asModerator,
         openedAt: DateTime.now().subtract(const Duration(minutes: 90)),
         debugCall: call,
+        debugConfiguration: configuration,
       ),
     );
 
@@ -112,19 +113,59 @@ void main() {
       expect(find.textContaining('invalid token'), findsOneWidget);
     });
 
-    testWidgets('and points a demo at the one page that can explain it',
+    testWidgets('and puts the endpoint\'s own account of itself on the card',
         (tester) async {
       // `invalid token` means the three LiveKit values are present and
-      // wrong, which is the one failure the endpoint cannot see from a
-      // POST. A GET on it names which are the wrong shape and prints no
-      // value -- and on a demo, the person reading this card is the
-      // person who can act on that.
+      // wrong, which is the one thing the endpoint cannot see while it
+      // is minting. A GET on it says which are the wrong shape -- but
+      // only if somebody opens it, and the person looking at a failed
+      // demo should not have to. So the card asks, and says.
       await tester.pumpWidget(_screen(
         _FakeCall(joins: false, failure: 'ConnectException: invalid token'),
+        configuration: () async =>
+            'LIVEKIT_API_KEY and LIVEKIT_API_SECRET look swapped.',
       ));
       await _settle(tester);
 
-      expect(find.textContaining(DemoVideo.endpoint), findsOneWidget);
+      expect(find.textContaining('look swapped'), findsOneWidget);
+      expect(find.textContaining('invalid token'), findsOneWidget);
+    });
+
+    testWidgets('and says nothing when the endpoint will not account for itself',
+        (tester) async {
+      await tester.pumpWidget(_screen(
+        _FakeCall(joins: false, failure: 'ConnectException: invalid token'),
+        configuration: () async => null,
+      ));
+      await _settle(tester);
+
+      // A card that fails to reach its own endpoint says what it knows
+      // and no more. An empty box under the error is worse than none.
+      expect(find.text('Try joining again'), findsOneWidget);
+      expect(find.textContaining('LIVEKIT_'), findsNothing);
+    });
+
+    testWidgets('and asks again on the next attempt, not once a lesson',
+        (tester) async {
+      var asked = 0;
+      await tester.pumpWidget(_screen(
+        _FakeCall(joins: false, failure: 'ConnectException: invalid token'),
+        configuration: () async {
+          asked += 1;
+          return 'LIVEKIT_API_SECRET is 6 characters.';
+        },
+      ));
+      await _settle(tester);
+      expect(asked, 1);
+
+      await tester.tap(find.text('Try joining again'));
+      await _settle(tester);
+
+      // The point of retrying is usually that something was changed in
+      // between. A stale answer from before the change is worse than
+      // asking twice.
+      expect(asked, 2);
+      expect(find.textContaining('6 characters'), findsOneWidget);
     });
 
     testWidgets('and says nothing extra when there is nothing to add',

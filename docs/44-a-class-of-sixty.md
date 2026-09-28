@@ -160,9 +160,15 @@ the dashboard rather than the project's own address.
 **What shape cannot see is a value that is well-formed and wrong.** Three
 good-looking values taken from two different LiveKit projects are
 indistinguishable here, and LiveKit rejects the pass with `invalid
-token` — which appears on the app's failure card. If `problems` is empty
-and a class still says the video server would not let it in, copy all
-three again from one project's **Settings → Keys** page.
+token`. If `problems` is empty and a class still says the video server
+would not let it in, copy all three again from one project's
+**Settings → Keys** page.
+
+You do not have to come here to read any of that. When a demo class
+fails to start, the failure card asks this endpoint itself and puts the
+answer underneath the error — the problems if there are any, and
+otherwise the three shapes and what their being right means. On a real
+deployment it does not: a school's teacher can do nothing with it.
 
 Values pasted with a trailing newline or wrapped in quotes are read
 without them, so the commonest paste accident is no longer fatal. An

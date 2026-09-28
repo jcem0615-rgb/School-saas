@@ -47,6 +47,10 @@ class OnlineClassScreen extends StatefulWidget {
   @visibleForTesting
   final ClassroomCall? debugCall;
 
+  /// Stands in for the demo endpoint's description of itself.
+  @visibleForTesting
+  final Future<String?> Function()? debugConfiguration;
+
   const OnlineClassScreen({
     super.key,
     required this.room,
@@ -59,6 +63,7 @@ class OnlineClassScreen extends StatefulWidget {
     this.asModerator = false,
     this.openedAt,
     this.debugCall,
+    this.debugConfiguration,
   });
 
   @override
@@ -80,6 +85,12 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   final _cameraOn = ValueNotifier(true);
   Timer? _tick;
 
+  /// What the demo's token endpoint says it holds, once a join has
+  /// failed and somebody needs to know why. Empty until then, and on a
+  /// real deployment it stays empty -- a school's teacher can do
+  /// nothing with it and should not be shown it.
+  final _configuration = ValueNotifier<String?>(null);
+
   bool get _configured =>
       schoolHasVideo(widget.provider, widget.serverUrl) &&
       (widget.token?.isNotEmpty ?? false);
@@ -98,6 +109,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     _now.dispose();
     _micOn.dispose();
     _cameraOn.dispose();
+    _configuration.dispose();
     unawaited(_call.leave());
     super.dispose();
   }
@@ -111,6 +123,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     if (!mounted) return;
     if (!joined) {
       setState(() => _phase = _Phase.failed);
+      unawaited(_describeConfiguration());
       return;
     }
     _tick ??= Timer.periodic(const Duration(seconds: 1), (_) {
@@ -120,8 +133,26 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   }
 
   Future<void> _retry() async {
+    _configuration.value = null;
     setState(() => _phase = _Phase.connecting);
     await _join();
+  }
+
+  /// Asks the demo's endpoint what it holds, and puts the answer on the
+  /// card.
+  ///
+  /// `invalid token` is the one failure that endpoint cannot see while
+  /// minting: the three values are present, so it signs, and only
+  /// LiveKit knows they are wrong. A GET on it names the ones that are
+  /// the wrong shape and prints no value -- but only if somebody goes
+  /// and opens it, and the person holding a failed demo should not have
+  /// to. A notifier, not setState: the rest of this screen does not
+  /// move for anything that arrives late.
+  Future<void> _describeConfiguration() async {
+    if (!kDemoMode) return;
+    final summary = await (widget.debugConfiguration ??
+        DemoVideo.configurationSummary)();
+    if (mounted) _configuration.value = summary;
   }
 
   void _toggleMic() {
@@ -175,22 +206,15 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
         _Phase.failed => _Message(
             title: 'The class could not start',
             body: 'The video server did not let this device in. The lesson '
-                'is still running -- try joining it again.'
-                // Only on a demo, where whoever is looking at this card
-                // is also the person who can fix it. `invalid token`
-                // means the three LiveKit values are wrong rather than
-                // absent, and the endpoint will say which are the wrong
-                // shape without printing any of them. A real school's
-                // teacher can do nothing with that and should not be
-                // shown it.
-                '${kDemoMode ? '\n\nIf it keeps happening, open '
-                    '${DemoVideo.endpoint} in a browser. It says what this '
-                    'deployment holds, and prints no secret.' : ''}',
+                'is still running -- try joining it again.',
             // The server's own words, so the two ways this goes wrong
             // are told apart without opening a browser console: an
             // address that is https where it should be wss, and a key
             // the server rejects, both read as "could not start".
             detail: _call.lastError,
+            // What the endpoint says it holds, when it has said it.
+            // Only a demo ever fills this in.
+            footnote: _configuration,
             action: 'Try joining again',
             onAction: _retry,
           ),
@@ -240,6 +264,12 @@ class _Message extends StatelessWidget {
   /// What the thing underneath actually said. Small and quiet: it is
   /// for whoever is configuring this, not for the class.
   final String? detail;
+
+  /// A line that arrives after the card does -- the demo endpoint's
+  /// description of what it holds. A listenable rather than a String
+  /// because it lands a moment later, and because nothing on this
+  /// screen is allowed to rebuild through setState.
+  final ValueListenable<String?>? footnote;
   final String? action;
   final VoidCallback? onAction;
 
@@ -247,6 +277,7 @@ class _Message extends StatelessWidget {
     required this.title,
     required this.body,
     this.detail,
+    this.footnote,
     this.action,
     this.onAction,
   });
@@ -281,6 +312,23 @@ class _Message extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
               ],
+              if (footnote != null)
+                ValueListenableBuilder<String?>(
+                  valueListenable: footnote!,
+                  builder: (context, summary, _) {
+                    if (summary == null || summary.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Text(
+                        summary,
+                        style: theme.textTheme.bodySmall,
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  },
+                ),
               if (action != null) ...[
                 const SizedBox(height: 20),
                 FilledButton.icon(

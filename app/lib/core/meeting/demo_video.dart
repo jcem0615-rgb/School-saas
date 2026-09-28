@@ -37,6 +37,59 @@ class DemoVideo {
   /// and an HTTP client is entitled to want a scheme.
   static Uri get uri => Uri.base.resolve(endpoint);
 
+  /// What the deployment holds, in one line, or null if it will not say.
+  ///
+  /// The endpoint answers a GET with the shape of its three LiveKit
+  /// values -- lengths, prefixes, punctuation -- and a list of the
+  /// mistakes that shape can prove. It prints no value, which is what
+  /// makes it safe to put on a screen.
+  ///
+  /// It is fetched only after a join has already failed, and only on a
+  /// demo, where the person reading the failure is the person who can
+  /// fix it. Asking whoever is configuring this to go and open a URL
+  /// cost two rounds already; the card they are looking at can say it.
+  static Future<String?> configurationSummary({http.Client? client}) async {
+    final http.Client sender = client ?? http.Client();
+    try {
+      final reply = await sender.get(uri).timeout(const Duration(seconds: 8));
+      if (reply.statusCode != 200) return null;
+
+      final body = jsonDecode(reply.body);
+      if (body is! Map) return null;
+
+      final problems = body['problems'];
+      if (problems is List && problems.isNotEmpty) {
+        return problems.whereType<String>().join('\n\n');
+      }
+
+      // Nothing visibly wrong, which is itself the finding: the values
+      // are well-formed and LiveKit still refuses them, so they are not
+      // a matching set. The shapes go on the line anyway -- they are
+      // the difference between "nothing is wrong" and "here is what it
+      // holds", and the second can be read off a photograph.
+      final values = body['values'];
+      if (values is! Map) return null;
+      String shapeOf(String name, String extra) {
+        final value = values[name];
+        if (value is! Map) return '$name ?';
+        return '$name ${value['characters']} $extra';
+      }
+
+      final url = values['LIVEKIT_URL'];
+      return 'All three are the right shape -- '
+          '${shapeOf('LIVEKIT_URL', url is Map ? '${url['scheme']}' : '')}, '
+          '${shapeOf('LIVEKIT_API_KEY', 'chars')}, '
+          '${shapeOf('LIVEKIT_API_SECRET', 'chars')} -- '
+          'so they are not a matching set. Copy all three again from '
+          "one LiveKit project's Settings -> Keys page.";
+    } catch (error) {
+      debugPrint('No configuration summary: $error');
+      return null;
+    } finally {
+      if (client == null) sender.close();
+    }
+  }
+
   /// Asks for a pass, and returns [MeetingAdmission.none] if there is
   /// none to be had.
   ///
