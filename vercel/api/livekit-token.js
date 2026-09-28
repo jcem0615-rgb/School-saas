@@ -28,6 +28,9 @@ const LIFETIME_SECONDS = 2 * 60 * 60;
 /** LiveKit refuses to run with a shorter one, so a shorter one is a typo. */
 const SECRET_MINIMUM = 32;
 
+/** The characters a dashboard prints instead of a secret. */
+const MASKED = /[\u2022\u00B7\u25CF\u2219\u2217\u2024\u25AA\u25CB\u26AB*]/;
+
 function base64url(value) {
   return Buffer.from(value)
     .toString('base64')
@@ -124,10 +127,26 @@ function problemsWith(url, apiKey, apiSecret) {
   }
 
   for (const [name, value] of [
+    ['LIVEKIT_URL', url],
     ['LIVEKIT_API_KEY', apiKey],
     ['LIVEKIT_API_SECRET', apiSecret],
   ]) {
-    if (/\s/.test(value.text)) {
+    // The dashboard hides a secret behind a row of dots, and a row of
+    // dots can be selected and copied like anything else on a page. It
+    // then arrives here as a value of exactly the right kind of
+    // length, with no whitespace and no telltale prefix -- so every
+    // other check on this page passes it, and LiveKit refuses the pass
+    // with the same two words it uses for a key from the wrong
+    // project. None of these characters occurs in a LiveKit key, a
+    // LiveKit secret, or a websocket address.
+    if (MASKED.test(value.text)) {
+      problems.push(
+        name +
+          ' is the row of dots the dashboard prints in place of the ' +
+          'value, not the value. Reveal it on the Keys page first, then ' +
+          'copy what appears -- letters and digits.'
+      );
+    } else if (name !== 'LIVEKIT_URL' && /\s/.test(value.text)) {
       problems.push(
         name +
           ' has a space or a line break inside it. Two values were ' +

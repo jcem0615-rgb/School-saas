@@ -398,6 +398,55 @@ test('minting a pass never asks LiveKit anything', async () => {
   assert.equal(livekit.asked.length, 0);
 });
 
+// The one that actually happened, and the one every other check on
+// this page waved through: a secret of exactly the right sort of
+// length, no whitespace, no prefix, and not a secret at all.
+test('catches the row of dots the dashboard prints in place of a value',
+    async () => {
+  const livekit = livekitAnswers({status: 200, body: '{"rooms":[]}'});
+  const answer = await call({
+    method: 'GET',
+    env: {LIVEKIT_API_SECRET: '\u2022'.repeat(32)},
+  }).finally(livekit.restore);
+
+  assert.match(answer.body.summary, /row of dots/);
+  assert.match(answer.body.summary, /LIVEKIT_API_SECRET/);
+  assert.match(answer.body.summary, /Reveal it on the Keys page/);
+  // It is not a space, and it is long enough, so nothing else was
+  // ever going to catch it.
+  assert.equal(answer.body.values.LIVEKIT_API_SECRET.characters, 32);
+  assert.equal(livekit.asked.length, 0, 'and LiveKit is not troubled with it');
+});
+
+test('and the same in the other two boxes', async () => {
+  for (const [name, masked] of [
+    ['LIVEKIT_API_KEY', '\u25cf'.repeat(15)],
+    ['LIVEKIT_URL', 'wss://\u2022\u2022\u2022\u2022.livekit.cloud'],
+  ]) {
+    const livekit = livekitAnswers({status: 200, body: '{}'});
+    const answer = await call({
+      method: 'GET',
+      env: {[name]: masked},
+    }).finally(livekit.restore);
+
+    assert.match(answer.body.summary, new RegExp(name + ' is the row of dots'));
+  }
+});
+
+test('and does not see dots in a real key, secret or address', async () => {
+  const livekit = livekitAnswers({status: 200, body: '{"rooms":[]}'});
+  const answer = await call({
+    method: 'GET',
+    env: {
+      LIVEKIT_API_KEY: 'APIx-_9aBcDeF',
+      LIVEKIT_API_SECRET: 'aB3-_' + 'x'.repeat(38),
+      LIVEKIT_URL: 'wss://a-project-1234.livekit.cloud',
+    },
+  }).finally(livekit.restore);
+
+  assert.deepEqual(answer.body.problems, []);
+});
+
 test('a GET on an unconfigured deployment still says so', async () => {
   const answer = await call({method: 'GET', env: {LIVEKIT_API_KEY: undefined}});
 

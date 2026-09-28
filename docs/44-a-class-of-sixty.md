@@ -154,8 +154,17 @@ to open from a phone in front of a class:
 `problems` is empty when nothing is visibly wrong. When it is not, each
 line names one mistake and its fix. It catches the pair pasted into each
 other's boxes, a secret shorter than the 32 characters LiveKit requires,
-two values pasted into one box, and a `LIVEKIT_URL` that is a page in
-the dashboard rather than the project's own address.
+two values pasted into one box, a `LIVEKIT_URL` that is a page in the
+dashboard rather than the project's own address — and the row of dots.
+
+**The row of dots.** A dashboard hides a secret behind `••••…`, and a row
+of dots can be selected and copied like any other text on a page. What
+arrives is the right sort of length, has no whitespace and no telltale
+prefix, so every other check here passes it — and LiveKit refuses the
+pass with the same two words it uses for a key from the wrong project.
+Reveal the secret on the Keys page before copying it. None of the
+characters a dashboard masks with can occur in a LiveKit key, a LiveKit
+secret or a websocket address, so this is checked in all three boxes.
 
 **When shape has nothing to say, the endpoint asks LiveKit.** Three
 good-looking values taken from two different projects are
