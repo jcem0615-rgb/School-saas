@@ -54,19 +54,88 @@ CORS, no build flag, nothing to configure in the app.
 
 ### Switching it on
 
-**Vercel project → Settings → Environment Variables**, the same three
-values as below:
+Three values, from LiveKit, pasted into Vercel. About fifteen minutes.
+
+#### 1. Make a LiveKit project
+
+**cloud.livekit.io** → sign up (GitHub or email) → create a project.
+Pick the region nearest the school; for the Philippines that is
+Singapore or Tokyo. Every participant's audio and video crosses to this
+region and back, so distance is felt directly as delay.
+
+#### 2. Take the three values
+
+All three live under the project's **Settings → Keys** (the console's
+wording moves; look for "API Keys" or the key icon).
+
+**`LIVEKIT_URL`** — the project's WebSocket address. Shown on the
+project page, sometimes labelled *Server URL* or *Project URL*.
 
 ```
-LIVEKIT_URL         wss://<project>.livekit.cloud
-LIVEKIT_API_KEY     API…
-LIVEKIT_API_SECRET  …
+wss://logicclass-3f9k2xd1.livekit.cloud
 ```
 
-Redeploy, and the demo holds a real class. Leave them out and the
-endpoint answers 404, which the app reads as "live video is not
-switched on for this demo" -- so a demo without them still deploys and
-still works for everything else.
+* It begins `wss://`, not `https://`. Pasting the `https://` form is
+  the single most common way this fails, and it fails at connect time
+  with nothing useful said.
+* No trailing slash, no path.
+
+**`LIVEKIT_API_KEY`** — create a key if the project has none. It is
+short and begins with `API`:
+
+```
+APIx7dKm2Qw9RtB
+```
+
+**`LIVEKIT_API_SECRET`** — shown **once**, at the moment the key is
+created. Copy it then; if you lose it, delete the key and make another.
+
+```
+wZ3n8Qs1FhK7pLdV2RtYxA4bN6mJ0cE5uS9gT1iO3kQ
+```
+
+Anyone holding this can mint entry to any room on the project. It goes
+into Vercel and nowhere else — never into the repository, never into a
+chat, never into the Flutter app.
+
+#### 3. Paste them into Vercel
+
+**Vercel → the `logicclass` project → Settings → Environment
+Variables.** Add each one:
+
+| Key | Value | Environments |
+|---|---|---|
+| `LIVEKIT_URL` | `wss://….livekit.cloud` | Production |
+| `LIVEKIT_API_KEY` | `API…` | Production |
+| `LIVEKIT_API_SECRET` | the secret | Production |
+
+Production is the one that matters — the deploy publishes with `--prod`.
+Ticking Preview and Development too is harmless.
+
+#### 4. Redeploy, because variables do not apply retroactively
+
+A deployment carries the variables that existed when it was made.
+Adding them changes nothing until the next one. Either push any commit,
+or go to **Actions → Deploy web → Run workflow**, which the workflow
+allows on purpose.
+
+#### 5. Check it, without signing in to anything
+
+Open this in a browser:
+
+```
+https://logicclass.vercel.app/api/livekit-token
+```
+
+| What you see | What it means |
+|---|---|
+| `{"error":"POST only"}` — **405** | Correct. The variables are set and the endpoint is live. A browser sends GET; the app sends POST. |
+| `{"error":"not configured"}` — **404** | The variables are missing from *this* deployment. Either they were not saved, or nothing has been deployed since. |
+| The LogicClass app loads | The rewrite is swallowing `/api`. Should not happen — `vercel.json` excludes it — but it would mean an old deployment. |
+| Vercel's own 404 page | The endpoint was not bundled. Check the deploy log for "Bundled the demo token endpoint". |
+
+Getting **405** is the whole test. Then open a class: Faculty → Online
+Class → Start online class.
 
 ### What the demo's pass does not do
 
