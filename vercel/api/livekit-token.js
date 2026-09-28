@@ -160,14 +160,125 @@ function problemsWith(url, apiKey, apiSecret) {
   return problems;
 }
 
+/** The project's own HTTPS address, from the address a client dials. */
+function httpsOrigin(url) {
+  return websocketUrl(url)
+    .replace(/^wss:\/\//, 'https://')
+    .replace(/^ws:\/\//, 'http://')
+    .replace(/\/+$/, '');
+}
+
+/**
+ * Asks LiveKit whether these three values are a set.
+ *
+ * Shape runs out exactly where this problem lives: three well-formed
+ * values from two different projects look identical from here, and only
+ * LiveKit can tell them apart. It already does -- it refuses the pass --
+ * but it does so to a browser, in two words, after a class has failed
+ * to start.
+ *
+ * So ask it directly, with a token of the same key and the same secret,
+ * and repeat what it says. A 200 means the three belong together and
+ * the fault is somewhere else entirely; a 401 means they do not, and
+ * nothing about the app can fix that.
+ *
+ * `roomList` and sixty seconds: enough to be answered, not enough to be
+ * useful to anybody who intercepted it.
+ */
+async function askLiveKit(url, apiKey, apiSecret) {
+  const now = Math.floor(Date.now() / 1000);
+  const token = sign(
+    {
+      iss: apiKey,
+      sub: 'logicclass-configuration-check',
+      nbf: now - 30,
+      exp: now + 60,
+      video: {roomList: true},
+    },
+    apiSecret
+  );
+
+  // Nothing here is allowed to hang: this runs while somebody is
+  // looking at a failed lesson.
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), 6000);
+  try {
+    const reply = await fetch(
+      httpsOrigin(url) + '/twirp/livekit.RoomService/ListRooms',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + token,
+        },
+        body: '{}',
+        signal: stop.signal,
+      }
+    );
+    const said = await reply.text();
+    return {
+      reached: true,
+      status: reply.status,
+      // LiveKit's refusals carry no credential, but this is repeated
+      // onto a screen, so take no chances with what came back.
+      says: redact(said, apiKey, apiSecret).slice(0, 200),
+    };
+  } catch (error) {
+    return {
+      reached: false,
+      says: redact(String((error && error.message) || error), apiKey, apiSecret)
+        .slice(0, 200),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function redact(text, apiKey, apiSecret) {
+  return String(text).split(apiSecret).join('***').split(apiKey).join('***');
+}
+
+/** What LiveKit's answer means, in a sentence somebody can act on. */
+function verdictOn(answer) {
+  if (!answer) return null;
+  if (!answer.reached) {
+    return 'LIVEKIT_URL did not answer (' + answer.says + '). Check the ' +
+      "project URL on the LiveKit project's own page.";
+  }
+  if (answer.status === 200) {
+    return 'LiveKit accepts this key and secret on this URL, so the three ' +
+      'are a matching set and the fault is not in them.';
+  }
+  if (answer.status === 401 || answer.status === 403) {
+    return 'LiveKit refuses this key and secret on this URL -- it answered ' +
+      answer.status + ': ' + answer.says + '. They are not a matching set. ' +
+      "Copy all three again from one project's Settings -> Keys page, and " +
+      'reveal the secret in full rather than copying what is displayed.';
+  }
+  if (answer.status === 404) {
+    return 'LIVEKIT_URL answered ' + answer.status + ', so it is reachable ' +
+      'but is not a LiveKit project. Check the address.';
+  }
+  return 'LiveKit answered ' + answer.status + ': ' + answer.says;
+}
+
 /**
  * A description of the three values with no value in it.
  *
  * Reachable with a plain GET, because a browser address bar is the one
  * tool at hand when the app says the server would not let it in.
  */
-function configurationReport(url, apiKey, apiSecret) {
+async function configurationReport(url, apiKey, apiSecret) {
   const problems = problemsWith(url, apiKey, apiSecret);
+
+  // Only when shape has nothing to say. A secret that is six characters
+  // long does not need LiveKit's opinion, and asking would put a
+  // needless six seconds in front of somebody who is already waiting.
+  const answer = problems.length === 0 ?
+    await askLiveKit(url.text, apiKey.text, apiSecret.text) :
+    null;
+  const verdict = verdictOn(answer);
+
   return {
     configured: true,
     // Lengths and prefixes. A LiveKit key is public -- it travels in
@@ -194,18 +305,20 @@ function configurationReport(url, apiKey, apiSecret) {
       },
     },
     problems,
-    // Shape is where the checking stops. Three well-formed values that
-    // came from two different projects look exactly like three that
-    // came from one, and only LiveKit can tell them apart -- which it
-    // does by refusing the pass.
+    // What LiveKit itself said, asked with these same three values.
+    livekit: answer ?
+      {reached: answer.reached, status: answer.status, says: answer.says} :
+      null,
     verdict:
       problems.length > 0 ?
         'Fix the problems above, save, and deploy again -- a saved ' +
           'variable only reaches deployments made after it was saved.' :
-        'All three are the right shape. If the class still says the ' +
-          'video server would not let it in, the values are well-formed ' +
-          'but not a matching set: copy all three again from one ' +
-          "project's Settings -> Keys page, not from two projects.",
+        verdict,
+    // One line, already written, for whatever is going to show this to
+    // somebody. The app prints it as it stands, which means the wording
+    // can be improved by deploying this file -- no rebuild, because
+    // there is nothing to rebuild.
+    summary: problems.length > 0 ? problems.join('\n\n') : verdict,
     note: 'Shapes and lengths only. No value is ever printed here.',
   };
 }
@@ -256,7 +369,7 @@ module.exports = async (req, res) => {
   // left over once LiveKit starts refusing passes.
   if (req.method === 'GET') {
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json(configurationReport(url, apiKey, apiSecret));
+    res.status(200).json(await configurationReport(url, apiKey, apiSecret));
     return;
   }
 
@@ -318,3 +431,4 @@ module.exports.ROOM = ROOM;
 module.exports.unwrap = unwrap;
 module.exports.websocketUrl = websocketUrl;
 module.exports.problemsWith = problemsWith;
+module.exports.httpsOrigin = httpsOrigin;

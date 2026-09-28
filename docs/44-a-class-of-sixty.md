@@ -157,12 +157,31 @@ other's boxes, a secret shorter than the 32 characters LiveKit requires,
 two values pasted into one box, and a `LIVEKIT_URL` that is a page in
 the dashboard rather than the project's own address.
 
-**What shape cannot see is a value that is well-formed and wrong.** Three
-good-looking values taken from two different LiveKit projects are
-indistinguishable here, and LiveKit rejects the pass with `invalid
-token`. If `problems` is empty and a class still says the video server
-would not let it in, copy all three again from one project's
-**Settings → Keys** page.
+**When shape has nothing to say, the endpoint asks LiveKit.** Three
+good-looking values taken from two different projects are
+indistinguishable from their shape — so with `problems` empty, the GET
+mints a throwaway, sixty-second `roomList` token from the same key and
+secret and puts it to `LIVEKIT_URL` itself. LiveKit's answer comes back
+under `livekit`, and its meaning in `summary`:
+
+| LiveKit says | What it means |
+|---|---|
+| **200** | The three are a matching set. The fault is not in them. |
+| **401** / **403** | They are not a set — the key and the secret are from different projects, or the secret was copied from what the dashboard displays rather than revealed in full. Its own words are quoted. |
+| **404** | The address is reachable but is not a LiveKit project. |
+| did not answer | `LIVEKIT_URL` is wrong, or the project is gone. Quotes the network error. |
+
+Whatever LiveKit returns is stripped of the key and the secret before it
+is repeated, in case a future version of it ever echoes one back.
+
+A pass request never does any of this — a lesson starting does not wait
+on a diagnostic — and neither does a GET that already found a problem in
+the shapes.
+
+`summary` is one line, written here, and the app prints it as it stands.
+That is deliberate: this file deploys on its own, with nothing to
+rebuild, so the wording of a diagnosis is minutes away rather than a
+release away.
 
 You do not have to come here to read any of that. When a demo class
 fails to start, the failure card asks this endpoint itself and puts the

@@ -126,6 +126,28 @@ void main() {
   // and the failure card puts that on the screen rather than sending
   // whoever is configuring this off to open a URL.
   group('asking what the deployment holds', () {
+    test('prints the line the endpoint wrote for it', () async {
+      // The endpoint is the one piece of this that can be reworded and
+      // deployed in minutes, with nothing to rebuild. When it has
+      // written the sentence, that is the sentence.
+      final client = MockClient((request) async => http.Response(
+            jsonEncode({
+              'configured': true,
+              'summary': 'LiveKit refuses this key and secret on this URL.',
+              'problems': <String>[],
+              'values': {},
+            }),
+            200,
+          ));
+
+      final summary = await withClient(
+        client,
+        (c) => DemoVideo.configurationSummary(client: c),
+      );
+
+      expect(summary, 'LiveKit refuses this key and secret on this URL.');
+    });
+
     test('repeats the problems it was given, and nothing else', () async {
       final client = MockClient((request) async {
         expect(request.method, 'GET');

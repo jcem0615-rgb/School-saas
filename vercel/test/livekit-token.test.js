@@ -45,6 +45,32 @@ function endpointWith(env) {
   };
 }
 
+/**
+ * Stands in for LiveKit while the endpoint asks it about its own keys.
+ *
+ * Every GET that finds nothing wrong with the shapes now asks the real
+ * server, so a test that did not stub this would go out to the network
+ * -- slowly, and differently depending on where it ran.
+ */
+function livekitAnswers(answer) {
+  const asked = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    asked.push({url: String(url), options});
+    if (answer instanceof Error) throw answer;
+    return {
+      status: answer.status,
+      text: async () => answer.body ?? '',
+    };
+  };
+  return {
+    asked,
+    restore() {
+      globalThis.fetch = real;
+    },
+  };
+}
+
 /** Calls the endpoint and returns the status and the body it answered. */
 async function call({env = {}, method = 'POST', body} = {}) {
   const loaded = endpointWith({
@@ -217,13 +243,14 @@ test('a method that is neither GET nor POST is refused', async () => {
 });
 
 test('a GET describes the configuration and hands back no pass', async () => {
-  const answer = await call({method: 'GET'});
+  const livekit = livekitAnswers({status: 200, body: '{"rooms":[]}'});
+  const answer = await call({method: 'GET'}).finally(livekit.restore);
 
   assert.equal(answer.status, 200);
   assert.equal(answer.body.configured, true);
   assert.equal(answer.body.token, undefined);
   assert.deepEqual(answer.body.problems, []);
-  assert.match(answer.body.verdict, /not a matching set/);
+  assert.match(answer.body.verdict, /matching set/);
   assert.equal(answer.body.values.LIVEKIT_API_KEY.characters, KEY.length);
   assert.equal(answer.body.values.LIVEKIT_API_KEY.beginsWithAPI, true);
   assert.equal(answer.body.values.LIVEKIT_API_SECRET.beginsWithAPI, false);
@@ -233,10 +260,17 @@ test('a GET describes the configuration and hands back no pass', async () => {
 // The point of the report is that it can be opened from a phone in the
 // middle of a demo. That is only safe while it contains no value.
 test('the report never prints a value', async () => {
+  // LiveKit is made to say the worst thing it could: the credentials
+  // back, in its own refusal. Nothing that came back from it reaches
+  // the report unredacted.
+  const livekit = livekitAnswers({
+    status: 401,
+    body: `{"msg":"invalid token for ${KEY} / ${SECRET}"}`,
+  });
   const answer = await call({
     method: 'GET',
     env: {LIVEKIT_API_KEY: KEY + '\n', LIVEKIT_API_SECRET: SECRET},
-  });
+  }).finally(livekit.restore);
   const printed = JSON.stringify(answer.body);
 
   for (const secret of [SECRET, KEY, URL, 'logicclass-demo', 'livekit.cloud']) {
@@ -282,8 +316,86 @@ test('the report names the mistakes shape can see', async () => {
   });
   assert.ok(dashboardHost.body.problems.some((p) => /dashboard you sign in to/.test(p)));
 
-  const fine = await call({method: 'GET'});
+  const livekit = livekitAnswers({status: 200, body: '{"rooms":[]}'});
+  const fine = await call({method: 'GET'}).finally(livekit.restore);
   assert.deepEqual(fine.body.problems, []);
+
+  // Shape already had the answer; LiveKit's opinion would only add six
+  // seconds in front of somebody who is waiting.
+  assert.equal(swapped.body.livekit, null);
+});
+
+test('asks LiveKit itself, with the same key and the same secret', async () => {
+  const livekit = livekitAnswers({status: 200, body: '{"rooms":[]}'});
+  const answer = await call({method: 'GET'}).finally(livekit.restore);
+
+  assert.equal(livekit.asked.length, 1);
+  const [request] = livekit.asked;
+  assert.equal(
+    request.url,
+    'https://logicclass-demo.livekit.cloud/twirp/livekit.RoomService/ListRooms'
+  );
+  assert.equal(request.options.method, 'POST');
+
+  const sent = request.options.headers.Authorization.replace('Bearer ', '');
+  const {claims, signed} = verify(sent, SECRET);
+  assert.ok(signed, 'asked with a token signed by the configured secret');
+  assert.equal(claims.iss, KEY);
+  assert.deepEqual(claims.video, {roomList: true});
+  assert.ok(claims.exp - claims.nbf <= 120, 'and one that expires at once');
+
+  assert.equal(answer.body.livekit.status, 200);
+  assert.match(answer.body.summary, /matching set and the fault is not in them/);
+});
+
+// The whole point: this is the one thing shape could never see.
+test("repeats LiveKit's refusal, and what it means", async () => {
+  const livekit = livekitAnswers({
+    status: 401,
+    body: '{"code":"unauthenticated","msg":"invalid token"}',
+  });
+  const answer = await call({method: 'GET'}).finally(livekit.restore);
+
+  assert.equal(answer.body.livekit.status, 401);
+  assert.match(answer.body.summary, /refuses this key and secret/);
+  assert.match(answer.body.summary, /invalid token/);
+  assert.match(answer.body.summary, /reveal the secret in full/);
+});
+
+test('says so when the address does not answer at all', async () => {
+  const livekit = livekitAnswers(new Error('getaddrinfo ENOTFOUND'));
+  const answer = await call({method: 'GET'}).finally(livekit.restore);
+
+  assert.equal(answer.body.livekit.reached, false);
+  assert.match(answer.body.summary, /did not answer/);
+  assert.match(answer.body.summary, /ENOTFOUND/);
+});
+
+test('an address that answers but is not LiveKit is named as such', async () => {
+  const livekit = livekitAnswers({status: 404, body: 'Not Found'});
+  const answer = await call({method: 'GET'}).finally(livekit.restore);
+
+  assert.match(answer.body.summary, /not a LiveKit project/);
+});
+
+test('a shape problem is the summary, and LiveKit is not asked', async () => {
+  const livekit = livekitAnswers({status: 200, body: '{"rooms":[]}'});
+  const answer = await call({
+    method: 'GET',
+    env: {LIVEKIT_API_SECRET: 'abcdef'},
+  }).finally(livekit.restore);
+
+  assert.equal(livekit.asked.length, 0);
+  assert.match(answer.body.summary, /at least 32/);
+});
+
+test('minting a pass never asks LiveKit anything', async () => {
+  const livekit = livekitAnswers({status: 200, body: '{"rooms":[]}'});
+  const answer = await call({body: {room: ROOM}}).finally(livekit.restore);
+
+  // A lesson starting must not wait on a diagnostic.
+  assert.equal(answer.status, 200);
+  assert.equal(livekit.asked.length, 0);
 });
 
 test('a GET on an unconfigured deployment still says so', async () => {

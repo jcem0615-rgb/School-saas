@@ -51,11 +51,24 @@ class DemoVideo {
   static Future<String?> configurationSummary({http.Client? client}) async {
     final http.Client sender = client ?? http.Client();
     try {
-      final reply = await sender.get(uri).timeout(const Duration(seconds: 8));
+      // Longer than the pass request, on purpose: the endpoint asks
+      // LiveKit about its own keys before it answers this, and a
+      // timeout here would throw away the one answer worth waiting for.
+      // The card is already on screen; only this line is late.
+      final reply = await sender.get(uri).timeout(const Duration(seconds: 15));
       if (reply.statusCode != 200) return null;
 
       final body = jsonDecode(reply.body);
       if (body is! Map) return null;
+
+      // The endpoint writes the line itself when it can. That is not
+      // deference -- it is the one file here that can be improved and
+      // deployed without rebuilding anything, so a better sentence is
+      // minutes away rather than a release away.
+      final summary = body['summary'];
+      if (summary is String && summary.trim().isNotEmpty) {
+        return summary.trim();
+      }
 
       final problems = body['problems'];
       if (problems is List && problems.isNotEmpty) {
