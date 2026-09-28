@@ -49,6 +49,10 @@ export {setClassSessionMode} from "./callable/classSessions/setClassSessionMode"
 export {closeClassSession} from "./callable/classSessions/closeClassSession";
 export {markSubjectAttendance} from "./callable/classSessions/markSubjectAttendance";
 export {issueMeetingToken} from "./callable/classSessions/issueMeetingToken";
+// A class held in a room announces itself: the bell goes. A class held
+// online announces itself to whoever has the app open, which at ten past
+// eight on a Tuesday is nobody.
+export {onClassTakenOnline} from "./triggers/classSessions/onClassTakenOnline";
 
 // ---------------------------------------------------------------------------
 // Module: Payments

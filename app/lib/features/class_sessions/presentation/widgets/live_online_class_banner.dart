@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/meeting/online_class_screen.dart';
-import '../../../../core/meeting/passcode_prompt.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider;
-import '../../domain/entities/class_session.dart';
 import '../controllers/class_session_controller.dart';
+import 'join_online_class.dart';
 
 /// "Mathematics is on now." The way into a lesson being held online.
 ///
@@ -20,65 +18,6 @@ class LiveOnlineClassBanner extends ConsumerWidget {
   final String studentId;
 
   const LiveOnlineClassBanner({super.key, required this.studentId});
-
-  /// Goes in, having first asked LogicClass for the pass.
-  ///
-  /// The child is already signed in -- to this app -- so the video call
-  /// is told who they are rather than asking them. Without this a pupil
-  /// meets a sign-in page belonging to a company they have no account
-  /// with, on the way into their own school's lesson.
-  ///
-  /// One method for both the card and the Join button: they were two
-  /// copies of the same push, and a second copy is where a fix like
-  /// this one gets applied to one of them.
-  Future<void> _join(
-    BuildContext context,
-    WidgetRef ref,
-    SubjectAttendanceMark mark,
-    String displayName,
-  ) async {
-    // The code the teacher read out. Asked for every time rather than
-    // trying without one and asking only when refused: a wasted round
-    // trip in front of a class is a lesson somebody is late for, and
-    // reading a refusal to decide whether it was about the code turns
-    // the words of an error message into an interface.
-    MeetingPass? pass;
-    final entered = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => PasscodePrompt(
-        subject: mark.subject,
-        onJoin: (passcode) async {
-          final tried = await ref
-              .read(classSessionActionControllerProvider.notifier)
-              .meetingToken(mark.sessionId, passcode: passcode);
-          if (!tried.allowed) {
-            return tried.refusal ?? 'You could not be let into the class.';
-          }
-          pass = tried;
-          return null;
-        },
-      ),
-    );
-    if (entered != true || pass == null || !context.mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => OnlineClassScreen(
-        room: mark.meetingRoom!,
-        subject: mark.subject,
-        section: mark.section,
-        // Their real name. A register that has to match faces to names
-        // cannot do it against a grid of nicknames.
-        displayName: displayName,
-        token: pass!.token,
-        provider: pass!.provider,
-        serverUrl: pass!.url,
-        // When the lesson started, from their own mark. The timetabled
-        // length is not on it, so a student sees time elapsed and no
-        // countdown -- the bell is the teacher's to keep.
-        openedAt: mark.timeIn,
-      ),
-    ));
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -96,7 +35,7 @@ class LiveOnlineClassBanner extends ConsumerWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () =>
-              _join(context, ref, mark, me?.fullName ?? mark.studentName),
+              joinOnlineClass(context, ref, mark, me?.fullName ?? mark.studentName),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -124,8 +63,8 @@ class LiveOnlineClassBanner extends ConsumerWidget {
                   ),
                 ),
                 FilledButton(
-                  onPressed: () =>
-                      _join(context, ref, mark, me?.fullName ?? mark.studentName),
+                  onPressed: () => joinOnlineClass(
+                      context, ref, mark, me?.fullName ?? mark.studentName),
                   child: const Text('Join'),
                 ),
               ],

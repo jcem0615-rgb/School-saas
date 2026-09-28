@@ -12,6 +12,7 @@ import 'dart:typed_data';
 import '../core/errors/result.dart';
 import '../core/meeting/class_passcode.dart';
 import '../core/meeting/demo_room.dart';
+import '../core/meeting/online_class_notice.dart';
 import '../core/meeting/demo_video.dart';
 import '../features/admin_portal/domain/entities/employee_summary.dart';
 import '../features/admin_portal/domain/entities/program.dart';
@@ -4267,6 +4268,43 @@ class DemoClassSessionRepository implements ClassSessionRepository {
         else
           mark,
     ]);
+
+    // And tell the section, because a class held in a room announces
+    // itself -- the bell goes -- and a class held online announces
+    // itself to whoever has the app open, which at ten past eight on a
+    // Tuesday is nobody.
+    //
+    // The product does this from a Firestore trigger, after the fact so
+    // that a fan-out cannot hold up the teacher who is waiting to
+    // start. Here it is inline, because the demo has no triggers and
+    // no waiting.
+    if (online) {
+      final roll = _store.subjectAttendance.value
+          .where((m) => m.sessionId == sessionId)
+          .toList();
+      final uids = <String>{
+        for (final mark in roll)
+          for (final student in _store.students.value)
+            if (student.id == mark.studentId && student.userId != null)
+              student.userId!,
+      };
+      if (uids.isNotEmpty) {
+        _store.notify(
+          recipientUids: uids.toList(),
+          kind: NotificationKind.general,
+          title: onlineClassTitle(session.subject),
+          body: onlineClassBody(session.subject, session.section),
+          // The room, not just the session: a class brought back in
+          // person and taken online again is a second thing worth being
+          // told, and the inbox keys on this.
+          sourceId: '$sessionId:$room',
+          link: onlineClassLink(
+            schoolId: _store.currentUser.valueOrNull?.schoolId ?? 'demo',
+            sessionId: sessionId,
+          ),
+        );
+      }
+    }
 
     return Success(OnlineClassSetup(room: room, passcode: passcode));
   }

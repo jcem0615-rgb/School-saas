@@ -291,6 +291,78 @@ the lesson needs `connect-src` and `media-src` for the LiveKit host in
 `LIVEKIT_URL` — the video is drawn by this app in its own widgets, so
 there is no frame to allow and nothing to be refused embedding.
 
+## How a pupil finds the lesson
+
+Three doors, and they end in the same place.
+
+**The Online Class tile**, on the student dashboard, always there. It
+carries a **LIVE** badge while a lesson is running, and the screen
+behind it either lists what is on or says, in a sentence, that nothing
+has started yet.
+
+That sentence is the point. The banner only appears while a class is
+running, which is most of the time not — so a pupil told "we are online
+today" who saw nothing had no way of knowing whether the lesson had not
+started or the app had lost it, and nowhere to look. "Nothing here" is
+what a broken app looks like too.
+
+**The banner**, above the balance, while a lesson is on. One line, so it
+shows one class; the tile's screen shows all of them, because two
+teachers can have a class open at once — a lesson that overran and the
+next one starting — and a pupil picking the wrong one from a list of one
+is a pupil in the wrong lesson.
+
+**A notification**, the moment the teacher takes the class online. This
+is the one that reaches the pupils who never opened the app.
+
+All three call the same `joinOnlineClass`, which asks for the code and
+then opens the lesson. Three copies of that is where a fix lands on one
+door and not the others.
+
+### The notification
+
+A class held in a room announces itself: the bell goes, everybody walks
+in. A class held online announces itself to whoever happens to have the
+app open, which at ten past eight on a Tuesday is nobody. Without it,
+"we are online today" has to be arranged through a channel the school
+does not control — a group chat, a parent relaying a message — and the
+pupils who miss it are the ones who were already going to miss it.
+
+*Mathematics is online now* / *Mathematics for Grade 10 - Rizal has
+started. Tap to join — your teacher will read out the class code.*
+
+- **The students on the register, and only them.** Not the parents: a
+  lesson starting happens four times a day and a parent buzzed each time
+  stops reading any of them. Not the teacher, who pressed the button. A
+  pupil with no login yet is silently skipped — the registrar has not
+  issued them one, and there is nowhere to send it.
+- **Off the register, not off the section.** A child who transferred out
+  this morning has no line on it and should not be told to join; one who
+  transferred in has, and should.
+- **Once.** The trigger fires on the *edge* — the moment a room appears
+  — not on the state. The session document is updated every time a
+  teacher changes a mark, and without that check every register edit for
+  the rest of the lesson would buzz the class again. The inbox id
+  carries the room as well as the session, so a class brought back in
+  person and taken online again is a second thing worth being told
+  rather than a duplicate of the first.
+- **Never urgent.** A lesson starting is expected. Ringing through a
+  do-not-disturb is for an emergency, and this is not one.
+- **It says nothing about the room or the code.** Both are what keep a
+  stranger out, and a lock screen is readable by whoever is holding the
+  phone.
+
+It is a **trigger**, not part of `setClassSessionMode`, for two reasons:
+fanning out to sixty pupils from inside the callable would put the
+slowest part of this in front of the teacher waiting to start, and a
+failure there would fail *taking the class online* — the one thing that
+must not fail. A trigger runs after the fact and retries on its own.
+
+Tapping it lands on `/join?school=…&class=…` — the same address the
+teacher's invitation link uses. A notification and a forwarded link end
+up in the same place, asking for the same code, checked by the same four
+locks. In both cases it is an address and never a permission.
+
 ## What a pupil has in the lesson
 
 **A hand, and four answers.** Sixty microphones opening at once is not a
@@ -502,6 +574,8 @@ between children.
 | Emulator | `attendance-emulator/meetingToken.test.ts` (the four locks) | the teacher is not asked for the code and a child on the register without it is refused; the dash and the shift key are forgiven; a lesson with no code still opens; the code never comes back in the answer, right or wrong; eight wrong ones close the door, the right one forgets them, and the lock falls on the guesser rather than the lesson; a child moved out of the section, grade, department or enrolment is refused with their mark still in place; an unscoped lesson is still joinable; the scope is checked before the code |
 | Rules | `subject-attendance.rules.test.ts` (the counter) | the wrong-code count is unreadable and unwritable by the person it counts, and by every role in the school |
 | Demo | `smoke/online_class_test.dart` (the code) | the demo mints the same shape, clears it with the room, never asks the teacher for it, refuses a pupil who does not have it and admits one who does |
+| Widget | `smoke/student_online_class_test.dart` | the tile is on the dashboard when nothing is on and badges LIVE when something is; the screen behind it says nothing is on rather than showing an empty list, lists the lesson once a teacher starts it, and asks for the code before going in; every student on the register is notified; the notification's link is the invitation route |
+| Pure | `smoke/student_online_class_test.dart` (the words) / `meeting/onlineClassMessage.test.ts` | the lock-screen line names the lesson rather than the app and the section rather than just the subject; it still says something when the record is blank; it fits in the 180 characters a push preview shows; and it carries neither the room name nor the class code |
 | Pure | `unit/core/hands_test.dart` | a hand and a reaction survive the wire; an empty string is how a hand comes down, because attributes merge; anything that is not a timestamp or one of the four names is ignored, including a hand dated last week or next year; a reaction expires after six seconds but survives a clock that runs a little ahead; the teacher's list is hands first in the order they were raised, then everybody else by name, and does not reshuffle when two hands go up together |
 | Pure | `unit/core/video_grid_test.dart` (the cap) | one person alone is not one face across a monitor; a phone still uses the width it has; a short window does not crop its only tile; a class of sixty still fills the window |
 | Pure | `meeting/livekit.test.ts` (the grant) | a child may set their own attribute and may not publish data — the hand without the channel |

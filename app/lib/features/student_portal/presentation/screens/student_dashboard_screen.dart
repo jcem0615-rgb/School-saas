@@ -5,6 +5,9 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/theme/theme_switch.dart';
 
+import '../../../class_sessions/presentation/controllers/class_session_controller.dart'
+    show myOnlineClassesProvider;
+import '../../../class_sessions/presentation/screens/my_online_classes_screen.dart';
 import '../../../class_sessions/presentation/screens/subject_attendance_screen.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
@@ -96,6 +99,28 @@ class StudentDashboardScreen extends ConsumerWidget {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
+                  // First, and always here. The banner above only exists
+                  // while a lesson is running, which is most of the time
+                  // not -- and a student told "we are online today" who
+                  // sees nothing has no way of knowing whether the class
+                  // has not started or the app has lost it. This tile is
+                  // where they look, and the screen behind it says which.
+                  //
+                  // It is also the door that does not depend on an
+                  // invitation link surviving a chat app.
+                  GlassTile(
+                    icon: Icons.videocam_outlined,
+                    label: 'Online Class',
+                    badge: ref
+                            .watch(myOnlineClassesProvider(student.id))
+                            .isNotEmpty
+                        ? 'LIVE'
+                        : null,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) =>
+                          MyOnlineClassesScreen(studentId: student.id),
+                    )),
+                  ),
                   GlassTile(
                     icon: Icons.menu_book_outlined,
                     label: 'Subjects',

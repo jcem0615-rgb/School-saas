@@ -93,13 +93,32 @@ final studentSubjectMarksProvider = StreamProvider.autoDispose
 /// a way into a lesson that ended.
 final myOnlineClassProvider = Provider.autoDispose
     .family<SubjectAttendanceMark?, String>((ref, studentId) {
+  final live = ref.watch(myOnlineClassesProvider(studentId));
+  return live.isEmpty ? null : live.first;
+});
+
+/// Every lesson this student can walk into right now, not just the first.
+///
+/// The banner shows one because a banner is one line. The Online Class
+/// screen shows all of them, because two teachers can have a class open
+/// at once -- a lesson that overran and the next one starting -- and a
+/// student picking the wrong one from a list of one is a student in the
+/// wrong lesson.
+///
+/// Two conditions, not one. The room is cleared when the class comes
+/// back in person and again at Time Out, so a room on a mark is normally
+/// enough -- but the date is checked as well, because a close that
+/// failed would otherwise leave yesterday's room on the screen offering
+/// a way into a lesson that ended.
+final myOnlineClassesProvider = Provider.autoDispose
+    .family<List<SubjectAttendanceMark>, String>((ref, studentId) {
   final marks =
       ref.watch(studentSubjectMarksProvider(studentId)).valueOrNull ?? const [];
   final today = DateTime.now().toIso8601String().substring(0, 10);
-  for (final mark in marks) {
-    if (mark.hasOnlineClass && mark.date == today) return mark;
-  }
-  return null;
+  return [
+    for (final mark in marks)
+      if (mark.hasOnlineClass && mark.date == today) mark,
+  ];
 });
 
 /// One subject's worth of a student's marks, and how it stands.
