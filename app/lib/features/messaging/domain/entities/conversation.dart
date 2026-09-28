@@ -109,3 +109,33 @@ class Message {
     this.sentAt,
   });
 }
+
+/// A person a thread can be opened with, and the child it is about.
+///
+/// Deliberately small. Choosing who to write to needs a name and an id;
+/// anything more would be a student record travelling through a message
+/// picker, which is a place it has no business being.
+class MessageablePerson {
+  final String id;
+  final String name;
+  final String section;
+
+  const MessageablePerson({
+    required this.id,
+    required this.name,
+    this.section = '',
+  });
+}
+
+/// A guardian with a portal account, as a message picker needs them.
+///
+/// Named apart from the registrar's `LinkedParent`, which carries an
+/// email, a phone number and how many children the account sees. None
+/// of that belongs in a list of people to write to, and one name for
+/// two different shapes is how the wrong one ends up imported.
+class MessageableGuardian {
+  final String uid;
+  final String name;
+
+  const MessageableGuardian({required this.uid, required this.name});
+}

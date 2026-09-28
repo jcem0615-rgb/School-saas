@@ -161,8 +161,62 @@ pickers are what make the screen usable; they are not what makes it safe.
   limit refused with the length said out loud, one exactly at the limit
   going through, and a thread with nothing said in it sorting to the top
   rather than the bottom.
+* `app/test/smoke/messaging_test.dart` (who a new message can be
+  addressed to) — the four directory lookups the New message sheet
+  makes: a teacher's own classes, the students enrolled in one of them,
+  a student's linked guardians, and a child's teachers with the adviser
+  first and one row per person rather than one per subject; a child with
+  no linked account offering nobody rather than throwing; and every
+  lookup called with an empty string, which is what happens on the first
+  frame before anything has been chosen.
+* `app/test/smoke/new_message_sheet_test.dart` — the sheet opened for
+  real, for a teacher, a parent and somebody who is neither: it opens
+  without an error where the classes should be, offers its choices as
+  dropdowns all at once, holds each one shut until the one above it is
+  made, refuses to send until there is somebody to send to, and clears
+  the student when the class changes.
 * `app/test/smoke/portal_actions_test.dart` — the screen renders for
   both roles.
+
+## Choosing who to write to
+
+Three dropdowns for a teacher — class, student, guardian — and two for a
+parent: which child, and which of that child's teachers. All of them on
+screen at once.
+
+It used to be a stack of lists: tap a class and the sheet *became* a
+list of students, tap a student and it became a list of guardians. Three
+screens, no way back, and no way to see what had already been chosen —
+picking the wrong class meant closing the sheet and starting again. The
+one thing that has to happen when an earlier choice changes is that the
+later ones are cleared, because a student from the class you just moved
+away from is not a student anybody meant to write about.
+
+None of it decides anything. The callable checks the relationship again
+before it opens a thread; these lists make the screen usable, not safe.
+
+### Where they come from, and why that was a bug
+
+They come from the messaging repository, like everything else.
+
+They did not. The sheet queried Firestore from four providers of its
+own, which made it the single place in the app reaching past the
+repositories — so in demo mode, where Firebase is never initialised, it
+opened onto *"Your classes could not be loaded: TypeError"*. Nothing had
+ever tested it, because nothing could: the demo had no implementation of
+lookups that were never part of a repository.
+
+They are now `mySections`, `studentsInSection`, `parentsForStudent` and
+`teachersForSection` on `MessagingRepository`, with the live queries in
+the datasource and the demo reading its own store. A refusal reads as
+"nobody to write to" — which is what the sheet says anyway — rather than
+as red text over a picker.
+
+The guardian type is `MessageableGuardian`, not `LinkedParent`. The
+registrar already has a `LinkedParent` carrying an email, a phone number
+and how many children the account sees, and none of that belongs in a
+list of people to write to. One name for two shapes is how the wrong one
+gets imported.
 
 ## Not covered
 

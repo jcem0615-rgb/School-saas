@@ -4726,6 +4726,74 @@ class DemoMessagingRepository implements MessagingRepository {
         lastSenderUid: lastSenderUid ?? c.lastSenderUid,
         unread: unread ?? c.unread,
       );
+  // --- Who this person may write to -------------------------------------
+  //
+  // The demo had none of this, because the New message sheet queried
+  // Firestore from its own providers rather than going through the
+  // repository -- and demo mode never initialises Firebase, so the
+  // sheet opened onto a type error instead of a list of classes.
+
+  @override
+  Future<Result<List<String>>> mySections() async {
+    await _latency(200);
+    final me = _store.currentUser.valueOrNull;
+    if (me == null) return const Success([]);
+    return Success(<String>{
+      for (final assignment in _store.assignments.value)
+        if (assignment.teacherId == me.uid) assignment.section,
+    }.toList()
+      ..sort());
+  }
+
+  @override
+  Future<Result<List<MessageablePerson>>> studentsInSection(
+      String section) async {
+    await _latency(200);
+    final students = [
+      for (final student in _store.students.value)
+        if (student.section == section && student.status == StudentStatus.enrolled)
+          MessageablePerson(
+            id: student.id,
+            name: student.fullName,
+            section: section,
+          ),
+    ]..sort((a, b) => a.name.compareTo(b.name));
+    return Success(students);
+  }
+
+  @override
+  Future<Result<List<MessageableGuardian>>> parentsForStudent(
+      String studentId) async {
+    await _latency(200);
+    final guardians = [
+      for (final account in DemoStore.demoAccounts)
+        if (account.role == UserRole.parent &&
+            (account.linkedStudentIds ?? const []).contains(studentId))
+          MessageableGuardian(uid: account.uid, name: account.fullName),
+    ]..sort((a, b) => a.name.compareTo(b.name));
+    return Success(guardians);
+  }
+
+  @override
+  Future<Result<List<TeacherAssignment>>> teachersForSection(
+      String section) async {
+    await _latency(200);
+    final byTeacher = <String, TeacherAssignment>{};
+    for (final assignment in _store.assignments.value) {
+      if (assignment.section != section) continue;
+      // One row per teacher, not one per subject they teach the class:
+      // a parent choosing who to write to is choosing a person.
+      byTeacher.putIfAbsent(assignment.teacherId, () => assignment);
+    }
+    final teachers = byTeacher.values.toList()
+      ..sort((a, b) {
+        // The adviser first, as the live datasource orders them.
+        if (a.isAdviser != b.isAdviser) return a.isAdviser ? -1 : 1;
+        return a.teacherName.compareTo(b.teacherName);
+      });
+    return Success(teachers);
+  }
+
 }
 
 // ---------------------------------------------------------------------------

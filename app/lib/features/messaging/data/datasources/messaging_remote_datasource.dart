@@ -3,6 +3,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../../core/constants/firestore_paths.dart';
 import '../../../../core/errors/app_exceptions.dart';
+import '../../../admin_portal/domain/entities/teacher_assignment.dart';
 import '../../domain/entities/conversation.dart';
 import '../models/conversation_model.dart';
 
@@ -141,5 +142,106 @@ class MessagingRemoteDataSource {
 
     unread[_actingUser.uid] = 0;
     await ref.update({'unread': unread});
+  }
+
+  // --- Who this person may write to -------------------------------------
+  //
+  // These were queried from the New message sheet's own providers, which
+  // made that screen the one place in the app reaching past the
+  // repositories into Firestore. It could not open in the demo, where
+  // there is no Firebase at all, and nothing had ever tested it.
+
+  /// The sections the signed-in teacher is assigned to.
+  ///
+  /// From their assignments rather than the timetable, because a teacher
+  /// can be adviser to a class they have no timetabled block with -- and
+  /// that is exactly the class whose parents they most need to reach.
+  Future<List<String>> mySections() async {
+    final snap = await _firestore
+        .collection(FirestorePaths.teacherAssignments(_actingUser.schoolId))
+        .where('teacherId', isEqualTo: _actingUser.uid)
+        .get();
+
+    return <String>{
+      for (final doc in snap.docs)
+        if (doc.data()['section'] case final String section) section,
+    }.toList()
+      ..sort();
+  }
+
+  /// The enrolled students in one section.
+  Future<List<MessageablePerson>> studentsInSection(String section) async {
+    final snap = await _firestore
+        .collection(FirestorePaths.students(_actingUser.schoolId))
+        .where('section', isEqualTo: section)
+        .where('status', isEqualTo: 'enrolled')
+        .where('isDeleted', isEqualTo: false)
+        .get();
+
+    return [
+      for (final doc in snap.docs)
+        MessageablePerson(
+          id: doc.id,
+          name: '${doc.data()['firstName'] ?? ''} ${doc.data()['lastName'] ?? ''}'
+              .trim(),
+          section: section,
+        ),
+    ]..sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  /// The guardians with a portal account linked to one child.
+  Future<List<MessageableGuardian>> parentsForStudent(String studentId) async {
+    final snap = await _firestore
+        .collection(FirestorePaths.users(_actingUser.schoolId))
+        .where('role', isEqualTo: 'parent')
+        .where('linkedStudentIds', arrayContains: studentId)
+        .get();
+
+    return [
+      for (final doc in snap.docs)
+        MessageableGuardian(
+          uid: doc.id,
+          name: '${doc.data()['firstName'] ?? ''} ${doc.data()['lastName'] ?? ''}'
+              .trim(),
+        ),
+    ]..sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  /// The teachers assigned to one section, one row per person.
+  Future<List<TeacherAssignment>> teachersForSection(String section) async {
+    final snap = await _firestore
+        .collection(FirestorePaths.teacherAssignments(_actingUser.schoolId))
+        .where('section', isEqualTo: section)
+        .get();
+
+    final byTeacher = <String, TeacherAssignment>{};
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final teacherId = data['teacherId'] as String?;
+      if (teacherId == null) continue;
+      // One row per teacher, not one per subject they teach the class.
+      // A parent choosing who to write to is choosing a person.
+      byTeacher.putIfAbsent(
+        teacherId,
+        () => TeacherAssignment(
+          id: doc.id,
+          teacherId: teacherId,
+          teacherName: (data['teacherName'] as String?) ?? 'Teacher',
+          subject: (data['subject'] as String?) ?? '',
+          section: (data['section'] as String?) ?? section,
+          schoolYear: (data['schoolYear'] as String?) ?? '',
+          isAdviser: (data['isAdviser'] as bool?) ?? false,
+        ),
+      );
+    }
+
+    final teachers = byTeacher.values.toList();
+    // The adviser first: they are the one person responsible for the
+    // class as a whole, and the one a parent most often means.
+    teachers.sort((a, b) {
+      if (a.isAdviser != b.isAdviser) return a.isAdviser ? -1 : 1;
+      return a.teacherName.compareTo(b.teacherName);
+    });
+    return teachers;
   }
 }

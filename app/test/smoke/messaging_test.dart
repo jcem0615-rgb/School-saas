@@ -310,4 +310,112 @@ void main() {
       expect(listed.map((c) => c.id), contains(seeded));
     });
   });
+
+  // The bug this group exists for: the New message sheet queried
+  // Firestore from its own providers rather than going through the
+  // repository, so in demo mode -- where Firebase is never initialised
+  // -- it opened onto "Your classes could not be loaded: TypeError".
+  // Four lookups the rest of the app would never have made that way,
+  // and nothing had ever tested them.
+  group('who a new message can be addressed to', () {
+    Future<List<T>> resolve<T>(
+      ProviderContainer container,
+      ProviderListenable<AsyncValue<List<T>>> provider,
+    ) async {
+      final sub = container.listen(provider, (_, __) {});
+      addTearDown(sub.close);
+      for (var i = 0; i < 40; i++) {
+        final value = container.read(provider);
+        if (value.hasValue) return value.value!;
+        if (value.hasError) fail('$provider failed: ${value.error}');
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+      }
+      fail('$provider never resolved');
+    }
+
+    test('a teacher is offered the classes they are assigned to', () async {
+      final container = await signedInAs(UserRole.faculty);
+
+      final sections = await resolve(container, mySectionsProvider);
+
+      expect(sections, isNotEmpty,
+          reason: 'this is the list that came back as a type error');
+      expect(sections, equals([...sections]..sort()),
+          reason: 'a dropdown nobody can find a class in is a dropdown');
+    });
+
+    test('and the students enrolled in one of them', () async {
+      final container = await signedInAs(UserRole.faculty);
+      final sections = await resolve(container, mySectionsProvider);
+
+      final students =
+          await resolve(container, studentsInSectionProvider(sections.first));
+
+      expect(students, isNotEmpty);
+      expect([for (final s in students) s.name],
+          equals([for (final s in students) s.name]..sort()));
+      expect(students.every((s) => s.section == sections.first), isTrue);
+    });
+
+    test('and the guardian of one of those students', () async {
+      // The dropdown the screen was missing.
+      final container = await signedInAs(UserRole.faculty);
+
+      final guardians =
+          await resolve(container, parentsForStudentProvider('stu_001'));
+
+      expect(guardians, isNotEmpty);
+      expect(guardians.first.uid, 'u_parent');
+      expect(guardians.first.name, isNotEmpty);
+    });
+
+    test('a child with no linked account offers nobody, and does not throw',
+        () async {
+      // Plenty of families have no portal account. An empty list is a
+      // sentence on the screen; an exception is a sheet that will not
+      // open.
+      final container = await signedInAs(UserRole.faculty);
+
+      final guardians = await resolve(
+          container, parentsForStudentProvider('stu_nobody_is_linked_to'));
+
+      expect(guardians, isEmpty);
+    });
+
+    test('a parent is offered their child\'s teachers, adviser first',
+        () async {
+      final container = await signedInAs(UserRole.parent);
+      final students = await resolve(container, studentsInSectionProvider(
+        container.read(demoStoreProvider).students.value.first.section,
+      ));
+
+      final teachers = await resolve(
+        container,
+        teachersForSectionProvider(students.first.section),
+      );
+
+      expect(teachers, isNotEmpty);
+      // One row per teacher, not one per subject: a parent choosing who
+      // to write to is choosing a person.
+      expect(
+        {for (final t in teachers) t.teacherId}.length,
+        teachers.length,
+      );
+      if (teachers.any((t) => t.isAdviser)) {
+        expect(teachers.first.isAdviser, isTrue);
+      }
+    });
+
+    test('nothing is asked for before there is anything to ask about',
+        () async {
+      // The dropdowns are built before their prerequisite is chosen, so
+      // every one of these is called with an empty string on the first
+      // frame.
+      final container = await signedInAs(UserRole.faculty);
+
+      expect(await resolve(container, studentsInSectionProvider('')), isEmpty);
+      expect(await resolve(container, parentsForStudentProvider('')), isEmpty);
+      expect(await resolve(container, teachersForSectionProvider('')), isEmpty);
+    });
+  });
 }
