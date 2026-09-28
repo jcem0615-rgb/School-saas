@@ -29,6 +29,14 @@ class DemoVideo {
   /// no build-time configuration at all.
   static const endpoint = '/api/livekit-token';
 
+  /// The endpoint, resolved against wherever the app is being served.
+  ///
+  /// Absolute rather than relative. A browser resolves `/api/...`
+  /// against the page on its own, so the relative form usually works --
+  /// but "usually" is not worth the round trip it costs to find out,
+  /// and an HTTP client is entitled to want a scheme.
+  static Uri get uri => Uri.base.resolve(endpoint);
+
   /// Asks for a pass, and returns [MeetingAdmission.none] if there is
   /// none to be had.
   ///
@@ -46,7 +54,7 @@ class DemoVideo {
     try {
       final reply = await sender
           .post(
-            Uri.parse(endpoint),
+            uri,
             headers: const {'Content-Type': 'application/json'},
             body: jsonEncode({'room': room, 'identity': identity, 'name': name}),
           )

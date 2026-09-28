@@ -109,6 +109,15 @@ void main() {
       expect(DemoVideo.endpoint, startsWith('/'));
       expect(DemoVideo.endpoint, isNot(contains('://')));
     });
+
+    test('is asked for as an absolute address, not a bare path', () async {
+      // A browser resolves a relative path against the page on its own,
+      // and an HTTP client is entitled to want a scheme. Resolving it
+      // here costs nothing and removes a thing that could go wrong in
+      // front of a class.
+      expect(DemoVideo.uri.hasScheme, isTrue);
+      expect(DemoVideo.uri.path, DemoVideo.endpoint);
+    });
   });
 }
 

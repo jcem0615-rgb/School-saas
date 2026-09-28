@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../core/errors/result.dart';
+import '../core/meeting/demo_room.dart';
 import '../core/meeting/demo_video.dart';
 import '../features/admin_portal/domain/entities/employee_summary.dart';
 import '../features/admin_portal/domain/entities/program.dart';
@@ -4219,7 +4220,15 @@ class DemoClassSessionRepository implements ClassSessionRepository {
     // reused across lessons is a door last term's leaver still has a key
     // to. Random here too, so the demo cannot teach anybody that a room
     // name is something you can work out.
-    final room = online ? 'lc-${_store.nextId('room')}${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}' : null;
+    //
+    // It has to be the *same shape* as the server's, and it was not:
+    // `nextId` gives `room_0001`, which has an underscore in it and is a
+    // counter rather than a secret. Anything checking rooms against the
+    // real format rejected it -- which is exactly what the demo's token
+    // endpoint did, so the demo could not hold a class and said live
+    // video was not switched on. A demo that diverges from the product
+    // in the format of an identifier is a demo that tests nothing.
+    final room = online ? newDemoMeetingRoom() : null;
 
     _store.update<ClassSession>(
       _store.classSessions,
