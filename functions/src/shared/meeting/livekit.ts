@@ -72,10 +72,15 @@ export function buildLiveKitClaims(
       // that can hold a lesson nobody is on the register for.
       canPublish: true,
       canSubscribe: true,
-      // No data channel. Chat, if it ever exists, belongs on the
-      // school's own record rather than in an untracked side channel
-      // between children.
-      canPublishData: false,
+      // The teacher only. What travels here is the board -- a stroke,
+      // a rub, a wipe -- drawn over whatever is being shared.
+      //
+      // Children still cannot send data, which is the point the
+      // original rule was making: chat, if it ever exists, belongs on
+      // the school's own record and not in an untracked side channel
+      // between children. Receiving needs no permission, so a class
+      // sees the teacher's pencil without being able to hold one.
+      canPublishData: grant.moderator,
       // The teacher can remove somebody from the lesson. A child who
       // can do that to the teacher is a child who will.
       roomAdmin: grant.moderator,

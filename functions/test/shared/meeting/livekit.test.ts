@@ -75,11 +75,19 @@ describe("the pass into a forwarded class", () => {
       expect(asPupil.roomAdmin).toBe(false);
     });
 
-    it("gives nobody an untracked side channel", () => {
-      // Chat between children, if it ever exists, belongs on the
-      // school's own record rather than in the media server.
-      const video = buildLiveKitClaims(pupil, config).video as Record<string, unknown>;
-      expect(video.canPublishData).toBe(false);
+    it("gives no child an untracked side channel", () => {
+      // The teacher can send data because the board travels that way --
+      // a stroke, a rub, a wipe, over whatever is being shared. A child
+      // cannot, which is the point the rule was always making: chat
+      // between children, if it ever exists, belongs on the school's
+      // own record rather than in the media server.
+      //
+      // Receiving needs no permission, so a class sees the teacher's
+      // pencil without being able to hold one.
+      const asPupil = buildLiveKitClaims(pupil, config).video as Record<string, unknown>;
+      const asTeacher = buildLiveKitClaims(teacher, config).video as Record<string, unknown>;
+      expect(asPupil.canPublishData).toBe(false);
+      expect(asTeacher.canPublishData).toBe(true);
     });
   });
 

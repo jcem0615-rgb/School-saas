@@ -53,7 +53,18 @@ void main() {
       final b = newDemoMeetingRoom();
       expect(a.substring(3), isNot(b.substring(3)));
       expect(a, isNot(contains('_')));
-      expect(a, isNot(matches(RegExp(r'\d{4}'))));
+
+      // Two counters differ in a character or two at the end. Two
+      // secrets differ nearly everywhere. Counting the positions is
+      // the property; looking for a run of digits was a guess at it,
+      // and a wrong one -- four digits fall next to each other in a
+      // random name about one time in eight, so the test failed on
+      // names that were perfectly good.
+      var same = 0;
+      for (var i = 3; i < a.length; i++) {
+        if (a[i] == b[i]) same++;
+      }
+      expect(same, lessThan((a.length - 3) / 2));
     });
 
     test('says nothing about the class it belongs to', () {

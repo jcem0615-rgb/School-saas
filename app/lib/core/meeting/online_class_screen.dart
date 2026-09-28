@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 import '../../main.dart' show kDemoMode;
+import 'board_controller.dart';
+import 'camera_sheet.dart';
 import 'class_clock.dart';
 import 'demo_video.dart';
 import 'meeting_room.dart';
@@ -91,6 +93,22 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   /// nothing with it and should not be shown it.
   final _configuration = ValueNotifier<String?>(null);
 
+  /// Whether this device is putting a window in front of the class.
+  ///
+  /// What the call reported, not what was asked for: the browser shows
+  /// its own chooser, and a teacher who cancels it has shared nothing.
+  final _sharing = ValueNotifier(false);
+
+  /// Which camera was chosen, so the next lesson opens the same one.
+  String? _camera;
+
+  /// The pencil, the rubber, and what has been drawn so far.
+  late final LessonBoard _board = LessonBoard(
+    send: _call.sendBoardMessage,
+    // Sixty pupils with a pencil over a shared screen is not a lesson.
+    canDraw: widget.asModerator,
+  );
+
   bool get _configured =>
       schoolHasVideo(widget.provider, widget.serverUrl) &&
       (widget.token?.isNotEmpty ?? false);
@@ -99,6 +117,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   void initState() {
     super.initState();
     _micOn.value = widget.asModerator;
+    _call.attachBoard(_board);
     _phase = _configured ? _Phase.connecting : _Phase.notConfigured;
     if (_configured) _join();
   }
@@ -110,6 +129,8 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     _micOn.dispose();
     _cameraOn.dispose();
     _configuration.dispose();
+    _sharing.dispose();
+    _board.dispose();
     unawaited(_call.leave());
     super.dispose();
   }
@@ -160,6 +181,29 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     unawaited(_call.setMicrophone(_micOn.value));
   }
 
+  Future<void> _toggleShare() async {
+    final wanted = !_sharing.value;
+    final actual = await _call.setScreenShare(wanted);
+    _sharing.value = actual;
+    // Putting the pencil away with the screen. A tool still selected
+    // over a lesson with nothing shared draws on nothing, and the next
+    // person to share would find a pencil already in their hand.
+    if (!actual) _board.choose(BoardTool.off);
+  }
+
+  Future<void> _openCamera() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => CameraSheet(
+        call: _call,
+        current: _camera,
+        onChosen: (id) => _camera = id,
+      ),
+    );
+  }
+
   void _toggleCamera() {
     _cameraOn.value = !_cameraOn.value;
     unawaited(_call.setCamera(_cameraOn.value));
@@ -193,8 +237,12 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
               now: _now,
               micOn: _micOn,
               cameraOn: _cameraOn,
+              sharing: _sharing,
+              board: _board,
               onMic: _toggleMic,
               onCamera: _toggleCamera,
+              onShare: _toggleShare,
+              onCameraSetup: _openCamera,
               onLeave: _leave,
             )
           : null,
@@ -355,8 +403,12 @@ class _Controls extends StatelessWidget {
   final ValueListenable<DateTime> now;
   final ValueListenable<bool> micOn;
   final ValueListenable<bool> cameraOn;
+  final ValueListenable<bool> sharing;
+  final LessonBoard board;
   final VoidCallback onMic;
   final VoidCallback onCamera;
+  final VoidCallback onShare;
+  final VoidCallback onCameraSetup;
   final VoidCallback onLeave;
 
   const _Controls({
@@ -364,8 +416,12 @@ class _Controls extends StatelessWidget {
     required this.now,
     required this.micOn,
     required this.cameraOn,
+    required this.sharing,
+    required this.board,
     required this.onMic,
     required this.onCamera,
+    required this.onShare,
+    required this.onCameraSetup,
     required this.onLeave,
   });
 
@@ -423,6 +479,21 @@ class _Controls extends StatelessWidget {
                   ),
                 ),
                 OutlinedButton.icon(
+                  onPressed: onCameraSetup,
+                  icon: const Icon(Icons.tune, size: 18),
+                  label: const Text('Camera'),
+                ),
+                ValueListenableBuilder<bool>(
+                  valueListenable: sharing,
+                  builder: (context, on, _) => OutlinedButton.icon(
+                    onPressed: onShare,
+                    icon: Icon(
+                        on ? Icons.stop_screen_share : Icons.screen_share,
+                        size: 18),
+                    label: Text(on ? 'Stop sharing' : 'Share screen'),
+                  ),
+                ),
+                OutlinedButton.icon(
                   onPressed: onLeave,
                   icon: const Icon(Icons.call_end, size: 18),
                   style: OutlinedButton.styleFrom(
@@ -431,9 +502,122 @@ class _Controls extends StatelessWidget {
                 ),
               ],
             ),
+            // The pencil appears with the screen it draws on. Offered
+            // over a lesson with nothing shared, it would draw on
+            // nothing -- and a tool that does nothing when pressed is
+            // a tool a teacher stops trusting.
+            if (board.canDraw)
+              ValueListenableBuilder<bool>(
+                valueListenable: sharing,
+                builder: (context, on, _) => on
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: _BoardTools(board: board),
+                      )
+                    : const SizedBox.shrink(),
+              ),
           ],
         ),
       ),
     );
+  }
+}
+
+/// The pencil, the rubber, the colours and the wipe.
+///
+/// Only over a shared screen, and only for the teacher. It listens to
+/// the board rather than being rebuilt by the screen, for the reason
+/// everything else here does: the video must not be rebuilt, and a
+/// stroke changes this sixty times a second while it is being drawn.
+class _BoardTools extends StatelessWidget {
+  final LessonBoard board;
+  const _BoardTools({required this.board});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AnimatedBuilder(
+      animation: board,
+      builder: (context, _) => Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          _Tool(
+            selected: board.tool == BoardTool.pencil,
+            icon: Icons.edit,
+            label: 'Pencil',
+            onTap: () => board.choose(
+              board.tool == BoardTool.pencil ? BoardTool.off : BoardTool.pencil,
+            ),
+          ),
+          _Tool(
+            selected: board.tool == BoardTool.eraser,
+            icon: Icons.cleaning_services,
+            label: 'Eraser',
+            onTap: () => board.choose(
+              board.tool == BoardTool.eraser ? BoardTool.off : BoardTool.eraser,
+            ),
+          ),
+          for (final colour in LessonBoard.colours)
+            Tooltip(
+              message: 'Draw in this colour',
+              child: InkResponse(
+                onTap: () => board.useColour(colour),
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Color(colour),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      width: board.colour == colour ? 3 : 1,
+                      color: board.colour == colour
+                          ? theme.colorScheme.onSurface
+                          : theme.colorScheme.outlineVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          TextButton.icon(
+            // Nothing to wipe is not a button to press.
+            onPressed: board.board.isEmpty ? null : board.clear,
+            icon: const Icon(Icons.layers_clear, size: 18),
+            label: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Tool extends StatelessWidget {
+  final bool selected;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _Tool({
+    required this.selected,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return selected
+        ? FilledButton.icon(
+            onPressed: onTap,
+            icon: Icon(icon, size: 18),
+            label: Text(label),
+          )
+        : OutlinedButton.icon(
+            onPressed: onTap,
+            icon: Icon(icon, size: 18, color: theme.colorScheme.onSurface),
+            label: Text(label),
+          );
   }
 }

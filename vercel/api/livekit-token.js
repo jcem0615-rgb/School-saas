@@ -467,7 +467,10 @@ module.exports = async (req, res) => {
         roomJoin: true,
         canPublish: true,
         canSubscribe: true,
-        canPublishData: false,
+        // The teacher's pencil travels on the data channel: a stroke,
+        // a rub, a wipe. Without this the board is a drawing nobody
+        // else can see.
+        canPublishData: true,
         // Nobody is a moderator in the demo. There is no register
         // behind it, so there is no basis for saying which of two
         // browsers is the teacher -- and a stranger who found the room

@@ -286,9 +286,75 @@ The first real check is one person on a deployment: take a class online,
 join as a student in another browser, press Time Out, and confirm the
 student's screen loses the way in.
 
-If a Content-Security-Policy is ever added to the site, Jitsi needs
-`script-src` and `frame-src` for the configured domain. There is no CSP
-today, which is why nothing here sets one.
+There is no Content-Security-Policy on the site. If one is ever added,
+the lesson needs `connect-src` and `media-src` for the LiveKit host in
+`LIVEKIT_URL` — the video is drawn by this app in its own widgets, so
+there is no frame to allow and nothing to be refused embedding.
+
+## What a teacher has in the lesson
+
+Three things beyond the microphone and the camera.
+
+**Choosing a camera.** A school laptop has a built-in camera and often a
+better one on a USB lead; a phone has two. The browser hands over
+whichever it likes first, which is not reliably the one pointing at the
+teacher. The **Camera** button swaps between them mid-lesson, without
+rejoining and without disconnecting anybody, and remembers the choice
+for next time. A camera unplugged since the last lesson falls back to
+one that is there rather than leaving the lesson with no picture.
+
+**Blurring the background.** The same panel offers it, and tells the
+truth about it. The blur is not something this app draws: it is a
+property of the camera, provided by the operating system — Windows
+Studio Effects, macOS, a Chromebook — and most school hardware does not
+have it. Browsers accept the request and then leave the picture exactly
+as it was, so the switch is flipped, the camera is asked what it is now,
+and the answer is believed. Where it cannot be done the switch says so
+in words a teacher can act on, rather than sitting in the "on" position
+over an unchanged room.
+
+**Sharing a screen, and drawing on it.** **Share screen** puts a window
+in front of the class; the shared window takes the large tile and the
+faces move to a strip along the edge — down the side of a wide window,
+underneath a tall one. The shared window is contained, never cropped: a
+spreadsheet with its last column cut off has failed at the thing it was
+shared for.
+
+While something is shared, the teacher gets a **pencil**, a **rubber**,
+four colours and **Clear**. The tools appear with the screen and go away
+with it, because a pencil over a lesson with nothing shared draws on
+nothing, and a tool that does nothing when pressed is a tool a teacher
+stops trusting.
+
+Three decisions make the board work, and each of them is the answer to a
+way it would otherwise be broken:
+
+- **A mark is a fraction of the tile, never a pixel.** The teacher draws
+  on a laptop and a pupil watches on a phone held sideways. The tile is
+  forced to 16:9 on every device, so those fractions mean the same
+  thing everywhere — and a shared window that is not 16:9 letterboxes by
+  the same amount on every device, so the marks still land on the same
+  word.
+- **A stroke travels once, when the hand lifts.** Sending every touch is
+  sixty packets a second to sixty people. The person drawing sees their
+  own line immediately, from their own hand, and is the only one who
+  would notice the difference.
+- **Erasing sends the ids it removed, not the shape of the rubber.**
+  "Remove these three" lands identically on every device; "rub here,
+  this hard" does not.
+
+A pupil who joins ten minutes in is sent the board as it stands,
+otherwise they would see a clean slide with the teacher talking about a
+circle that is not there.
+
+**Only the teacher draws.** Sixty pupils with a pencil over a shared
+screen is not a lesson. The tools are not offered to anybody else, the
+board refuses their strokes if a future screen forgets to hide them, and
+the token settles it: `canPublishData` is granted to the moderator and
+to nobody else. Receiving needs no permission, so a class sees the
+teacher's pencil without being able to hold one — which keeps the rule
+the token was always making, that there is no untracked side channel
+between children.
 
 ## Covered by tests
 
@@ -304,3 +370,7 @@ today, which is why nothing here sets one.
 | Pure | `unit/core/meeting_domain_test.dart` | the default is not the deployment that refuses to be embedded, it is a bare host rather than a URL, and it is only a default |
 | Widget | `unit/core/online_class_screen_test.dart` | a minute of clock ticks rebuilds no part of the call, and neither does pressing Mute; the clock reaches the bar through a notifier rather than the screen's state; | the view is built before the meeting is started — the deadlock that made the screen spin forever; every failure landing on the fallback rather than the spinner (script refused, host absent, start refused, start throwing); the pass handed to the meeting, and absent rather than empty when the school has no key |
 | Widget | `smoke/online_class_test.dart` | the Faculty Dashboard carries the Online Class tile, and the day's list offers Start online class on every class without clipping it off a phone-width card |
+| Pure | `unit/core/whiteboard_test.dart` | a rubber finds a line it is held against rather than only its recorded points; a stroke survives the wire and back; damaged messages are refused rather than half-read; the board drops its oldest once full and replaces a stroke that arrives twice; a long stroke stays under what LiveKit will carry; two devices that saw the same messages hold the same board |
+| Pure | `unit/core/board_controller_test.dart` | nothing is drawn until a tool is picked up; the line shows under the finger before anybody else has it, and travels once when the hand lifts; a tap is a dot with enough length to be rubbed out; the rubber says nothing when dragged over empty space; a pupil cannot draw whatever the screen offers them; a latecomer is sent the board; nonsense from the network is ignored, not thrown |
+| Pure | `unit/core/stage_test.dart` | a shared screen takes the large tile and my own share wins over somebody else's; two shares at once settle on one rather than flickering; the strip stays within what a face needs; a remembered camera is used when it is still plugged in and fallen back from when it is not; an unlabelled camera is still a choice; a document camera is not mirrored; the blur switch believes the camera and says why when it cannot |
+| Widget | `unit/core/online_class_screen_test.dart` (controls) | sharing says nothing was shared when the teacher cancels the browser's chooser; the pencil appears with the screen and is put away with it; a pupil is offered none of it; the board reaches the call, so a stroke reaches the class; Clear is not offered over an empty board; the camera panel switches camera mid-lesson |

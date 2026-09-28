@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:logicclass/core/meeting/board_controller.dart';
+import 'package:logicclass/core/meeting/camera_setup.dart';
 import 'package:logicclass/core/meeting/online_class_screen.dart';
 import 'package:logicclass/core/meeting/webrtc/classroom_call.dart';
+import 'package:logicclass/core/meeting/whiteboard.dart';
 
 /// The classroom at the width a child actually holds.
 ///
@@ -29,6 +32,25 @@ class _StillCall implements ClassroomCall {
 
   @override
   Future<void> setCamera(bool on) async {}
+
+  @override
+  Future<bool> setScreenShare(bool on) async => on;
+
+  @override
+  Future<List<CameraOption>> cameras() async => const [];
+
+  @override
+  Future<void> useCamera(String deviceId) async {}
+
+  @override
+  Future<BackgroundSupport> setBackgroundBlur(bool on) async =>
+      BackgroundSupport.unavailable;
+
+  @override
+  Future<void> sendBoardMessage(BoardMessage message) async {}
+
+  @override
+  void attachBoard(LessonBoard board) {}
 
   @override
   Widget view() => const ColoredBox(color: Color(0xFF101010));

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logicclass/core/meeting/board_controller.dart';
+import 'package:logicclass/core/meeting/camera_setup.dart';
 import 'package:logicclass/core/meeting/online_class_screen.dart';
+import 'package:logicclass/core/meeting/whiteboard.dart';
 import 'package:logicclass/core/meeting/webrtc/classroom_call.dart';
 
 /// The classroom, driven without opening a camera.
@@ -22,6 +25,22 @@ class _FakeCall implements ClassroomCall {
   bool joinedAsModerator = false;
   int views = 0;
 
+  /// What the browser's own chooser did. A teacher who cancels it has
+  /// shared nothing, whatever the button asked for.
+  bool shareAccepted = true;
+  bool sharing = false;
+  int shareAsks = 0;
+
+  List<CameraOption> available = const [
+    CameraOption(id: 'built-in', label: 'Integrated Webcam'),
+    CameraOption(id: 'usb-1', label: 'Logitech C920'),
+  ];
+  String? cameraUsed;
+  BackgroundSupport blurResult = BackgroundSupport.available;
+  bool? blurWanted;
+  final sent = <BoardMessage>[];
+  LessonBoard? board;
+
   @override
   Future<bool> join({
     required String url,
@@ -42,6 +61,32 @@ class _FakeCall implements ClassroomCall {
 
   @override
   Future<void> setCamera(bool on) async => cameraWanted = on;
+
+  @override
+  Future<bool> setScreenShare(bool on) async {
+    shareAsks++;
+    sharing = on && shareAccepted;
+    return sharing;
+  }
+
+  @override
+  Future<List<CameraOption>> cameras() async => available;
+
+  @override
+  Future<void> useCamera(String deviceId) async => cameraUsed = deviceId;
+
+  @override
+  Future<BackgroundSupport> setBackgroundBlur(bool on) async {
+    blurWanted = on;
+    return blurResult;
+  }
+
+  @override
+  Future<void> sendBoardMessage(BoardMessage message) async =>
+      sent.add(message);
+
+  @override
+  void attachBoard(LessonBoard board) => this.board = board;
 
   @override
   Widget view() {
@@ -254,6 +299,158 @@ void main() {
       await tester.pump();
       expect(call.cameraWanted, isFalse);
       expect(find.text('Camera on'), findsOneWidget);
+    });
+
+    testWidgets('sharing puts a window up, and says so', (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+
+      await tester.tap(find.text('Share screen'));
+      await _settle(tester);
+
+      expect(call.sharing, isTrue);
+      expect(find.text('Stop sharing'), findsOneWidget);
+    });
+
+    testWidgets('sharing says nothing was shared when the teacher cancels',
+        (tester) async {
+      // The browser shows its own chooser. A button that then sat there
+      // saying "Stop sharing" would be lying about the state of the
+      // lesson.
+      final call = _FakeCall()..shareAccepted = false;
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+
+      await tester.tap(find.text('Share screen'));
+      await _settle(tester);
+
+      expect(call.shareAsks, 1);
+      expect(find.text('Share screen'), findsOneWidget);
+      expect(find.text('Stop sharing'), findsNothing);
+    });
+
+    testWidgets('the pencil appears with the screen it draws on',
+        (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+
+      // Offered over a lesson with nothing shared, it would draw on
+      // nothing -- and a tool that does nothing when pressed is a tool
+      // a teacher stops trusting.
+      expect(find.text('Pencil'), findsNothing);
+
+      await tester.tap(find.text('Share screen'));
+      await _settle(tester);
+
+      expect(find.text('Pencil'), findsOneWidget);
+      expect(find.text('Eraser'), findsOneWidget);
+      expect(find.text('Clear'), findsOneWidget);
+    });
+
+    testWidgets('the pencil is put away with the screen', (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+      await tester.tap(find.text('Share screen'));
+      await _settle(tester);
+      await tester.tap(find.text('Pencil'));
+      await _settle(tester);
+      expect(call.board!.tool, BoardTool.pencil);
+
+      await tester.tap(find.text('Stop sharing'));
+      await _settle(tester);
+
+      // Otherwise the next person to share would find a pencil already
+      // in their hand.
+      expect(call.board!.tool, BoardTool.off);
+      expect(find.text('Pencil'), findsNothing);
+    });
+
+    testWidgets('a pupil is offered no pencil at all', (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call, asModerator: false));
+      await _settle(tester);
+      await tester.tap(find.text('Share screen'));
+      await _settle(tester);
+
+      expect(find.text('Pencil'), findsNothing);
+      expect(call.board!.canDraw, isFalse);
+    });
+
+    testWidgets('the board reaches the call, so the class can see it',
+        (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+
+      // The call is what puts a stroke on the wire and what hands an
+      // arriving one back. A board the call has never been given is a
+      // teacher drawing to themselves.
+      expect(call.board, isNotNull);
+      call.board!
+        ..choose(BoardTool.pencil)
+        ..startAt(const Offset(0.2, 0.2))
+        ..extendTo(const Offset(0.8, 0.8))
+        ..finish();
+
+      expect(call.sent.single, isA<MarkDrawn>());
+    });
+
+    testWidgets('clearing is not offered while there is nothing to clear',
+        (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+      await tester.tap(find.text('Share screen'));
+      await _settle(tester);
+
+      final clear = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Clear'),
+      );
+      expect(clear.onPressed, isNull);
+    });
+
+    testWidgets('the camera panel offers what is plugged in', (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+
+      await tester.tap(find.text('Camera'));
+      await _settle(tester);
+
+      expect(find.text('Integrated Webcam'), findsOneWidget);
+      expect(find.text('Logitech C920'), findsOneWidget);
+
+      await tester.tap(find.text('Logitech C920'));
+      await _settle(tester);
+
+      // Mid-lesson, without rejoining: a teacher who has to leave the
+      // lesson to change camera has left the lesson.
+      expect(call.cameraUsed, 'usb-1');
+    });
+
+    testWidgets('the blur switch believes the camera, not the request',
+        (tester) async {
+      // Browsers accept this request and then leave the picture exactly
+      // as it was. A switch sitting in the "on" position over an
+      // unchanged background is worse than one that admits it cannot.
+      final call = _FakeCall()..blurResult = BackgroundSupport.unavailable;
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+      await tester.tap(find.text('Camera'));
+      await _settle(tester);
+
+      await tester.tap(find.text('Blur my background'));
+      await _settle(tester);
+
+      expect(call.blurWanted, isTrue);
+      final blur = tester.widget<SwitchListTile>(
+        find.widgetWithText(SwitchListTile, 'Blur my background'),
+      );
+      expect(blur.value, isFalse);
+      expect(find.textContaining('not from LogicClass'), findsOneWidget);
     });
 
     testWidgets('leaving hangs up', (tester) async {
