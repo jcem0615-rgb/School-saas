@@ -18,7 +18,7 @@ const {createHmac} = require('node:crypto');
 const ENDPOINT = require.resolve('../api/livekit-token.js');
 
 const URL = 'wss://logicclass-demo.livekit.cloud';
-const KEY = 'APIdemokey123';
+const KEY = 'APIdemokey12345';
 const SECRET = 'a'.repeat(43);
 const ROOM = 'lc-abcdefghij0123456789abcd';
 
@@ -438,9 +438,52 @@ test('and does not see dots in a real key, secret or address', async () => {
   const answer = await call({
     method: 'GET',
     env: {
-      LIVEKIT_API_KEY: 'APIx-_9aBcDeF',
+      LIVEKIT_API_KEY: 'APIx-_9aBcDeFgH',
       LIVEKIT_API_SECRET: 'aB3-_' + 'x'.repeat(38),
       LIVEKIT_URL: 'wss://a-project-1234.livekit.cloud',
+    },
+  }).finally(livekit.restore);
+
+  assert.deepEqual(answer.body.problems, []);
+});
+
+// The lengths in the dialog that creates a key: 15 and 43. Anything
+// else on a .livekit.cloud address is part of a value, and the two ways
+// that happens -- the masked display, a selection that stopped early --
+// both arrive looking perfectly reasonable.
+test('holds a LiveKit Cloud pair to the lengths LiveKit Cloud issues',
+    async () => {
+  const livekit = livekitAnswers({status: 200, body: '{}'});
+  const answer = await call({
+    method: 'GET',
+    env: {LIVEKIT_API_SECRET: 'x'.repeat(32)},
+  }).finally(livekit.restore);
+
+  assert.match(answer.body.summary, /issues one of 43/);
+  assert.match(answer.body.summary, /copy the secret from that dialog/);
+  assert.equal(livekit.asked.length, 0);
+});
+
+test('and says the same of a key that is not 15 characters', async () => {
+  const livekit = livekitAnswers({status: 200, body: '{}'});
+  const answer = await call({
+    method: 'GET',
+    env: {LIVEKIT_API_KEY: 'APIshort'},
+  }).finally(livekit.restore);
+
+  assert.match(answer.body.summary, /LIVEKIT_API_KEY is 8 characters/);
+});
+
+test('but holds a self-hosted server to nothing of the kind', async () => {
+  // Those lengths are LiveKit Cloud's. A school running its own server
+  // generates its own keys, and they are whatever it made them.
+  const livekit = livekitAnswers({status: 200, body: '{}'});
+  const answer = await call({
+    method: 'GET',
+    env: {
+      LIVEKIT_URL: 'wss://video.school.edu.ph',
+      LIVEKIT_API_KEY: 'schoolkey',
+      LIVEKIT_API_SECRET: 's'.repeat(36),
     },
   }).finally(livekit.restore);
 

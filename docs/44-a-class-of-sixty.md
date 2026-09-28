@@ -157,6 +157,17 @@ other's boxes, a secret shorter than the 32 characters LiveKit requires,
 two values pasted into one box, a `LIVEKIT_URL` that is a page in the
 dashboard rather than the project's own address — and the row of dots.
 
+**The lengths.** A LiveKit Cloud project issues a key of exactly 15
+characters beginning `API`, and a secret of exactly 43. On a
+`.livekit.cloud` address anything else is part of a value rather than a
+value, and it is named as such. A self-hosted server generates its own
+keys and is held to none of this.
+
+The secret is shown in full **once**, in the dialog that creates the
+key. After that dialog is closed the page prints dots and the value
+cannot be recovered — so a secret that is the wrong length means
+generating a new key, not hunting for the old one.
+
 **The row of dots.** A dashboard hides a secret behind `••••…`, and a row
 of dots can be selected and copied like any other text on a page. What
 arrives is the right sort of length, has no whitespace and no telltale

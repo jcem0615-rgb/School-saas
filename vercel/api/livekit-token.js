@@ -28,6 +28,10 @@ const LIFETIME_SECONDS = 2 * 60 * 60;
 /** LiveKit refuses to run with a shorter one, so a shorter one is a typo. */
 const SECRET_MINIMUM = 32;
 
+/** What a LiveKit Cloud project issues: exact, and worth checking. */
+const CLOUD_KEY = 15;
+const CLOUD_SECRET = 43;
+
 /** The characters a dashboard prints instead of a secret. */
 const MASKED = /[\u2022\u00B7\u25CF\u2219\u2217\u2024\u25AA\u25CB\u26AB*]/;
 
@@ -87,6 +91,11 @@ function websocketUrl(url) {
   return url;
 }
 
+function hostOf(url) {
+  const after = websocketUrl(url).replace(/^wss?:\/\//, '');
+  return after.split('/')[0].split('?')[0].toLowerCase();
+}
+
 function schemeOf(url) {
   const end = url.indexOf('://');
   return end === -1 ? null : url.slice(0, end).toLowerCase();
@@ -114,6 +123,35 @@ function problemsWith(url, apiKey, apiSecret) {
         'begins with "API", which is how a key begins. Put each in the ' +
         'other box.'
     );
+  }
+
+  // A LiveKit Cloud project issues a fixed pair: a key of CLOUD_KEY
+  // characters beginning "API", and a secret of CLOUD_SECRET. Anything
+  // else on a .livekit.cloud address is part of a value rather than a
+  // value -- which is what the masked display gives you, and what a
+  // half-finished selection gives you, and neither announces itself.
+  if (/\.livekit\.cloud$/.test(hostOf(url.text))) {
+    if (apiSecret.text.length !== CLOUD_SECRET) {
+      problems.push(
+        'LIVEKIT_API_SECRET is ' +
+          apiSecret.text.length +
+          ' characters. A LiveKit Cloud project issues one of ' +
+          CLOUD_SECRET +
+          ', so this is not the whole value. It is shown in full only ' +
+          'once, in the dialog that creates the key; after that the page ' +
+          'prints dots. Generate a new key and copy the secret from that ' +
+          'dialog.'
+      );
+    }
+    if (apiKey.text.length !== CLOUD_KEY) {
+      problems.push(
+        'LIVEKIT_API_KEY is ' +
+          apiKey.text.length +
+          ' characters. A LiveKit Cloud key is ' +
+          CLOUD_KEY +
+          ', beginning "API".'
+      );
+    }
   }
 
   if (apiSecret.text.length < SECRET_MINIMUM) {
