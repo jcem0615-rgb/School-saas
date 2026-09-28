@@ -130,7 +130,7 @@ https://logicclass.vercel.app/api/livekit-token
 | What you see | What it means |
 |---|---|
 | `{"error":"POST only"}` — **405** | Correct. The variables are set and the endpoint is live. A browser sends GET; the app sends POST. |
-| `{"error":"not configured"}` — **404** | The variables are missing from *this* deployment. Either they were not saved, or nothing has been deployed since. |
+| `{"error":"not configured"}` — **404** | The reply names which of the three are missing. **All three** means none reached this deployment: they were saved on a different Vercel project, or scoped to Preview instead of Production, or nothing has been deployed since saving them. **One** means that name is misspelled. |
 | The LogicClass app loads | The rewrite is swallowing `/api`. Should not happen — `vercel.json` excludes it — but it would mean an old deployment. |
 | Vercel's own 404 page | The endpoint was not bundled. Check the deploy log for "Bundled the demo token endpoint". |
 

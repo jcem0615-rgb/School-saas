@@ -55,8 +55,36 @@ module.exports = async (req, res) => {
   // Not configured is not an error. The app reads this as "no video
   // here" and says so, which is what an unconfigured deployment should
   // do rather than fail in front of a class.
-  if (!url || !apiKey || !apiSecret) {
-    res.status(404).json({error: 'not configured'});
+  //
+  // It names which of the three are missing, because "not configured"
+  // on its own cost a round trip: all three absent means they never
+  // reached this deployment -- saved after it was made, or saved on a
+  // different project -- while one absent is a typo in that one name.
+  // Those want different things done and looked identical.
+  //
+  // Names only. A value is never echoed, and a present-but-wrong value
+  // is not something this can see.
+  const missing = [
+    ['LIVEKIT_URL', url],
+    ['LIVEKIT_API_KEY', apiKey],
+    ['LIVEKIT_API_SECRET', apiSecret],
+  ]
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missing.length > 0) {
+    res.status(404).json({
+      error: 'not configured',
+      missing,
+      hint:
+        missing.length === 3 ?
+          'None of the three reached this deployment. Check they were ' +
+            'saved on the project this site deploys to, for the ' +
+            'Production environment, and that a deployment has been made ' +
+            'since saving them.' :
+          'Check the spelling of the names above, and that they are set ' +
+            'for the Production environment.',
+    });
     return;
   }
 
