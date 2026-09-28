@@ -9,6 +9,7 @@ import 'package:logicclass/core/meeting/webrtc/video_grid.dart';
 /// the one thing a lesson on camera cannot afford.
 void main() {
   _wording();
+  _heading();
   group('the grid', () {
     test('gives one person the whole screen', () {
       expect(gridColumnsFor(tiles: 1, width: 1280), 1);
@@ -76,5 +77,16 @@ void _wording() {
       expect(live, contains('not set up'));
       expect(live.toLowerCase(), contains('video server'));
     });
+  });
+}
+
+/// The card's heading and its body are read together, so they must not
+/// disagree. The heading once said video was "not part of the demo",
+/// which stopped being true the moment a demo could hold a class.
+void _heading() {
+  test('the demo wording does not deny what a demo can do', () {
+    final demo = videoNotConfigured(demo: true);
+    expect(demo, isNot(contains('not part of the demo')));
+    expect(demo.toLowerCase(), contains('switched on'));
   });
 }

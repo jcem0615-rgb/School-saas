@@ -180,7 +180,12 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
           ),
         _Phase.notConfigured => _Message(
             title: kDemoMode
-                ? 'Live video is not part of the demo'
+                // Not "not part of the demo": it can be, and on a demo
+                // with a video server behind it, it is. What is true is
+                // that this one has not had it switched on -- which is
+                // also what the body says, and the two should not
+                // disagree on the same card.
+                ? 'Live video is not switched on'
                 : 'Online classes are not set up',
             body: videoNotConfigured(demo: kDemoMode),
           ),
