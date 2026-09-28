@@ -60,6 +60,14 @@ export const FirestorePaths = {
   subjectAttendanceDoc: (schoolId: string, markId: string) =>
     `schools/${schoolId}/subjectAttendance/${markId}`,
 
+  // One document per person per lesson, counting wrong passcodes. Never
+  // read or written by anybody but the server -- firestore.rules denies
+  // it outright -- because it is the thing that turns an eight
+  // character code from a lock into a lock somebody cannot stand at all
+  // afternoon trying keys in.
+  meetingAttemptDoc: (schoolId: string, sessionId: string, uid: string) =>
+    `schools/${schoolId}/meetingAttempts/${sessionId}_${uid}`,
+
   // The BIR-registered booklets a school issues official receipts from,
   // and one claim document per number used. The claim's id IS the
   // number, which is what makes "one receipt, issued once" a guarantee

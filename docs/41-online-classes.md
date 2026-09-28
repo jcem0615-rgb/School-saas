@@ -291,6 +291,80 @@ the lesson needs `connect-src` and `media-src` for the LiveKit host in
 `LIVEKIT_URL` — the video is drawn by this app in its own widgets, so
 there is no frame to allow and nothing to be refused embedding.
 
+## Getting in: four locks, and why none is enough alone
+
+A teacher can hand out a **link**. The link gets forwarded into a class
+group chat, screenshotted, posted. So the link is an address and nothing
+else — which school, which lesson — and **everything that decides who
+comes in is decided on the server**, after the person has signed in:
+
+| # | Lock | Where it is enforced | What it catches |
+|---|---|---|---|
+| 1 | **The school** | `requireSameSchool`, from the caller's own claims | Another school's account following the link |
+| 2 | **The register** | a line of their own, `subjectAttendance/{sessionId}_{studentId}` — or the lesson is theirs to teach | Anybody who is not in this class |
+| 3 | **The code** | `meetingPasscode` on the session, read out at the start | The account that is not the person holding the phone |
+| 4 | **The scope** | section, grade level, department, education level, programme — compared against the record **as it stands now** | A child who has since been moved, promoted, transferred or withdrawn |
+
+**The link never carries the room name or the code.** The room name is
+what the media server actually accepts; the code is the second lock. A
+link that carried either would be a single forwarded message that puts a
+stranger in a room of children. The Invite panel has two buttons for
+that reason, and the message it writes says *"You will need the class
+code. I will read it out at the start."*
+
+### The code
+
+Eight characters of Crockford's base32 — no I, no L, no O, no U. Three
+of those because a code read aloud to a ten-year-old must not turn on
+whether a character was a one or an ell; the fourth so that eight random
+characters cannot spell something a teacher then has to read to a class.
+Reading it back is forgiving in the same spirit: I and L are taken as 1,
+O as 0, the dash and the shift key are ignored.
+
+It is minted with the room and cleared with it — a code left on a lesson
+that has come back in person is a code still being read out for a door
+that is shut. It lives on the session document, which is staff-only in
+`firestore.rules`, and is **never** copied onto a pupil's mark, where
+the room goes. The teacher is never asked for it: they set it, and a
+teacher locked out of their own lesson by their own code is a lesson
+that does not happen.
+
+Eight wrong codes and the door stops answering that person for ten
+minutes. Counted **per person per lesson**, deliberately — locking the
+lesson would hand any pupil in the class a way to shut the rest of them
+out of it. The counter lives in `meetingAttempts`, which
+`firestore.rules` denies to everybody: a client that could read it would
+learn how many guesses are left, and one that could write it could give
+itself more.
+
+### The scope
+
+A register is a photograph of the roll when the lesson opened. Student
+records are not: children are promoted, moved between sections mid-year,
+transferred between departments, switched between strands, withdrawn.
+Every one of those leaves an old mark pointing at a lesson the child is
+no longer part of.
+
+So `openClassSession` stamps the lesson with the scope of the roll it
+was built from, and the door compares the person standing in it against
+that scope *now*. The scope is a **set** per dimension rather than a
+value: today a roll comes from one section, but an elective, a college
+course or a remedial group pulled from three sections is one lesson with
+several sections in it, and a scope that could hold only one value would
+have to be abandoned the first time a school ran one.
+
+**An unrecorded dimension is not a refusal.** Sessions opened before
+this existed carry no scope, and students enrolled before a field
+existed carry no value for it; refusing those would lock a school out of
+its own lessons to enforce a rule about records that have not moved. The
+section is checked always — every lesson and every student record has
+always had one. The rest are checked when the lesson names them and the
+person has a value for them.
+
+The scope is checked **before** the code, so somebody who does not
+belong here is told they do not belong here rather than invited to guess
+a code first.
+
 ## What a teacher has in the lesson
 
 Three things beyond the microphone and the camera.
@@ -373,4 +447,11 @@ between children.
 | Pure | `unit/core/whiteboard_test.dart` | a rubber finds a line it is held against rather than only its recorded points; a stroke survives the wire and back; damaged messages are refused rather than half-read; the board drops its oldest once full and replaces a stroke that arrives twice; a long stroke stays under what LiveKit will carry; two devices that saw the same messages hold the same board |
 | Pure | `unit/core/board_controller_test.dart` | nothing is drawn until a tool is picked up; the line shows under the finger before anybody else has it, and travels once when the hand lifts; a tap is a dot with enough length to be rubbed out; the rubber says nothing when dragged over empty space; a pupil cannot draw whatever the screen offers them; a latecomer is sent the board; nonsense from the network is ignored, not thrown |
 | Pure | `unit/core/stage_test.dart` | a shared screen takes the large tile and my own share wins over somebody else's; two shares at once settle on one rather than flickering; the strip stays within what a face needs; a remembered camera is used when it is still plugged in and fallen back from when it is not; an unlabelled camera is still a choice; a document camera is not mirrored; the blur switch believes the camera and says why when it cannot |
+| Pure | `unit/core/invite_link_test.dart` | the link carries no room name, no code and no token; it drops whatever the page it was copied from was carrying; it goes wherever the app is served from rather than one hard-coded host; a truncated or malformed link reads as nothing rather than throwing; a link naming something that is not a document id is refused before it reaches a query; the message around it never sweeps the code in |
+| Pure | `unit/core/class_passcode_test.dart` | the Dart and the TypeScript agree about the alphabet and the length, read out of the TypeScript rather than copied; I, L, O and U are absent; an eye is taken for a one and an oh for a zero; a lesson with no code is not a lesson where the empty string is the code |
+| Pure | `meeting/passcode.test.ts` | the same, from the server's side, plus constant-time comparison and a refusal of anything that is not a string |
+| Pure | `meeting/scope.test.ts` | the scope of a roll is read off the records it was built from and holds every value when a lesson draws from several sections; a child moved section, promoted a grade, moved department or programme, or no longer enrolled is refused, each by name; a dimension the records never filled in does not lock a school out, and the section never is waived |
+| Emulator | `attendance-emulator/meetingToken.test.ts` (the four locks) | the teacher is not asked for the code and a child on the register without it is refused; the dash and the shift key are forgiven; a lesson with no code still opens; the code never comes back in the answer, right or wrong; eight wrong ones close the door, the right one forgets them, and the lock falls on the guesser rather than the lesson; a child moved out of the section, grade, department or enrolment is refused with their mark still in place; an unscoped lesson is still joinable; the scope is checked before the code |
+| Rules | `subject-attendance.rules.test.ts` (the counter) | the wrong-code count is unreadable and unwritable by the person it counts, and by every role in the school |
+| Demo | `smoke/online_class_test.dart` (the code) | the demo mints the same shape, clears it with the room, never asks the teacher for it, refuses a pupil who does not have it and admits one who does |
 | Widget | `unit/core/online_class_screen_test.dart` (controls) | sharing says nothing was shared when the teacher cancels the browser's chooser; the pencil appears with the screen and is put away with it; a pupil is offered none of it; the board reaches the call, so a stroke reaches the class; Clear is not offered over an empty board; the camera panel switches camera mid-lesson |

@@ -3,6 +3,7 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import {requireCallerClaims, requireRole, requireSameSchool} from "../../shared/auth/claims";
 import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
+import {scopeOfRoll} from "../../shared/meeting/scope";
 import {
   DEFAULT_MARK,
   blockRunsOn,
@@ -186,6 +187,12 @@ export const openClassSession = onCall(
       // Mathematics register dated a Sunday" is asked of the record
       // months later, by somebody who cannot ask the teacher.
       unscheduled: offTimetable,
+      // Who this lesson is for, read off the records the roll was built
+      // from. Checked again at the door of a video class, because a
+      // register is a photograph of the roll this morning and a child
+      // can be moved between sections, grades or departments by the
+      // afternoon. See shared/meeting/scope.ts.
+      scope: scopeOfRoll(roster.docs.map((one) => one.data())),
       openedAt,
       closedAt: null,
       status: "open",

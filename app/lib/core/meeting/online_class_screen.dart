@@ -7,6 +7,7 @@ import '../../main.dart' show kDemoMode;
 import 'board_controller.dart';
 import 'camera_sheet.dart';
 import 'class_clock.dart';
+import 'invite_sheet.dart';
 import 'demo_video.dart';
 import 'meeting_room.dart';
 import 'webrtc/classroom_call.dart';
@@ -45,6 +46,16 @@ class OnlineClassScreen extends StatefulWidget {
   /// When the register was opened, for the clock.
   final DateTime? openedAt;
 
+  /// Where to send somebody who is not here yet.
+  ///
+  /// Null on a build with no page to point at. The link carries which
+  /// school and which lesson and nothing else -- see invite_link.dart.
+  final Uri? inviteLink;
+
+  /// The code the teacher reads out. Staff only: it is read off the
+  /// session document, which no pupil can read.
+  final String? passcode;
+
   /// Stands in for a real call, which a widget test cannot make.
   @visibleForTesting
   final ClassroomCall? debugCall;
@@ -64,6 +75,8 @@ class OnlineClassScreen extends StatefulWidget {
     this.serverUrl,
     this.asModerator = false,
     this.openedAt,
+    this.inviteLink,
+    this.passcode,
     this.debugCall,
     this.debugConfiguration,
   });
@@ -191,6 +204,20 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     if (!actual) _board.choose(BoardTool.off);
   }
 
+  Future<void> _invite() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => InviteSheet(
+        subject: widget.subject,
+        section: widget.section,
+        link: widget.inviteLink,
+        passcode: widget.passcode,
+      ),
+    );
+  }
+
   Future<void> _openCamera() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -243,6 +270,13 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
               onCamera: _toggleCamera,
               onShare: _toggleShare,
               onCameraSetup: _openCamera,
+              // Only the person running the lesson invites anybody to
+              // it, and only when there is something to hand out.
+              onInvite: widget.asModerator &&
+                      (widget.inviteLink != null ||
+                          (widget.passcode?.isNotEmpty ?? false))
+                  ? _invite
+                  : null,
               onLeave: _leave,
             )
           : null,
@@ -409,6 +443,7 @@ class _Controls extends StatelessWidget {
   final VoidCallback onCamera;
   final VoidCallback onShare;
   final VoidCallback onCameraSetup;
+  final VoidCallback? onInvite;
   final VoidCallback onLeave;
 
   const _Controls({
@@ -422,6 +457,7 @@ class _Controls extends StatelessWidget {
     required this.onCamera,
     required this.onShare,
     required this.onCameraSetup,
+    required this.onInvite,
     required this.onLeave,
   });
 
@@ -478,6 +514,12 @@ class _Controls extends StatelessWidget {
                     label: Text(on ? 'Camera off' : 'Camera on'),
                   ),
                 ),
+                if (onInvite != null)
+                  OutlinedButton.icon(
+                    onPressed: onInvite,
+                    icon: const Icon(Icons.person_add_alt, size: 18),
+                    label: const Text('Invite'),
+                  ),
                 OutlinedButton.icon(
                   onPressed: onCameraSetup,
                   icon: const Icon(Icons.tune, size: 18),

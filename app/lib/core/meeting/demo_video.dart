@@ -135,7 +135,16 @@ class DemoVideo {
       if (url is! String || token is! String || url.isEmpty || token.isEmpty) {
         return MeetingAdmission.none;
       }
-      return MeetingAdmission(provider: 'livekit', url: url, token: token);
+      return MeetingAdmission(
+        provider: 'livekit',
+        url: url,
+        token: token,
+        // Returned for the same reason the server returns it: somebody
+        // who arrived by an invitation link has only a session id, and
+        // by the time this comes back the question of whether they
+        // belong here has already been answered.
+        room: room,
+      );
     } catch (error) {
       // No endpoint at all is the common case -- the demo run from a
       // laptop, or deployed somewhere without one. The lesson screen

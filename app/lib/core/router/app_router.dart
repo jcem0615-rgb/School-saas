@@ -1,8 +1,10 @@
+import '../meeting/invite_link.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/domain/entities/app_user.dart';
+import '../../features/class_sessions/presentation/screens/join_by_link_screen.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/auth/presentation/screens/force_password_change_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
@@ -42,6 +44,9 @@ import '../constants/user_roles.dart';
 /// this file owns only the auth-gating logic that applies to all of them.
 class AppRoutes {
   static const login = '/login';
+
+  /// Where an invitation link lands. See core/meeting/invite_link.dart.
+  static const joinClass = invitePath;
   static const forcePasswordChange = '/force-password-change';
   static const myQrId = '/qr-id';
   static const scanAttendance = '/scan-attendance';
@@ -86,6 +91,14 @@ class AppRoutes {
       };
 }
 
+/// The lesson somebody was invited to before they signed in.
+///
+/// Module-level because it has to outlive the widget tree: signing in
+/// rebuilds the router and replaces the address bar, and without this
+/// following an invitation lands you on your own dashboard with no idea
+/// what you were invited to. Cleared the moment it is used.
+MeetingInvite? _invitedTo;
+
 final goRouterProvider = Provider<GoRouter>((ref) {
   // Re-evaluate redirects any time auth state changes, not just on
   // navigation -- otherwise a background sign-out wouldn't kick the user
@@ -108,8 +121,24 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final loggingIn = state.matchedLocation == AppRoutes.login;
 
       if (user == null) {
+        // A link opened by somebody not signed in. Sign-in replaces the
+        // address, so the lesson is remembered here and gone back to
+        // the moment there is an account to check it against --
+        // otherwise following an invitation logs you in and drops you
+        // on your own dashboard with no idea what you were invited to.
+        if (state.matchedLocation == AppRoutes.joinClass) {
+          _invitedTo = readInviteLink(state.uri);
+        }
         return loggingIn ? null : AppRoutes.login;
       }
+
+      // Just signed in, with an invitation waiting.
+      final invited = _invitedTo;
+      if (invited != null && state.matchedLocation != AppRoutes.joinClass) {
+        _invitedTo = null;
+        return inviteRoute(invited);
+      }
+      if (state.matchedLocation == AppRoutes.joinClass) _invitedTo = null;
 
       // Signed in but must change password: lock to that screen until done.
       if (user.mustChangePassword) {
@@ -172,6 +201,20 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: AppRoutes.login, builder: (context, state) => const LoginScreen()),
+      // An invitation link. The screen holds none of the keys -- it asks
+      // for a pass exactly as every other way in does, and the server
+      // decides. See join_by_link_screen.dart.
+      GoRoute(
+        path: AppRoutes.joinClass,
+        builder: (context, state) {
+          final invite = readInviteLink(state.uri);
+          if (invite == null) return const _InvitationMakesNoSense();
+          return JoinByLinkScreen(
+            schoolId: invite.schoolId,
+            sessionId: invite.sessionId,
+          );
+        },
+      ),
       GoRoute(
         path: AppRoutes.forcePasswordChange,
         builder: (context, state) => const ForcePasswordChangeScreen(),
@@ -319,5 +362,51 @@ class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     _subscriptionSource = stream.asBroadcastStream();
     _subscriptionSource.listen((_) => notifyListeners());
+  }
+}
+
+/// A link that is not an invitation, or was truncated on its way here.
+///
+/// Chat apps break long links across lines and people paste half of
+/// one. The right answer is the way to their own classes, not a blank
+/// screen and not a crash.
+class _InvitationMakesNoSense extends ConsumerWidget {
+  const _InvitationMakesNoSense();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final me = ref.watch(authStateProvider).valueOrNull;
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.link_off, size: 44),
+              const SizedBox(height: 16),
+              Text(
+                'That invitation link is incomplete',
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Ask your teacher to send it again -- chat apps sometimes '
+                'break a long link across two lines.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => context.go(
+                  me == null ? AppRoutes.login : AppRoutes.homeFor(me.role),
+                ),
+                child: const Text('Go to my classes'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

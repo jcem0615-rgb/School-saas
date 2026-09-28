@@ -60,7 +60,7 @@ class ClassSessionRepositoryImpl implements ClassSessionRepository {
   }
 
   @override
-  Future<Result<String?>> setMode({
+  Future<Result<OnlineClassSetup>> setMode({
     required String sessionId,
     required bool online,
   }) async {
@@ -74,9 +74,12 @@ class ClassSessionRepositoryImpl implements ClassSessionRepository {
   }
 
   @override
-  Future<Result<MeetingAdmission>> meetingToken(String sessionId) async {
+  Future<Result<MeetingAdmission>> meetingToken(
+    String sessionId, {
+    String? passcode,
+  }) async {
     try {
-      return Success(await _remote.meetingToken(sessionId));
+      return Success(await _remote.meetingToken(sessionId, passcode: passcode));
     } on ServerException catch (e) {
       return Error(ServerFailure(e.message));
     } catch (_) {

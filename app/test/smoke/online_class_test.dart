@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logicclass/core/meeting/class_passcode.dart';
 
 import 'package:logicclass/core/constants/user_roles.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
@@ -88,6 +89,17 @@ void main() {
     return id!;
   }
 
+  /// Hands the same store to one of the children on the roll.
+  ///
+  /// One container, not two: each one gets its own demo store, so a
+  /// second container signed in as a pupil has never heard of the class
+  /// the first one opened.
+  void becomeAStudent(ProviderContainer c) {
+    c.read(demoAuthRepositoryProvider).signInAs(
+          DemoStore.demoAccounts.firstWhere((a) => a.role == UserRole.student),
+        );
+  }
+
   ClassSession sessionOf(ProviderContainer c, String id) =>
       c.read(demoStoreProvider).classSessions.value.firstWhere((s) => s.id == id);
 
@@ -103,10 +115,15 @@ void main() {
       final c = await signedInAs(UserRole.faculty);
       final id = await openAClass(c);
 
-      final room = await actions(c).setMode(sessionId: id, online: true);
+      final setup = await actions(c).setMode(sessionId: id, online: true);
+      final room = setup?.room;
 
       expect(room, isNotNull);
       expect(sessionOf(c, id).meetingRoom, room);
+      // And a code, minted with it. A room without one is a door with
+      // the lock taken off.
+      expect(setup?.passcode, isNotNull);
+      expect(sessionOf(c, id).meetingPasscode, setup!.passcode);
       final roll = rollOf(c, id);
       expect(roll, isNotEmpty);
       // The student reads the room off their own mark, never off the
@@ -130,11 +147,14 @@ void main() {
       final c = await signedInAs(UserRole.faculty);
       final id = await openAClass(c);
 
-      final first = await actions(c).setMode(sessionId: id, online: true);
-      final second = await actions(c).setMode(sessionId: id, online: true);
+      final first = (await actions(c).setMode(sessionId: id, online: true))!;
+      final second = (await actions(c).setMode(sessionId: id, online: true))!;
 
-      expect(second, isNot(first));
-      expect(rollOf(c, id).every((m) => m.meetingRoom == second), isTrue,
+      expect(second.room, isNot(first.room));
+      // The code too. A code that survived the room would be a key
+      // still being read out for a door that has been changed.
+      expect(second.passcode, isNot(first.passcode));
+      expect(rollOf(c, id).every((m) => m.meetingRoom == second.room), isTrue,
           reason: 'a link copied a minute ago must not still be live');
     });
 
@@ -146,11 +166,105 @@ void main() {
       final id = await openAClass(c);
       final session = sessionOf(c, id);
 
-      final room = (await actions(c).setMode(sessionId: id, online: true))!;
+      final room = (await actions(c).setMode(sessionId: id, online: true))!.room!;
 
       expect(room.toLowerCase(), isNot(contains(session.section.toLowerCase())));
       expect(room.toLowerCase(), isNot(contains(session.subject.toLowerCase())));
       expect(room, isNot(contains(session.date)));
+    });
+  });
+
+  group('the code on the door', () {
+    test('travels with the room and never onto a pupil\'s mark', () async {
+      // The code lives on the session, which is staff-only. The room is
+      // copied onto every pupil's own line because that is the one
+      // document they can read -- and if the code travelled with it,
+      // the teacher might as well not have set one.
+      final c = await signedInAs(UserRole.faculty);
+      final id = await openAClass(c);
+
+      await actions(c).setMode(sessionId: id, online: true);
+
+      expect(sessionOf(c, id).meetingPasscode, isNotNull);
+      expect(rollOf(c, id), isNotEmpty);
+    });
+
+    test('is the shape the server makes', () async {
+      final c = await signedInAs(UserRole.faculty);
+      final id = await openAClass(c);
+
+      final setup = await actions(c).setMode(sessionId: id, online: true);
+
+      expect(isClassPasscode(setup!.passcode!), isTrue);
+    });
+
+    test('says nothing about the class it belongs to', () async {
+      final c = await signedInAs(UserRole.faculty);
+      final id = await openAClass(c);
+      final session = sessionOf(c, id);
+
+      final code = (await actions(c).setMode(sessionId: id, online: true))!
+          .passcode!
+          .toLowerCase();
+
+      expect(code, isNot(contains(session.subject.toLowerCase())));
+      expect(code, isNot(contains(session.section.toLowerCase())));
+    });
+
+    test('goes when the class comes back in person', () async {
+      // A code still being read out for a door that is shut.
+      final c = await signedInAs(UserRole.faculty);
+      final id = await openAClass(c);
+      await actions(c).setMode(sessionId: id, online: true);
+
+      await actions(c).setMode(sessionId: id, online: false);
+
+      expect(sessionOf(c, id).meetingPasscode, isNull);
+    });
+
+    test('is not asked of the teacher who set it', () async {
+      // A teacher locked out of their own lesson by their own code is a
+      // lesson that does not happen.
+      final c = await signedInAs(UserRole.faculty);
+      final id = await openAClass(c);
+      await actions(c).setMode(sessionId: id, online: true);
+
+      final pass = await actions(c).meetingToken(id);
+
+      expect(pass.allowed, isTrue, reason: pass.refusal ?? '');
+    });
+
+    test('refuses a pupil who does not have it', () async {
+      final c = await signedInAs(UserRole.faculty);
+      final id = await openAClass(c);
+      await actions(c).setMode(sessionId: id, online: true);
+
+      // The same store, read as one of the children on the roll.
+      becomeAStudent(c);
+      final wrong = await actions(c).meetingToken(id, passcode: 'ZZZZ9999');
+      final blank = await actions(c).meetingToken(id);
+
+      expect(wrong.allowed, isFalse);
+      expect(wrong.refusal, contains('not the code'));
+      expect(blank.allowed, isFalse);
+    });
+
+    test('lets a pupil in who has it', () async {
+      final c = await signedInAs(UserRole.faculty);
+      final id = await openAClass(c);
+      final setup = await actions(c).setMode(sessionId: id, online: true);
+
+      becomeAStudent(c);
+      final pass = await actions(c).meetingToken(
+        id,
+        // Typed back the way it was shown, dash and all.
+        passcode: displayClassPasscode(setup!.passcode!),
+      );
+
+      // The demo reaches a real endpoint for the token itself, which
+      // may not be configured wherever this runs -- so what is asserted
+      // is that the code was not the thing that stopped them.
+      expect(pass.refusal, isNot(contains('not the code')));
     });
   });
 
@@ -227,7 +341,7 @@ void main() {
     test('the live lesson once their teacher starts it', () async {
       final teacher = await signedInAs(UserRole.faculty);
       final id = await openAClass(teacher);
-      final room = await actions(teacher).setMode(sessionId: id, online: true);
+      final room = (await actions(teacher).setMode(sessionId: id, online: true))!.room;
       final onTheRoll = rollOf(teacher, id).first;
 
       // The same store, read as the student it belongs to.
@@ -398,9 +512,10 @@ void main() {
       expect(id, isNotNull);
 
       // And it can then be taken online like any other class.
-      final room = await actions(c).setMode(sessionId: id!, online: true);
-      expect(room, isNotNull);
-      expect(room, startsWith('lc-'));
+      final setup = await actions(c).setMode(sessionId: id!, online: true);
+      expect(setup?.isOnline, isTrue);
+      expect(setup!.room, startsWith('lc-'));
+      expect(setup.passcode, isNotNull);
     });
 
     test('is filed under the day it actually happened', () async {

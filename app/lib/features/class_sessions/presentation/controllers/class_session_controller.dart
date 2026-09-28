@@ -198,7 +198,10 @@ class ClassSessionActionController extends StateNotifier<AsyncValue<void>> {
   /// class came back in person or that it failed; the screen reads
   /// [errorMessage] to tell those apart, the same way [openSession] is
   /// handled a line above.
-  Future<String?> setMode({required String sessionId, required bool online}) async {
+  Future<OnlineClassSetup?> setMode({
+    required String sessionId,
+    required bool online,
+  }) async {
     _set(const AsyncValue.loading());
     final result = await _repository().setMode(sessionId: sessionId, online: online);
     switch (result) {
@@ -219,14 +222,15 @@ class ClassSessionActionController extends StateNotifier<AsyncValue<void>> {
   /// existed. A refusal -- not on the register, class not online -- is
   /// an error, and [MeetingPass.refused] is how the screen tells those
   /// two apart without inspecting a message.
-  Future<MeetingPass> meetingToken(String sessionId) async {
-    final result = await _repository().meetingToken(sessionId);
+  Future<MeetingPass> meetingToken(String sessionId, {String? passcode}) async {
+    final result = await _repository().meetingToken(sessionId, passcode: passcode);
     switch (result) {
       case Success(:final value):
         return MeetingPass(
           token: value.token,
           provider: value.provider,
           url: value.url,
+          room: value.room,
         );
       case Error(:final failure):
         return MeetingPass.refused(failure.message);
@@ -297,12 +301,17 @@ class MeetingPass {
   /// The media server to connect to. Only for `livekit`.
   final String? url;
 
-  const MeetingPass({this.token, this.provider = 'none', this.url})
+  /// The room the server read off the register, for a caller who has
+  /// only a session id -- somebody who arrived by an invitation link.
+  final String? room;
+
+  const MeetingPass({this.token, this.provider = 'none', this.url, this.room})
       : refusal = null;
   const MeetingPass.refused(String this.refusal)
       : token = null,
         provider = 'none',
-        url = null;
+        url = null,
+        room = null;
 
   bool get allowed => refusal == null;
 }

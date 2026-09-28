@@ -3,6 +3,7 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import {requireCallerClaims, requireRole, requireSameSchool} from "../../shared/auth/claims";
 import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
+import {newPasscode} from "../../shared/meeting/passcode";
 import {newMeetingRoom} from "../../shared/meeting/room";
 
 interface SetModeData {
@@ -91,11 +92,22 @@ export const setClassSessionMode = onCall(
     // A fresh room every time, never a reused one: a room kept across
     // lessons is a door last term's leaver still has a key to.
     const room = goingOnline ? newMeetingRoom() : null;
+    // And a fresh code, for the same reason and one more: the room name
+    // travels in an invitation that gets pasted into a group chat and
+    // screenshotted, and the code does not. It is read out to the
+    // people who are actually in the lesson. See shared/meeting/passcode.ts.
+    const passcode = goingOnline ? newPasscode() : null;
     const now = admin.firestore.FieldValue.serverTimestamp();
 
     await sessionRef.update({
       deliveryMode: mode,
       meetingRoom: room,
+      // Kept on the session document and nowhere else. That collection
+      // is staff-of-this-school-only in firestore.rules, which is
+      // exactly the audience allowed to know the code before the lesson
+      // -- and it is never copied onto a student's mark, where the room
+      // goes, because the mark is the one document the student reads.
+      meetingPasscode: passcode,
       meetingOpenedAt: goingOnline ? now : null,
       updatedAt: now,
       updatedBy: request.auth!.uid,
@@ -125,8 +137,8 @@ export const setClassSessionMode = onCall(
       action: goingOnline ? "class_taken_online" : "class_returned_in_person",
       targetCollection: FirestorePaths.classSessions(schoolId),
       targetId: sessionId,
-      // The room name is the secret that gets into the class, so it is
-      // not copied into a log the whole office reads.
+        // Neither the room name nor the passcode is copied into a log the
+      // whole office reads.
       newValue: {deliveryMode: mode, studentsNotified: marks.size},
       success: true,
       remarks: goingOnline ?
@@ -135,6 +147,12 @@ export const setClassSessionMode = onCall(
         `${session.subject || "A class"} brought back in person; the room was closed.`,
     });
 
-    return {sessionId, deliveryMode: mode, meetingRoom: room, studentsReached: marks.size};
+    return {
+      sessionId,
+      deliveryMode: mode,
+      meetingRoom: room,
+      meetingPasscode: passcode,
+      studentsReached: marks.size,
+    };
   }
 );

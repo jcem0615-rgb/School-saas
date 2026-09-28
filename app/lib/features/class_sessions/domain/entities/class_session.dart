@@ -89,6 +89,19 @@ class ClassSession {
   /// class comes back in person and cleared again at Time Out.
   final String? meetingRoom;
 
+  /// The code the teacher reads out, when the class is online.
+  ///
+  /// Staff only, and only because `classSessions` is staff-only in
+  /// firestore.rules -- a student never reads this document, which is
+  /// why the room is copied onto their own mark and the code is not.
+  ///
+  /// It is the half of the door the register cannot hold. The register
+  /// says whether a child is in this class; it cannot say whether the
+  /// child is the one holding the phone, and in a school it often is
+  /// not -- accounts are shared between siblings and a tablet goes
+  /// round a house.
+  final String? meetingPasscode;
+
   /// How many were on the roll when it was built.
   final int studentCount;
 
@@ -109,6 +122,7 @@ class ClassSession {
     required this.studentCount,
     this.room,
     this.meetingRoom,
+    this.meetingPasscode,
     this.closedAt,
     this.counts,
   });
@@ -236,11 +250,42 @@ class MeetingAdmission {
   /// Where to connect. Only a media server has one.
   final String? url;
 
+  /// Which room, as the server read it off the register.
+  ///
+  /// The caller names a *session*, never a room; the server looks the
+  /// room up from the document that proves this person is entitled to
+  /// it. Returning it means somebody who arrived by an invitation link
+  /// can be let in without first reading their own mark -- the entire
+  /// question of whether they belong here has already been answered by
+  /// the time this comes back.
+  final String? room;
+
   const MeetingAdmission({
     required this.provider,
     this.token,
     this.url,
+    this.room,
   });
 
   static const none = MeetingAdmission(provider: 'none');
+}
+
+/// What taking a class online produces: a room, and the code for it.
+///
+/// Both or neither. A room without a code is a door with the lock taken
+/// off, and a code without a room is a code for nothing -- so bringing
+/// the class back in person clears the pair together.
+class OnlineClassSetup {
+  /// Where the lesson is held, or null when it is back in the room.
+  final String? room;
+
+  /// What the teacher reads out. Staff see this; a pupil never does.
+  final String? passcode;
+
+  const OnlineClassSetup({this.room, this.passcode});
+
+  /// The class is in a room in the building.
+  static const inPerson = OnlineClassSetup();
+
+  bool get isOnline => room != null && room!.isNotEmpty;
 }

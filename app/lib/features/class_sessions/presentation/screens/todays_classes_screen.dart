@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/meeting/invite_link.dart';
 import '../../../../core/meeting/online_class_screen.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart'
     show authStateProvider;
@@ -53,13 +54,16 @@ Future<void> startOnlineClass({
   // Already online: go straight in rather than opening a second room,
   // which would strand anybody already waiting in the first.
   var room = existing?.meetingRoom;
+  var passcode = existing?.meetingPasscode;
   if (room == null || room.isEmpty) {
-    room = await controller.setMode(sessionId: sessionId, online: true);
+    final setup = await controller.setMode(sessionId: sessionId, online: true);
     if (!context.mounted) return;
-    if (room == null) {
+    if (setup == null || !setup.isOnline) {
       _say(context, controller.errorMessage ?? 'The class could not be moved online.');
       return;
     }
+    room = setup.room;
+    passcode = setup.passcode;
   }
 
   // The pass, so the lesson does not open onto a sign-in page.
@@ -83,6 +87,12 @@ Future<void> startOnlineClass({
       serverUrl: pass.url,
       asModerator: true,
       openedAt: existing?.openedAt ?? DateTime.now(),
+      // Safe to forward; the code is not in it, and is read out.
+      inviteLink: classInviteLink(
+        schoolId: me?.schoolId,
+        sessionId: sessionId!,
+      ),
+      passcode: passcode,
     ),
   ));
 }

@@ -15,6 +15,7 @@ class ClassSessionModel {
       section: (data['section'] as String?) ?? '',
       room: data['room'] as String?,
       meetingRoom: data['meetingRoom'] as String?,
+      meetingPasscode: data['meetingPasscode'] as String?,
       date: (data['date'] as String?) ?? '',
       teacherName: (data['teacherName'] as String?) ?? '',
       takenByUid: (data['takenByUid'] as String?) ?? '',
@@ -65,6 +66,11 @@ class SubjectAttendanceMarkModel {
       ),
       timeIn: (data['timeIn'] as Timestamp?)?.toDate(),
       timeOut: (data['timeOut'] as Timestamp?)?.toDate(),
+      // The room, and deliberately not the passcode. This is the
+      // student's own line in the register and the one document they
+      // read; the code lives on the session, which is staff-only. A
+      // code that travelled to every pupil's mark would be a code the
+      // teacher might as well not have set.
       meetingRoom: data['meetingRoom'] as String?,
     );
   }

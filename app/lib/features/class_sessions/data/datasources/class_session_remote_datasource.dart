@@ -114,7 +114,10 @@ class ClassSessionRemoteDataSource {
   /// person. The room is never invented here: the server generates it,
   /// because a client-chosen room name is one a compromised client can
   /// choose to be somebody else's.
-  Future<String?> setMode({required String sessionId, required bool online}) async {
+  Future<OnlineClassSetup> setMode({
+    required String sessionId,
+    required bool online,
+  }) async {
     try {
       final result =
           await _functions.httpsCallable('setClassSessionMode').call<Map<String, dynamic>>({
@@ -122,7 +125,13 @@ class ClassSessionRemoteDataSource {
         'sessionId': sessionId,
         'mode': online ? 'online' : 'in_person',
       });
-      return result.data['meetingRoom'] as String?;
+      return OnlineClassSetup(
+        room: result.data['meetingRoom'] as String?,
+        // Staff only, and only because the session document is
+        // staff-only: this is the same field the teacher's own screens
+        // read off the register. It is never copied onto a pupil's mark.
+        passcode: result.data['meetingPasscode'] as String?,
+      );
     } on FirebaseFunctionsException catch (e) {
       throw ServerException(e.message ?? 'The class could not be moved online.');
     }
@@ -133,17 +142,25 @@ class ClassSessionRemoteDataSource {
   /// Null is a normal answer, not a failure: a school that has not
   /// configured a signing key joins its Jitsi without a token, which is
   /// what this app did before tokens existed.
-  Future<MeetingAdmission> meetingToken(String sessionId) async {
+  Future<MeetingAdmission> meetingToken(
+    String sessionId, {
+    String? passcode,
+  }) async {
     try {
       final result =
           await _functions.httpsCallable('issueMeetingToken').call<Map<String, dynamic>>({
         'schoolId': _schoolId,
         'sessionId': sessionId,
+        // Sent only when there is one to send. An absent field and an
+        // empty string reach the function as different things, and the
+        // teacher's own join sends neither.
+        if (passcode != null && passcode.isNotEmpty) 'passcode': passcode,
       });
       return MeetingAdmission(
         provider: (result.data['provider'] as String?) ?? 'none',
         token: result.data['token'] as String?,
         url: result.data['url'] as String?,
+        room: result.data['room'] as String?,
       );
     } on FirebaseFunctionsException catch (e) {
       // A callable that is not deployed is not a refusal, and must not

@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../core/errors/result.dart';
+import '../core/meeting/class_passcode.dart';
 import '../core/meeting/demo_room.dart';
 import '../core/meeting/demo_video.dart';
 import '../features/admin_portal/domain/entities/employee_summary.dart';
@@ -4104,6 +4105,19 @@ class DemoClassSessionRepository implements ClassSessionRepository {
 
   String get _todayKey => _store.dateKeyOf(DateTime.now());
 
+  /// Whether whoever is signed in is running this lesson.
+  ///
+  /// They set the code, so they are not asked for it: a teacher locked
+  /// out of their own class by their own passcode is a class that does
+  /// not happen.
+  bool _demoIsTeaching(ClassSession session) {
+    final me = _store.currentUser.valueOrNull;
+    if (me == null) return false;
+    return me.uid == session.takenByUid ||
+        me.role == UserRole.faculty ||
+        me.role == UserRole.admin;
+  }
+
   @override
   Stream<List<ClassSession>> watchTodaysSessions() => _store.classSessions.stream
       .map((all) => all.where((s) => s.date == _todayKey).toList());
@@ -4200,7 +4214,7 @@ class DemoClassSessionRepository implements ClassSessionRepository {
   }
 
   @override
-  Future<Result<String?>> setMode({
+  Future<Result<OnlineClassSetup>> setMode({
     required String sessionId,
     required bool online,
   }) async {
@@ -4229,11 +4243,20 @@ class DemoClassSessionRepository implements ClassSessionRepository {
     // video was not switched on. A demo that diverges from the product
     // in the format of an identifier is a demo that tests nothing.
     final room = online ? newDemoMeetingRoom() : null;
+    // And a code, exactly as the server does it. The demo has to make
+    // the same shape the product makes, or it teaches a shape the
+    // product refuses -- which is what the room name did.
+    final passcode = online ? newClassPasscode() : null;
 
     _store.update<ClassSession>(
       _store.classSessions,
       (s) => s.id == sessionId,
-      (s) => _copySession(s, meetingRoom: room, keepRoom: false),
+      (s) => _copySession(
+        s,
+        meetingRoom: room,
+        meetingPasscode: passcode,
+        keepRoom: false,
+      ),
     );
     // Onto every student's own line, because that is the document a
     // student can read -- classSessions is staff-only.
@@ -4245,11 +4268,14 @@ class DemoClassSessionRepository implements ClassSessionRepository {
           mark,
     ]);
 
-    return Success(room);
+    return Success(OnlineClassSetup(room: room, passcode: passcode));
   }
 
   @override
-  Future<Result<MeetingAdmission>> meetingToken(String sessionId) async {
+  Future<Result<MeetingAdmission>> meetingToken(
+    String sessionId, {
+    String? passcode,
+  }) async {
     await _latency(150);
     final session =
         _store.classSessions.value.where((s) => s.id == sessionId).firstOrNull;
@@ -4259,6 +4285,19 @@ class DemoClassSessionRepository implements ClassSessionRepository {
     final room = session.meetingRoom;
     if (room == null) {
       return const Error(ServerFailure('That class is not online.'));
+    }
+
+    // The same door the product has, so the demo cannot show a lesson
+    // anybody can walk into and then be a surprise once a school is
+    // paying for it. The teacher is not asked -- they set the code.
+    final required = session.meetingPasscode;
+    if (required != null && required.isNotEmpty && !_demoIsTeaching(session)) {
+      if (!classPasscodeMatches(passcode ?? '', required)) {
+        return const Error(ServerFailure(
+          'That is not the code for this class. Your teacher reads it out '
+          'at the start of the lesson.',
+        ));
+      }
     }
 
     // A real pass, from the one serverless file deployed beside this
@@ -4425,6 +4464,7 @@ class DemoClassSessionRepository implements ClassSessionRepository {
     DateTime? closedAt,
     RollCounts? counts,
     String? meetingRoom,
+    String? meetingPasscode,
     bool keepRoom = true,
   }) =>
       ClassSession(
@@ -4443,6 +4483,12 @@ class DemoClassSessionRepository implements ClassSessionRepository {
         counts: counts ?? session.counts,
         meetingRoom:
             keepRoom ? (meetingRoom ?? session.meetingRoom) : meetingRoom,
+        // Goes and comes back with the room. A code left on a lesson
+        // that has come back in person is a code still being read out
+        // for a door that is shut.
+        meetingPasscode: keepRoom
+            ? (meetingPasscode ?? session.meetingPasscode)
+            : meetingPasscode,
       );
 }
 

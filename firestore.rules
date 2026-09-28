@@ -1364,6 +1364,15 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Wrong passcodes, counted per person per lesson, by the server
+      // and nobody else. A client that could read this would learn how
+      // many guesses it has left; a client that could write it could
+      // give itself more. Neither is anybody's business but the
+      // function's -- see shared/meeting/attempts.ts.
+      match /meetingAttempts/{attemptId} {
+        allow read, write: if false;
+      }
+
       match /subjectAttendance/{markId} {
         // The same "self, staff-who-need-it, or linked parent" shape as
         // gate attendance above. studentId is the students/{id} academic

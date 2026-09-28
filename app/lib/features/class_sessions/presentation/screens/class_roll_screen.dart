@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../qr_attendance/domain/entities/attendance_record.dart'
     show AttendanceStatus;
 import '../../domain/entities/class_session.dart';
+import '../../../../core/meeting/invite_link.dart';
 import '../../../../core/meeting/online_class_screen.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider;
 import '../../../schedules/presentation/controllers/schedule_controller.dart'
@@ -174,7 +175,7 @@ class _OnlineClassBar extends ConsumerWidget {
 
   Future<void> _setMode(BuildContext context, WidgetRef ref, bool online) async {
     final notifier = ref.read(classSessionActionControllerProvider.notifier);
-    final room = await notifier.setMode(sessionId: session.id, online: online);
+    final setup = await notifier.setMode(sessionId: session.id, online: online);
     if (!context.mounted) return;
 
     final failed = notifier.errorMessage != null;
@@ -191,10 +192,12 @@ class _OnlineClassBar extends ConsumerWidget {
             ? 'The class is online. Everyone on the register can join it now.'
             : 'The class is back in person and the room is closed.'),
       ));
-    if (online && room != null && context.mounted) _join(context, ref, room);
+    if (online && (setup?.isOnline ?? false) && context.mounted) {
+      _join(context, ref, setup!.room!, setup.passcode);
+    }
   }
 
-  void _join(BuildContext context, WidgetRef ref, String room) {
+  void _join(BuildContext context, WidgetRef ref, String room, String? passcode) {
     final me = ref.read(authStateProvider).valueOrNull;
     // The timetabled length, so the classroom can show a clock. Null
     // when the block has gone -- an unknown length shows elapsed time
@@ -213,6 +216,13 @@ class _OnlineClassBar extends ConsumerWidget {
         // The teacher arrives un-muted and able to end it for everyone.
         asModerator: true,
         openedAt: session.openedAt,
+        // The teacher's two ways of getting somebody else in: an
+        // address that is safe to forward, and a code that is not in it.
+        inviteLink: classInviteLink(
+          schoolId: me?.schoolId,
+          sessionId: session.id,
+        ),
+        passcode: passcode ?? session.meetingPasscode,
       ),
     ));
   }
@@ -272,7 +282,8 @@ class _OnlineClassBar extends ConsumerWidget {
                 ),
                 FilledButton.icon(
                   onPressed:
-                      busy ? null : () => _join(context, ref, session.meetingRoom!),
+                      busy ? null : () => _join(context, ref, session.meetingRoom!,
+                              session.meetingPasscode),
                   icon: const Icon(Icons.videocam, size: 18),
                   label: const Text('Join'),
                 ),

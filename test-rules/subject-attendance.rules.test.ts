@@ -199,3 +199,51 @@ describe("a mark", () => {
     await assertFails(getDoc(doc(db, `schools/${LAPSED}/subjectAttendance/${MARK}`)));
   });
 });
+
+/**
+ * The counter behind the class code.
+ *
+ * Eight wrong codes and the door stops answering for ten minutes. That
+ * only means anything while the count is out of reach: a client that
+ * could read it would learn how many guesses it has left, and one that
+ * could write it could give itself more. So it is nobody's but the
+ * server's, and this is what says so.
+ */
+describe("the wrong-code counter", () => {
+  const ATTEMPT = `schools/${SCHOOL}/meetingAttempts/${SESSION}_student_a`;
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), ATTEMPT), {
+        schoolId: SCHOOL,
+        sessionId: SESSION,
+        uid: "student_a",
+        wrong: 3,
+      });
+    });
+  });
+
+  it("is not readable by the person it counts", async () => {
+    const db = contextAs("student", "student_a").firestore();
+    await assertFails(getDoc(doc(db, ATTEMPT)));
+  });
+
+  it("is not writable by them either", async () => {
+    // The direction that would be a hole: eight guesses back to zero.
+    const db = contextAs("student", "student_a").firestore();
+    await assertFails(setDoc(doc(db, ATTEMPT), {wrong: 0}));
+    await assertFails(updateDoc(doc(db, ATTEMPT), {wrong: 0}));
+    await assertFails(deleteDoc(doc(db, ATTEMPT)));
+  });
+
+  it("is not reachable by the staff of the school either", async () => {
+    // Not a secret being kept from teachers so much as a document with
+    // no reason to be read by anybody: the server writes it, the server
+    // reads it, and nothing else has business with it.
+    for (const role of ["faculty", "admin", "director", "registrar"]) {
+      const db = contextAs(role, `${role}_a`).firestore();
+      await assertFails(getDoc(doc(db, ATTEMPT)));
+      await assertFails(setDoc(doc(db, ATTEMPT), {wrong: 0}));
+    }
+  });
+});
