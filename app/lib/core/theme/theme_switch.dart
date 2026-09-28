@@ -141,3 +141,34 @@ class ThemeCycleButton extends ConsumerWidget {
     );
   }
 }
+
+/// The one-tap switch that lives in a portal's app bar.
+///
+/// It reads the brightness that is actually on the screen rather than
+/// the setting behind it, which is what makes one tap always do
+/// something visible. On Automatic on a phone that is itself dark, a
+/// button offering "dark" would appear to do nothing; this one offers
+/// light, because light is what is not currently there.
+///
+/// Tapping therefore leaves Automatic, which is correct: somebody
+/// reaching for this has an opinion about right now. Automatic is still
+/// one tap away in Profile, which is where a setting that means
+/// "decide for me" belongs.
+class ThemeToggleButton extends ConsumerWidget {
+  const ThemeToggleButton({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Theme.of, not the provider: this is the brightness the person is
+    // looking at, and depending on it is also what rebuilds the button
+    // the moment it changes.
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final next = dark ? ThemeChoice.light : ThemeChoice.dark;
+
+    return IconButton(
+      icon: Icon(dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+      tooltip: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      onPressed: () => ref.read(themeChoiceProvider.notifier).choose(next),
+    );
+  }
+}

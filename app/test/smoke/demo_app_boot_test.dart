@@ -123,6 +123,60 @@ void main() {
     }
   });
 
+  testWidgets('every portal carries the light-or-dark switch, and it works',
+      (tester) async {
+    // In the app bar rather than only in Profile: it is the one setting
+    // whose result you are looking at while you change it, and four
+    // taps into a settings screen is not where anybody reaches for a
+    // light switch.
+    SharedPreferences.setMockInitialValues({});
+    await ThemePreference.warmUp();
+    addTearDown(() => ThemePreference.useForTesting(null));
+
+    final container = ProviderContainer(overrides: demoOverrides());
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const LogicClassApp()),
+    );
+    await tester.pumpAndSettle();
+
+    final uids = {for (final account in DemoStore.demoAccounts) account.uid};
+    container.read(demoStoreProvider).acknowledgedPrivacy.add(uids);
+    container.read(demoStoreProvider).acceptedTerms.add(uids);
+
+    for (final account in DemoStore.demoAccounts) {
+      final label = account.role.displayName;
+      demoSignInAs(
+        container.read(demoAuthRepositoryProvider),
+        container.read(goRouterProvider),
+        account,
+      );
+      await tester.pumpAndSettle();
+
+      Brightness showing() => Theme.of(
+            tester.element(find.byType(Scaffold).first),
+          ).brightness;
+
+      expect(showing(), Brightness.light,
+          reason: '$label did not start light');
+      expect(find.byTooltip('Switch to dark mode'), findsOneWidget,
+          reason: '$label has no way to switch in its app bar');
+
+      await tester.tap(find.byTooltip('Switch to dark mode'));
+      await tester.pumpAndSettle();
+      expect(showing(), Brightness.dark, reason: '$label did not go dark');
+      expect(tester.takeException(), isNull);
+
+      // And the same button takes it back, rather than being a one-way
+      // door that leaves the next person hunting through Profile.
+      await tester.tap(find.byTooltip('Switch to light mode'));
+      await tester.pumpAndSettle();
+      expect(showing(), Brightness.light, reason: '$label did not come back');
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('a fresh sign-in is held at the privacy notice until it is read',
       (tester) async {
     final container = ProviderContainer(overrides: demoOverrides());

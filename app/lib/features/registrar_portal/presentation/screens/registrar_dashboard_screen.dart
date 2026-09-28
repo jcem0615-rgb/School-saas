@@ -3,6 +3,8 @@ import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../school_totals/presentation/widgets/school_totals_card.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/theme/theme_switch.dart';
+
 import '../../../payments/presentation/screens/payment_review_screen.dart';
 import '../../../admissions/presentation/screens/admissions_screen.dart';
 import '../../../faculty_portal/presentation/screens/grading_scheme_screen.dart';
@@ -27,6 +29,7 @@ class RegistrarDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Registrar Dashboard'),
         actions: [
+          const ThemeToggleButton(),
           const NotificationBell(),
           // Profile was routed but nothing navigated to it, so the one
           // screen every role shares -- and the only way into the

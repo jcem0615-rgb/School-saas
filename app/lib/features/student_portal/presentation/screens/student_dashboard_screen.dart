@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/theme_switch.dart';
+
 import '../../../class_sessions/presentation/screens/subject_attendance_screen.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
@@ -31,6 +33,7 @@ class StudentDashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('My School'),
         actions: [
+          const ThemeToggleButton(),
           const NotificationBell(),
           // Profile was routed but nothing navigated to it, so the one
           // screen every role shares -- and the only way into the

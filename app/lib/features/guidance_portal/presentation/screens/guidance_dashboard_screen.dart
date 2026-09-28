@@ -3,6 +3,8 @@ import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/theme_switch.dart';
+
 import 'guidance_records_screen.dart';
 import 'summons_screen.dart';
 import '../../../../core/widgets/glass_tile.dart';
@@ -19,6 +21,7 @@ class GuidanceDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Guidance Dashboard'),
         actions: [
+          const ThemeToggleButton(),
           const NotificationBell(),
           // Profile was routed but nothing navigated to it, so the one
           // screen every role shares -- and the only way into the

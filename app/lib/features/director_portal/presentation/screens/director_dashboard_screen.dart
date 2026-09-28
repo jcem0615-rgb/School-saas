@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/theme_switch.dart';
+
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../../../owner_portal/presentation/widgets/revenue_card.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
@@ -36,6 +38,7 @@ class DirectorDashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Director Dashboard'),
         actions: [
+          const ThemeToggleButton(),
           const NotificationBell(),
           IconButton(
             icon: const Icon(Icons.person_outline),

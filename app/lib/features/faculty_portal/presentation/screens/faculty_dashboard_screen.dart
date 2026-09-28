@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/theme/theme_switch.dart';
+
 import '../../../auth/presentation/controllers/auth_controller.dart' show authStateProvider;
 
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
@@ -30,6 +32,7 @@ class FacultyDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Faculty Dashboard'),
         actions: [
+          const ThemeToggleButton(),
           const NotificationBell(),
           // Profile was routed but nothing navigated to it, so the one
           // screen every role shares -- and the only way into the

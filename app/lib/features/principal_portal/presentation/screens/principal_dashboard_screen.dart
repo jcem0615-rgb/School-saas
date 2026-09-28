@@ -6,6 +6,8 @@ import '../../../schedules/presentation/screens/schedule_screen.dart';
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/theme_switch.dart';
+
 import '../../../admin_portal/presentation/screens/teacher_assignments_screen.dart';
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../director_portal/presentation/screens/approvals_screen.dart';
@@ -35,6 +37,7 @@ class PrincipalDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Principal Dashboard'),
         actions: [
+          const ThemeToggleButton(),
           const NotificationBell(),
           // Profile was routed but nothing navigated to it, so the one
           // screen every role shares -- and the only way into the

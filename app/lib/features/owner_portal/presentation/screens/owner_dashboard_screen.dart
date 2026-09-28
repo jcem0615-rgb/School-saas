@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/theme_switch.dart';
+
 import '../../domain/entities/school_summary.dart';
 import '../controllers/owner_controller.dart';
 import '../widgets/revenue_card.dart';
@@ -28,6 +30,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Owner Dashboard'),
         actions: [
+          const ThemeToggleButton(),
           // Profile was routed but nothing navigated to it, so the one
           // screen every role shares -- and the only way into the
           // privacy notice and data requests -- could not be opened at

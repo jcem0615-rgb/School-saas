@@ -225,4 +225,67 @@ void main() {
 
     expect(brightnessOf(tester), Brightness.dark);
   });
+
+  testWidgets('the app bar button offers what is not on the screen',
+      (tester) async {
+    // On Automatic on a device that is itself dark, a button offering
+    // dark would appear to do nothing. This one reads the brightness
+    // the person is looking at, so one tap always changes something.
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateProvider.overrideWith((ref) => signedIn.stream),
+        ],
+        child: Consumer(
+          builder: (context, ref, _) => MaterialApp(
+            theme: ThemeData(brightness: Brightness.light),
+            darkTheme: ThemeData(brightness: Brightness.dark),
+            themeMode: ref.watch(themeChoiceProvider).mode,
+            home: const Scaffold(
+              body: Center(child: ThemeToggleButton()),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Switch to dark mode'), findsOneWidget);
+    await tester.tap(find.byTooltip('Switch to dark mode'));
+    await tester.pumpAndSettle();
+
+    expect(brightnessOf(tester), Brightness.dark);
+    // Not a one-way door.
+    expect(find.byTooltip('Switch to light mode'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Switch to light mode'));
+    await tester.pumpAndSettle();
+    expect(brightnessOf(tester), Brightness.light);
+  });
+
+  testWidgets('and remembers it against the account that pressed it',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateProvider.overrideWith((ref) => signedIn.stream),
+        ],
+        child: Consumer(
+          builder: (context, ref, _) => MaterialApp(
+            theme: ThemeData(brightness: Brightness.light),
+            darkTheme: ThemeData(brightness: Brightness.dark),
+            themeMode: ref.watch(themeChoiceProvider).mode,
+            home: const Scaffold(body: ThemeToggleButton()),
+          ),
+        ),
+      ),
+    );
+    signedIn.add(account('user_a'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Switch to dark mode'));
+    await tester.pumpAndSettle();
+
+    expect(ThemePreference.read('user_a'), ThemeChoice.dark);
+  });
 }

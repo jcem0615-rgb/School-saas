@@ -10,10 +10,23 @@ Now each account chooses.
 
 ## Where it is
 
-**Profile → Appearance**, on every role's Profile screen, and a single
-cycling button at the bottom of the sign-in page.
+**In the app bar of every portal**, beside the bell and the profile
+icon — a sun or a moon, whichever is not currently on the screen. One
+tap. It is the only setting whose result you are looking at while you
+change it, and four taps into a settings screen is not where anybody
+reaches for a light switch.
 
-Three choices, not a switch:
+It reads the brightness actually on the screen rather than the setting
+behind it, which is what makes one tap always do something visible: on
+Automatic on a phone that is itself dark, a button offering *dark*
+would appear to do nothing, so it offers light. Tapping therefore
+leaves Automatic, which is right — somebody reaching for it has an
+opinion about right now.
+
+**Profile → Appearance** has the full choice, including Automatic. And
+there is a single cycling button at the bottom of the sign-in page.
+
+The three choices, in Profile:
 
 | | |
 |---|---|
@@ -80,6 +93,7 @@ has been chosen this session, per account, and prefers it.
 | Pure | `unit/core/theme_choice_test.dart` | each choice maps to a `ThemeMode` and is read back by name; anything unrecognised — including a value written by a newer build — falls back to following the device rather than refusing to start; every account gets its own slot, and signed-out has one that is nobody's |
 | Pure | `unit/core/theme_choice_test.dart` (storage) | two accounts keep separate choices; a new account is not handed the last person's; the first frame may borrow the device's last choice; a device that remembers nothing still answers rather than throwing |
 | Widget | `unit/core/theme_switch_test.dart` | the app actually changes brightness, not just the setting; all three are offered and the chosen one says what it means; the choice is written against the account that made it; it swaps with the account on a shared computer; it applies on the first pumped frame with no flash; it survives the account stream re-emitting; the cycling button names where it has got to and wraps round; a device that remembers nothing still switches |
+| Smoke | `smoke/demo_app_boot_test.dart` (the app bar) | **every one of the ten portals carries the switch**, going dark and coming back on two taps of the same button, with nothing thrown either way — a one-way door that left the next person hunting through Profile would pass a weaker test |
 | Smoke | `smoke/demo_app_boot_test.dart` | **every one of the ten portals opens in dark mode without throwing**, with an assertion that the theme really is dark so the test cannot pass while still light |
 
 That last row is the one that matters most. Both themes existed long

@@ -5,6 +5,8 @@ import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/theme/theme_switch.dart';
+
 import '../../../director_portal/presentation/screens/announcements_screen.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
 import '../../../admissions/presentation/screens/admissions_screen.dart';
@@ -37,6 +39,7 @@ class AdminDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
         actions: [
+          const ThemeToggleButton(),
           const NotificationBell(),
           // Profile was routed but nothing navigated to it, so the one
           // screen every role shares -- and the only way into the
