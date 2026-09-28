@@ -9,6 +9,16 @@ import 'package:flutter/widgets.dart';
 /// would have caught. Twice it was a screen that believed something it
 /// had never checked.
 abstract class ClassroomCall {
+  /// Why the last [join] failed, in the media server's own words.
+  ///
+  /// Shown on the failure card. The two ways this goes wrong look
+  /// identical from the outside -- a server address that is `https://`
+  /// where it should be `wss://`, and a key the server rejects -- and
+  /// both produce "could not start". The underlying error names which,
+  /// and a person configuring this should not have to open a browser
+  /// console to find out.
+  String? get lastError;
+
   /// Joins, and says whether it got in.
   Future<bool> join({
     required String url,

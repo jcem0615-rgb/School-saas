@@ -175,6 +175,11 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
             title: 'The class could not start',
             body: 'The video server did not let this device in. The lesson '
                 'is still running -- try joining it again.',
+            // The server's own words, so the two ways this goes wrong
+            // are told apart without opening a browser console: an
+            // address that is https where it should be wss, and a key
+            // the server rejects, both read as "could not start".
+            detail: _call.lastError,
             action: 'Try joining again',
             onAction: _retry,
           ),
@@ -220,12 +225,17 @@ class _Connecting extends StatelessWidget {
 class _Message extends StatelessWidget {
   final String title;
   final String body;
+
+  /// What the thing underneath actually said. Small and quiet: it is
+  /// for whoever is configuring this, not for the class.
+  final String? detail;
   final String? action;
   final VoidCallback? onAction;
 
   const _Message({
     required this.title,
     required this.body,
+    this.detail,
     this.action,
     this.onAction,
   });
@@ -251,6 +261,15 @@ class _Message extends StatelessWidget {
               Text(body,
                   style: theme.textTheme.bodyMedium,
                   textAlign: TextAlign.center),
+              if (detail != null && detail!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  detail!,
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                ),
+              ],
               if (action != null) ...[
                 const SizedBox(height: 20),
                 FilledButton.icon(

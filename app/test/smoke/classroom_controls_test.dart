@@ -11,6 +11,9 @@ import 'package:logicclass/core/meeting/webrtc/classroom_call.dart';
 /// at, in the middle of a lesson.
 class _StillCall implements ClassroomCall {
   @override
+  String? lastError;
+
+  @override
   Future<bool> join({
     required String url,
     required String token,

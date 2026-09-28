@@ -9,9 +9,13 @@ import 'package:logicclass/core/meeting/webrtc/classroom_call.dart';
 /// could not reach shipped a bug a test would have caught -- twice a
 /// screen that believed something it had never checked.
 class _FakeCall implements ClassroomCall {
-  _FakeCall({this.joins = true});
+  _FakeCall({this.joins = true, this.failure});
 
   final bool joins;
+  final String? failure;
+
+  @override
+  String? lastError;
   final calls = <String>[];
   bool? micWanted;
   bool? cameraWanted;
@@ -26,6 +30,7 @@ class _FakeCall implements ClassroomCall {
   }) async {
     calls.add('join');
     joinedAsModerator = asModerator;
+    if (!joins) lastError = failure;
     return joins;
   }
 
@@ -90,6 +95,27 @@ void main() {
       await _settle(tester);
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('Try joining again'), findsOneWidget);
+    });
+
+    testWidgets('and says what the server actually said', (tester) async {
+      // The two ways this goes wrong -- an address that is https where
+      // it should be wss, and a key the server rejects -- both read as
+      // "could not start". Whoever is configuring it should not have to
+      // open a browser console to tell them apart.
+      await tester.pumpWidget(_screen(
+        _FakeCall(joins: false, failure: 'ConnectException: invalid token'),
+      ));
+      await _settle(tester);
+
+      expect(find.textContaining('invalid token'), findsOneWidget);
+    });
+
+    testWidgets('and says nothing extra when there is nothing to add',
+        (tester) async {
+      await tester.pumpWidget(_screen(_FakeCall(joins: false)));
+      await _settle(tester);
+
       expect(find.text('Try joining again'), findsOneWidget);
     });
 

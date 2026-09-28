@@ -28,12 +28,16 @@ class LiveKitCall implements ClassroomCall {
   );
 
   @override
+  String? lastError;
+
+  @override
   Future<bool> join({
     required String url,
     required String token,
     required bool asModerator,
   }) async {
     try {
+      lastError = null;
       await _room.connect(url, token);
       // The teacher arrives speaking and visible. Everybody else
       // arrives quiet: sixty microphones opening at once is how an
@@ -48,6 +52,7 @@ class LiveKitCall implements ClassroomCall {
       // error the class should be ejected for -- but at this point
       // there is no connection either, so it is one answer.
       debugPrint('The class could not be joined: $error');
+      lastError = '$error';
       return false;
     }
   }
