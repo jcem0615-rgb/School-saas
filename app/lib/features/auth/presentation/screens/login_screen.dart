@@ -9,6 +9,7 @@ import 'forgot_password_screen.dart';
 import '../../../../core/theme/glass.dart';
 import '../../../../core/widgets/brand.dart';
 import '../../../../core/install/install_app_button.dart';
+import '../../../../core/theme/theme_switch.dart';
 
 /// Entry point of the app for signed-out users. Role/tenant routing after
 /// a successful login is handled entirely by the router reacting to
@@ -203,6 +204,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     // before signing in means the session they are about
                     // to start is the one in the installed app.
                     const InstallAppButton(),
+                    // Somebody reading a sign-in page at night should
+                    // be able to turn the lights down before they have
+                    // an account to remember it against.
+                    const ThemeCycleButton(),
                     const SizedBox(height: 24),
                     const PoweredByLogicGrid(),
                   ],

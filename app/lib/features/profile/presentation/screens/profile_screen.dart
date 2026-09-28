@@ -7,6 +7,7 @@ import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../controllers/profile_controller.dart';
 import '../../../../core/install/install_app_button.dart';
+import '../../../../core/theme/theme_switch.dart';
 import '../../../../core/storage/uploaded_image.dart';
 import '../../../../core/utils/validators.dart';
 
@@ -316,6 +317,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               MaterialPageRoute(builder: (_) => const EmergencyContactsScreen()),
             ),
           ),
+          const Divider(height: 40),
+          // Above Notifications because it is the one setting on this
+          // screen whose effect is visible while you are choosing it.
+          const ThemeSwitch(),
           const Divider(height: 40),
           Text('Notifications', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),

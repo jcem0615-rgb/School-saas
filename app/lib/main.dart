@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/session/single_device_session.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_controller.dart';
+import 'core/theme/theme_preference.dart';
 import 'core/theme/glass.dart';
 import 'demo/demo_session.dart';
 import 'demo/demo_overrides.dart';
@@ -87,6 +89,12 @@ Future<void> main() async {
   // session -- which is why this is inside the demo branch.
   final restored = kDemoMode ? await DemoSession.restore() : null;
 
+  // Opened before runApp for the same reason as the line above: the
+  // first frame has to be the right colour. Read after it, a person who
+  // chose dark would watch the app open white and then change its mind
+  // in front of them, which reads as a bug rather than as a preference.
+  await ThemePreference.warmUp();
+
   runApp(
     ProviderScope(
       overrides: kDemoMode ? demoOverrides(signedInAs: restored) : const <Override>[],
@@ -120,6 +128,10 @@ class LogicClassApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
+      // Whose choice this is follows whoever is signed in, so a shared
+      // front desk computer does not hand the afternoon receptionist
+      // the morning one's preference. See core/theme/theme_controller.dart.
+      themeMode: ref.watch(themeChoiceProvider).mode,
       routerConfig: ref.watch(goRouterProvider),
       // Both of these are layered here -- above the router, inside
       // MaterialApp -- so they apply across every route.

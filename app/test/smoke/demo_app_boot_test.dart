@@ -8,7 +8,10 @@ import 'package:logicclass/core/constants/user_roles.dart';
 import 'package:logicclass/core/router/app_router.dart';
 import 'package:logicclass/demo/demo_overrides.dart';
 import 'package:logicclass/demo/demo_store.dart';
+import 'package:logicclass/core/theme/theme_choice.dart';
+import 'package:logicclass/core/theme/theme_preference.dart';
 import 'package:logicclass/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Boots the real widget tree (router, theme, all ten portals) against the
 /// demo repositories.
@@ -69,6 +72,54 @@ void main() {
         reason: '$label did not land on its portal home',
       );
       expect(find.byType(Scaffold), findsWidgets, reason: '$label rendered nothing');
+    }
+  });
+
+  testWidgets('every portal opens in dark mode too, without throwing',
+      (tester) async {
+    // Both themes existed long before anything chose between them, so
+    // until now every screen in this app had only ever been painted
+    // light. A hard-coded colour that reads as invisible on a dark
+    // surface would have shipped and nothing would have caught it.
+    SharedPreferences.setMockInitialValues({});
+    await ThemePreference.warmUp();
+    addTearDown(() => ThemePreference.useForTesting(null));
+
+    final container = ProviderContainer(overrides: demoOverrides());
+    addTearDown(container.dispose);
+
+    final uids = {for (final account in DemoStore.demoAccounts) account.uid};
+    for (final uid in uids) {
+      await ThemePreference.write(uid, ThemeChoice.dark);
+    }
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const LogicClassApp()),
+    );
+    await tester.pumpAndSettle();
+
+    container.read(demoStoreProvider).acknowledgedPrivacy.add(uids);
+    container.read(demoStoreProvider).acceptedTerms.add(uids);
+
+    for (final account in DemoStore.demoAccounts) {
+      final label = account.role.displayName;
+      demoSignInAs(
+        container.read(demoAuthRepositoryProvider),
+        container.read(goRouterProvider),
+        account,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull,
+          reason: '$label portal threw when drawn dark');
+      expect(find.byType(Scaffold), findsWidgets,
+          reason: '$label rendered nothing in dark mode');
+      // The assertion that stops this passing while still light.
+      expect(
+        Theme.of(tester.element(find.byType(Scaffold).first)).brightness,
+        Brightness.dark,
+        reason: "$label did not take the account's choice",
+      );
     }
   });
 
