@@ -81,6 +81,16 @@ export function buildLiveKitClaims(
       // between children. Receiving needs no permission, so a class
       // sees the teacher's pencil without being able to hold one.
       canPublishData: grant.moderator,
+      // A pupil putting their hand up, and answering "yes" without
+      // unmuting. It is one small labelled value they set on
+      // themselves, replacing whatever was there -- not a stream
+      // anybody can write into, not addressable to one child, and
+      // visible to the teacher and attributable to whoever set it.
+      //
+      // That is the difference from canPublishData above, which is a
+      // channel and stays with the teacher. Anything unrecognised in
+      // the field is ignored on the way in: see app/lib/core/meeting/hands.dart.
+      canUpdateOwnMetadata: true,
       // The teacher can remove somebody from the lesson. A child who
       // can do that to the teacher is a child who will.
       roomAdmin: grant.moderator,

@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:logicclass/core/meeting/board_controller.dart';
 import 'package:logicclass/core/meeting/camera_setup.dart';
+import 'package:logicclass/core/meeting/hands.dart';
 import 'package:logicclass/core/meeting/online_class_screen.dart';
 import 'package:logicclass/core/meeting/webrtc/classroom_call.dart';
 import 'package:logicclass/core/meeting/whiteboard.dart';
@@ -51,6 +53,16 @@ class _StillCall implements ClassroomCall {
 
   @override
   void attachBoard(LessonBoard board) {}
+
+  @override
+  Future<void> signal(Signal signal) async {}
+
+  @override
+  Future<void> lowerHands({String? identity}) async {}
+
+  @override
+  final ValueListenable<List<Attendee>> attendees =
+      ValueNotifier<List<Attendee>>(const []);
 
   @override
   Widget view() => const ColoredBox(color: Color(0xFF101010));

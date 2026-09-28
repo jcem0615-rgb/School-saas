@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/widgets.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import '../board_controller.dart';
 import '../camera_setup.dart';
+import '../hands.dart';
 import '../whiteboard.dart';
 import 'classroom_call.dart';
 import 'video_grid.dart';
@@ -39,6 +41,16 @@ class LiveKitCall implements ClassroomCall {
   lk.EventsListener<lk.RoomEvent>? _events;
   LessonBoard? _board;
 
+  /// What this device is signalling, kept so that a hand can be put
+  /// down without knowing what reaction is showing, and the other way
+  /// round.
+  Signal _mine = Signal.none;
+
+  final _attendees = ValueNotifier<List<Attendee>>(const []);
+
+  @override
+  ValueListenable<List<Attendee>> get attendees => _attendees;
+
   @override
   String? lastError;
 
@@ -52,6 +64,11 @@ class LiveKitCall implements ClassroomCall {
       lastError = null;
       await _room.connect(url, token);
       _listen(asModerator: asModerator);
+      // The room is a ChangeNotifier for arrivals, departures, tracks
+      // and muting. Everything the teacher's panel shows moves on one
+      // of those, so the roster is rebuilt from the same signal the
+      // grid is.
+      _room.addListener(_roster);
       // The teacher arrives speaking and visible. Everybody else
       // arrives quiet: sixty microphones opening at once is how an
       // online lesson starts badly. Cameras are on for everyone,
@@ -74,6 +91,25 @@ class LiveKitCall implements ClassroomCall {
     _events?.dispose();
     final events = _room.createListener();
     _events = events;
+
+    events.on<lk.ParticipantAttributesChanged>((_) => _roster());
+    events.on<lk.ActiveSpeakersChangedEvent>((_) => _roster());
+
+    // The teacher asking for hands down. It arrives on the channel only
+    // a teacher can send on, and this device lowers its own hand --
+    // nobody can reach into somebody else's attributes.
+    events.on<lk.DataReceivedEvent>((event) {
+      if (event.topic != lowerHandsTopic) return;
+      try {
+        final who = utf8.decode(event.data);
+        final me = _room.localParticipant?.identity;
+        if (who == everybody || (me != null && who == me)) {
+          if (_mine.handIsUp) unawaited(signal(_mine.withHand(null)));
+        }
+      } catch (error) {
+        debugPrint('Unreadable hands message: $error');
+      }
+    });
 
     events.on<lk.DataReceivedEvent>((event) {
       if (event.topic != boardTopic) return;
@@ -99,8 +135,62 @@ class LiveKitCall implements ClassroomCall {
     }
   }
 
+  /// Rebuilds the teacher's view of the room.
+  void _roster() {
+    final all = <lk.Participant>[
+      if (_room.localParticipant != null) _room.localParticipant!,
+      ..._room.remoteParticipants.values,
+    ];
+    _attendees.value = attendeesInOrder([
+      for (final one in all)
+        Attendee(
+          identity: one.identity,
+          name: one.name.isEmpty ? one.identity : one.name,
+          isMe: identical(one, _room.localParticipant),
+          joinedAt: one.joinedAt,
+          speaking: one.isSpeaking,
+          micOn: one.isMicrophoneEnabled(),
+          cameraOn: one.isCameraEnabled(),
+          sharingScreen: one.isScreenShareEnabled(),
+          signal: readSignal(one.attributes),
+        ),
+    ]);
+  }
+
+  @override
+  Future<void> signal(Signal signal) async {
+    _mine = signal;
+    try {
+      await _room.localParticipant?.setAttributes(signalAttributes(signal));
+      // Straight away rather than waiting for the room to tell us about
+      // our own change: a hand that takes a round trip to appear is a
+      // hand a child presses twice.
+      _roster();
+    } catch (error) {
+      debugPrint('Signal not sent: $error');
+    }
+  }
+
+  @override
+  Future<void> lowerHands({String? identity}) async {
+    try {
+      await _room.localParticipant?.publishData(
+        utf8.encode(identity ?? everybody),
+        reliable: true,
+        topic: lowerHandsTopic,
+      );
+      // Including the teacher's own, when it is everybody's.
+      if (identity == null && _mine.handIsUp) {
+        await signal(_mine.withHand(null));
+      }
+    } catch (error) {
+      debugPrint('Hands not lowered: $error');
+    }
+  }
+
   @override
   Future<void> leave() async {
+    _room.removeListener(_roster);
     await _events?.dispose();
     _events = null;
     await _room.disconnect();

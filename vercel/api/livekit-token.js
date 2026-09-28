@@ -471,6 +471,10 @@ module.exports = async (req, res) => {
         // a rub, a wipe. Without this the board is a drawing nobody
         // else can see.
         canPublishData: true,
+        // A pupil putting their hand up, and answering without
+        // unmuting. One labelled value they set on themselves, not a
+        // channel -- see app/lib/core/meeting/hands.dart.
+        canUpdateOwnMetadata: true,
         // Nobody is a moderator in the demo. There is no register
         // behind it, so there is no basis for saying which of two
         // browsers is the teacher -- and a stranger who found the room

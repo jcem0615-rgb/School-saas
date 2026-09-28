@@ -89,6 +89,17 @@ describe("the pass into a forwarded class", () => {
       expect(asPupil.canPublishData).toBe(false);
       expect(asTeacher.canPublishData).toBe(true);
     });
+
+    it("lets a child put their hand up without giving them a channel", () => {
+      // The two are deliberately different grants. An attribute is one
+      // small labelled value set on oneself, replacing what was there;
+      // it cannot be addressed to one child, cannot accumulate, and is
+      // visible to the teacher and attributable to whoever set it.
+      const asPupil = buildLiveKitClaims(pupil, config).video as Record<string, unknown>;
+
+      expect(asPupil.canUpdateOwnMetadata).toBe(true);
+      expect(asPupil.canPublishData).toBe(false);
+    });
   });
 
   describe("how long and how signed", () => {

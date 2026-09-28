@@ -89,4 +89,44 @@ void _heading() {
     expect(demo, isNot(contains('not part of the demo')));
     expect(demo.toLowerCase(), contains('switched on'));
   });
+
+  group('how big a face is allowed to get', () {
+    test('one person alone is not one face across a monitor', () {
+      // The grid gives its only tile every pixel there is, and a camera
+      // cropped to fill it puts a head on the screen at twice life
+      // size. This is what the cap is for.
+      final width = gridWidthFor(tiles: 1, width: 1900, height: 900);
+
+      expect(width, lessThanOrEqualTo(maxFaceWidth + 16));
+      expect(width, greaterThan(300), reason: 'and not a postage stamp');
+    });
+
+    test('a phone still uses the whole width it has', () {
+      // Which is less than one face is allowed anyway.
+      expect(gridWidthFor(tiles: 1, width: 360, height: 780), 360);
+      expect(gridWidthFor(tiles: 4, width: 360, height: 780), 360);
+    });
+
+    test('a short window does not crop the one tile in it', () {
+      // A 4:3 tile 420 wide needs 315 to stand in.
+      final width = gridWidthFor(tiles: 1, width: 1900, height: 240);
+
+      expect(width, lessThan(maxFaceWidth));
+      expect(width, closeTo((240 - 16) * 4 / 3, 1));
+    });
+
+    test('a class of sixty still fills the window', () {
+      // The cap is about one face being too big, not about a class
+      // being drawn small.
+      expect(gridWidthFor(tiles: 60, width: 1900, height: 900), 1900);
+    });
+
+    test('grows with the number of people, up to the window', () {
+      final one = gridWidthFor(tiles: 1, width: 1900, height: 1200);
+      final four = gridWidthFor(tiles: 4, width: 1900, height: 1200);
+
+      expect(four, greaterThan(one));
+      expect(four, lessThanOrEqualTo(1900));
+    });
+  });
 }

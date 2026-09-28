@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import '../board_controller.dart';
+import '../hands.dart';
 import '../whiteboard.dart';
 import 'stage.dart';
 
@@ -20,6 +23,42 @@ int gridColumnsFor({required int tiles, required double width}) {
   // Square-ish, then capped by the screen.
   final square = (tiles <= 2) ? 2 : (tiles <= 6 ? 3 : (tiles <= 12 ? 4 : 6));
   return square < affordable ? square : affordable;
+}
+
+/// The widest a single face should ever be drawn.
+///
+/// Without a cap, one person alone in a lesson is one face across a
+/// whole monitor: the grid gives the only tile every pixel there is,
+/// and a camera cropped to fill it puts a head on the screen at twice
+/// life size. Every other video app caps this and so does this one.
+///
+/// 420 is about a comfortable head-and-shoulders on a desk monitor and
+/// still fills a phone, which has less than that to give anyway.
+const maxFaceWidth = 420.0;
+
+/// How wide the whole grid of faces should be.
+///
+/// The columns decide how many fit; this decides how big they are
+/// allowed to get. On a phone it is the whole width, because the whole
+/// width is less than one face is allowed. On a wide monitor it stops
+/// short and the lesson sits in the middle of the window rather than
+/// being stretched across it.
+///
+/// Also bounded by the height for a single tile: a 4:3 tile 420 wide
+/// needs 315 to stand in, and a short window would otherwise crop it.
+double gridWidthFor({
+  required int tiles,
+  required double width,
+  required double height,
+}) {
+  final columns = gridColumnsFor(tiles: tiles, width: width);
+  var widest = columns * maxFaceWidth + (columns + 1) * 8;
+  if (tiles == 1) {
+    // One tile takes whatever the window's height allows, and no more.
+    final byHeight = (height - 16) * 4 / 3;
+    if (byHeight < widest) widest = byHeight;
+  }
+  return widest < width ? widest : width;
 }
 
 /// The shape of the tile a teacher draws on.
@@ -53,6 +92,14 @@ class VideoGrid extends StatefulWidget {
 }
 
 class _VideoGridState extends State<VideoGrid> {
+  /// Fires once, when the reaction showing now stops being fresh.
+  ///
+  /// Everything else on this screen moves on a room event -- somebody
+  /// arriving, a track muted -- and a reaction running out is not one
+  /// of those. Without this the glyph would sit on a face until the
+  /// next person joined.
+  Timer? _fade;
+
   @override
   void initState() {
     super.initState();
@@ -64,8 +111,25 @@ class _VideoGridState extends State<VideoGrid> {
 
   @override
   void dispose() {
+    _fade?.cancel();
     widget.room.removeListener(_changed);
     super.dispose();
+  }
+
+  void _scheduleFade(List<lk.Participant> everyone) {
+    _fade?.cancel();
+    final now = DateTime.now();
+    Duration? soonest;
+    for (final one in everyone) {
+      final signal = readSignal(one.attributes);
+      if (!reactionIsFresh(signal, now)) continue;
+      final left = reactionLasts - now.difference(signal.reactedAt!);
+      if (soonest == null || left < soonest) soonest = left;
+    }
+    if (soonest == null) return;
+    _fade = Timer(soonest + const Duration(milliseconds: 60), () {
+      if (mounted) setState(() {});
+    });
   }
 
   void _changed() {
@@ -89,6 +153,8 @@ class _VideoGridState extends State<VideoGrid> {
         ),
       );
     }
+
+    _scheduleFade(participants);
 
     final me = widget.room.localParticipant;
     final stage = stageFor([
@@ -126,21 +192,39 @@ class _Grid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, box) => GridView.builder(
-          padding: const EdgeInsets.all(8),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount:
-                gridColumnsFor(tiles: participants.length, width: box.maxWidth),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 4 / 3,
-          ),
-          itemCount: participants.length,
-          itemBuilder: (context, i) => ParticipantTile(
-            participant: participants[i],
-            isMe: identical(participants[i], me),
-          ),
-        ),
+        builder: (context, box) {
+          final columns =
+              gridColumnsFor(tiles: participants.length, width: box.maxWidth);
+          return Center(
+            // Capped and centred rather than stretched. One person alone
+            // in a lesson was one face across a whole monitor.
+            child: SizedBox(
+              width: gridWidthFor(
+                tiles: participants.length,
+                width: box.maxWidth,
+                height: box.maxHeight,
+              ),
+              child: GridView.builder(
+                padding: const EdgeInsets.all(8),
+                shrinkWrap: true,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 4 / 3,
+                ),
+                itemCount: participants.length,
+                itemBuilder: (context, i) => ParticipantTile(
+                  // Keyed by who it is, so a list that reorders moves
+                  // tiles rather than rebuilding the video inside them.
+                  key: ValueKey(participants[i].identity),
+                  participant: participants[i],
+                  isMe: identical(participants[i], me),
+                ),
+              ),
+            ),
+          );
+        },
       );
 }
 
@@ -179,6 +263,7 @@ class _Spotlight extends StatelessWidget {
               itemBuilder: (context, i) => AspectRatio(
                 aspectRatio: 4 / 3,
                 child: ParticipantTile(
+                  key: ValueKey(strip[i].identity),
                   participant: strip[i],
                   isMe: identical(strip[i], me),
                 ),
@@ -369,6 +454,7 @@ class ParticipantTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final signal = readSignal(participant.attributes);
     final video = participant.videoTrackPublications
         .where((p) => p.subscribed && !p.muted && p.track != null)
         .where((p) => p.source != lk.TrackSource.screenShareVideo)
@@ -398,6 +484,38 @@ class ParticipantTile extends StatelessWidget {
                         : participant.name,
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ),
+            // A hand up, on the face that raised it. The teacher's list
+            // is where the order lives; this is so a hand is visible
+            // without opening anything.
+            if (signal.handIsUp)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    child: Text('\u{270B}', style: TextStyle(fontSize: 14)),
+                  ),
+                ),
+              ),
+            if (reactionIsFresh(signal, DateTime.now()))
+              Center(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.scrim.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Text(signal.reaction!.glyph,
+                        style: const TextStyle(fontSize: 30)),
                   ),
                 ),
               ),

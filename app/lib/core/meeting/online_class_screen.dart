@@ -7,6 +7,8 @@ import '../../main.dart' show kDemoMode;
 import 'board_controller.dart';
 import 'camera_sheet.dart';
 import 'class_clock.dart';
+import 'class_panel.dart';
+import 'hands.dart';
 import 'invite_sheet.dart';
 import 'demo_video.dart';
 import 'meeting_room.dart';
@@ -115,6 +117,13 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
   /// Which camera was chosen, so the next lesson opens the same one.
   String? _camera;
 
+  /// What this device is signalling: a hand, and a reaction.
+  ///
+  /// Held here rather than read back off the call so that putting a
+  /// hand down does not clear a reaction, and the button knows its own
+  /// state before the room has finished telling everybody.
+  final _signal = ValueNotifier<Signal>(Signal.none);
+
   /// The pencil, the rubber, and what has been drawn so far.
   late final LessonBoard _board = LessonBoard(
     send: _call.sendBoardMessage,
@@ -143,6 +152,7 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     _cameraOn.dispose();
     _configuration.dispose();
     _sharing.dispose();
+    _signal.dispose();
     _board.dispose();
     unawaited(_call.leave());
     super.dispose();
@@ -202,6 +212,40 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
     // over a lesson with nothing shared draws on nothing, and the next
     // person to share would find a pencil already in their hand.
     if (!actual) _board.choose(BoardTool.off);
+  }
+
+  void _toggleHand() {
+    final up = _signal.value.handIsUp;
+    _signal.value = _signal.value.withHand(up ? null : DateTime.now());
+    unawaited(_call.signal(_signal.value));
+  }
+
+  void _react(Reaction reaction) {
+    _signal.value = _signal.value.withReaction(reaction, DateTime.now());
+    unawaited(_call.signal(_signal.value));
+  }
+
+  Future<void> _openClassList() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.75,
+        child: ClassPanel(
+          attendees: _call.attendees,
+          now: _now,
+          canLowerHands: widget.asModerator,
+          onLower: (identity) => unawaited(_call.lowerHands(identity: identity)),
+          onLowerAll: () {
+            unawaited(_call.lowerHands());
+            // The teacher's own view of it, without waiting for the
+            // round trip they just sent.
+            _signal.value = _signal.value.withHand(null);
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _invite() async {
@@ -270,6 +314,13 @@ class _OnlineClassScreenState extends State<OnlineClassScreen> {
               onCamera: _toggleCamera,
               onShare: _toggleShare,
               onCameraSetup: _openCamera,
+              attendees: _call.attendees,
+              onClassList: _openClassList,
+              signal: _signal,
+              // A teacher does not put their hand up in their own
+              // lesson; they take the hands that are up.
+              onHand: widget.asModerator ? null : _toggleHand,
+              onReact: widget.asModerator ? null : _react,
               // Only the person running the lesson invites anybody to
               // it, and only when there is something to hand out.
               onInvite: widget.asModerator &&
@@ -444,6 +495,17 @@ class _Controls extends StatelessWidget {
   final VoidCallback onShare;
   final VoidCallback onCameraSetup;
   final VoidCallback? onInvite;
+
+  /// Who is in the lesson, for the count on the button.
+  final ValueListenable<List<Attendee>> attendees;
+  final VoidCallback onClassList;
+
+  /// What this device is signalling, and the two ways to change it.
+  /// Both null for the teacher, who takes hands rather than raising one.
+  final ValueListenable<Signal> signal;
+  final VoidCallback? onHand;
+  final void Function(Reaction reaction)? onReact;
+
   final VoidCallback onLeave;
 
   const _Controls({
@@ -458,6 +520,11 @@ class _Controls extends StatelessWidget {
     required this.onShare,
     required this.onCameraSetup,
     required this.onInvite,
+    required this.attendees,
+    required this.onClassList,
+    required this.signal,
+    required this.onHand,
+    required this.onReact,
     required this.onLeave,
   });
 
@@ -513,6 +580,57 @@ class _Controls extends StatelessWidget {
                         size: 18),
                     label: Text(on ? 'Camera off' : 'Camera on'),
                   ),
+                ),
+                // A pupil's two ways of saying something without
+                // sixty microphones opening at once.
+                if (onHand != null)
+                  ValueListenableBuilder<Signal>(
+                    valueListenable: signal,
+                    builder: (context, mine, _) => mine.handIsUp
+                        ? FilledButton.icon(
+                            onPressed: onHand,
+                            icon: const Icon(Icons.back_hand, size: 18),
+                            label: const Text('Hand down'),
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: onHand,
+                            icon: const Icon(Icons.back_hand_outlined, size: 18),
+                            label: const Text('Raise hand'),
+                          ),
+                  ),
+                if (onReact != null)
+                  for (final reaction in Reaction.values)
+                    Tooltip(
+                      message: reaction.label,
+                      child: OutlinedButton(
+                        onPressed: () => onReact!(reaction),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          minimumSize: const Size(0, 40),
+                        ),
+                        child: Text(reaction.glyph,
+                            style: const TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                // What the teacher watches: who is here, who arrived
+                // late, and whose hand went up first.
+                ValueListenableBuilder<List<Attendee>>(
+                  valueListenable: attendees,
+                  builder: (context, everyone, _) {
+                    final hands =
+                        everyone.where((a) => a.signal.handIsUp).length;
+                    return OutlinedButton.icon(
+                      onPressed: onClassList,
+                      icon: Icon(
+                        hands > 0 ? Icons.back_hand : Icons.groups_outlined,
+                        size: 18,
+                        color: hands > 0 ? theme.colorScheme.primary : null,
+                      ),
+                      label: Text(hands > 0
+                          ? 'Class · $hands up'
+                          : 'Class · ${everyone.length}'),
+                    );
+                  },
                 ),
                 if (onInvite != null)
                   OutlinedButton.icon(

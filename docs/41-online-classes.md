@@ -291,6 +291,43 @@ the lesson needs `connect-src` and `media-src` for the LiveKit host in
 `LIVEKIT_URL` — the video is drawn by this app in its own widgets, so
 there is no frame to allow and nothing to be refused embedding.
 
+## What a pupil has in the lesson
+
+**A hand, and four answers.** Sixty microphones opening at once is not a
+lesson, so a class that cannot interrupt has to be able to signal.
+**Raise hand** stays up until it is taken down — by the pupil, by the
+teacher, or by the lesson ending — because a hand is a request that has
+not been dealt with yet. Beside it are four one-tap answers: 👍 Yes, 👎
+No, 🐌 Slower, 😕 Lost. A reaction shows for six seconds and then goes,
+because a "yes" still showing four questions later is worse than no
+answer.
+
+Both appear on the face that sent them and in the teacher's class list.
+The teacher can lower one hand or all of them.
+
+### Why a pupil can do this when the data channel is shut to them
+
+They do not send a message. They set a **participant attribute** — one
+small labelled value, set on themselves, replacing whatever was there.
+
+The difference is the whole reason the token stayed shut. An attribute
+cannot be addressed to one child, cannot accumulate, cannot carry a
+conversation, and everything in it is visible to the teacher and
+attributable to whoever set it. `canPublishData` — an actual channel
+between children — is still the moderator's alone. `canUpdateOwnMetadata`
+is what a hand needs, and it is all a hand gets.
+
+And it is read the way a form is read rather than the way a message is:
+a hand is a timestamp or it is nothing, a reaction is one of four names
+or it is nothing, and a time outside what a lesson could hold is
+discarded. A pupil who worked out how to put words in the field would
+find that nothing renders them.
+
+The teacher lowering a hand goes the other way, on the channel only a
+teacher can send on: nobody can reach into somebody else's attributes,
+so each device lowers its own when it sees its name — or the star that
+means everybody.
+
 ## Getting in: four locks, and why none is enough alone
 
 A teacher can hand out a **link**. The link gets forwarded into a class
@@ -387,6 +424,17 @@ and the answer is believed. Where it cannot be done the switch says so
 in words a teacher can act on, rather than sitting in the "on" position
 over an unchanged room.
 
+**Seeing the class.** A **Class** button in every lesson opens the room
+as a list: who is here, when each of them joined, whose microphone and
+camera are on, who is sharing, and — at the top — whose hand is up and
+in what order. A grid of sixty tiles answers "is everybody here" badly
+and "who put their hand up first" not at all. The button itself carries
+the count, and switches to the number of hands the moment there is one.
+
+The join time is there because a child who came in twenty minutes late
+is something a register should show, and a tile that looks exactly like
+everybody else's does not show it.
+
 **Sharing a screen, and drawing on it.** **Share screen** puts a window
 in front of the class; the shared window takes the large tile and the
 faces move to a strip along the edge — down the side of a wide window,
@@ -454,4 +502,8 @@ between children.
 | Emulator | `attendance-emulator/meetingToken.test.ts` (the four locks) | the teacher is not asked for the code and a child on the register without it is refused; the dash and the shift key are forgiven; a lesson with no code still opens; the code never comes back in the answer, right or wrong; eight wrong ones close the door, the right one forgets them, and the lock falls on the guesser rather than the lesson; a child moved out of the section, grade, department or enrolment is refused with their mark still in place; an unscoped lesson is still joinable; the scope is checked before the code |
 | Rules | `subject-attendance.rules.test.ts` (the counter) | the wrong-code count is unreadable and unwritable by the person it counts, and by every role in the school |
 | Demo | `smoke/online_class_test.dart` (the code) | the demo mints the same shape, clears it with the room, never asks the teacher for it, refuses a pupil who does not have it and admits one who does |
+| Pure | `unit/core/hands_test.dart` | a hand and a reaction survive the wire; an empty string is how a hand comes down, because attributes merge; anything that is not a timestamp or one of the four names is ignored, including a hand dated last week or next year; a reaction expires after six seconds but survives a clock that runs a little ahead; the teacher's list is hands first in the order they were raised, then everybody else by name, and does not reshuffle when two hands go up together |
+| Pure | `unit/core/video_grid_test.dart` (the cap) | one person alone is not one face across a monitor; a phone still uses the width it has; a short window does not crop its only tile; a class of sixty still fills the window |
+| Pure | `meeting/livekit.test.ts` (the grant) | a child may set their own attribute and may not publish data — the hand without the channel |
+| Widget | `unit/core/online_class_screen_test.dart` (hands) | a pupil raises and lowers a hand and answers without unmuting; a reaction does not take their hand down; the teacher is offered neither, and is offered the class list, the count, and lowering one hand or all of them; a pupil is offered no way to lower anybody's |
 | Widget | `unit/core/online_class_screen_test.dart` (controls) | sharing says nothing was shared when the teacher cancels the browser's chooser; the pencil appears with the screen and is put away with it; a pupil is offered none of it; the board reaches the call, so a stroke reaches the class; Clear is not offered over an empty board; the camera panel switches camera mid-lesson |

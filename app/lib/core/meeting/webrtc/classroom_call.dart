@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 import '../board_controller.dart';
 import '../camera_setup.dart';
+import '../hands.dart';
 import '../whiteboard.dart';
 
 /// The lesson's video, as the screen needs to talk to it.
@@ -67,6 +69,28 @@ abstract class ClassroomCall {
   /// Hands the call the board, so that what arrives from the network
   /// reaches it and so that the video knows what to draw on top.
   void attachBoard(LessonBoard board);
+
+  /// Puts this person's hand up or down, and their reaction on or off.
+  ///
+  /// Travels as a participant attribute, not as a message: one small
+  /// labelled value a person sets on themselves, replacing whatever was
+  /// there. That is why a pupil can do it at all -- the channel that
+  /// carries actual messages stays shut to them. See hands.dart.
+  Future<void> signal(Signal signal);
+
+  /// Asks hands to come down: one person's, or the whole class's.
+  ///
+  /// The other way round from [signal], because nobody can change
+  /// somebody else's attribute. The teacher sends on the channel only a
+  /// teacher can send on, and each device lowers its own.
+  Future<void> lowerHands({String? identity});
+
+  /// Everybody in the lesson, and what each of them is doing.
+  ///
+  /// A listenable rather than a stream because it is read on every
+  /// frame the panel is open, and because nothing on this screen may
+  /// rebuild the video.
+  ValueListenable<List<Attendee>> get attendees;
 
   /// Everybody in the lesson, drawn by this app.
   Widget view();

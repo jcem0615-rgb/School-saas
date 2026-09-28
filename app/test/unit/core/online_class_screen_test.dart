@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logicclass/core/meeting/board_controller.dart';
 import 'package:logicclass/core/meeting/camera_setup.dart';
+import 'package:logicclass/core/meeting/hands.dart';
 import 'package:logicclass/core/meeting/online_class_screen.dart';
 import 'package:logicclass/core/meeting/whiteboard.dart';
 import 'package:logicclass/core/meeting/webrtc/classroom_call.dart';
@@ -40,6 +42,10 @@ class _FakeCall implements ClassroomCall {
   bool? blurWanted;
   final sent = <BoardMessage>[];
   LessonBoard? board;
+
+  final signalled = <Signal>[];
+  final lowered = <String?>[];
+  final roster = ValueNotifier<List<Attendee>>(const []);
 
   @override
   Future<bool> join({
@@ -89,6 +95,15 @@ class _FakeCall implements ClassroomCall {
   void attachBoard(LessonBoard board) => this.board = board;
 
   @override
+  Future<void> signal(Signal signal) async => signalled.add(signal);
+
+  @override
+  Future<void> lowerHands({String? identity}) async => lowered.add(identity);
+
+  @override
+  ValueListenable<List<Attendee>> get attendees => roster;
+
+  @override
   Widget view() {
     views++;
     return const ColoredBox(color: Color(0xFF101010));
@@ -117,6 +132,18 @@ Widget _screen(
         debugCall: call,
         debugConfiguration: configuration,
       ),
+    );
+
+Attendee _attendee(String id, String name, {bool handUp = false}) => Attendee(
+      identity: id,
+      name: name,
+      isMe: false,
+      joinedAt: DateTime.now(),
+      micOn: true,
+      cameraOn: true,
+      signal: handUp
+          ? Signal(handRaisedAt: DateTime.now().subtract(const Duration(minutes: 2)))
+          : Signal.none,
     );
 
 Future<void> _settle(WidgetTester tester) async {
@@ -451,6 +478,144 @@ void main() {
       );
       expect(blur.value, isFalse);
       expect(find.textContaining('not from LogicClass'), findsOneWidget);
+    });
+
+    testWidgets('a pupil can put a hand up, and take it down',
+        (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call, asModerator: false));
+      await _settle(tester);
+
+      await tester.tap(find.text('Raise hand'));
+      await _settle(tester);
+
+      expect(call.signalled.last.handIsUp, isTrue);
+      expect(find.text('Hand down'), findsOneWidget);
+
+      await tester.tap(find.text('Hand down'));
+      await _settle(tester);
+
+      expect(call.signalled.last.handIsUp, isFalse);
+      expect(find.text('Raise hand'), findsOneWidget);
+    });
+
+    testWidgets('a pupil can answer without unmuting', (tester) async {
+      // Sixty microphones opening at once is not a lesson.
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call, asModerator: false));
+      await _settle(tester);
+
+      await tester.tap(find.text(Reaction.yes.glyph));
+      await _settle(tester);
+
+      expect(call.signalled.last.reaction, Reaction.yes);
+    });
+
+    testWidgets('and a reaction does not take their hand down',
+        (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call, asModerator: false));
+      await _settle(tester);
+
+      await tester.tap(find.text('Raise hand'));
+      await _settle(tester);
+      await tester.tap(find.text(Reaction.no.glyph));
+      await _settle(tester);
+
+      // Two different things being said. Answering a question is not
+      // withdrawing a request to speak.
+      expect(call.signalled.last.handIsUp, isTrue);
+      expect(call.signalled.last.reaction, Reaction.no);
+    });
+
+    testWidgets('the teacher takes hands rather than raising one',
+        (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+
+      expect(find.text('Raise hand'), findsNothing);
+      expect(find.text(Reaction.yes.glyph), findsNothing);
+    });
+
+    testWidgets('the class button counts the room, and then the hands',
+        (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+
+      call.roster.value = [
+        _attendee('a', 'Ana'),
+        _attendee('b', 'Ben'),
+      ];
+      await _settle(tester);
+      expect(find.text('Class · 2'), findsOneWidget);
+
+      call.roster.value = [
+        _attendee('a', 'Ana', handUp: true),
+        _attendee('b', 'Ben'),
+      ];
+      await _settle(tester);
+
+      // A hand up is the thing being waited on, so it is what the
+      // button says.
+      expect(find.text('Class · 1 up'), findsOneWidget);
+    });
+
+    testWidgets('the class list names who is here and who put a hand up',
+        (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+      call.roster.value = [
+        _attendee('a', 'Ana Cruz', handUp: true),
+        _attendee('b', 'Ben Reyes'),
+      ];
+      await _settle(tester);
+
+      await tester.tap(find.textContaining('Class ·'));
+      await _settle(tester);
+
+      expect(find.text('Ana Cruz'), findsOneWidget);
+      expect(find.text('Ben Reyes'), findsOneWidget);
+      expect(find.textContaining('1 hand up'), findsOneWidget);
+    });
+
+    testWidgets('and lets the teacher take one down, or all of them',
+        (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call));
+      await _settle(tester);
+      call.roster.value = [_attendee('a', 'Ana Cruz', handUp: true)];
+      await _settle(tester);
+      await tester.tap(find.textContaining('Class ·'));
+      await _settle(tester);
+
+      await tester.tap(find.text('Lower'));
+      await _settle(tester);
+      expect(call.lowered.last, 'a');
+
+      await tester.tap(find.text('Lower 1'));
+      await _settle(tester);
+      // Null is everybody: nobody can reach into somebody else's
+      // attributes, so each device lowers its own when it sees this.
+      expect(call.lowered.last, isNull);
+    });
+
+    testWidgets('a pupil is not offered a way to lower anybody\'s hand',
+        (tester) async {
+      final call = _FakeCall();
+      await tester.pumpWidget(_screen(call, asModerator: false));
+      await _settle(tester);
+      call.roster.value = [_attendee('a', 'Ana Cruz', handUp: true)];
+      await _settle(tester);
+
+      await tester.tap(find.textContaining('Class ·'));
+      await _settle(tester);
+
+      expect(find.text('Ana Cruz'), findsOneWidget);
+      expect(find.text('Lower'), findsNothing);
+      expect(find.textContaining('Lower 1'), findsNothing);
     });
 
     testWidgets('leaving hangs up', (tester) async {
