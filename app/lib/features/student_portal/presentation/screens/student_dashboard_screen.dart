@@ -7,6 +7,7 @@ import '../../../../core/theme/theme_switch.dart';
 
 import '../../../class_sessions/presentation/controllers/class_session_controller.dart'
     show myOnlineClassesProvider;
+import '../../../documents/presentation/screens/student_documents_screen.dart';
 import '../../../class_sessions/presentation/screens/my_online_classes_screen.dart';
 import '../../../class_sessions/presentation/screens/subject_attendance_screen.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
@@ -182,6 +183,19 @@ class StudentDashboardScreen extends ConsumerWidget {
                         builder: (_) => PaymentHistoryScreen(
                           studentId: student.id,
                           studentName: student.fullName,
+                        ),
+                      ),
+                    ),
+                  ),
+                  GlassTile(
+                    icon: Icons.folder_outlined,
+                    label: 'My Documents',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => StudentDocumentsScreen(
+                          studentId: student.id,
+                          studentName: student.fullName,
+                          readOnly: true,
                         ),
                       ),
                     ),

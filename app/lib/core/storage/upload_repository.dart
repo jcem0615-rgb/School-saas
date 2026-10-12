@@ -27,7 +27,15 @@ enum UploadFolder {
 
   /// Scanned signatures of the Principal and Director, printed above
   /// their names on every ID card.
-  signatures('signatures');
+  signatures('signatures'),
+
+  /// A student's folder: birth certificates, Form 137s received from a
+  /// previous school, and copies of what this school has issued.
+  ///
+  /// The one folder storage.rules keeps the whole school out of. See the
+  /// comment there, and docs/42-documents.md for what a download URL can
+  /// and cannot be relied on to protect.
+  studentDocuments('student-documents');
 
   final String folder;
   const UploadFolder(this.folder);

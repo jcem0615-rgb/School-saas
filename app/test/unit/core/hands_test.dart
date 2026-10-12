@@ -7,7 +7,12 @@ import 'package:logicclass/core/meeting/hands.dart';
 /// write, so most of this is about what happens when they write
 /// something else into it.
 void main() {
-  final now = DateTime(2026, 9, 28, 9, 30);
+  // Anchored to the real clock, not a date typed into the file.
+  // readSignal() refuses any timestamp more than a day away from now --
+  // a deliberate guard against a wrong device clock -- so a fixed
+  // instant stops being readable a day after it is written, and these
+  // tests started failing on a calendar nothing here controls.
+  final now = DateTime.now();
 
   group('reading what somebody is signalling', () {
     test('finds a hand and the moment it went up', () {

@@ -71,6 +71,8 @@ import '../features/profile/domain/repositories/profile_repository.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/qr_attendance/domain/entities/qr_scan_result.dart';
 import '../features/qr_attendance/domain/repositories/qr_attendance_repository.dart';
+import '../features/documents/domain/entities/student_document.dart';
+import '../features/documents/domain/repositories/documents_repository.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
 import '../features/inventory/domain/entities/inventory_item.dart';
@@ -1712,7 +1714,7 @@ class DemoRegistrarRepository implements RegistrarRepository {
       );
 
   @override
-  Future<Result<void>> recordDocumentRelease({
+  Future<Result<String>> recordDocumentRelease({
     required String studentId,
     required String studentName,
     required SchoolDocument document,
@@ -1723,10 +1725,11 @@ class DemoRegistrarRepository implements RegistrarRepository {
     String? remarks,
   }) async {
     await _latency(400);
+    final releaseId = _store.nextId('rel');
     _store.prepend(
       _store.documentReleases,
       DocumentRelease(
-        id: _store.nextId('rel'),
+        id: releaseId,
         studentId: studentId,
         studentName: studentName,
         document: document,
@@ -1739,7 +1742,7 @@ class DemoRegistrarRepository implements RegistrarRepository {
         remarks: remarks,
       ),
     );
-    return const Success(null);
+    return Success(releaseId);
   }
 
   @override
@@ -2575,6 +2578,85 @@ class DemoUploadRepository implements UploadRepository {
       url: 'data:$contentType;base64,${base64Encode(bytes)}',
       sizeBytes: bytes.lengthInBytes,
     ));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Documents -- the student folders
+// ---------------------------------------------------------------------------
+
+class DemoDocumentsRepository implements DocumentsRepository {
+  final DemoStore _store;
+  DemoDocumentsRepository(this._store);
+
+  @override
+  Stream<List<StudentDocument>> watchStudentDocuments(String studentId) =>
+      _store.studentDocuments.stream.map(
+        (all) => all.where((d) => d.studentId == studentId).toList()
+          ..sort((a, b) => b.filedAt.compareTo(a.filedAt)),
+      );
+
+  @override
+  Future<Result<void>> fileDocument({
+    required String studentId,
+    required String studentName,
+    required DocumentKind kind,
+    required DocumentOrigin origin,
+    required String title,
+    required String fileName,
+    required String url,
+    required String contentType,
+    required int sizeBytes,
+    String? note,
+    String? releaseId,
+  }) async {
+    await _latency(500);
+    _store.prepend(
+      _store.studentDocuments,
+      StudentDocument(
+        id: _store.nextId('doc'),
+        studentId: studentId,
+        studentName: studentName,
+        kind: kind,
+        origin: origin,
+        title: title,
+        fileName: fileName,
+        url: url,
+        contentType: contentType,
+        sizeBytes: sizeBytes,
+        filedByName: _store.requireUser.fullName,
+        filedAt: DateTime.now(),
+        note: note,
+        releaseId: releaseId,
+      ),
+    );
+    return const Success(null);
+  }
+
+  /// Archives rather than removes, which is what the rules leave as the
+  /// only option in the product: `allow delete: if false`. A demo that
+  /// dropped the row would show a folder that can be emptied, and the
+  /// fact that it cannot be is the feature.
+  @override
+  Future<Result<void>> archiveDocument({
+    required String documentId,
+    required String reason,
+  }) async {
+    await _latency(300);
+    final known = _store.studentDocuments.value.any((d) => d.id == documentId);
+    if (!known) {
+      return const Error(ServerFailure('That document is no longer in the folder.'));
+    }
+    _store.update<StudentDocument>(
+      _store.studentDocuments,
+      (d) => d.id == documentId,
+      (d) => d.archived(
+        at: DateTime.now(),
+        byName: _store.requireUser.fullName,
+        reason: reason,
+      ),
+    );
+    return const Success(null);
   }
 }
 

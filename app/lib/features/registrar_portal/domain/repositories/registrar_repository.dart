@@ -119,7 +119,12 @@ abstract class RegistrarRepository {
   /// Logs that a document left the office. Write-only by design: the
   /// rules refuse every update and delete, so this is the one and only
   /// thing that can happen to a release record.
-  Future<Result<void>> recordDocumentRelease({
+  /// Returns the id of the release it wrote.
+  ///
+  /// The caller needs it: the copy of the document that goes into the
+  /// student's folder is pinned to this id, and without it the folder
+  /// and the log are two lists nobody can join back together.
+  Future<Result<String>> recordDocumentRelease({
     required String studentId,
     required String studentName,
     required SchoolDocument document,

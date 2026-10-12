@@ -2,12 +2,23 @@ rules_version = '2';
 
 // Mirrors the tenant-isolation approach in firestore.rules: every object
 // lives under schools/{schoolId}/**, and access requires the caller's own
-// custom claim to match that schoolId. The Documents module (not yet
-// built -- see docs/ for what's deferred) will add per-document-type
-// rules on top of this (e.g. only Registrar can write TOR/Form 137 PDFs,
-// only the owning user can write their own profile photo). Until then,
-// this is a safe, tenant-scoped default rather than leaving Storage
-// unconfigured or wide open.
+// custom claim to match that schoolId.
+//
+// The folders are enumerated rather than covered by one wildcard, because
+// they are not all equally public. A school logo and a child's birth
+// certificate were previously readable by exactly the same people -- any
+// signed-in member of the school -- and that is the difference this file
+// now draws. The folder names are the values of `UploadFolder` in
+// app/lib/core/storage/upload_repository.dart, which is the only writer:
+// nothing server-side touches Storage.
+//
+// ONE THING THIS FILE CANNOT DO, said plainly because it matters:
+// `getDownloadURL()` returns a URL carrying its own access token, and that
+// URL opens the file for anyone holding it, rules or no rules. So these
+// rules govern who may reach a path directly -- they are not what keeps a
+// student's folder private. That is firestore.rules: the URL is a field on
+// a `studentDocuments` row, and only the office, the student and their
+// parents can read the row. See docs/42-documents.md.
 service firebase.storage {
   match /b/{bucket}/o {
     function isSignedIn() {
@@ -18,13 +29,83 @@ service firebase.storage {
       return isSignedIn() && request.auth.token.schoolId == schoolId;
     }
 
-    match /schools/{schoolId}/{allPaths=**} {
+    function hasRole(schoolId, roles) {
+      return belongsToSchool(schoolId) && request.auth.token.role in roles;
+    }
+
+    // 10MB cap, images/PDFs only -- generous enough for profile photos and
+    // scanned documents, without leaving arbitrary file uploads open. The
+    // same ceiling is checked in UploadRepositoryImpl so an oversized file
+    // is refused with a sentence rather than a permission error.
+    function isAllowedUpload() {
+      return request.resource.size < 10 * 1024 * 1024
+             && request.resource.contentType.matches('image/.*|application/pdf');
+    }
+
+    // ---- The student folders ----
+    // Birth certificates, Form 137s received from a previous school, and
+    // copies of what this school has issued. The one prefix the whole
+    // school is kept out of: a teacher has no reason to browse a child's
+    // civil registry documents, and "they would not think to" is not a
+    // boundary.
+    //
+    // Written by the Registrar and Admin only -- the same pair that may
+    // create a `studentDocuments` row. Division scoping lives in
+    // firestore.rules, which is the only place that can read which
+    // division a student is in.
+    match /schools/{schoolId}/student-documents/{uid}/{allPaths=**} {
+      allow read: if hasRole(schoolId, ['registrar', 'admin', 'director', 'principal']);
+      allow write: if hasRole(schoolId, ['registrar', 'admin']) && isAllowedUpload();
+    }
+
+    // ---- What the school spent ----
+    // Read by the Director's expenses screen and nothing else. An auditor's
+    // paper trail is not general reading for the staff room.
+    match /schools/{schoolId}/expense-receipts/{uid}/{allPaths=**} {
+      allow read: if hasRole(schoolId, ['director', 'admin']);
+      allow write: if belongsToSchool(schoolId) && isAllowedUpload();
+    }
+
+    // ---- Proof of payment ----
+    // Uploaded by a student or parent, reviewed by the office. Readable by
+    // whoever sent it and by the people who act on it, rather than by the
+    // whole school: a photo of a family's bank transfer is their business.
+    match /schools/{schoolId}/payment-receipts/{uid}/{allPaths=**} {
+      allow read: if belongsToSchool(schoolId)
+                    && (request.auth.uid == uid
+                        || request.auth.token.role in ['registrar', 'admin', 'director']);
+      allow write: if belongsToSchool(schoolId) && isAllowedUpload();
+    }
+
+    // ---- Shown to everyone on purpose ----
+    // Coursework attachments (a class reads its teacher's material, a
+    // teacher reads the class's submissions), the school's e-wallet QR, the
+    // logo, ID photos and the signatures printed on ID cards. All of these
+    // are school-wide reading by design, which is what the single wildcard
+    // rule used to say about everything.
+    match /schools/{schoolId}/coursework/{uid}/{allPaths=**} {
       allow read: if belongsToSchool(schoolId);
-      // 10MB cap, images/PDFs only -- generous enough for profile photos
-      // and generated documents, without leaving arbitrary file uploads open.
-      allow write: if belongsToSchool(schoolId)
-                     && request.resource.size < 10 * 1024 * 1024
-                     && request.resource.contentType.matches('image/.*|application/pdf');
+      allow write: if belongsToSchool(schoolId) && isAllowedUpload();
+    }
+
+    match /schools/{schoolId}/payment-settings/{uid}/{allPaths=**} {
+      allow read: if belongsToSchool(schoolId);
+      allow write: if belongsToSchool(schoolId) && isAllowedUpload();
+    }
+
+    match /schools/{schoolId}/branding/{uid}/{allPaths=**} {
+      allow read: if belongsToSchool(schoolId);
+      allow write: if belongsToSchool(schoolId) && isAllowedUpload();
+    }
+
+    match /schools/{schoolId}/student-photos/{uid}/{allPaths=**} {
+      allow read: if belongsToSchool(schoolId);
+      allow write: if belongsToSchool(schoolId) && isAllowedUpload();
+    }
+
+    match /schools/{schoolId}/signatures/{uid}/{allPaths=**} {
+      allow read: if belongsToSchool(schoolId);
+      allow write: if belongsToSchool(schoolId) && isAllowedUpload();
     }
 
     // Platform-level (Owner) storage, e.g. school logos on platform_schools.
@@ -32,6 +113,9 @@ service firebase.storage {
       allow read, write: if false; // no platform-level Storage usage yet
     }
 
+    // Anything under a school that is not one of the folders above. Closed
+    // rather than open: a new UploadFolder value has to be given a rule
+    // here before it works, which is the failure mode that gets noticed.
     match /{allPaths=**} {
       allow read, write: if false;
     }

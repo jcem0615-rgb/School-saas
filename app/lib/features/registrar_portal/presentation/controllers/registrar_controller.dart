@@ -159,7 +159,11 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
     return null;
   }
 
-  Future<bool> recordDocumentRelease({
+  /// Returns the id of the release, or null if it was not written.
+  ///
+  /// The id rather than a bare bool because the caller files a copy of
+  /// the document against it -- see DocumentsActionController.
+  Future<String?> recordDocumentRelease({
     required String studentId,
     required String studentName,
     required SchoolDocument document,
@@ -181,13 +185,13 @@ class RegistrarActionController extends StateNotifier<AsyncValue<void>> {
       remarks: remarks,
     );
     return switch (result) {
-      Success() => () {
+      Success(:final value) => () {
           if (mounted) state = const AsyncData(null);
-          return true;
+          return value;
         }(),
       Error(:final failure) => () {
           if (mounted) state = AsyncError(failure.message, StackTrace.current);
-          return false;
+          return null;
         }(),
     };
   }

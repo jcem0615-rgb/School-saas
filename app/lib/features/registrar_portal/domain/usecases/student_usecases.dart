@@ -51,7 +51,7 @@ class RecordDocumentReleaseUseCase {
   final RegistrarRepository _repository;
   const RecordDocumentReleaseUseCase(this._repository);
 
-  Future<Result<void>> call({
+  Future<Result<String>> call({
     required String studentId,
     required String studentName,
     required SchoolDocument document,

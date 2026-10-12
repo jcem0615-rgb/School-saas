@@ -115,7 +115,7 @@ class RegistrarRemoteDataSource {
   /// `releasedAt` comes from the server clock. A device with the wrong
   /// date would otherwise file a release under a day it did not happen,
   /// and this is precisely the field somebody will later be asked about.
-  Future<void> recordDocumentRelease({
+  Future<String> recordDocumentRelease({
     required String studentId,
     required String studentName,
     required SchoolDocument document,
@@ -145,6 +145,7 @@ class RegistrarRemoteDataSource {
       'createdAt': FieldValue.serverTimestamp(),
       'isDeleted': false,
     });
+    return ref.id;
   }
 
   Future<Map<String, dynamic>> registerStudent({

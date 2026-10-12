@@ -243,7 +243,14 @@ void main() {
 
       await tester.enterText(phoneField, '');
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Save Changes'));
+      // Scrolled to rather than tapped where it used to be: the action
+      // chips above it grow as the portal does, and a test that assumes
+      // the button is on the first screenful fails for a reason that has
+      // nothing to do with what it is checking.
+      final save = find.widgetWithText(OutlinedButton, 'Save Changes');
+      await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
+      await tester.tap(save);
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);

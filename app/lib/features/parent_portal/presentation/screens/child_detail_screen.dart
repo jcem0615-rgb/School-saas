@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../documents/presentation/screens/student_documents_screen.dart';
 import '../../../messaging/presentation/screens/conversations_screen.dart';
 import '../../../class_sessions/presentation/screens/subject_attendance_screen.dart';
 import '../../../payments/presentation/screens/payment_history_screen.dart';
@@ -167,6 +168,24 @@ class ChildDetailScreen extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (_) =>
                         PaymentHistoryScreen(studentId: child.id, studentName: child.fullName, allowRefunds: false),
+                  ),
+                ),
+              ),
+              // Read-only, like the payment history above it: a parent
+              // monitors what the school holds, and "have you got his
+              // Form 137 yet" stops being a phone call. Filing and
+              // withdrawing stay with the Registrar, and
+              // firestore.rules says so independently of this flag.
+              _ActionChip(
+                icon: Icons.folder_outlined,
+                label: 'Documents',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => StudentDocumentsScreen(
+                      studentId: child.id,
+                      studentName: child.fullName,
+                      readOnly: true,
+                    ),
                   ),
                 ),
               ),

@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/errors/result.dart';
 import '../../../../core/storage/upload_providers.dart';
+import '../../../documents/presentation/screens/student_documents_screen.dart';
 import '../../../../core/storage/upload_repository.dart';
 import '../../../../core/widgets/combo_field.dart';
 import '../../../payments/presentation/screens/assess_fees_screen.dart';
@@ -386,6 +387,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> {
                 label: 'Records & Forms',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => DocumentReleaseScreen(student: s)),
+                ),
+              ),
+              _ActionChip(
+                icon: Icons.folder_outlined,
+                label: 'Documents',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => StudentDocumentsScreen(
+                      studentId: s.id,
+                      studentName: s.fullName,
+                    ),
+                  ),
                 ),
               ),
               _ActionChip(

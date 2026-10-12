@@ -1213,6 +1213,70 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // ---- studentDocuments ----
+      // The student folders: what the school holds about one child.
+      // The other half of documentReleases -- that log says a Form 137
+      // left the office, these rows say what the Form 137 was.
+      //
+      // Readable by the office within its own division, and by the family
+      // themselves. A parent who cannot see which of their child's papers
+      // the school holds has to phone up to ask, which is the call this
+      // feature exists to stop.
+      //
+      // This is also the real boundary on the files. A Storage download
+      // URL opens for anyone holding it, so what actually keeps a birth
+      // certificate private is that the URL is a field on this row.
+      // Widening this read rule widens access to the files themselves.
+      match /studentDocuments/{documentId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin'])
+                        || (hasRole(schoolId, ['principal', 'registrar'])
+                            && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        || get(/databases/$(database)/documents/schools/$(schoolId)/students/$(resource.data.studentId)).data.userId == request.auth.uid
+                        || (claims().role == 'parent'
+                            && resource.data.studentId in
+                               get(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid)).data.linkedStudentIds)
+                      );
+
+        // Pinned to the caller, like a release is: a folder entry naming
+        // somebody else as the person who filed it would be worse than no
+        // entry. Faculty are not here -- a teacher has no business adding
+        // to a child's civil-registry folder.
+        allow create: if schoolIsAccessible(schoolId)
+                        && request.resource.data.filedBy == request.auth.uid
+                        && (
+                          hasRole(schoolId, ['admin'])
+                          || (hasRole(schoolId, ['registrar'])
+                              && scopeAllowsStudentById(schoolId, request.resource.data.studentId))
+                        );
+
+        // The only update a folder entry ever takes is being archived,
+        // and only once. Everything else about the row -- which student,
+        // which file, when it was filed -- is what makes it evidence, so
+        // the diff is held to the three archive fields. Archiving twice
+        // is refused because the second one would overwrite the first
+        // reason, which is the only record of why the paper went.
+        allow update: if schoolIsAccessible(schoolId)
+                        && (
+                          hasRole(schoolId, ['admin'])
+                          || (hasRole(schoolId, ['registrar'])
+                              && scopeAllowsStudentById(schoolId, resource.data.studentId))
+                        )
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['archivedAt', 'archivedByName', 'archiveReason'])
+                        && resource.data.archivedAt == null
+                        && request.resource.data.archivedAt != null
+                        && request.resource.data.archiveReason is string
+                        && request.resource.data.archiveReason.size() >= 4;
+
+        // Never. A student folder that can be emptied answers nothing --
+        // the same argument that makes documentReleases append-only.
+        // Withdrawing a paper is an archive, with the reason on it.
+        allow delete: if false;
+      }
+
       // ---- checklistItems (Staff Portal) ----
       match /checklistItems/{itemId} {
         allow read: if schoolIsAccessible(schoolId)

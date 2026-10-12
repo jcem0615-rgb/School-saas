@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 
 import '../../../admin_portal/domain/entities/school_branding.dart';
 import '../../../admin_portal/presentation/controllers/admin_controller.dart' show brandingProvider;
@@ -10,6 +13,7 @@ import '../../../faculty_portal/domain/entities/grading_scheme.dart';
 import '../../../faculty_portal/domain/entities/quarterly_grade.dart';
 import '../../../faculty_portal/presentation/controllers/faculty_controller.dart'
     show gradingSchemeProvider;
+import '../../../documents/presentation/controllers/documents_controller.dart';
 import '../../../faculty_portal/presentation/documents/report_card_pdf.dart';
 import '../../domain/entities/document_release.dart';
 import '../../domain/entities/student_summary.dart';
@@ -77,7 +81,7 @@ class _DocumentReleaseScreenState extends ConsumerState<DocumentReleaseScreen> {
     }
 
     setState(() => _working = true);
-    final recorded = await ref.read(registrarActionControllerProvider.notifier).recordDocumentRelease(
+    final releaseId = await ref.read(registrarActionControllerProvider.notifier).recordDocumentRelease(
           studentId: widget.student.id,
           studentName: widget.student.fullName,
           document: _document,
@@ -88,21 +92,75 @@ class _DocumentReleaseScreenState extends ConsumerState<DocumentReleaseScreen> {
           remarks: _remarksController.text,
         );
     if (!mounted) return;
-    if (!recorded) {
+    if (releaseId == null) {
       setState(() => _working = false);
       return; // The controller listener has already shown why.
     }
 
-    await _print(purpose: purpose, releasedTo: releasedTo, copies: _copies);
+    final document = _document;
+    final printed = await _print(
+      purpose: purpose,
+      releasedTo: releasedTo,
+      copies: _copies,
+    );
     if (!mounted) return;
-    setState(() => _working = false);
 
+    // The copy goes in the folder last, and its failure does not fail the
+    // release. The release is the thing a school is answerable for and it
+    // is already written; an upload that did not land leaves the log
+    // intact and says so, rather than rolling back a record of something
+    // that physically happened.
+    var filed = true;
+    if (printed != null) {
+      filed = await ref.read(documentsActionControllerProvider.notifier).fileIssuedCopy(
+            studentId: widget.student.id,
+            studentName: widget.student.fullName,
+            releaseId: releaseId,
+            title: _copyTitle(document),
+            fileName: AcademicRecordPdf.fileName(
+              document: document,
+              student: widget.student,
+            ),
+            bytes: printed,
+          );
+      if (!mounted) return;
+    }
+
+    setState(() => _working = false);
     _purposeController.clear();
     _remarksController.clear();
-    _say('Released and logged.');
+    _say(filed
+        ? 'Released, logged, and a copy filed.'
+        : 'Released and logged. The copy could not be filed -- try again '
+            'from the student\'s Documents.');
   }
 
-  Future<void> _print({
+  /// What the archived copy is called on the shelf.
+  ///
+  /// The control number rather than the date, because that is the string
+  /// the office quotes back on the phone -- it is on the printed page the
+  /// family is holding.
+  String _copyTitle(SchoolDocument document) {
+    final control = AcademicRecordPdf.controlNumber(
+      document: document,
+      student: widget.student,
+      on: DateTime.now(),
+    );
+    return '${document.displayLabel} - $control';
+  }
+
+  /// Renders the document, prints it, and returns the bytes that were
+  /// printed.
+  ///
+  /// The bytes are built once and used for both, so the copy filed in the
+  /// student's folder is the page that came out of the printer and not a
+  /// second render that could differ -- a different issue date on a job
+  /// run either side of midnight would be enough.
+  ///
+  /// Null when nothing was printed: the grading scheme had not loaded, or
+  /// the school has not confirmed it. Both are the school being told to
+  /// do a step it has not done, and neither should file a copy.
+  Future<Uint8List?> _print({
     required String? purpose,
     required String? releasedTo,
     required int copies,
@@ -124,10 +182,10 @@ class _DocumentReleaseScreenState extends ConsumerState<DocumentReleaseScreen> {
       final scheme = ref.read(gradingSchemeProvider).valueOrNull;
       if (scheme == null) {
         _say('The grading scheme has not loaded yet. Try again in a moment.');
-        return;
+        return null;
       }
       try {
-        await ReportCardPdf.print(
+        final bytes = await ReportCardPdf.build(
           studentName: widget.student.fullName,
           studentNumber: widget.student.studentNumber,
           classLabel: widget.student.classLabel,
@@ -138,16 +196,21 @@ class _DocumentReleaseScreenState extends ConsumerState<DocumentReleaseScreen> {
           branding: branding,
           preparedByName: registrarName,
         );
+        await Printing.layoutPdf(
+          name: ReportCardPdf.fileName(widget.student.fullName),
+          onLayout: (_) async => bytes,
+        );
+        return bytes;
       } on StateError catch (e) {
         // The unconfirmed-scheme refusal. Said in the words the domain
         // used rather than as a failure, because it is not one: it is
         // the school being told to do the step it has not done.
         if (mounted) _say(e.message);
+        return null;
       }
-      return;
     }
 
-    await AcademicRecordPdf.print(
+    final bytes = await AcademicRecordPdf.build(
       document: chosen,
       student: widget.student,
       branding: branding,
@@ -156,7 +219,13 @@ class _DocumentReleaseScreenState extends ConsumerState<DocumentReleaseScreen> {
       purpose: purpose,
       releasedToName: releasedTo,
       copies: copies,
+      issuedOn: DateTime.now(),
     );
+    await Printing.layoutPdf(
+      name: AcademicRecordPdf.fileName(document: chosen, student: widget.student),
+      onLayout: (_) async => bytes,
+    );
+    return bytes;
   }
 
   /// The quarters the student has marks in, in the order a report card
@@ -344,6 +413,10 @@ class _DocumentReleaseScreenState extends ConsumerState<DocumentReleaseScreen> {
                       for (final r in releases)
                         _ReleaseTile(
                           release: r,
+                          // A reprint files no new copy: it is the same
+                          // release, and the copy is already in the folder.
+                          // Filing a second would make the folder say the
+                          // school issued it twice.
                           onReprint: _working
                               ? null
                               : () => _print(

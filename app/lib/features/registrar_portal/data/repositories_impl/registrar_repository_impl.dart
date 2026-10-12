@@ -55,7 +55,7 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
       _remote.watchDocumentReleases(studentId);
 
   @override
-  Future<Result<void>> recordDocumentRelease({
+  Future<Result<String>> recordDocumentRelease({
     required String studentId,
     required String studentName,
     required SchoolDocument document,
@@ -66,7 +66,7 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
     String? remarks,
   }) async {
     try {
-      await _remote.recordDocumentRelease(
+      final releaseId = await _remote.recordDocumentRelease(
         studentId: studentId,
         studentName: studentName,
         document: document,
@@ -76,7 +76,7 @@ class RegistrarRepositoryImpl implements RegistrarRepository {
         releasedToRelation: releasedToRelation,
         remarks: remarks,
       );
-      return const Success(null);
+      return Success(releaseId);
     } on ServerException catch (e) {
       return Error(ServerFailure(e.message));
     } catch (_) {

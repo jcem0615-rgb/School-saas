@@ -35,7 +35,7 @@ void main() {
     final store = container.read(demoStoreProvider);
     final before = store.documentReleases.value.length;
 
-    final ok = await container
+    final String? ok = await container
         .read(registrarActionControllerProvider.notifier)
         .recordDocumentRelease(
           studentId: 'stu_001',
@@ -47,8 +47,9 @@ void main() {
           releasedToRelation: 'Mother',
         );
 
-    expect(ok, isTrue);
+    expect(ok, isNotNull, reason: 'the caller needs the id to file the copy');
     expect(store.documentReleases.value, hasLength(before + 1));
+    expect(store.documentReleases.value.first.id, ok);
 
     final logged = store.documentReleases.value.first;
     expect(logged.studentId, 'stu_001');
@@ -76,7 +77,7 @@ void main() {
         purpose: '   ',
         releasedToName: 'Elena Torres',
       ),
-      isFalse,
+      isNull,
       reason: 'a release with no stated purpose answers nothing',
     );
 
@@ -89,7 +90,7 @@ void main() {
         purpose: 'Transfer',
         releasedToName: '  ',
       ),
-      isFalse,
+      isNull,
       reason: 'a release with nobody named answers nothing either',
     );
 
@@ -110,7 +111,7 @@ void main() {
           purpose: 'Transfer',
           releasedToName: 'Elena Torres',
         ),
-        isFalse,
+        isNull,
         reason: 'copies=$copies should be refused',
       );
     }

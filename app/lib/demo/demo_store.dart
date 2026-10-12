@@ -50,6 +50,7 @@ import '../features/payments/domain/entities/payment.dart';
 import '../features/payments/domain/entities/payment_settings.dart';
 import '../features/payments/domain/entities/payment_submission.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
+import '../features/documents/domain/entities/student_document.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
 import '../features/inventory/domain/entities/inventory_item.dart';
@@ -398,6 +399,8 @@ class DemoStore {
   );
   late final documentReleases =
       BehaviorSubject<List<DocumentRelease>>.seeded(_seedDocumentReleases());
+  late final studentDocuments =
+      BehaviorSubject<List<StudentDocument>>.seeded(_seedStudentDocuments());
   late final announcements = BehaviorSubject<List<Announcement>>.seeded(_seedAnnouncements());
   late final meetings = BehaviorSubject<List<Meeting>>.seeded(_seedMeetings());
   late final approvals = BehaviorSubject<List<ApprovalRequest>>.seeded(_seedApprovals());
@@ -796,6 +799,7 @@ class DemoStore {
       classSessions, subjectAttendance, leaveRequests,
       conversations, messages,
       paymentSubmissions, paymentSettings, branding, documentReleases,
+      studentDocuments,
       feeStructures, assessments, scheduleBlocks,
       acknowledgedPrivacy, acceptedTerms,
     ]) {
@@ -2016,6 +2020,80 @@ class DemoStore {
           releasedAt: _daysAgo(23),
         ),
       ];
+
+  /// One folder with something missing from it.
+  ///
+  /// Andrea has the Form 137 that was released above sitting in her
+  /// folder as an issued copy, pinned to `rel_001` -- the pair is the
+  /// whole point of the feature, and a demo that seeded only the log
+  /// would show half of it. Juan has a birth certificate and no Form 137,
+  /// which is the state a registrar is actually chasing in October.
+  ///
+  /// The URLs are `data:` URIs because demo mode never touches a bucket,
+  /// and `openAttachment` hands those to the platform's save dialog. A
+  /// http:// URL here would open a dead link, which reads as a broken
+  /// feature rather than as a demo.
+  List<StudentDocument> _seedStudentDocuments() => [
+        StudentDocument(
+          id: 'doc_001',
+          studentId: 'stu_003',
+          studentName: 'Andrea Villanueva',
+          kind: DocumentKind.issuedCopy,
+          origin: DocumentOrigin.issued,
+          title: 'Form 137 released 23 days ago',
+          fileName: 'F137_Andrea_Villanueva.pdf',
+          url: _placeholderPdf,
+          contentType: 'application/pdf',
+          sizeBytes: 48213,
+          filedByName: 'Rosario Aguilar',
+          filedAt: _daysAgo(23),
+          releaseId: 'rel_001',
+        ),
+        StudentDocument(
+          id: 'doc_002',
+          studentId: 'stu_001',
+          studentName: 'Juan Dela Cruz',
+          kind: DocumentKind.birthCertificate,
+          origin: DocumentOrigin.received,
+          title: 'PSA Birth Certificate',
+          fileName: 'psa_birth_certificate.pdf',
+          url: _placeholderPdf,
+          contentType: 'application/pdf',
+          sizeBytes: 215044,
+          filedByName: 'Rosario Aguilar',
+          filedAt: _daysAgo(210),
+          note: 'Original sighted, photocopy on file.',
+        ),
+        StudentDocument(
+          id: 'doc_003',
+          studentId: 'stu_001',
+          studentName: 'Juan Dela Cruz',
+          kind: DocumentKind.goodMoral,
+          origin: DocumentOrigin.received,
+          title: 'Good Moral - Bacoor Elementary',
+          fileName: 'good_moral_bacoor.pdf',
+          url: _placeholderPdf,
+          contentType: 'application/pdf',
+          sizeBytes: 31882,
+          filedByName: 'Rosario Aguilar',
+          filedAt: _daysAgo(208),
+          archivedAt: _daysAgo(12),
+          archivedByName: 'Rosario Aguilar',
+          archiveReason: 'Superseded by the signed copy received in person.',
+        ),
+      ];
+
+  /// The smallest thing a PDF reader will open, as a data URI.
+  ///
+  /// A real scan would make the demo bundle heavier for no teaching
+  /// value: what the demo has to show is that the row opens something,
+  /// not what the something says.
+  static const _placeholderPdf =
+      'data:application/pdf;base64,JVBERi0xLjQKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAw'
+      'IFI+PgplbmRvYmoKMiAwIG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PgplbmRvYmoK'
+      'MyAwIG9iago8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCAyMDAgMjAwXT4+CmVuZG9i'
+      'agp0cmFpbGVyCjw8L1Jvb3QgMSAwIFI+Pg=='
+;
 
   /// A quarter's marks in the shape the grading feature needs them.
   ///
