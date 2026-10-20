@@ -216,6 +216,14 @@ class FirestorePaths {
   static String billDoc(String schoolId, String billId) =>
       '${bills(schoolId)}/$billId';
 
+  // ---- Budgets ----
+  /// What the school meant to spend. Keyed by year and account, so
+  /// there cannot be two budgets for the same account and no way to
+  /// tell which one anybody meant.
+  static String budgets(String schoolId) => '${school(schoolId)}/budgets';
+  static String budgetDoc(String schoolId, String schoolYear, String accountCode) =>
+      '${budgets(schoolId)}/${schoolYear}_$accountCode';
+
   // ---- General ledger ----
   /// The chart of accounts, keyed by the code a bookkeeper quotes --
   /// "charge it to 5100" has to find the document without a query.

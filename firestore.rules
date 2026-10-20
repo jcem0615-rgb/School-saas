@@ -1213,6 +1213,32 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // ---- budgets ----
+      // What the school meant to spend.
+      //
+      // An ordinary client write, unlike bills and journal entries, and
+      // the difference is worth stating: a budget is a plan, not a
+      // record of money that moved. Nothing has to balance, nothing has
+      // to commit with anything else, and rules can check everything
+      // that matters -- that the id is the year and the account, and
+      // that the amount is a number nobody can go negative with.
+      //
+      // No delete. Setting a line to zero is how it comes off the plan,
+      // and it leaves the spending against it visible as unbudgeted --
+      // which a deleted row would not.
+      match /budgets/{budgetId} {
+        allow read: if hasRole(schoolId, ['director', 'admin'])
+                      && schoolIsAccessible(schoolId);
+        allow create, update: if hasRole(schoolId, ['director', 'admin'])
+                                && schoolIsAccessible(schoolId)
+                                && budgetId ==
+                                   request.resource.data.schoolYear + '_' +
+                                   request.resource.data.accountCode
+                                && request.resource.data.amount is number
+                                && request.resource.data.amount >= 0;
+        allow delete: if false;
+      }
+
       // ---- vendors ----
       // Who the school buys from. An ordinary list of names, so an
       // ordinary client write: rules can check everything that matters

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/theme/theme_switch.dart';
 
+import '../../../budgets/presentation/screens/budget_screen.dart';
 import '../../../ledger/presentation/screens/ledger_screen.dart';
 import '../../../payables/presentation/screens/payables_screen.dart';
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
@@ -122,6 +123,12 @@ class DirectorDashboardScreen extends ConsumerWidget {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
+                  GlassTile(
+                    icon: Icons.savings_outlined,
+                    label: 'Budget',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const BudgetScreen())),
+                  ),
                   GlassTile(
                     icon: Icons.request_quote_outlined,
                     label: 'Accounts Payable',

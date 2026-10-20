@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../budgets/presentation/controllers/budgets_controller.dart';
 import '../../../ledger/domain/entities/ledger_account.dart';
 import '../../../ledger/presentation/controllers/ledger_controller.dart'
     show chartOfAccountsProvider;
@@ -261,6 +262,30 @@ class _RecordBillScreenState extends ConsumerState<RecordBillScreen> {
           ),
           const Divider(height: 32),
           Text('Total ${_money.format(total)}', style: theme.textTheme.titleLarge),
+          // A budget warns, it never refuses. A school that cannot
+          // record the electricity bill because somebody budgeted too
+          // little does not thereby spend less -- it just has a
+          // liability nobody can see, which is worse than an overspend
+          // somebody can.
+          for (final warning in _budgetWarnings(ref, lines))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 18, color: theme.colorScheme.tertiary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      warning,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.tertiary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: working || problem != null ? null : () => _record(chart),
@@ -275,6 +300,30 @@ class _RecordBillScreenState extends ConsumerState<RecordBillScreen> {
         ],
       ),
     );
+  }
+
+  /// What this bill would do to the plan, one line per account.
+  ///
+  /// Amounts are summed per account first: two lines coded to Supplies
+  /// breach together or not at all, and warning twice about the same
+  /// account reads as two separate problems.
+  List<String> _budgetWarnings(WidgetRef ref, List<BillLine> lines) {
+    final report = ref.watch(budgetReportProvider);
+    if (report == null) return const [];
+    final byAccount = <String, double>{};
+    for (final line in lines) {
+      byAccount[line.accountCode] = (byAccount[line.accountCode] ?? 0) + line.amount;
+    }
+    return [
+      for (final entry in byAccount.entries)
+        if (budgetWarningFor(
+              report: report,
+              accountCode: entry.key,
+              amount: entry.value,
+            )
+            case final String warning)
+          warning,
+    ];
   }
 
   Future<void> _record(List<LedgerAccount> chart) async {

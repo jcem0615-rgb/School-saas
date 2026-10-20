@@ -54,6 +54,7 @@ import '../features/documents/domain/entities/student_document.dart';
 import '../features/ledger/domain/entities/journal_entry.dart';
 import '../features/ledger/domain/entities/ledger_account.dart';
 import '../features/payables/domain/entities/bill.dart';
+import '../features/budgets/domain/entities/budget.dart';
 import '../features/payables/domain/entities/vendor.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
@@ -417,6 +418,9 @@ class DemoStore {
   /// What the school owes, and who to.
   late final vendors = BehaviorSubject<List<Vendor>>.seeded(_seedVendors());
   late final bills = BehaviorSubject<List<Bill>>.seeded(_seedBills());
+
+  /// What the school meant to spend.
+  late final budgets = BehaviorSubject<List<Budget>>.seeded(_seedBudgets());
   late final announcements = BehaviorSubject<List<Announcement>>.seeded(_seedAnnouncements());
   late final meetings = BehaviorSubject<List<Meeting>>.seeded(_seedMeetings());
   late final approvals = BehaviorSubject<List<ApprovalRequest>>.seeded(_seedApprovals());
@@ -816,6 +820,7 @@ class DemoStore {
       conversations, messages,
       paymentSubmissions, paymentSettings, branding, documentReleases,
       studentDocuments, ledgerAccounts, journalEntries, vendors, bills,
+      budgets,
       feeStructures, assessments, scheduleBlocks,
       acknowledgedPrivacy, acceptedTerms,
     ]) {
@@ -2336,6 +2341,37 @@ class DemoStore {
           ],
         ),
       ];
+
+  /// A year's plan, set in June.
+  ///
+  /// Deliberately not a plan everything fits inside. Utilities is nearly
+  /// gone and supplies is past it, because a budget report where every
+  /// line is comfortable shows nothing about what a budget report is
+  /// for. Repairs has no line at all, so the unbudgeted state has
+  /// something to find.
+  List<Budget> _seedBudgets() {
+    final year = DateTime.now().month >= 6
+        ? '${DateTime.now().year}-${DateTime.now().year + 1}'
+        : '${DateTime.now().year - 1}-${DateTime.now().year}';
+    Budget of(String code, String name, double amount, {String? note}) => Budget(
+          schoolYear: year,
+          accountCode: code,
+          accountName: name,
+          amount: amount,
+          note: note,
+          setByName: 'Grace Mendoza',
+          setAt: _daysAgo(140),
+        );
+    return [
+      of(Accounts.revenueTuition, 'Tuition Revenue', 2400000),
+      of(Accounts.revenueMiscFees, 'Miscellaneous Fees', 180000),
+      of(Accounts.expenseSalaries, 'Salaries and Wages', 1680000),
+      of(Accounts.expenseBenefits, 'Employee Benefits', 126000),
+      of(Accounts.expenseUtilities, 'Utilities', 14000,
+          note: 'Meralco and Maynilad'),
+      of(Accounts.expenseSupplies, 'Supplies', 10000),
+    ];
+  }
 
   /// The smallest thing a PDF reader will open, as a data URI.
   ///

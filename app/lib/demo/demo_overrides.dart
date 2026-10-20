@@ -25,6 +25,7 @@ import '../features/inventory/presentation/controllers/inventory_controller.dart
 import '../features/payroll/presentation/controllers/payroll_controller.dart';
 import '../features/documents/presentation/controllers/documents_controller.dart';
 import '../features/ledger/presentation/controllers/ledger_controller.dart';
+import '../features/budgets/presentation/controllers/budgets_controller.dart';
 import '../features/payables/presentation/controllers/payables_controller.dart';
 import '../features/registrar_portal/presentation/controllers/registrar_controller.dart';
 import '../features/reports/presentation/controllers/reports_controller.dart';
@@ -142,6 +143,10 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
     ledgerRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoLedgerRepository(ref.watch(demoStoreProvider));
+    }),
+    budgetsRepositoryProvider.overrideWith((ref) {
+      ref.watch(authStateProvider);
+      return DemoBudgetsRepository(ref.watch(demoStoreProvider));
     }),
     payablesRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);

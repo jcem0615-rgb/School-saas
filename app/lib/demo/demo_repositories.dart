@@ -78,6 +78,8 @@ import '../features/ledger/domain/entities/ledger_account.dart';
 import '../features/ledger/domain/repositories/ledger_repository.dart';
 import '../features/payables/domain/entities/bill.dart';
 import '../features/payables/domain/entities/vendor.dart';
+import '../features/budgets/data/budgets_repository_impl.dart' show BudgetsRepository;
+import '../features/budgets/domain/entities/budget.dart';
 import '../features/payables/domain/repositories/payables_repository.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
@@ -2584,6 +2586,50 @@ class DemoUploadRepository implements UploadRepository {
       url: 'data:$contentType;base64,${base64Encode(bytes)}',
       sizeBytes: bytes.lengthInBytes,
     ));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Budgets -- what the school meant to spend
+// ---------------------------------------------------------------------------
+
+/// The plan, in memory.
+///
+/// Plainer than its neighbours on purpose, and so is the product's: a
+/// budget is a plan rather than a record of money that moved, so there
+/// is no entry to post and nothing to keep in step.
+class DemoBudgetsRepository implements BudgetsRepository {
+  final DemoStore _store;
+  DemoBudgetsRepository(this._store);
+
+  @override
+  Stream<List<Budget>> watchBudgets(String schoolYear) =>
+      _store.budgets.stream.map(
+        (all) => all.where((b) => b.schoolYear == schoolYear).toList(),
+      );
+
+  @override
+  Future<Result<void>> setBudget(Budget budget) async {
+    await _latency(300);
+    final stamped = Budget(
+      schoolYear: budget.schoolYear,
+      accountCode: budget.accountCode,
+      accountName: budget.accountName,
+      amount: budget.amount,
+      note: budget.note,
+      setByName: _store.requireUser.fullName,
+      setAt: DateTime.now(),
+    );
+    // Idempotent by construction, as the product is: one budget per
+    // account per year, so setting it again replaces it rather than
+    // leaving two nobody can choose between.
+    final existing = _store.budgets.value.any((b) => b.id == stamped.id);
+    if (existing) {
+      _store.update<Budget>(_store.budgets, (b) => b.id == stamped.id, (_) => stamped);
+    } else {
+      _store.prepend(_store.budgets, stamped);
+    }
+    return const Success(null);
   }
 }
 
