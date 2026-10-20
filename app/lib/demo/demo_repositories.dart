@@ -73,6 +73,9 @@ import '../features/qr_attendance/domain/entities/qr_scan_result.dart';
 import '../features/qr_attendance/domain/repositories/qr_attendance_repository.dart';
 import '../features/documents/domain/entities/student_document.dart';
 import '../features/documents/domain/repositories/documents_repository.dart';
+import '../features/ledger/domain/entities/journal_entry.dart';
+import '../features/ledger/domain/entities/ledger_account.dart';
+import '../features/ledger/domain/repositories/ledger_repository.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
 import '../features/inventory/domain/entities/inventory_item.dart';
@@ -2578,6 +2581,193 @@ class DemoUploadRepository implements UploadRepository {
       url: 'data:$contentType;base64,${base64Encode(bytes)}',
       sizeBytes: bytes.lengthInBytes,
     ));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Ledger -- the books
+// ---------------------------------------------------------------------------
+
+/// The books, in memory.
+///
+/// The product posts almost every entry server-side, inside the
+/// transaction that writes the payment or the payslip. The demo has no
+/// server, so what it reproduces is the part that is observable: entries
+/// arrive from events, a manual entry has to balance before it is
+/// accepted, and nothing is ever edited -- a mistake is reversed.
+class DemoLedgerRepository implements LedgerRepository {
+  final DemoStore _store;
+  DemoLedgerRepository(this._store);
+
+  @override
+  Stream<List<LedgerAccount>> watchChartOfAccounts() =>
+      _store.ledgerAccounts.stream.map((all) => all.toList()
+        ..sort((a, b) {
+          final byType = a.type.sortOrder.compareTo(b.type.sortOrder);
+          return byType != 0 ? byType : a.code.compareTo(b.code);
+        }));
+
+  @override
+  Stream<List<JournalEntry>> watchJournal(LedgerPeriod period) =>
+      _store.journalEntries.stream.map(
+        (all) => all.where((e) => period.holds(e.date)).toList()
+          ..sort((a, b) => b.date.compareTo(a.date)),
+      );
+
+  @override
+  Stream<List<JournalEntry>> watchAccountLedger({
+    required String accountCode,
+    required LedgerPeriod period,
+  }) =>
+      watchJournal(period).map((entries) => entries
+          .where((e) => e.lines.any((l) => l.accountCode == accountCode))
+          .toList());
+
+  @override
+  Future<Result<void>> addAccount(LedgerAccount account) async {
+    await _latency(300);
+    if (_store.ledgerAccounts.value.any((a) => a.code == account.code)) {
+      return Error(ValidationFailure('Account ${account.code} already exists.'));
+    }
+    _store.ledgerAccounts.add([..._store.ledgerAccounts.value, account]);
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> updateAccount({
+    required String code,
+    String? name,
+    String? description,
+    bool? isActive,
+  }) async {
+    await _latency(250);
+    if (!_store.ledgerAccounts.value.any((a) => a.code == code)) {
+      return const Error(ServerFailure('That account is no longer in the chart.'));
+    }
+    _store.update<LedgerAccount>(
+      _store.ledgerAccounts,
+      (a) => a.code == code,
+      (a) => a.copyWith(name: name, description: description, isActive: isActive),
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<String>> postManualEntry({
+    required DateTime date,
+    required String memo,
+    required List<JournalLine> lines,
+  }) async {
+    await _latency(400);
+    // The same check the callable makes before it writes anything. A
+    // demo that accepted an entry the product refuses would teach the
+    // wrong thing about the one rule that matters here.
+    final problem = reasonEntryCannotPost(lines);
+    if (problem != null) return Error(ValidationFailure(problem));
+
+    final known = {for (final a in _store.ledgerAccounts.value) a.code: a};
+    for (final line in lines) {
+      final account = known[line.accountCode];
+      if (account == null) {
+        return Error(ValidationFailure(
+          'There is no account ${line.accountCode} in the chart.',
+        ));
+      }
+      if (!account.isActive) {
+        return Error(ValidationFailure('${account.label} is no longer in use.'));
+      }
+    }
+
+    final number = _nextEntryNumber(date.year);
+    _store.prepend(
+      _store.journalEntries,
+      JournalEntry(
+        id: _store.nextId('je'),
+        entryNumber: number,
+        date: date,
+        memo: memo,
+        source: EntrySource.manual,
+        lines: [
+          for (final line in lines)
+            JournalLine(
+              accountCode: line.accountCode,
+              accountName: known[line.accountCode]!.name,
+              debit: line.debit,
+              credit: line.credit,
+              memo: line.memo,
+            ),
+        ],
+        postedByName: _store.requireUser.fullName,
+        postedAt: DateTime.now(),
+      ),
+    );
+    return Success(number);
+  }
+
+  @override
+  Future<Result<String>> reverseEntry({
+    required String entryId,
+    required String reason,
+  }) async {
+    await _latency(400);
+    final original = _store.journalEntries.value
+        .where((e) => e.id == entryId)
+        .firstOrNull;
+    if (original == null) {
+      return const Error(ServerFailure('That entry is not in the journal.'));
+    }
+    if (original.isReversed) {
+      return Error(ValidationFailure(
+        'Entry ${original.entryNumber} has already been reversed.',
+      ));
+    }
+
+    final number = _nextEntryNumber(DateTime.now().year);
+    final reversalId = _store.nextId('je');
+    _store.prepend(
+      _store.journalEntries,
+      JournalEntry(
+        id: reversalId,
+        entryNumber: number,
+        // Dated today, not back-dated: the correction happened today, and
+        // a reversal filed into a closed period quietly changes last
+        // month's reported figures.
+        date: DateTime.now(),
+        memo: 'Reversal of ${original.entryNumber}: $reason',
+        source: EntrySource.reversal,
+        sourceId: entryId,
+        reversalOf: entryId,
+        lines: original.reversedLines(),
+        postedByName: _store.requireUser.fullName,
+        postedAt: DateTime.now(),
+      ),
+    );
+    _store.update<JournalEntry>(
+      _store.journalEntries,
+      (e) => e.id == entryId,
+      (e) => JournalEntry(
+        id: e.id,
+        entryNumber: e.entryNumber,
+        date: e.date,
+        memo: e.memo,
+        source: e.source,
+        sourceId: e.sourceId,
+        lines: e.lines,
+        postedByName: e.postedByName,
+        postedAt: e.postedAt,
+        reversalOf: e.reversalOf,
+        reversedBy: reversalId,
+      ),
+    );
+    return Success(number);
+  }
+
+  /// JE-2026-0042, carrying on from whatever is already in the journal.
+  String _nextEntryNumber(int year) {
+    final used = _store.journalEntries.value
+        .map((e) => int.tryParse(e.entryNumber.split('-').last) ?? 0);
+    final next = (used.isEmpty ? 0 : used.reduce((a, b) => a > b ? a : b)) + 1;
+    return 'JE-$year-${next.toString().padLeft(4, '0')}';
   }
 }
 

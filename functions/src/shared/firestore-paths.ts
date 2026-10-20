@@ -154,6 +154,17 @@ export const FirestorePaths = {
   counterDoc: (schoolId: string, counterName: string) =>
     `schools/${schoolId}/counters/${counterName}`,
 
+  // ---- General ledger ----
+  // The chart of accounts, keyed by the code a bookkeeper quotes, and
+  // the journal. Entries are immutable: see firestore.rules, which has
+  // no update rule and no delete rule for anyone.
+  ledgerAccounts: (schoolId: string) => `schools/${schoolId}/ledgerAccounts`,
+  ledgerAccountDoc: (schoolId: string, code: string) =>
+    `schools/${schoolId}/ledgerAccounts/${code}`,
+  journalEntries: (schoolId: string) => `schools/${schoolId}/journalEntries`,
+  journalEntryDoc: (schoolId: string, entryId: string) =>
+    `schools/${schoolId}/journalEntries/${entryId}`,
+
   // ---- Admissions ----
   // Enquiries, from the first phone call to the day they enrol.
   applicants: (schoolId: string) => `schools/${schoolId}/applicants`,

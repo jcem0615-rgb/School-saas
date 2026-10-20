@@ -24,6 +24,7 @@ import '../features/admissions/presentation/controllers/admissions_controller.da
 import '../features/inventory/presentation/controllers/inventory_controller.dart';
 import '../features/payroll/presentation/controllers/payroll_controller.dart';
 import '../features/documents/presentation/controllers/documents_controller.dart';
+import '../features/ledger/presentation/controllers/ledger_controller.dart';
 import '../features/registrar_portal/presentation/controllers/registrar_controller.dart';
 import '../features/reports/presentation/controllers/reports_controller.dart';
 import '../features/schedules/presentation/controllers/schedule_controller.dart';
@@ -136,6 +137,10 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
     documentsRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoDocumentsRepository(ref.watch(demoStoreProvider));
+    }),
+    ledgerRepositoryProvider.overrideWith((ref) {
+      ref.watch(authStateProvider);
+      return DemoLedgerRepository(ref.watch(demoStoreProvider));
     }),
     uploadRepositoryProvider.overrideWith((ref) => const DemoUploadRepository()),
     // Demo mode never initialises Firebase, and prompting a stranger's

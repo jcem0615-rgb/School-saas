@@ -4,6 +4,12 @@ import {requireCallerClaims, requireRole, requireSameSchool} from "../../shared/
 import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
 import {applyAssessment} from "../../shared/payments/balanceMath";
+import {Accounts, STANDARD_CHART} from "../../shared/ledger/accounts";
+import {
+  ensureChartOfAccounts,
+  postJournalEntryInTransaction,
+} from "../../shared/ledger/postJournalEntry";
+import {getNextSequence} from "../../shared/counters/getNextSequence";
 import {InstallmentData, validateInstallments} from "../../shared/payments/billingSchedule";
 import {DiscountData, validateDiscounts} from "../../shared/payments/discounts";
 import {SubsidyData, validateSubsidies} from "../../shared/payments/subsidies";
@@ -180,6 +186,9 @@ export const assessStudentFees = onCall(
       }
     }
 
+    await ensureChartOfAccounts(schoolId, STANDARD_CHART);
+    const journalSequence = await getNextSequence(schoolId, "journalEntryNumber");
+
     const result = await db.runTransaction(async (tx) => {
       const studentSnap = await tx.get(studentRef);
       if (!studentSnap.exists) {
@@ -228,6 +237,41 @@ export const assessStudentFees = onCall(
         updatedBy: request.auth!.uid,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+
+      // This is where the fee is earned, not when it is collected. The
+      // school has done the teaching and is owed the money, so the
+      // receivable and the revenue are both recognised here -- and
+      // recordPayment therefore only moves an asset when the family
+      // pays. Posting revenue in both places would count every peso
+      // twice, which is the most common way a ledger bolted onto a
+      // billing system goes wrong.
+      //
+      // `total` is net of discounts and subsidies: it is what moved the
+      // balance and what the family actually owes. A school that wants
+      // discounts shown as a contra-revenue account of their own needs a
+      // revenue account per fee item, which the fee structure does not
+      // carry yet.
+      if (total > 0) {
+        postJournalEntryInTransaction(
+          tx,
+          {
+            schoolId,
+            date: new Date(),
+            memo: `Assessment ${schoolYear} - ${
+              `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim()
+            }`,
+            source: "assessment",
+            sourceId: assessmentRef.id,
+            postedBy: request.auth!.uid,
+            postedByName: (request.auth!.token.name as string) ?? "Unknown",
+            lines: [
+              {accountCode: Accounts.receivableStudents, debit: total},
+              {accountCode: Accounts.revenueTuition, credit: total},
+            ],
+          },
+          journalSequence
+        );
+      }
 
       return {previousBalance, newBalance};
     });

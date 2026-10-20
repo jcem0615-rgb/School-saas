@@ -51,6 +51,8 @@ import '../features/payments/domain/entities/payment_settings.dart';
 import '../features/payments/domain/entities/payment_submission.dart';
 import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/documents/domain/entities/student_document.dart';
+import '../features/ledger/domain/entities/journal_entry.dart';
+import '../features/ledger/domain/entities/ledger_account.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
 import '../features/inventory/domain/entities/inventory_item.dart';
@@ -401,6 +403,14 @@ class DemoStore {
       BehaviorSubject<List<DocumentRelease>>.seeded(_seedDocumentReleases());
   late final studentDocuments =
       BehaviorSubject<List<StudentDocument>>.seeded(_seedStudentDocuments());
+
+  /// The books. Seeded from the standard chart rather than a demo one,
+  /// because the chart is the product's and a school that liked the demo
+  /// should recognise what it gets.
+  late final ledgerAccounts =
+      BehaviorSubject<List<LedgerAccount>>.seeded(standardChartOfAccounts);
+  late final journalEntries =
+      BehaviorSubject<List<JournalEntry>>.seeded(_seedJournalEntries());
   late final announcements = BehaviorSubject<List<Announcement>>.seeded(_seedAnnouncements());
   late final meetings = BehaviorSubject<List<Meeting>>.seeded(_seedMeetings());
   late final approvals = BehaviorSubject<List<ApprovalRequest>>.seeded(_seedApprovals());
@@ -799,7 +809,7 @@ class DemoStore {
       classSessions, subjectAttendance, leaveRequests,
       conversations, messages,
       paymentSubmissions, paymentSettings, branding, documentReleases,
-      studentDocuments,
+      studentDocuments, ledgerAccounts, journalEntries,
       feeStructures, assessments, scheduleBlocks,
       acknowledgedPrivacy, acceptedTerms,
     ]) {
@@ -2082,6 +2092,103 @@ class DemoStore {
           archiveReason: 'Superseded by the signed copy received in person.',
         ),
       ];
+
+  /// A term's books, in miniature.
+  ///
+  /// Every entry here is one the product would have posted itself: a fee
+  /// assessed, two collections against it, a payroll run and a light
+  /// bill. Nothing is hand-written, because almost nothing in a real
+  /// school's ledger should be -- and a demo seeded with manual entries
+  /// would teach the opposite of the thing worth learning.
+  ///
+  /// They balance. There is a test that checks it, because a demo whose
+  /// trial balance is out is a demo that argues against the feature.
+  List<JournalEntry> _seedJournalEntries() => [
+        _entry(
+          id: 'je_001',
+          number: 'JE-2026-0001',
+          daysAgo: 64,
+          memo: 'Assessment 2026-2027 - Juan Dela Cruz',
+          source: EntrySource.assessment,
+          lines: [
+            JournalLine.debit(Accounts.receivableStudents,
+                'Accounts Receivable - Students', 18500),
+            JournalLine.credit(Accounts.revenueTuition, 'Tuition Revenue', 18500),
+          ],
+        ),
+        _entry(
+          id: 'je_002',
+          number: 'JE-2026-0002',
+          daysAgo: 60,
+          memo: 'Collection OR-2026-000118',
+          source: EntrySource.payment,
+          lines: [
+            JournalLine.debit(Accounts.cashOnHand, 'Cash on Hand', 6000),
+            JournalLine.credit(Accounts.receivableStudents,
+                'Accounts Receivable - Students', 6000),
+          ],
+        ),
+        _entry(
+          id: 'je_003',
+          number: 'JE-2026-0003',
+          daysAgo: 31,
+          memo: 'Collection OR-2026-000142',
+          source: EntrySource.payment,
+          lines: [
+            JournalLine.debit(Accounts.eWallet, 'E-Wallet', 4500),
+            JournalLine.credit(Accounts.receivableStudents,
+                'Accounts Receivable - Students', 4500),
+          ],
+        ),
+        _entry(
+          id: 'je_004',
+          number: 'JE-2026-0004',
+          daysAgo: 14,
+          memo: 'Payroll 1 to 15',
+          source: EntrySource.payroll,
+          lines: [
+            JournalLine.debit(Accounts.expenseSalaries, 'Salaries and Wages', 86000),
+            JournalLine.debit(Accounts.expenseBenefits, 'Employee Benefits', 6450),
+            JournalLine.credit(Accounts.payableSss, 'SSS Payable', 7310),
+            JournalLine.credit(Accounts.payablePhilHealth, 'PhilHealth Payable', 2150),
+            JournalLine.credit(Accounts.payablePagIbig, 'Pag-IBIG Payable', 1290),
+            JournalLine.credit(
+                Accounts.payableWithholding, 'Withholding Tax Payable', 4300),
+            JournalLine.credit(Accounts.cashInBank, 'Cash in Bank', 77400),
+          ],
+        ),
+        _entry(
+          id: 'je_005',
+          number: 'JE-2026-0005',
+          daysAgo: 9,
+          memo: 'Meralco - August',
+          source: EntrySource.expense,
+          lines: [
+            JournalLine.debit(Accounts.expenseUtilities, 'Utilities', 12480),
+            JournalLine.credit(Accounts.cashInBank, 'Cash in Bank', 12480),
+          ],
+        ),
+      ];
+
+  JournalEntry _entry({
+    required String id,
+    required String number,
+    required int daysAgo,
+    required String memo,
+    required EntrySource source,
+    required List<JournalLine> lines,
+  }) =>
+      JournalEntry(
+        id: id,
+        entryNumber: number,
+        date: _daysAgo(daysAgo),
+        memo: memo,
+        source: source,
+        sourceId: id,
+        lines: lines,
+        postedByName: 'Grace Mendoza',
+        postedAt: _daysAgo(daysAgo),
+      );
 
   /// The smallest thing a PDF reader will open, as a data URI.
   ///

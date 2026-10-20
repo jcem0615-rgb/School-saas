@@ -3,6 +3,13 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import {requireCallerClaims, requireRole, requireSameSchool} from "../../shared/auth/claims";
 import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
+import {STANDARD_CHART} from "../../shared/ledger/accounts";
+import {
+  ensureChartOfAccounts,
+  postJournalEntryInTransaction,
+} from "../../shared/ledger/postJournalEntry";
+import {payrollJournalLines} from "../../shared/ledger/payrollLines";
+import {getNextSequence} from "../../shared/counters/getNextSequence";
 import {
   CONTRIBUTION_LABELS,
   canIssuePayslips,
@@ -244,6 +251,14 @@ export const runPayroll = onCall(
       });
     });
 
+    // The books, posted from the run rather than typed up afterwards.
+    //
+    // The arithmetic lives in shared/ledger/payrollLines.ts, where it can
+    // be tested: a payroll is four facts at once and missing one of them
+    // still balances, it just understates the expense and the liability
+    // until a remittance comes up short.
+    const journalLines = payrollJournalLines(payslips);
+
     try {
       await batch.commit();
     } catch (error) {
@@ -257,6 +272,26 @@ export const runPayroll = onCall(
       }
       throw error;
     }
+
+    await ensureChartOfAccounts(schoolId, STANDARD_CHART);
+    const journalSequence = await getNextSequence(schoolId, "journalEntryNumber");
+    const db2 = admin.firestore();
+    await db2.runTransaction(async (tx) => {
+      postJournalEntryInTransaction(
+        tx,
+        {
+          schoolId,
+          date: new Date(),
+          memo: `Payroll ${periodFrom} to ${periodTo}`,
+          source: "payroll",
+          sourceId: `${periodFrom}_${periodTo}`,
+          postedBy: issuedBy,
+          postedByName: issuedByName,
+          lines: journalLines,
+        },
+        journalSequence
+      );
+    });
 
     await writeAuditLog({
       schoolId,

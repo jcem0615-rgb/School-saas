@@ -29,6 +29,7 @@
  */
 
 import {
+  ContributionKind,
   ContributionScheme,
   CONTRIBUTION_LABELS,
   contributionOn,
@@ -64,6 +65,15 @@ export interface PayslipLine {
   amount: number;
   /** Where the number came from, when it is not obvious. Printed under the label. */
   basis: string | null;
+  /**
+   * Which statutory contribution this is, when it is one.
+   *
+   * Carried so the general ledger can credit SSS Payable rather than
+   * PhilHealth Payable. The alternative is matching on `label`, which
+   * breaks the day somebody translates it -- and a payroll posting that
+   * files the wrong agency is found at remittance time, by the agency.
+   */
+  kind?: ContributionKind | null;
 }
 
 export interface Payslip {
@@ -80,6 +90,8 @@ export interface Payslip {
   netPay: number;
   /** The school's own share. Never on the employee's copy; it is what the school remits. */
   employerContributions: number;
+  /** The same figure split by agency, for the ledger posting. */
+  employerByKind: Record<string, number>;
   daysWorked: number;
   daysAbsent: number;
   daysLate: number;
@@ -230,6 +242,9 @@ export function computePayslip(input: {
   const gross = round2(basicAfterAbsences + compensation.allowance);
 
   let employerTotal = 0;
+  // Per agency, not just the total: the school remits to four different
+  // places and the ledger has to credit four different payables.
+  const employerByKind: Record<string, number> = {};
   if (deductContributions) {
     // The three agencies first: they come off before tax is reckoned,
     // which is what makes them worth doing in this order rather than any
@@ -238,11 +253,13 @@ export function computePayslip(input: {
       const table = tableFor(scheme, kind);
       const amount = contributionOn(table, monthlyBasisForContributions);
       employerTotal += amount.employerShare;
+      employerByKind[kind] = round2((employerByKind[kind] ?? 0) + amount.employerShare);
       if (amount.employeeShare > 0) {
         deductions.push({
           label: CONTRIBUTION_LABELS[kind],
           amount: amount.employeeShare,
           basis: table.sourceLabel,
+          kind,
         });
       }
     }
@@ -257,11 +274,15 @@ export function computePayslip(input: {
     const taxTable = tableFor(scheme, "withholding_tax");
     const tax = contributionOn(taxTable, taxable < 0 ? 0 : taxable);
     employerTotal += tax.employerShare;
+    employerByKind.withholding_tax = round2(
+      (employerByKind.withholding_tax ?? 0) + tax.employerShare
+    );
     if (tax.employeeShare > 0) {
       deductions.push({
         label: CONTRIBUTION_LABELS.withholding_tax,
         amount: tax.employeeShare,
         basis: taxTable.sourceLabel,
+        kind: "withholding_tax",
       });
     }
   }
@@ -283,6 +304,7 @@ export function computePayslip(input: {
     // amount is not a thing that can happen.
     netPay: round2(gross - totalDeductions < 0 ? 0 : gross - totalDeductions),
     employerContributions: round2(employerTotal),
+    employerByKind,
     daysWorked: timesheet.daysWorked,
     daysAbsent: timesheet.daysAbsent,
     daysLate: timesheet.daysLate,

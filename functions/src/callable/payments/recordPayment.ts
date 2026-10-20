@@ -6,6 +6,11 @@ import {FirestorePaths} from "../../shared/firestore-paths";
 import {getNextSequence} from "../../shared/counters/getNextSequence";
 import {applyPayment, formatReceiptNumber} from "../../shared/payments/balanceMath";
 import {claimOfficialReceipt} from "../../shared/payments/officialReceipt";
+import {Accounts, STANDARD_CHART, cashAccountForMethod} from "../../shared/ledger/accounts";
+import {
+  ensureChartOfAccounts,
+  postJournalEntryInTransaction,
+} from "../../shared/ledger/postJournalEntry";
 
 interface RecordPaymentData {
   schoolId: string;
@@ -76,6 +81,14 @@ export const recordPayment = onCall(
     const sequence = await getNextSequence(schoolId, "receiptNumber");
     const receiptNumber = formatReceiptNumber(sequence, new Date().getFullYear());
 
+    // The books are posted from the payment, not typed up afterwards.
+    // Claimed out here because Firestore will not nest transactions, the
+    // same reason the receipt number is. A failed transaction leaves a
+    // gap in the journal numbering, which is what a paper journal does
+    // with a spoiled page and what an auditor expects to see explained.
+    await ensureChartOfAccounts(schoolId, STANDARD_CHART);
+    const journalSequence = await getNextSequence(schoolId, "journalEntryNumber");
+
     const paymentRef = db.collection(FirestorePaths.payments(schoolId)).doc();
 
     // The balance is read inside the transaction, not from the snapshot
@@ -133,6 +146,31 @@ export const recordPayment = onCall(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: request.auth!.uid,
       });
+
+      // Money in, and a receivable settled. The fee was earned when it
+      // was assessed -- that is where the revenue was recognised -- so
+      // collecting it moves an asset, it does not create income. Posting
+      // revenue here as well would count every peso twice.
+      //
+      // Inside the same transaction as the payment: the entry and the
+      // receipt commit together or neither does.
+      postJournalEntryInTransaction(
+        tx,
+        {
+          schoolId,
+          date: new Date(),
+          memo: `Collection ${receiptNumber}`,
+          source: "payment",
+          sourceId: paymentRef.id,
+          postedBy: request.auth!.uid,
+          postedByName: (request.auth!.token.name as string) ?? "Unknown",
+          lines: [
+            {accountCode: cashAccountForMethod(method), debit: amount},
+            {accountCode: Accounts.receivableStudents, credit: amount},
+          ],
+        },
+        journalSequence
+      );
     });
 
     await writeAuditLog({

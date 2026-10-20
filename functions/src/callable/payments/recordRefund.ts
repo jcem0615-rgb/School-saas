@@ -3,6 +3,12 @@ import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import {requireCallerClaims, requireRole, requireSameSchool} from "../../shared/auth/claims";
 import {writeAuditLog} from "../../shared/audit/writeAuditLog";
 import {FirestorePaths} from "../../shared/firestore-paths";
+import {Accounts, STANDARD_CHART, cashAccountForMethod} from "../../shared/ledger/accounts";
+import {
+  ensureChartOfAccounts,
+  postJournalEntryInTransaction,
+} from "../../shared/ledger/postJournalEntry";
+import {getNextSequence} from "../../shared/counters/getNextSequence";
 import {applyRefund} from "../../shared/payments/balanceMath";
 
 interface RecordRefundData {
@@ -63,6 +69,9 @@ export const recordRefund = onCall(
     // The re-read of the original payment is what makes the
     // already-refunded check hold too: the snapshot above can be stale by
     // the time this runs, which would refund the same payment twice.
+    await ensureChartOfAccounts(schoolId, STANDARD_CHART);
+    const journalSequence = await getNextSequence(schoolId, "journalEntryNumber");
+
     let newBalance = 0;
     await db.runTransaction(async (tx) => {
       const freshOriginal = await tx.get(originalRef);
@@ -106,6 +115,31 @@ export const recordRefund = onCall(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: request.auth!.uid,
       });
+
+      // The exact reverse of the collection it undoes: money back out,
+      // the receivable restored. Posted as its own entry rather than by
+      // editing the original, because the journal is never edited -- the
+      // correction is itself part of the record.
+      postJournalEntryInTransaction(
+        tx,
+        {
+          schoolId,
+          date: new Date(),
+          memo: `Refund of ${original.receiptNumber ?? paymentId}`,
+          source: "refund",
+          sourceId: refundRef.id,
+          postedBy: request.auth!.uid,
+          postedByName: (request.auth!.token.name as string) ?? "Unknown",
+          lines: [
+            {accountCode: Accounts.receivableStudents, debit: refundAmount},
+            {
+              accountCode: cashAccountForMethod(original.method as string),
+              credit: refundAmount,
+            },
+          ],
+        },
+        journalSequence
+      );
     });
 
     await writeAuditLog({

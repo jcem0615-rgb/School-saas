@@ -206,6 +206,21 @@ class FirestorePaths {
   static String documentReleases(String schoolId) =>
       '${school(schoolId)}/documentReleases';
 
+  // ---- General ledger ----
+  /// The chart of accounts, keyed by the code a bookkeeper quotes --
+  /// "charge it to 5100" has to find the document without a query.
+  static String ledgerAccounts(String schoolId) =>
+      '${school(schoolId)}/ledgerAccounts';
+  static String ledgerAccountDoc(String schoolId, String code) =>
+      '${ledgerAccounts(schoolId)}/$code';
+
+  /// The journal. Append-only -- see firestore.rules. A mistake is
+  /// corrected by posting the reverse of it, never by editing.
+  static String journalEntries(String schoolId) =>
+      '${school(schoolId)}/journalEntries';
+  static String journalEntryDoc(String schoolId, String entryId) =>
+      '${journalEntries(schoolId)}/$entryId';
+
   /// The student folders: what the school holds about each child.
   ///
   /// One collection rather than a subcollection under each student so a

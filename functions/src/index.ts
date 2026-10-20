@@ -115,6 +115,16 @@ export {recordInventoryMovement} from "./callable/inventory/recordInventoryMovem
 // ---------------------------------------------------------------------------
 export {runPayroll} from "./callable/payroll/runPayroll";
 
+// ---- General ledger ----
+// The books are posted by the events that cause them -- see
+// recordPayment, assessStudentFees, recordRefund and runPayroll. These
+// two are the entries a person starts: the opening balances and the
+// corrections. firestore.rules refuses every client write to the
+// journal, because rules cannot sum an array and so cannot prove an
+// entry balances.
+export {postManualEntry} from "./callable/ledger/postManualEntry";
+export {reverseJournalEntry} from "./callable/ledger/reverseJournalEntry";
+
 // ---------------------------------------------------------------------------
 // Module: Announcements (push notifications)
 // ---------------------------------------------------------------------------

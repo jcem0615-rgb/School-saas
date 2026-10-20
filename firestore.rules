@@ -1213,6 +1213,57 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // ---- ledgerAccounts ----
+      // The chart of accounts. Finance reading, which here means the
+      // Director and the Admin: a principal runs a division, not a set
+      // of books, and a chart of accounts tells you what the school
+      // spends on what.
+      match /ledgerAccounts/{accountCode} {
+        allow read: if hasRole(schoolId, ['director', 'admin'])
+                      && schoolIsAccessible(schoolId);
+        allow create: if hasRole(schoolId, ['director', 'admin'])
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.code == accountCode
+                        && request.resource.data.isSystem == false;
+        // A system account may be renamed -- a school that calls 4010
+        // "Other School Fees" should see that everywhere -- but its code
+        // and its type never move, because the automatic postings find
+        // it by code and read its type to know which side it grows on.
+        allow update: if hasRole(schoolId, ['director', 'admin'])
+                        && schoolIsAccessible(schoolId)
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['name', 'description', 'isActive'])
+                        && (resource.data.isSystem == false
+                            || request.resource.data.isActive == true);
+        // Never. An account with entries against it cannot be removed
+        // without the trial balance silently losing them; one with none
+        // costs nothing to leave switched off.
+        allow delete: if false;
+      }
+
+      // ---- journalEntries ----
+      // The journal. Read-only to every client there is.
+      //
+      // Writes are server-only -- recordPayment, assessStudentFees,
+      // recordRefund and runPayroll post inside the same transaction
+      // that writes the thing being accounted for, and postManualEntry
+      // and reverseJournalEntry handle the two a person starts.
+      //
+      // Not a matter of taste. Security rules cannot sum an array, so
+      // there is no way to express "debits equal credits" here, which
+      // means a client allowed to write could post books that do not
+      // balance. The callables check it before every write and refuse.
+      //
+      // Nothing is ever edited or deleted, by anyone, for the same
+      // reason documentReleases is append-only: a correction is itself
+      // part of the record, so a mistake is fixed by posting the reverse
+      // of it. `reversedBy` is set by the reversal callable, server-side.
+      match /journalEntries/{entryId} {
+        allow read: if hasRole(schoolId, ['director', 'admin'])
+                      && schoolIsAccessible(schoolId);
+        allow create, update, delete: if false;
+      }
+
       // ---- studentDocuments ----
       // The student folders: what the school holds about one child.
       // The other half of documentReleases -- that log says a Form 137
