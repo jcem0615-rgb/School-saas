@@ -206,6 +206,16 @@ class FirestorePaths {
   static String documentReleases(String schoolId) =>
       '${school(schoolId)}/documentReleases';
 
+  // ---- Accounts payable ----
+  /// Who the school buys from, and what it owes them. Separate from
+  /// [expenses], which is money already gone.
+  static String vendors(String schoolId) => '${school(schoolId)}/vendors';
+  static String vendorDoc(String schoolId, String vendorId) =>
+      '${vendors(schoolId)}/$vendorId';
+  static String bills(String schoolId) => '${school(schoolId)}/bills';
+  static String billDoc(String schoolId, String billId) =>
+      '${bills(schoolId)}/$billId';
+
   // ---- General ledger ----
   /// The chart of accounts, keyed by the code a bookkeeper quotes --
   /// "charge it to 5100" has to find the document without a query.

@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/theme_switch.dart';
 
 import '../../../ledger/presentation/screens/ledger_screen.dart';
+import '../../../payables/presentation/screens/payables_screen.dart';
 import '../../../emergency/presentation/screens/emergency_contacts_screen.dart';
 import '../../../owner_portal/presentation/widgets/revenue_card.dart';
 import '../../../payments/presentation/screens/fee_structures_screen.dart';
@@ -121,6 +122,12 @@ class DirectorDashboardScreen extends ConsumerWidget {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
+                  GlassTile(
+                    icon: Icons.request_quote_outlined,
+                    label: 'Accounts Payable',
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const PayablesScreen())),
+                  ),
                   GlassTile(
                     icon: Icons.account_balance_outlined,
                     label: 'General Ledger',

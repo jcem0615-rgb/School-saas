@@ -154,6 +154,16 @@ export const FirestorePaths = {
   counterDoc: (schoolId: string, counterName: string) =>
     `schools/${schoolId}/counters/${counterName}`,
 
+  // ---- Accounts payable ----
+  // Who the school buys from, and what it owes them. Separate from
+  // `expenses`, which is money already gone: a bill is money owed, and
+  // the difference is the whole of what AP is for.
+  vendors: (schoolId: string) => `schools/${schoolId}/vendors`,
+  vendorDoc: (schoolId: string, vendorId: string) =>
+    `schools/${schoolId}/vendors/${vendorId}`,
+  bills: (schoolId: string) => `schools/${schoolId}/bills`,
+  billDoc: (schoolId: string, billId: string) => `schools/${schoolId}/bills/${billId}`,
+
   // ---- General ledger ----
   // The chart of accounts, keyed by the code a bookkeeper quotes, and
   // the journal. Entries are immutable: see firestore.rules, which has

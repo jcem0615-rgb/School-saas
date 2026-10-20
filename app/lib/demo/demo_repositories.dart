@@ -76,6 +76,9 @@ import '../features/documents/domain/repositories/documents_repository.dart';
 import '../features/ledger/domain/entities/journal_entry.dart';
 import '../features/ledger/domain/entities/ledger_account.dart';
 import '../features/ledger/domain/repositories/ledger_repository.dart';
+import '../features/payables/domain/entities/bill.dart';
+import '../features/payables/domain/entities/vendor.dart';
+import '../features/payables/domain/repositories/payables_repository.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
 import '../features/inventory/domain/entities/inventory_item.dart';
@@ -2582,6 +2585,295 @@ class DemoUploadRepository implements UploadRepository {
       sizeBytes: bytes.lengthInBytes,
     ));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Payables -- what the school owes
+// ---------------------------------------------------------------------------
+
+/// The payables ledger, in memory.
+///
+/// The product records a bill and posts its entry in one transaction.
+/// The demo has no server, so it does both here in one method -- which
+/// reproduces the part that is observable: a bill and its entry arrive
+/// together, and a bill is never edited into a paid state, it is paid.
+class DemoPayablesRepository implements PayablesRepository {
+  final DemoStore _store;
+  DemoPayablesRepository(this._store);
+
+  @override
+  Stream<List<Vendor>> watchVendors() => _store.vendors.stream.map(
+        (all) => all.toList()
+          ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase())),
+      );
+
+  @override
+  Stream<List<Bill>> watchBills() => _store.bills.stream.map(
+        (all) => all.toList()..sort((a, b) => b.billDate.compareTo(a.billDate)),
+      );
+
+  @override
+  Future<Result<void>> saveVendor(Vendor vendor) async {
+    await _latency(300);
+    // A new supplier arrives with no id, because the caller had none to
+    // give: the product's datasource lets Firestore mint one.
+    if (vendor.id.isEmpty) {
+      _store.prepend(
+        _store.vendors,
+        Vendor(
+          id: _store.nextId('ven'),
+          name: vendor.name,
+          tin: vendor.tin,
+          paymentTermsDays: vendor.paymentTermsDays,
+          contactName: vendor.contactName,
+          phone: vendor.phone,
+          email: vendor.email,
+          address: vendor.address,
+          notes: vendor.notes,
+          isActive: vendor.isActive,
+        ),
+      );
+      return const Success(null);
+    }
+    if (!_store.vendors.value.any((v) => v.id == vendor.id)) {
+      return const Error(ServerFailure('That supplier is no longer on the list.'));
+    }
+    _store.update<Vendor>(
+      _store.vendors,
+      (v) => v.id == vendor.id,
+      (_) => vendor,
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<String>> recordBill({
+    required String vendorId,
+    required String billNumber,
+    required DateTime billDate,
+    required DateTime dueDate,
+    required List<BillLine> lines,
+    String? notes,
+  }) async {
+    await _latency(500);
+    final vendor = _store.vendors.value.where((v) => v.id == vendorId).firstOrNull;
+    if (vendor == null) {
+      return const Error(ValidationFailure('That supplier is not on the list.'));
+    }
+    // The same invoice entered twice is the most common mistake in a
+    // payables ledger, and it pays a supplier twice.
+    final duplicate = _store.bills.value.any(
+      (b) => b.vendorId == vendorId && b.billNumber == billNumber.trim() && !b.isVoid,
+    );
+    if (duplicate) {
+      return Error(ValidationFailure(
+        '${vendor.name} invoice ${billNumber.trim()} is already recorded.',
+      ));
+    }
+
+    final total = lines.fold<double>(0, (sum, l) => sum + l.amount);
+    final billId = _store.nextId('bill');
+
+    // The entry and the bill arrive together, as they do in the product.
+    _postEntry(
+      memo: '${vendor.name} invoice ${billNumber.trim()}',
+      date: billDate,
+      source: EntrySource.bill,
+      sourceId: billId,
+      lines: [
+        for (final line in lines)
+          JournalLine.debit(line.accountCode, line.accountName, line.amount,
+              memo: line.description),
+        JournalLine.credit(Accounts.payableTrade, 'Accounts Payable', total),
+      ],
+    );
+
+    _store.prepend(
+      _store.bills,
+      Bill(
+        id: billId,
+        vendorId: vendorId,
+        vendorName: vendor.name,
+        billNumber: billNumber.trim(),
+        billDate: billDate,
+        dueDate: dueDate,
+        lines: lines,
+        total: total,
+        notes: notes,
+        recordedByName: _store.requireUser.fullName,
+        recordedAt: DateTime.now(),
+      ),
+    );
+    return Success(billId);
+  }
+
+  @override
+  Future<Result<void>> payBill({
+    required String billId,
+    required double amount,
+    required String paidFromAccountCode,
+    DateTime? date,
+    String? reference,
+  }) async {
+    await _latency(400);
+    final bill = _store.bills.value.where((b) => b.id == billId).firstOrNull;
+    if (bill == null) {
+      return const Error(ServerFailure('That bill is not on the list.'));
+    }
+    final problem = reasonPaymentCannotBeMade(
+      bill: bill,
+      amount: amount,
+      paidFromAccountCode: paidFromAccountCode,
+    );
+    if (problem != null) return Error(ValidationFailure(problem));
+
+    final paidOn = date ?? DateTime.now();
+    _postEntry(
+      memo: 'Payment to ${bill.vendorName} for ${bill.billNumber}',
+      date: paidOn,
+      source: EntrySource.billPayment,
+      sourceId: billId,
+      lines: [
+        JournalLine.debit(Accounts.payableTrade, 'Accounts Payable', amount),
+        JournalLine.credit(
+          paidFromAccountCode,
+          _accountName(paidFromAccountCode),
+          amount,
+        ),
+      ],
+    );
+
+    _store.update<Bill>(
+      _store.bills,
+      (b) => b.id == billId,
+      (b) => Bill(
+        id: b.id,
+        vendorId: b.vendorId,
+        vendorName: b.vendorName,
+        billNumber: b.billNumber,
+        billDate: b.billDate,
+        dueDate: b.dueDate,
+        lines: b.lines,
+        total: b.total,
+        amountPaid: b.amountPaid + amount,
+        status: sameMoney(b.total - (b.amountPaid + amount), 0)
+            ? BillStatus.paid
+            : BillStatus.partiallyPaid,
+        notes: b.notes,
+        journalEntryId: b.journalEntryId,
+        recordedByName: b.recordedByName,
+        recordedAt: b.recordedAt,
+        payments: [
+          ...b.payments,
+          BillPayment(
+            id: _store.nextId('bp'),
+            date: paidOn,
+            amount: amount,
+            paidFromAccountCode: paidFromAccountCode,
+            reference: reference,
+            paidByName: _store.requireUser.fullName,
+          ),
+        ],
+      ),
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void>> voidBill({
+    required String billId,
+    required String reason,
+  }) async {
+    await _latency(350);
+    final bill = _store.bills.value.where((b) => b.id == billId).firstOrNull;
+    if (bill == null) {
+      return const Error(ServerFailure('That bill is not on the list.'));
+    }
+    if (bill.isVoid) {
+      return const Error(ValidationFailure('That bill is already void.'));
+    }
+    // Once money has gone out the cash really did leave; pretending the
+    // bill never existed would leave a payment pointing at nothing.
+    if (bill.amountPaid > 0) {
+      return const Error(ValidationFailure(
+        'Money has already been paid against this bill, so it cannot be '
+        'voided. Record a credit from the supplier instead.',
+      ));
+    }
+
+    _postEntry(
+      memo: 'Void ${bill.vendorName} invoice ${bill.billNumber}: $reason',
+      date: DateTime.now(),
+      source: EntrySource.reversal,
+      sourceId: billId,
+      lines: [
+        JournalLine.debit(Accounts.payableTrade, 'Accounts Payable', bill.total),
+        for (final line in bill.lines)
+          JournalLine.credit(line.accountCode, line.accountName, line.amount,
+              memo: line.description),
+      ],
+    );
+
+    _store.update<Bill>(
+      _store.bills,
+      (b) => b.id == billId,
+      (b) => Bill(
+        id: b.id,
+        vendorId: b.vendorId,
+        vendorName: b.vendorName,
+        billNumber: b.billNumber,
+        billDate: b.billDate,
+        dueDate: b.dueDate,
+        lines: b.lines,
+        total: b.total,
+        amountPaid: b.amountPaid,
+        status: BillStatus.void_,
+        notes: b.notes,
+        journalEntryId: b.journalEntryId,
+        recordedByName: b.recordedByName,
+        recordedAt: b.recordedAt,
+        payments: b.payments,
+        voidedAt: DateTime.now(),
+        voidedByName: _store.requireUser.fullName,
+        voidReason: reason,
+      ),
+    );
+    return const Success(null);
+  }
+
+  /// Writes a journal entry the way the server would, so the demo's
+  /// trial balance still adds up after anything done in here.
+  void _postEntry({
+    required String memo,
+    required DateTime date,
+    required EntrySource source,
+    required String sourceId,
+    required List<JournalLine> lines,
+  }) {
+    final used = _store.journalEntries.value
+        .map((e) => int.tryParse(e.entryNumber.split('-').last) ?? 0);
+    final next = (used.isEmpty ? 0 : used.reduce((a, b) => a > b ? a : b)) + 1;
+    _store.prepend(
+      _store.journalEntries,
+      JournalEntry(
+        id: _store.nextId('je'),
+        entryNumber: 'JE-${date.year}-${next.toString().padLeft(4, '0')}',
+        date: date,
+        memo: memo,
+        source: source,
+        sourceId: sourceId,
+        lines: lines,
+        postedByName: _store.requireUser.fullName,
+        postedAt: DateTime.now(),
+      ),
+    );
+  }
+
+  String _accountName(String code) => _store.ledgerAccounts.value
+      .where((a) => a.code == code)
+      .map((a) => a.name)
+      .firstOrNull ??
+      'Unknown account';
 }
 
 // ---------------------------------------------------------------------------

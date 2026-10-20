@@ -125,6 +125,21 @@ export {runPayroll} from "./callable/payroll/runPayroll";
 export {postManualEntry} from "./callable/ledger/postManualEntry";
 export {reverseJournalEntry} from "./callable/ledger/reverseJournalEntry";
 
+// ---- Accounts payable ----
+// What the school owes and what it has paid against it. Each of these
+// posts its own entry inside its own transaction, for the same reason
+// recordPayment does: the bill and the liability it creates commit
+// together or neither does.
+export {recordBill} from "./callable/payables/recordBill";
+export {payBill} from "./callable/payables/payBill";
+export {voidBill} from "./callable/payables/voidBill";
+
+// Direct spending with no bill behind it. The one posting that is a
+// trigger rather than a transaction, because the expenses screen writes
+// its document straight to Firestore -- see the file for what that
+// gives up and why it is survivable.
+export {onExpenseRecorded} from "./triggers/payables/onExpenseRecorded";
+
 // ---------------------------------------------------------------------------
 // Module: Announcements (push notifications)
 // ---------------------------------------------------------------------------

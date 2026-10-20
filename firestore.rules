@@ -1213,6 +1213,39 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // ---- vendors ----
+      // Who the school buys from. An ordinary list of names, so an
+      // ordinary client write: rules can check everything that matters
+      // about it. Deactivating rather than deleting, because a vendor
+      // with bills against it cannot go without those bills losing the
+      // name they were raised under.
+      match /vendors/{vendorId} {
+        allow read: if hasRole(schoolId, ['director', 'admin'])
+                      && schoolIsAccessible(schoolId);
+        allow create, update: if hasRole(schoolId, ['director', 'admin'])
+                                && schoolIsAccessible(schoolId)
+                                && request.resource.data.name is string
+                                && request.resource.data.name.size() > 0;
+        allow delete: if false;
+      }
+
+      // ---- bills ----
+      // What the school owes. Read-only to every client there is.
+      //
+      // Writes go through recordBill, payBill and voidBill, which post
+      // the ledger entry inside the same transaction that writes the
+      // bill. A client allowed to write here could record a liability
+      // the books never hear about, which is the gap between a payables
+      // list and an accounting system.
+      //
+      // No delete, ever. A bill entered by mistake is voided, with the
+      // reason on it and the liability reversed by its own entry.
+      match /bills/{billId} {
+        allow read: if hasRole(schoolId, ['director', 'admin'])
+                      && schoolIsAccessible(schoolId);
+        allow create, update, delete: if false;
+      }
+
       // ---- ledgerAccounts ----
       // The chart of accounts. Finance reading, which here means the
       // Director and the Admin: a principal runs a division, not a set

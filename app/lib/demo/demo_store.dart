@@ -53,6 +53,8 @@ import '../features/qr_attendance/domain/entities/attendance_record.dart';
 import '../features/documents/domain/entities/student_document.dart';
 import '../features/ledger/domain/entities/journal_entry.dart';
 import '../features/ledger/domain/entities/ledger_account.dart';
+import '../features/payables/domain/entities/bill.dart';
+import '../features/payables/domain/entities/vendor.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
 import '../features/inventory/domain/entities/inventory_item.dart';
@@ -411,6 +413,10 @@ class DemoStore {
       BehaviorSubject<List<LedgerAccount>>.seeded(standardChartOfAccounts);
   late final journalEntries =
       BehaviorSubject<List<JournalEntry>>.seeded(_seedJournalEntries());
+
+  /// What the school owes, and who to.
+  late final vendors = BehaviorSubject<List<Vendor>>.seeded(_seedVendors());
+  late final bills = BehaviorSubject<List<Bill>>.seeded(_seedBills());
   late final announcements = BehaviorSubject<List<Announcement>>.seeded(_seedAnnouncements());
   late final meetings = BehaviorSubject<List<Meeting>>.seeded(_seedMeetings());
   late final approvals = BehaviorSubject<List<ApprovalRequest>>.seeded(_seedApprovals());
@@ -809,7 +815,7 @@ class DemoStore {
       classSessions, subjectAttendance, leaveRequests,
       conversations, messages,
       paymentSubmissions, paymentSettings, branding, documentReleases,
-      studentDocuments, ledgerAccounts, journalEntries,
+      studentDocuments, ledgerAccounts, journalEntries, vendors, bills,
       feeStructures, assessments, scheduleBlocks,
       acknowledgedPrivacy, acceptedTerms,
     ]) {
@@ -2189,6 +2195,147 @@ class DemoStore {
         postedByName: 'Grace Mendoza',
         postedAt: _daysAgo(daysAgo),
       );
+
+  /// Three suppliers, with the terms a school actually gets.
+  ///
+  /// Meralco bills monthly and wants paying in fifteen days; the
+  /// bookshop gives thirty; the store down the road wants cash. That
+  /// spread is what makes an ageing report show anything.
+  List<Vendor> _seedVendors() => const [
+        Vendor(
+          id: 'ven_001',
+          name: 'Meralco',
+          tin: '000-123-456-000',
+          paymentTermsDays: 15,
+          notes: 'Account 9100-2233-01',
+        ),
+        Vendor(
+          id: 'ven_002',
+          name: 'National Book Store',
+          paymentTermsDays: 30,
+          contactName: 'Ms Ramos',
+          phone: '0917 555 0134',
+        ),
+        Vendor(
+          id: 'ven_003',
+          name: 'Aling Nena Sari-Sari Store',
+          paymentTermsDays: 0,
+        ),
+      ];
+
+  /// A payables ledger in the state a school's actually is in October:
+  /// one bill paid, one part paid, one quietly going past ninety days.
+  ///
+  /// The overdue one is deliberate. A demo where everything is current
+  /// shows a report with one column filled in, which teaches nothing
+  /// about what the report is for.
+  List<Bill> _seedBills() => [
+        Bill(
+          id: 'bill_001',
+          vendorId: 'ven_001',
+          vendorName: 'Meralco',
+          billNumber: 'MER-2026-0881',
+          billDate: _daysAgo(12),
+          dueDate: _daysAgo(-3),
+          lines: [
+            const BillLine(
+              accountCode: Accounts.expenseUtilities,
+              accountName: 'Utilities',
+              description: 'Electricity - September',
+              amount: 12480,
+            ),
+          ],
+          total: 12480,
+          recordedByName: 'Grace Mendoza',
+          recordedAt: _daysAgo(12),
+        ),
+        Bill(
+          id: 'bill_002',
+          vendorId: 'ven_002',
+          vendorName: 'National Book Store',
+          billNumber: 'SI-99321',
+          billDate: _daysAgo(50),
+          dueDate: _daysAgo(20),
+          lines: [
+            const BillLine(
+              accountCode: Accounts.expenseSupplies,
+              accountName: 'Supplies',
+              description: 'Bond paper, 40 reams',
+              amount: 9600,
+            ),
+            const BillLine(
+              accountCode: Accounts.expenseSupplies,
+              accountName: 'Supplies',
+              description: 'Whiteboard markers, 12 boxes',
+              amount: 2400,
+            ),
+          ],
+          total: 12000,
+          amountPaid: 5000,
+          status: BillStatus.partiallyPaid,
+          recordedByName: 'Grace Mendoza',
+          recordedAt: _daysAgo(50),
+          payments: [
+            BillPayment(
+              id: 'bp_001',
+              date: _daysAgo(18),
+              amount: 5000,
+              paidFromAccountCode: Accounts.cashInBank,
+              reference: 'Cheque 004412',
+              paidByName: 'Grace Mendoza',
+            ),
+          ],
+        ),
+        Bill(
+          id: 'bill_003',
+          vendorId: 'ven_002',
+          vendorName: 'National Book Store',
+          billNumber: 'SI-98004',
+          billDate: _daysAgo(140),
+          dueDate: _daysAgo(110),
+          lines: [
+            const BillLine(
+              accountCode: Accounts.expenseSupplies,
+              accountName: 'Supplies',
+              description: 'Library books',
+              amount: 7800,
+            ),
+          ],
+          total: 7800,
+          recordedByName: 'Grace Mendoza',
+          recordedAt: _daysAgo(140),
+        ),
+        Bill(
+          id: 'bill_004',
+          vendorId: 'ven_003',
+          vendorName: 'Aling Nena Sari-Sari Store',
+          billNumber: 'OR-0042',
+          billDate: _daysAgo(30),
+          dueDate: _daysAgo(30),
+          lines: [
+            const BillLine(
+              accountCode: Accounts.expenseSupplies,
+              accountName: 'Supplies',
+              description: 'Chalk and cleaning materials',
+              amount: 1250,
+            ),
+          ],
+          total: 1250,
+          amountPaid: 1250,
+          status: BillStatus.paid,
+          recordedByName: 'Grace Mendoza',
+          recordedAt: _daysAgo(30),
+          payments: [
+            BillPayment(
+              id: 'bp_002',
+              date: _daysAgo(30),
+              amount: 1250,
+              paidFromAccountCode: Accounts.cashOnHand,
+              paidByName: 'Grace Mendoza',
+            ),
+          ],
+        ),
+      ];
 
   /// The smallest thing a PDF reader will open, as a data URI.
   ///
