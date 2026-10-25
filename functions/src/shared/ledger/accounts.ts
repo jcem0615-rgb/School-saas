@@ -48,6 +48,7 @@ export const Accounts = {
   expenseUtilities: "5100",
   expenseSupplies: "5200",
   expenseRepairs: "5300",
+  expenseCashVariance: "5910",
   expenseOther: "5900",
 } as const;
 
@@ -85,6 +86,10 @@ export const STANDARD_CHART: LedgerAccountSeed[] = [
   {code: Accounts.expenseUtilities, name: "Utilities", type: "expense", isSystem: false},
   {code: Accounts.expenseSupplies, name: "Supplies", type: "expense", isSystem: false},
   {code: Accounts.expenseRepairs, name: "Repairs and Maintenance", type: "expense", isSystem: false},
+  {code: Accounts.expenseCashVariance, name: "Cash Short or Over",
+    type: "expense", isSystem: true,
+    description: "Where a counted drawer differs from what it should hold. " +
+      "A credit balance here means the drawers have run over."},
   {code: Accounts.expenseOther, name: "Other Expenses", type: "expense", isSystem: true},
 ];
 

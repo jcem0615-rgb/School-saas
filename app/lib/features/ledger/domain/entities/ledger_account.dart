@@ -113,6 +113,7 @@ abstract final class Accounts {
   static const expenseUtilities = '5100';
   static const expenseSupplies = '5200';
   static const expenseRepairs = '5300';
+  static const expenseCashVariance = '5910';
   static const expenseOther = '5900';
 }
 
@@ -230,6 +231,14 @@ const standardChartOfAccounts = <LedgerAccount>[
     code: Accounts.expenseRepairs,
     name: 'Repairs and Maintenance',
     type: AccountType.expense,
+  ),
+  LedgerAccount(
+    code: Accounts.expenseCashVariance,
+    name: 'Cash Short or Over',
+    type: AccountType.expense,
+    isSystem: true,
+    description: 'Where a counted drawer differs from what it should hold. '
+        'A credit balance here means the drawers have run over.',
   ),
   LedgerAccount(
     code: Accounts.expenseOther,

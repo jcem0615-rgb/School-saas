@@ -130,6 +130,14 @@ export {reverseJournalEntry} from "./callable/ledger/reverseJournalEntry";
 // posts its own entry inside its own transaction, for the same reason
 // recordPayment does: the bill and the liability it creates commit
 // together or neither does.
+// ---- Cashiering ----
+// A drawer, from opening to counting. The expected figure at close is
+// worked out server-side from the cashier's own receipts and never
+// accepted from the client: a count checked against a number the
+// counter supplied is not a control at all.
+export {openCashierShift} from "./callable/cashiering/openCashierShift";
+export {closeCashierShift} from "./callable/cashiering/closeCashierShift";
+
 export {recordBill} from "./callable/payables/recordBill";
 export {payBill} from "./callable/payables/payBill";
 export {voidBill} from "./callable/payables/voidBill";

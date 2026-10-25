@@ -206,6 +206,13 @@ class FirestorePaths {
   static String documentReleases(String schoolId) =>
       '${school(schoolId)}/documentReleases';
 
+  // ---- Cashiering ----
+  /// One drawer, from opening to counting.
+  static String cashierShifts(String schoolId) =>
+      '${school(schoolId)}/cashierShifts';
+  static String cashierShiftDoc(String schoolId, String shiftId) =>
+      '${cashierShifts(schoolId)}/$shiftId';
+
   // ---- Accounts payable ----
   /// Who the school buys from, and what it owes them. Separate from
   /// [expenses], which is money already gone.

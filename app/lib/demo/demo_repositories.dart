@@ -80,6 +80,9 @@ import '../features/payables/domain/entities/bill.dart';
 import '../features/payables/domain/entities/vendor.dart';
 import '../features/budgets/data/budgets_repository_impl.dart' show BudgetsRepository;
 import '../features/budgets/domain/entities/budget.dart';
+import '../features/cashiering/data/cashiering_repository_impl.dart'
+    show CashieringRepository, ShiftClosing;
+import '../features/cashiering/domain/entities/cashier_shift.dart';
 import '../features/payables/domain/repositories/payables_repository.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
@@ -2590,6 +2593,204 @@ class DemoUploadRepository implements UploadRepository {
 }
 
 // ---------------------------------------------------------------------------
+// Cashiering -- the drawer
+// ---------------------------------------------------------------------------
+
+/// A cashier's drawer, in memory.
+///
+/// The product works the expected figure out on the server and never
+/// takes it from the client, because a count checked against a number
+/// the counter supplied is not a control. The demo has no server, so it
+/// does the same arithmetic here -- over the same window, from the same
+/// payments -- rather than trusting whatever the screen passed in.
+class DemoCashieringRepository implements CashieringRepository {
+  final DemoStore _store;
+  DemoCashieringRepository(this._store);
+
+  List<CashierShift> _sorted(Iterable<CashierShift> shifts) =>
+      shifts.toList()..sort((a, b) => b.openedAt.compareTo(a.openedAt));
+
+  @override
+  Stream<List<CashierShift>> watchAllShifts() =>
+      _store.cashierShifts.stream.map(_sorted);
+
+  @override
+  Stream<List<CashierShift>> watchMyShifts() {
+    final uid = _store.requireUser.uid;
+    return _store.cashierShifts.stream
+        .map((all) => _sorted(all.where((s) => s.cashierUid == uid)));
+  }
+
+  @override
+  Stream<ShiftReckoning> watchReckoning(CashierShift shift) =>
+      _store.payments.stream.map((all) => _reckon(shift, all));
+
+  /// The same window the close reckons over, so what a cashier sees
+  /// while counting is what they will be held to.
+  ShiftReckoning _reckon(CashierShift shift, List<Payment> payments) {
+    var collected = 0.0;
+    var refunded = 0.0;
+    var count = 0;
+    for (final payment in payments) {
+      if (payment.method != PaymentMethod.cash) continue;
+      if (payment.collectedBy != shift.cashierUid) continue;
+      if (!shift.holds(payment.createdAt)) continue;
+      // A refund is stored as a payment with a negative amount, so this
+      // nets them off exactly as the drawer does.
+      if (payment.amount >= 0) {
+        collected += payment.amount;
+      } else {
+        refunded += payment.amount.abs();
+      }
+      count++;
+    }
+    return ShiftReckoning(
+      openingFloat: shift.openingFloat,
+      cashCollected: collected,
+      cashRefunded: refunded,
+      receiptCount: count,
+    );
+  }
+
+  @override
+  Future<Result<String>> openShift({
+    required double openingFloat,
+    String? notes,
+  }) async {
+    await _latency(350);
+    final uid = _store.requireUser.uid;
+    final already = _store.cashierShifts.value
+        .where((s) => s.isOpen && s.cashierUid == uid)
+        .firstOrNull;
+    final problem =
+        reasonShiftCannotOpen(openShift: already, openingFloat: openingFloat);
+    if (problem != null) return Error(ValidationFailure(problem));
+
+    final id = _store.nextId('shift');
+    _store.prepend(
+      _store.cashierShifts,
+      CashierShift(
+        id: id,
+        cashierUid: uid,
+        cashierName: _store.requireUser.fullName,
+        openedAt: DateTime.now(),
+        openingFloat: openingFloat,
+        notes: notes,
+      ),
+    );
+    return Success(id);
+  }
+
+  @override
+  Future<Result<ShiftClosing>> closeShift({
+    required String shiftId,
+    required double countedAmount,
+    String? varianceNote,
+  }) async {
+    await _latency(450);
+    final shift =
+        _store.cashierShifts.value.where((s) => s.id == shiftId).firstOrNull;
+    if (shift == null) {
+      return const Error(ServerFailure('That drawer is not on the list.'));
+    }
+    if (shift.cashierUid != _store.requireUser.uid) {
+      return Error(PermissionFailure(
+        'That drawer belongs to ${shift.cashierName}. Only they can close it.',
+      ));
+    }
+
+    // Worked out here, from the receipts, rather than taken from the
+    // caller -- which is the whole control.
+    final reckoning = _reckon(shift, _store.payments.value);
+    final expected = reckoning.expected;
+    final problem = reasonShiftCannotClose(
+      shift: shift,
+      countedAmount: countedAmount,
+      expectedAmount: expected,
+      varianceNote: varianceNote ?? '',
+    );
+    if (problem != null) return Error(ValidationFailure(problem));
+
+    final variance = countedAmount - expected;
+    final closedAt = DateTime.now();
+
+    if (!sameMoney(variance, 0)) {
+      _postShiftVariance(shift, variance, varianceNote ?? '', closedAt);
+    }
+
+    _store.update<CashierShift>(
+      _store.cashierShifts,
+      (s) => s.id == shiftId,
+      (s) => CashierShift(
+        id: s.id,
+        cashierUid: s.cashierUid,
+        cashierName: s.cashierName,
+        openedAt: s.openedAt,
+        openingFloat: s.openingFloat,
+        closedAt: closedAt,
+        countedAmount: countedAmount,
+        expectedAmount: expected,
+        varianceNote: varianceNote?.trim().isEmpty ?? true
+            ? null
+            : varianceNote!.trim(),
+        closedByName: _store.requireUser.fullName,
+        notes: s.notes,
+      ),
+    );
+
+    return Success(ShiftClosing(
+      expectedAmount: expected,
+      variance: variance,
+      cashCollected: reckoning.cashCollected,
+      cashRefunded: reckoning.cashRefunded,
+      receiptCount: reckoning.receiptCount,
+    ));
+  }
+
+  /// Short takes the books down and charges the difference; over is the
+  /// same control failing the other way, and lands in the same account
+  /// so somebody can look at both.
+  void _postShiftVariance(
+    CashierShift shift,
+    double variance,
+    String note,
+    DateTime at,
+  ) {
+    final amount = variance.abs();
+    final lines = variance < 0
+        ? [
+            JournalLine.debit(
+                Accounts.expenseCashVariance, 'Cash Short or Over', amount),
+            JournalLine.credit(Accounts.cashOnHand, 'Cash on Hand', amount),
+          ]
+        : [
+            JournalLine.debit(Accounts.cashOnHand, 'Cash on Hand', amount),
+            JournalLine.credit(
+                Accounts.expenseCashVariance, 'Cash Short or Over', amount),
+          ];
+
+    final used = _store.journalEntries.value
+        .map((e) => int.tryParse(e.entryNumber.split('-').last) ?? 0);
+    final next = (used.isEmpty ? 0 : used.reduce((a, b) => a > b ? a : b)) + 1;
+    _store.prepend(
+      _store.journalEntries,
+      JournalEntry(
+        id: _store.nextId('je'),
+        entryNumber: 'JE-${at.year}-${next.toString().padLeft(4, '0')}',
+        date: at,
+        memo: 'Cash ${variance < 0 ? 'short' : 'over'} - '
+            '${shift.cashierName} drawer: $note',
+        source: EntrySource.manual,
+        sourceId: shift.id,
+        lines: lines,
+        postedByName: _store.requireUser.fullName,
+        postedAt: at,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Budgets -- what the school meant to spend
 // ---------------------------------------------------------------------------
 
@@ -3565,6 +3766,7 @@ class DemoPaymentRepository implements PaymentRepository {
         referenceNumber: referenceNumber,
         receiptNumber: receiptNumber,
         officialReceiptNo: officialReceiptNo,
+        collectedBy: _store.requireUser.uid,
         collectedByName: _store.requireUser.fullName,
         purpose: purpose,
         status: PaymentStatus.completed,
@@ -3683,6 +3885,7 @@ class DemoPaymentRepository implements PaymentRepository {
           method: submission.method,
           referenceNumber: submission.referenceNumber,
           receiptNumber: receiptNumber,
+          collectedBy: reviewer.uid,
           collectedByName: reviewer.fullName,
           purpose: submission.purpose,
           status: PaymentStatus.completed,
@@ -3793,6 +3996,7 @@ class DemoPaymentRepository implements PaymentRepository {
         // it is not -- which is the mistake the Director's dashboard
         // actually made against real data.
         receiptNumber: '${original.receiptNumber}-R',
+        collectedBy: _store.requireUser.uid,
         collectedByName: _store.requireUser.fullName,
         purpose: original.purpose,
         status: PaymentStatus.completed,
@@ -3810,6 +4014,7 @@ class DemoPaymentRepository implements PaymentRepository {
         method: p.method,
         referenceNumber: p.referenceNumber,
         receiptNumber: p.receiptNumber,
+        collectedBy: p.collectedBy,
         collectedByName: p.collectedByName,
         purpose: p.purpose,
         status: PaymentStatus.refunded,

@@ -55,6 +55,7 @@ import '../features/ledger/domain/entities/journal_entry.dart';
 import '../features/ledger/domain/entities/ledger_account.dart';
 import '../features/payables/domain/entities/bill.dart';
 import '../features/budgets/domain/entities/budget.dart';
+import '../features/cashiering/domain/entities/cashier_shift.dart';
 import '../features/payables/domain/entities/vendor.dart';
 import '../features/registrar_portal/domain/entities/document_release.dart';
 import '../features/admissions/domain/entities/applicant.dart';
@@ -421,6 +422,10 @@ class DemoStore {
 
   /// What the school meant to spend.
   late final budgets = BehaviorSubject<List<Budget>>.seeded(_seedBudgets());
+
+  /// The cashier's drawers.
+  late final cashierShifts =
+      BehaviorSubject<List<CashierShift>>.seeded(_seedShifts());
   late final announcements = BehaviorSubject<List<Announcement>>.seeded(_seedAnnouncements());
   late final meetings = BehaviorSubject<List<Meeting>>.seeded(_seedMeetings());
   late final approvals = BehaviorSubject<List<ApprovalRequest>>.seeded(_seedApprovals());
@@ -820,7 +825,7 @@ class DemoStore {
       conversations, messages,
       paymentSubmissions, paymentSettings, branding, documentReleases,
       studentDocuments, ledgerAccounts, journalEntries, vendors, bills,
-      budgets,
+      budgets, cashierShifts,
       feeStructures, assessments, scheduleBlocks,
       acknowledgedPrivacy, acceptedTerms,
     ]) {
@@ -1722,6 +1727,7 @@ class DemoStore {
           amount: 5000,
           method: PaymentMethod.cash,
           receiptNumber: 'RC-2024-000117',
+          collectedBy: 'u_registrar',
           collectedByName: 'Joel Bautista',
           purpose: PaymentPurpose.tuition,
           status: PaymentStatus.completed,
@@ -1734,6 +1740,7 @@ class DemoStore {
           method: PaymentMethod.gcash,
           referenceNumber: 'GC-8871203',
           receiptNumber: 'RC-2024-000164',
+          collectedBy: 'u_registrar',
           collectedByName: 'Joel Bautista',
           purpose: PaymentPurpose.miscFee,
           status: PaymentStatus.completed,
@@ -1746,6 +1753,7 @@ class DemoStore {
           method: PaymentMethod.bankTransfer,
           referenceNumber: 'BDO-449120',
           receiptNumber: 'RC-2024-000165',
+          collectedBy: 'u_registrar',
           collectedByName: 'Joel Bautista',
           purpose: PaymentPurpose.tuition,
           status: PaymentStatus.completed,
@@ -1757,6 +1765,7 @@ class DemoStore {
           amount: 1200,
           method: PaymentMethod.cash,
           receiptNumber: 'RC-2024-000166',
+          collectedBy: 'u_registrar',
           collectedByName: 'Joel Bautista',
           purpose: PaymentPurpose.other,
           status: PaymentStatus.refunded,
@@ -1772,6 +1781,7 @@ class DemoStore {
           // row is a `completed` transaction numbered off the receipt it
           // reverses. The two net to nothing, which is the point.
           receiptNumber: 'RC-2024-000166-R',
+          collectedBy: 'u_admin',
           collectedByName: 'Grace Mendoza',
           purpose: PaymentPurpose.other,
           status: PaymentStatus.completed,
@@ -1789,6 +1799,7 @@ class DemoStore {
           amount: 4500,
           method: PaymentMethod.cash,
           receiptNumber: 'RC-2024-000171',
+          collectedBy: 'u_registrar',
           collectedByName: 'Joel Bautista',
           purpose: PaymentPurpose.tuition,
           status: PaymentStatus.completed,
@@ -1801,6 +1812,7 @@ class DemoStore {
           method: PaymentMethod.gcash,
           receiptNumber: 'RC-2024-000172',
           referenceNumber: 'GC-9042118',
+          collectedBy: 'u_admin',
           collectedByName: 'Grace Mendoza',
           purpose: PaymentPurpose.miscFee,
           status: PaymentStatus.completed,
@@ -2372,6 +2384,41 @@ class DemoStore {
       of(Accounts.expenseSupplies, 'Supplies', 10000),
     ];
   }
+
+  /// Yesterday's drawer, counted and a little short.
+  ///
+  /// Short rather than balanced on purpose: a demo where the drawer
+  /// always comes out right shows the screen but not the point of it,
+  /// and the short one is the row somebody has to explain.
+  ///
+  /// No drawer is left open. Opening one is the first thing a cashier
+  /// does, and a demo that opens on a drawer already running takes that
+  /// away from whoever is being shown it.
+  List<CashierShift> _seedShifts() => [
+        CashierShift(
+          id: 'shift_001',
+          cashierUid: 'u_registrar',
+          cashierName: 'Joel Bautista',
+          openedAt: _daysAgo(1).copyWith(hour: 7, minute: 30),
+          openingFloat: 2000,
+          closedAt: _daysAgo(1).copyWith(hour: 17, minute: 5),
+          countedAmount: 20380,
+          expectedAmount: 20500,
+          varianceNote: 'Gave the wrong change this morning, caught it too late.',
+          closedByName: 'Joel Bautista',
+        ),
+        CashierShift(
+          id: 'shift_002',
+          cashierUid: 'u_registrar',
+          cashierName: 'Joel Bautista',
+          openedAt: _daysAgo(2).copyWith(hour: 7, minute: 28),
+          openingFloat: 2000,
+          closedAt: _daysAgo(2).copyWith(hour: 16, minute: 55),
+          countedAmount: 14500,
+          expectedAmount: 14500,
+          closedByName: 'Joel Bautista',
+        ),
+      ];
 
   /// The smallest thing a PDF reader will open, as a data URI.
   ///

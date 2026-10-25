@@ -311,6 +311,7 @@ void main() {
         Accounts.revenueOther,
         Accounts.expenseSalaries,
         Accounts.expenseBenefits,
+        Accounts.expenseCashVariance,
         Accounts.expenseOther,
       ];
       final codes = standardChartOfAccounts.map((a) => a.code).toSet();

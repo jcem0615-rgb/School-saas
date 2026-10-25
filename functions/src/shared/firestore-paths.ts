@@ -154,6 +154,13 @@ export const FirestorePaths = {
   counterDoc: (schoolId: string, counterName: string) =>
     `schools/${schoolId}/counters/${counterName}`,
 
+  // ---- Cashiering ----
+  // One drawer, from opening to counting. A shift is a window of time
+  // over one cashier's own collections, so nothing tags a receipt.
+  cashierShifts: (schoolId: string) => `schools/${schoolId}/cashierShifts`,
+  cashierShiftDoc: (schoolId: string, shiftId: string) =>
+    `schools/${schoolId}/cashierShifts/${shiftId}`,
+
   // ---- Accounts payable ----
   // Who the school buys from, and what it owes them. Separate from
   // `expenses`, which is money already gone: a bill is money owed, and

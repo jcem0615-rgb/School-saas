@@ -47,3 +47,7 @@ database-debug.log
 .idea/
 .DS_Store
 Thumbs.db
+
+# The Flutter SDK scripts/vercel-install.sh clones into the repo root.
+# Nothing good comes of committing an SDK.
+_flutter/

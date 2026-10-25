@@ -1213,6 +1213,31 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // ---- cashierShifts ----
+      // One drawer, from opening to counting.
+      //
+      // Read by the office: a cashier sees their own drawers, and the
+      // Director and Admin see everybody's, because "who was short last
+      // month" is the question the whole module exists to answer and it
+      // is not one a cashier asks about themselves.
+      //
+      // Writes are server-only. openCashierShift refuses a second open
+      // drawer, and closeCashierShift works out the expected figure
+      // from the cashier's own receipts rather than taking it from the
+      // client -- a count checked against a number the counter supplied
+      // is not a control at all. A client allowed to write here could
+      // set `expectedAmount` to whatever it had just counted.
+      match /cashierShifts/{shiftId} {
+        allow read: if belongsToSchool(schoolId)
+                      && schoolIsAccessible(schoolId)
+                      && (
+                        hasRole(schoolId, ['director', 'admin'])
+                        || (hasRole(schoolId, ['registrar'])
+                            && resource.data.cashierUid == request.auth.uid)
+                      );
+        allow create, update, delete: if false;
+      }
+
       // ---- budgets ----
       // What the school meant to spend.
       //

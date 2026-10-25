@@ -26,6 +26,7 @@ import '../features/payroll/presentation/controllers/payroll_controller.dart';
 import '../features/documents/presentation/controllers/documents_controller.dart';
 import '../features/ledger/presentation/controllers/ledger_controller.dart';
 import '../features/budgets/presentation/controllers/budgets_controller.dart';
+import '../features/cashiering/presentation/controllers/cashiering_controller.dart';
 import '../features/payables/presentation/controllers/payables_controller.dart';
 import '../features/registrar_portal/presentation/controllers/registrar_controller.dart';
 import '../features/reports/presentation/controllers/reports_controller.dart';
@@ -143,6 +144,10 @@ List<Override> demoOverrides({AppUser? signedInAs}) {
     ledgerRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);
       return DemoLedgerRepository(ref.watch(demoStoreProvider));
+    }),
+    cashieringRepositoryProvider.overrideWith((ref) {
+      ref.watch(authStateProvider);
+      return DemoCashieringRepository(ref.watch(demoStoreProvider));
     }),
     budgetsRepositoryProvider.overrideWith((ref) {
       ref.watch(authStateProvider);

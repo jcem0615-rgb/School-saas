@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../cashiering/presentation/screens/cashier_drawer_screen.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../school_totals/presentation/widgets/school_totals_card.dart';
 import 'package:go_router/go_router.dart';
@@ -65,6 +66,12 @@ class RegistrarDashboardScreen extends StatelessWidget {
                 // rings back stop being prospects within a fortnight --
                 // so the pipeline is the thing to open in the morning,
                 // not the roster, which will still be there at four.
+                GlassTile(
+                  icon: Icons.point_of_sale_outlined,
+                  label: 'Cash Drawer',
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CashierDrawerScreen())),
+                ),
                 GlassTile(
                   icon: Icons.groups_outlined,
                   label: 'Admissions',

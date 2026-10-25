@@ -71,6 +71,13 @@ class Payment {
   /// Print. A school not issuing ORs leaves this null and nothing
   /// changes.
   final int? officialReceiptNo;
+  /// Who took the money, by account.
+  ///
+  /// The name beside it is for reading; this is for matching. A cashier
+  /// reconciling their drawer is matched on the uid, because two members
+  /// of staff can share a name and a name can be corrected after the
+  /// receipt was written.
+  final String collectedBy;
   final String collectedByName;
   final PaymentPurpose purpose;
   final PaymentStatus status;
@@ -80,6 +87,7 @@ class Payment {
   const Payment({
     required this.id,
     required this.studentId,
+    this.collectedBy = '',
     required this.amount,
     required this.method,
     required this.receiptNumber,

@@ -1,3 +1,4 @@
+import '../../../cashiering/presentation/screens/cashier_drawer_screen.dart';
 import '../../../notifications/presentation/widgets/notification_bell.dart';
 import '../../../emergency/presentation/screens/emergency_alerts_screen.dart';
 import '../../../school_totals/presentation/widgets/school_totals_card.dart';
@@ -70,6 +71,12 @@ class AdminDashboardScreen extends StatelessWidget {
               spacing: 12,
               runSpacing: 12,
               children: [
+                GlassTile(
+                  icon: Icons.point_of_sale_outlined,
+                  label: 'Cash Drawer',
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CashierDrawerScreen())),
+                ),
                 GlassTile(
                   icon: Icons.badge_outlined,
                   label: 'Employee Management',
